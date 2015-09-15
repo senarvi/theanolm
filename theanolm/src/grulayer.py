@@ -134,7 +134,7 @@ class GRULayer(object):
 		num_time_steps = layer_input.shape[0]
 		self.layer_size = theano_params['encoder_U_candidate'].shape[1]
 
-		mask = tensor.alloc(1., num_time_steps, 1)
+		mask = tensor.alloc(1.0, num_time_steps, 1)
 
 		# The same __create_time_step() method is used for creating the one time
 		# step, so we have to apply the weights and biases first.
@@ -204,10 +204,10 @@ class GRULayer(object):
 		preact_candidate += x_candidate
 
 		# hidden state output
-		h_out = tensor.tanh(preact_candidate)
-		h_out = u * h_in + (1. - u) * h_out  # could be equally (1-u)*h_in + u*h_out
+		h_candidate = tensor.tanh(preact_candidate)
+		h_out = (1.0 - u) * h_in + u * h_candidate
 
 		# Apply the mask.
-		h_out = mask[:,None] * h_out + (1. - mask)[:,None] * h_in
+		h_out = mask[:,None] * h_out + (1.0 - mask)[:,None] * h_in
 
 		return h_out

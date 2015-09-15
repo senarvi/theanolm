@@ -134,7 +134,7 @@ class LSTMLayer(object):
 		num_time_steps = layer_input.shape[0]
 		self.layer_size = theano_params['encoder_U_candidate'].shape[1]
 
-		mask = tensor.alloc(1., num_time_steps, 1)
+		mask = tensor.alloc(1.0, num_time_steps, 1)
 
 		# The same __create_time_step() method is used for creating the one time
 		# step, so we have to apply the weights and biases first.
@@ -197,8 +197,8 @@ class LSTMLayer(object):
 		"""
 
 		# pre-activation of the gates
-		preact_gates = tensor.dot(h_in, U_gates)
-#		preact_gates = tensor.dot(C_in, U_gates)
+# XXX		preact_gates = tensor.dot(h_in, U_gates)
+		preact_gates = tensor.dot(C_in, U_gates)
 		preact_gates += x_gates
 
 		# input, forget, and output gates
@@ -207,8 +207,8 @@ class LSTMLayer(object):
 		o = tensor.nnet.sigmoid(get_submatrix(preact_gates, 2, self.layer_size))
 
 		# pre-activation of the candidate state
-		preact_candidate = tensor.dot(h_in, U_candidate)
-#		preact_candidate = tensor.dot(C_in, U_candidate)
+# XXX		preact_candidate = tensor.dot(h_in, U_candidate)
+		preact_candidate = tensor.dot(C_in, U_candidate)
 		preact_candidate += x_candidate
 
 		# cell state and hidden state outputs
@@ -217,7 +217,7 @@ class LSTMLayer(object):
 		h_out = o * tensor.tanh(C_out)
 
 		# Apply the mask.
-		C_out = mask[:,None] * C_out + (1. - mask)[:,None] * C_in
-		h_out = mask[:,None] * h_out + (1. - mask)[:,None] * h_in
+		C_out = mask[:,None] * C_out + (1.0 - mask)[:,None] * C_in
+		h_out = mask[:,None] * h_out + (1.0 - mask)[:,None] * h_in
 
 		return C_out, h_out
