@@ -20,6 +20,12 @@ class OutputLayer(object):
 
 		:type options: dict
 		:param options: a dictionary of training options
+
+		:type in_size: int
+		:param options: number of input connections
+		
+		:type out_size: int
+		:param options: size of the output
 		"""
 
 		# Create the parameters.
