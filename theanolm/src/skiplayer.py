@@ -5,10 +5,10 @@ import numpy
 from collections import OrderedDict
 import theano.tensor as tensor
 
-from matrixfunctions import normalized_weight
+from matrixfunctions import random_weight
 
 class SkipLayer(object):
-	""" Skip-Layer
+	""" Skip-Layer for Neural Network Language Model
 	
 	A skip-layer combines two inputs by addition (in our case word projections
 	with hidden layer outputs).
@@ -34,13 +34,13 @@ class SkipLayer(object):
 		self.init_params = OrderedDict()
 
 		self.init_params['skip_W_in1'] = \
-				normalized_weight(in1_size, out_size, scale=0.01, ortho=False)
+				random_weight(in1_size, out_size, scale=0.01)
 
 		self.init_params['skip_b_in1'] = \
 				numpy.zeros((out_size,)).astype('float32')
 
 		self.init_params['skip_W_in2'] = \
-				normalized_weight(in2_size, out_size, scale=0.01, ortho=False)
+				random_weight(in2_size, out_size, scale=0.01)
 
 		self.init_params['skip_b_in2'] = \
 				numpy.zeros((out_size,)).astype('float32')

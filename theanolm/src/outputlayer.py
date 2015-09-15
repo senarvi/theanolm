@@ -5,10 +5,10 @@ import numpy
 from collections import OrderedDict
 import theano.tensor as tensor
 
-from matrixfunctions import normalized_weight
+from matrixfunctions import orthogonal_weight
 
 class OutputLayer(object):
-	""" Output Layer
+	""" Output Layer for Neural Network Language Model
 	
 	The output layer is a simple softmax layer that outputs the word
 	probabilities.
@@ -17,9 +17,6 @@ class OutputLayer(object):
 	def __init__(self, in_size, out_size):
 		"""Initializes the parameters for a feed-forward layer of a neural
 		network.
-
-		:type options: dict
-		:param options: a dictionary of training options
 
 		:type in_size: int
 		:param options: number of input connections
@@ -32,7 +29,7 @@ class OutputLayer(object):
 		self.init_params = OrderedDict()
 
 		self.init_params['output_W'] = \
-				normalized_weight(in_size, out_size, scale=0.01, ortho=True)
+				orthogonal_weight(in_size, out_size, scale=0.01)
 
 		self.init_params['output_b'] = \
 				numpy.zeros((out_size,)).astype('float32')
