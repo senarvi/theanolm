@@ -67,7 +67,7 @@ class ProjectionLayer(object):
 				self.options['word_projection_dim']])
 
 		# Shift the projections matrix one time step down, setting the first
-		# time step to zeros.
+		# time step to zero projection vectors.
 		zero_matrix = tensor.zeros_like(projections)
 		return tensor.set_subtensor(zero_matrix[1:], projections[:-1])
 
@@ -76,9 +76,6 @@ class ProjectionLayer(object):
 
 		Creates the layer structure for 1-dimensional input. Simply
 		indexes the word projection matrix with each word ID.
-
-		A negative layer_input value indicates the first word. In that case the
-		resulting word projection will be a zero vector.
 
 		:type theano_params: dict
 		:param theano_params: shared Theano variables
@@ -95,6 +92,9 @@ class ProjectionLayer(object):
 		"""
 
 		dim_word = theano_params['word_projection'].shape[1]
+
+		# The generation starts with input value -1, which will be translated
+		# into zero word projection vector.
 		return tensor.switch(
 				layer_input[:,None] < 0,
 				tensor.alloc(0., 1, dim_word),
