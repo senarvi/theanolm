@@ -26,8 +26,8 @@ class GRULayer(object):
 		# Initialize the parameters.
 		self.init_params = OrderedDict()
 
-		nin = self.options['dim_word']
-		dim = self.options['dim']
+		nin = self.options['word_projection_dim']
+		dim = self.options['hidden_layer_size']
 		
 		num_gates = 2
 
@@ -99,7 +99,7 @@ class GRULayer(object):
 		sequences = [mask, x_transformed_gates, x_transformed_candidate]
 		non_sequences = [U_gates, U_candidate]
 		init_state = tensor.unbroadcast(
-				tensor.alloc(0., num_sequences, self.layer_size), 0)
+				tensor.alloc(0.0, num_sequences, self.layer_size), 0)
 
 		outputs, updates = theano.scan(
 				self.__create_time_step,
@@ -116,7 +116,7 @@ class GRULayer(object):
 		"""Creates GRU layer structure.
 
 		This function is used for creating a text generator. The input is
-		2-dimensional: the first dimension is the time step and the second is
+		2-dimensional: the first dimension is the sequence and the second is
 		the word projection.
 
 		:type theano_params: dict
@@ -131,10 +131,10 @@ class GRULayer(object):
 		if layer_input.ndim != 2:
 			raise ValueError("GRULayer.create_onestep_structure() requires 2-dimensional input.")
 
-		num_time_steps = layer_input.shape[0]
+		num_sequences = layer_input.shape[0]
 		self.layer_size = theano_params['encoder_U_candidate'].shape[1]
 
-		mask = tensor.alloc(1.0, num_time_steps, 1)
+		mask = tensor.alloc(1.0, num_sequences, 1)
 
 		# The same __create_time_step() method is used for creating the one time
 		# step, so we have to apply the weights and biases first.
