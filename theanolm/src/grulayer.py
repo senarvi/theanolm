@@ -6,16 +6,22 @@ import numpy
 import theano
 import theano.tensor as tensor
 
-from matrixfunctions import orthogonal_weight, normalized_weight, get_submatrix
+from matrixfunctions import orthogonal_weight, get_submatrix
 
 
 class GRULayer(object):
-	"""Gated Recurrent Unit Layer
+	"""Gated Recurrent Unit Layer for Neural Network Language Model
 	"""
 
-	def __init__(self, options):
+	def __init__(self, in_size, out_size, options):
 		"""Initializes the parameters for a GRU layer of a recurrent neural
 		network.
+
+		:type in_size: int
+		:param options: number of input connections
+
+		:type out_size: int
+		:param options: number of output connections
 
 		:type options: dict
 		:param options: a dictionary of training options
@@ -23,41 +29,41 @@ class GRULayer(object):
 
 		self.options = options
 
+		# The number of state variables to be passed between time steps.
+		self.num_state_variables = 1
+		
 		# Initialize the parameters.
 		self.init_params = OrderedDict()
-
-		nin = self.options['word_projection_dim']
-		dim = self.options['hidden_layer_size']
 		
 		num_gates = 2
 
 		# concatenation of the input weights for each gate
 		self.init_params['encoder_W_gates'] = \
 				numpy.concatenate(
-						[normalized_weight(nin, dim) for _ in range(num_gates)],
+						[orthogonal_weight(in_size, out_size, scale=0.01) for _ in range(num_gates)],
 						axis=1)
 
 		# concatenation of the previous step output weights for each gate
 		self.init_params['encoder_U_gates'] = \
 				numpy.concatenate(
-						[orthogonal_weight(dim) for _ in range(num_gates)],
+						[orthogonal_weight(out_size, out_size) for _ in range(num_gates)],
 						axis=1)
 
 		# concatenation of the biases for each gate
 		self.init_params['encoder_b_gates'] = \
-				numpy.zeros((num_gates * dim,)).astype('float32')
+				numpy.zeros((num_gates * out_size,)).astype('float32')
 		
 		# input weight for the candidate state
 		self.init_params['encoder_W_candidate'] = \
-				normalized_weight(nin, dim)
-
+				orthogonal_weight(in_size, out_size, scale=0.01)
+		
 		# previous step output weight for the candidate state
 		self.init_params['encoder_U_candidate'] = \
-				orthogonal_weight(dim)
+				orthogonal_weight(out_size, out_size)
 		
 		# bias for the candidate state
 		self.init_params['encoder_b_candidate'] = \
-				numpy.zeros((dim,)).astype('float32') 
+				numpy.zeros((out_size,)).astype('float32') 
 
 	def create_minibatch_structure(self, theano_params, layer_input, mask):
 		"""Creates GRU layer structure.
@@ -70,9 +76,17 @@ class GRULayer(object):
 		:param theano_params: shared Theano variables
 
 		:type layer_input: theano.tensor.var.TensorVariable
-		:param layer_input: x_(t), symbolic 3-dimensional matrix that
-		                    describes the output of the previous layer (word
-		                    projections of the sequences)
+		:param layer_input: x_(t), symbolic 3-dimensional matrix that describes
+		                    the output of the previous layer (word projections
+		                    of the sequences)
+
+		:type mask: theano.tensor.var.TensorVariable
+		:param mask: symbolic 2-dimensional matrix that masks out time steps in
+		             layer_input after sequence end
+
+		:rtype: theano.tensor.var.TensorVariable
+		:returns: symbolic 2-dimensional matrix that describes the hidden state
+		          outputs of the time steps
 		"""
 
 		if layer_input.ndim != 3:
@@ -82,29 +96,28 @@ class GRULayer(object):
 		num_sequences = layer_input.shape[1]
 		self.layer_size = theano_params['encoder_U_candidate'].shape[1]
 
-		# Before looping, the weights and biases are applied to the input,
-		# which does not depend on the time step.
-		x_transformed_gates = \
+		# Compute the gate pre-activations, which don't depend on the time step.
+		x_preact_gates = \
 				tensor.dot(layer_input, theano_params['encoder_W_gates']) \
 				+ theano_params['encoder_b_gates']
-		x_transformed_candidate = \
+		x_preact_candidate = \
 				tensor.dot(layer_input, theano_params['encoder_W_candidate']) \
 				+ theano_params['encoder_b_candidate']
 		
-		# The weights and biases for the previous step output. These will
-		# be applied inside the loop.
+		# The weights and biases for the previous step output. These have to be
+		# applied inside the loop.
 		U_gates = theano_params['encoder_U_gates']
 		U_candidate = theano_params['encoder_U_candidate']
 
-		sequences = [mask, x_transformed_gates, x_transformed_candidate]
+		sequences = [mask, x_preact_gates, x_preact_candidate]
 		non_sequences = [U_gates, U_candidate]
-		init_state = tensor.unbroadcast(
+		initial_hidden_state = tensor.unbroadcast(
 				tensor.alloc(0.0, num_sequences, self.layer_size), 0)
 
-		outputs, updates = theano.scan(
+		outputs, _ = theano.scan(
 				self.__create_time_step,
 				sequences = sequences,
-				outputs_info = [init_state],
+				outputs_info = [initial_hidden_state],
 				non_sequences = non_sequences,
 				name = 'encoder_time_steps',
 				n_steps = num_time_steps,
@@ -112,7 +125,7 @@ class GRULayer(object):
 				strict = True)
 		return outputs
 
-	def create_onestep_structure(self, theano_params, layer_input, init_state):
+	def create_onestep_structure(self, theano_params, layer_input, state_input):
 		"""Creates GRU layer structure.
 
 		This function is used for creating a text generator. The input is
@@ -126,24 +139,32 @@ class GRULayer(object):
 		:param layer_input: x_(t), symbolic 2-dimensional matrix that
 		                    describes the output of the previous layer (word
 		                    projections of the sequences)
-		"""
 
-		if layer_input.ndim != 2:
-			raise ValueError("GRULayer.create_onestep_structure() requires 2-dimensional input.")
+		:type state_input: list of theano.tensor.var.TensorVariables
+		:param state_input: a list of symbolic 2-dimensional matrices that
+		                    describe the state outputs of the previous time step
+		                    - only one state in a GRU layer, h_(t-1)
+
+		:rtype: theano.tensor.var.TensorVariable
+		:returns: a list of symbolic 2-dimensional matrices that describe the
+		          state outputs of the time steps - only one state in a GRU
+		          layer, h_(t)
+		"""
 
 		num_sequences = layer_input.shape[0]
 		self.layer_size = theano_params['encoder_U_candidate'].shape[1]
 
 		mask = tensor.alloc(1.0, num_sequences, 1)
 
-		# The same __create_time_step() method is used for creating the one time
-		# step, so we have to apply the weights and biases first.
-		x_transformed_gates = \
+		# Compute the gate pre-activations, which don't depend on the time step.
+		x_preact_gates = \
 				tensor.dot(layer_input, theano_params['encoder_W_gates']) \
 				+ theano_params['encoder_b_gates']
-		x_transformed_candidate = \
+		x_preact_candidate = \
 				tensor.dot(layer_input, theano_params['encoder_W_candidate']) \
 				+ theano_params['encoder_b_candidate']
+
+		hidden_state_input = state_input[0]
 		
 		# The weights and biases for the previous step output. These will
 		# be applied inside __create_time_step().
@@ -152,14 +173,15 @@ class GRULayer(object):
 
 		outputs = self.__create_time_step(
 				mask,
-				x_transformed_gates,
-				x_transformed_candidate,
-				init_state,
+				x_preact_gates,
+				x_preact_candidate,
+				hidden_state_input,
 				U_gates,
 				U_candidate)
-		return outputs
+		return [outputs]
 
-	def __create_time_step(self, mask, x_gates, x_candidate, h_in, U_gates, U_candidate):
+	def __create_time_step(self, mask, x_preact_gates, x_preact_candidate, h_in, U_gates,
+	                       U_candidate):
 		"""The GRU step function for theano.scan(). Creates the structure of one
 		time step.
 
@@ -172,13 +194,15 @@ class GRULayer(object):
 		:type mask: theano.tensor.var.TensorVariable
 		:param mask: masks out time steps after sequence end
 
-		:type x_gates: theano.tensor.var.TensorVariable
-		:param x_gates: concatenation of the input x_(t) transformed using the various
-		                gate weights and biases
+		:type x_preact_gates: theano.tensor.var.TensorVariable
+		:param x_preact_gates: concatenation of the input x_(t) pre-activations
+		                       computed using the various gate weights and
+		                       biases
 
-		:type x_candidate: theano.tensor.var.TensorVariable
-		:param x_candidate: input x_(t) transformed using the weight W and bias b
-		                    for the new candidate state
+		:type x_preact_candidate: theano.tensor.var.TensorVariable
+		:param x_preact_candidate: input x_(t) pre-activation computed using the
+		                           weight W and bias b for the new candidate
+		                           state
 
 		:type h_in: theano.tensor.var.TensorVariable
 		:param h_in: h_(t-1), hidden state output of the previous time step
@@ -192,7 +216,7 @@ class GRULayer(object):
 
 		# pre-activation of the gates
 		preact_gates = tensor.dot(h_in, U_gates)
-		preact_gates += x_gates
+		preact_gates += x_preact_gates
 
 		# reset and update gates
 		r = tensor.nnet.sigmoid(get_submatrix(preact_gates, 0, self.layer_size))
@@ -201,7 +225,7 @@ class GRULayer(object):
 		# pre-activation of the candidate state
 		preact_candidate = tensor.dot(h_in, U_candidate)
 		preact_candidate *= r
-		preact_candidate += x_candidate
+		preact_candidate += x_preact_candidate
 
 		# hidden state output
 		h_candidate = tensor.tanh(preact_candidate)
