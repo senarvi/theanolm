@@ -10,6 +10,7 @@ import theano.tensor as tensor
 
 from projectionlayer import ProjectionLayer
 from lstmlayer import LSTMLayer
+from sslstmlayer import SSLSTMLayer
 from grulayer import GRULayer
 from skiplayer import SkipLayer
 from outputlayer import OutputLayer
@@ -19,7 +20,7 @@ class RNNLM(object):
 	"""Recursive Neural Network Language Model
 
 	A recursive neural network language model implemented using Theano.
-	Supports LSTM architecture.
+	Supports LSTM and GRU architectures.
 	"""
 
 	def __init__(self, options):
@@ -43,18 +44,23 @@ class RNNLM(object):
 				self.options['word_projection_dim'],
 				self.options)
 		
-		if self.options['encoder'] == 'lstm':
+		if self.options['hidden_layer_type'] == 'lstm':
 			self.hidden_layer = LSTMLayer(
 					self.options['word_projection_dim'],
 					self.options['hidden_layer_size'],
 					self.options)
-		elif self.options['encoder'] == 'gru':
+		elif self.options['hidden_layer_type'] == 'ss-lstm':
+			self.hidden_layer = SSLSTMLayer(
+					self.options['word_projection_dim'],
+					self.options['hidden_layer_size'],
+					self.options)
+		elif self.options['hidden_layer_type'] == 'gru':
 			self.hidden_layer = GRULayer(
 					self.options['word_projection_dim'],
 					self.options['hidden_layer_size'],
 					self.options)
 		else:
-			raise ValueError("Invalid hidden layer type: " + self.options['encoder'])
+			raise ValueError("Invalid hidden layer type: " + self.options['hidden_layer_type'])
 		
 		self.skip_layer = SkipLayer(
 				self.options['hidden_layer_size'],
@@ -83,7 +89,7 @@ class RNNLM(object):
 		
 		self.create_minibatch_structure()
 		self.create_onestep_structure()
-			
+
 	def create_minibatch_structure(self):
 		"""Creates the network structure for mini-batch processing.
 		"""
