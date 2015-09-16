@@ -34,7 +34,7 @@ class ProjectionLayer(object):
 				orthogonal_weight(in_size, out_size, scale=0.01)
 
 	def create_minibatch_structure(self, theano_params, layer_input):
-		"""Creates projection layer structure for mini-batch input.
+		"""Creates projection layer structure for mini-batch processing.
 
 		Creates the layer structure for 2-dimensional input: the first
 		dimension is the time step (index of word in a sequence) and the
@@ -69,10 +69,10 @@ class ProjectionLayer(object):
 		# Shift the projections matrix one time step down, setting the first
 		# time step to zero projection vectors.
 		zero_matrix = tensor.zeros_like(projections)
-		return tensor.set_subtensor(zero_matrix[1:], projections[:-1])
+		self.minibatch_output = tensor.set_subtensor(zero_matrix[1:], projections[:-1])
 
 	def create_onestep_structure(self, theano_params, layer_input):
-		"""Creates projection layer structure for one-step computation.
+		"""Creates projection layer structure for one-step processing.
 
 		Creates the layer structure for 1-dimensional input. Simply
 		indexes the word projection matrix with each word ID.
@@ -91,11 +91,11 @@ class ProjectionLayer(object):
 		          projections
 		"""
 
-		dim_word = theano_params['word_projection'].shape[1]
+		word_projection_dim = theano_params['word_projection'].shape[1]
 
 		# The generation starts with input value -1, which will be translated
 		# into zero word projection vector.
-		return tensor.switch(
+		self.onestep_output = tensor.switch(
 				layer_input[:,None] < 0,
-				tensor.alloc(0., 1, dim_word),
+				tensor.alloc(0.0, 1, word_projection_dim),
 				theano_params['word_projection'][layer_input])

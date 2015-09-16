@@ -35,7 +35,7 @@ class OutputLayer(object):
 				numpy.zeros((out_size,)).astype('float32')
 
 	def create_minibatch_structure(self, theano_params, layer_input):
-		""" Creates output layer structure.
+		""" Creates output layer structure for mini-batch processing.
 
 		In mini-batch training the input is 3-dimensional: the first dimension
 		is the time step, the second dimension are the sequences, and the third
@@ -62,10 +62,10 @@ class OutputLayer(object):
 		preact = preact.reshape([num_time_steps * num_sequences,
 		                         word_projection_dim])
 		
-		return tensor.nnet.softmax(preact)
+		self.minibatch_output = tensor.nnet.softmax(preact)
 
 	def create_onestep_structure(self, theano_params, layer_input):
-		""" Creates output layer structure.
+		""" Creates output layer structure for one-step processing.
 		
 		This function is used for creating a text generator. The input is
 		2-dimensional: the first dimension is the sequence and the second is
@@ -84,5 +84,5 @@ class OutputLayer(object):
 
 		preact = tensor.dot(layer_input, theano_params['output_W']) \
 				+ theano_params['output_b']
-		
-		return tensor.nnet.softmax(preact)
+
+		self.onestep_output = tensor.nnet.softmax(preact)

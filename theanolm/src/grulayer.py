@@ -66,7 +66,7 @@ class GRULayer(object):
 				numpy.zeros((out_size,)).astype('float32') 
 
 	def create_minibatch_structure(self, theano_params, layer_input, mask):
-		"""Creates GRU layer structure.
+		"""Creates GRU layer structure for mini-batch processing.
 
 		In mini-batch training the input is 3-dimensional: the first
 		dimension is the time step, the second dimension are the sequences,
@@ -119,14 +119,15 @@ class GRULayer(object):
 				sequences = sequences,
 				outputs_info = [initial_hidden_state],
 				non_sequences = non_sequences,
-				name = 'encoder_time_steps',
+				name = 'hidden_layer_steps',
 				n_steps = num_time_steps,
 				profile = self.options['profile'],
 				strict = True)
-		return outputs
+		
+		self.minibatch_output = outputs
 
 	def create_onestep_structure(self, theano_params, layer_input, state_input):
-		"""Creates GRU layer structure.
+		"""Creates GRU layer structure for one-step processing.
 
 		This function is used for creating a text generator. The input is
 		2-dimensional: the first dimension is the sequence and the second is
@@ -178,7 +179,7 @@ class GRULayer(object):
 				hidden_state_input,
 				U_gates,
 				U_candidate)
-		return [outputs]
+		self.onestep_outputs = [outputs]
 
 	def __create_time_step(self, mask, x_preact_gates, x_preact_candidate, h_in, U_gates,
 	                       U_candidate):

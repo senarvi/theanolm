@@ -66,7 +66,7 @@ class LSTMLayer(object):
 				numpy.zeros((out_size,)).astype('float32') 
 
 	def create_minibatch_structure(self, theano_params, layer_input, mask):
-		"""Creates LSTM layer structure.
+		"""Creates LSTM layer structure for mini-batch processing.
 
 		In mini-batch training the input is 3-dimensional: the first
 		dimension is the time step, the second dimension are the sequences,
@@ -121,14 +121,15 @@ class LSTMLayer(object):
 				sequences = sequences,
 				outputs_info = [initial_cell_state, initial_hidden_state],
 				non_sequences = non_sequences,
-				name = 'encoder_time_steps',
+				name = 'hidden_layer_steps',
 				n_steps = num_time_steps,
 				profile = self.options['profile'],
 				strict = True)
-		return outputs[1]
+		
+		self.minibatch_output = outputs[1]
 
 	def create_onestep_structure(self, theano_params, layer_input, state_input):
-		"""Creates LSTM layer structure.
+		"""Creates LSTM layer structure for one-step processing.
 
 		This function is used for creating a text generator. The input is
 		2-dimensional: the first dimension is the sequence and the second is
@@ -182,7 +183,7 @@ class LSTMLayer(object):
 				hidden_state_input,
 				U_gates,
 				U_candidate)
-		return outputs
+		self.onestep_outputs = outputs
 
 	def __create_time_step(self, mask, x_preact_gates, x_preact_candidate, C_in,
 	                       h_in, U_gates, U_candidate):
@@ -224,8 +225,7 @@ class LSTMLayer(object):
 		"""
 
 		# pre-activation of the gates
-# XXX		preact_gates = tensor.dot(h_in, U_gates)
-		preact_gates = tensor.dot(C_in, U_gates)
+		preact_gates = tensor.dot(h_in, U_gates)
 		preact_gates += x_preact_gates
 
 		# input, forget, and output gates
@@ -234,8 +234,7 @@ class LSTMLayer(object):
 		o = tensor.nnet.sigmoid(get_submatrix(preact_gates, 2, self.layer_size))
 
 		# pre-activation of the candidate state
-# XXX		preact_candidate = tensor.dot(h_in, U_candidate)
-		preact_candidate = tensor.dot(C_in, U_candidate)
+		preact_candidate = tensor.dot(h_in, U_candidate)
 		preact_candidate += x_preact_candidate
 
 		# cell state and hidden state outputs

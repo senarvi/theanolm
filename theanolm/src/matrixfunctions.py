@@ -6,8 +6,17 @@ import numpy
 def random_weight(in_size, out_size, scale=None):
 	""" Generates a weight matrix from “standard normal” distribution.
 
+	:type in_size: int
+	:param in_size: size of the input dimension of the weight
+
+	:type out_size: int
+	:param out_size: size of the output dimension of the weight
+
 	:type scale: float
 	:param scale: if other than None, the matrix will be scaled by this factor
+	
+	:rtype: numpy.ndarray
+	:returns: the generated weight matrix
 	"""
 
 	result = numpy.random.randn(in_size, out_size)
@@ -36,6 +45,25 @@ def orthogonal_weight(in_size, out_size, scale=None):
 	nonorthogonal_matrix = numpy.random.randn(in_size, out_size)
 	result, _, _ = numpy.linalg.svd(nonorthogonal_matrix)
 	return result.astype('float32')
+
+def test_value(size, max_value):
+	""" Creates a matrix of random numbers that can be used as a test value for
+	a parameter to enable debugging Theano errors.
+
+	:type size: int or tuple of ints
+	:param size: dimensions of the matrix
+
+	:type max_value: int or float
+	:param max_value: maximum value for the generated random numbers
+
+	:rtype: numpy.ndarray
+	:returns: a matrix or vector containing the generated values
+	"""
+
+	if type(max_value) is int:
+		return numpy.random.randint(0, max_value, size=size).astype('int64')
+	elif type(max_value) is float:
+		return max_value * numpy.random.rand(*size).astype('float32')
 
 def get_submatrix(matrices, index, size):
 	"""Returns a submatrix of a concatenation of 2 or 3 dimensional

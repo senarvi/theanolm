@@ -46,7 +46,7 @@ class SkipLayer(object):
 				numpy.zeros((out_size,)).astype('float32')
 
 	def create_structure(self, theano_params, layer_input_in1, layer_input_in2):
-		""" Creates feed-forward layer structure.
+		""" Creates skip-layer structure.
 
 		:type theano_params: dict
 		:param theano_params: shared Theano variables
@@ -67,4 +67,4 @@ class SkipLayer(object):
 				+ theano_params['skip_b_in1']
 		preact_in2 = tensor.dot(layer_input_in2, theano_params['skip_W_in2']) \
 				+ theano_params['skip_b_in2']
-		return tensor.tanh(preact_in1 + preact_in2)
+		self.output = tensor.tanh(preact_in1 + preact_in2)
