@@ -48,6 +48,9 @@ class SkipLayer(object):
 	def create_structure(self, theano_params, layer_input_in1, layer_input_in2):
 		""" Creates skip-layer structure.
 
+		Sets self.output to a symbolic matrix that describes the output of this
+		layer.
+
 		:type theano_params: dict
 		:param theano_params: shared Theano variables
 
@@ -58,9 +61,6 @@ class SkipLayer(object):
 		:type layer_input_in2: theano.tensor.var.TensorVariable
 		:param layer_input_in2: symbolic matrix that describes the output of the
 		second input layer
-
-		:rtype: theano.tensor.var.TensorVariable
-		:returns: symbolic matrix that describes the output of this layer
 		"""
 
 		preact_in1 = tensor.dot(layer_input_in1, theano_params['skip_W_in1']) \

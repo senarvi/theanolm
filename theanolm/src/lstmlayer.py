@@ -72,6 +72,9 @@ class LSTMLayer(object):
 		dimension is the time step, the second dimension are the sequences,
 		and the third dimension is the word projection.
 
+		Sets self.minibatch_output to a symbolic 2-dimensional matrix that
+		describes the hidden state output of the time steps.
+
 		:type theano_params: dict
 		:param theano_params: shared Theano variables
 
@@ -83,10 +86,6 @@ class LSTMLayer(object):
 		:type mask: theano.tensor.var.TensorVariable
 		:param mask: symbolic 2-dimensional matrix that masks out time steps in
 		             layer_input after sequence end
-
-		:rtype: theano.tensor.var.TensorVariable
-		:returns: symbolic 2-dimensional matrix that describes the hidden state
-		          outputs of the time steps
 		"""
 
 		if layer_input.ndim != 3:
@@ -135,6 +134,10 @@ class LSTMLayer(object):
 		2-dimensional: the first dimension is the sequence and the second is
 		the word projection.
 
+		Sets self.onestep_outputs to a list of symbolic 2-dimensional matrices
+		that describe the state outputs of the time steps: cell state C_(t) and
+		hidden state h_(t).
+
 		:type theano_params: dict
 		:param theano_params: shared Theano variables
 
@@ -147,11 +150,6 @@ class LSTMLayer(object):
 		:param state_input: a list of symbolic 2-dimensional matrices that
 		                    describe the state outputs of the previous time step
 		                    - cell state C_(t-1) and hidden state h_(t-1)
-
-		:rtype: theano.tensor.var.TensorVariable
-		:returns: a list of symbolic 2-dimensional matrices that describe the
-		          state outputs of the time steps - cell state C_(t) and
-		          hidden state h_(t)
 		"""
 
 		num_sequences = layer_input.shape[0]
@@ -222,6 +220,9 @@ class LSTMLayer(object):
 		:type U_candidate: theano.tensor.var.TensorVariable
 		:param U_candidate: candidate state weight matrix to be applied to
 		                    h_(t-1)
+		
+		:rtype: a tuple of two theano.tensor.var.TensorVariables
+		:returns: C_(t) and h_(t), the cell state and hidden state outputs
 		"""
 
 		# pre-activation of the gates

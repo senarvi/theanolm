@@ -72,6 +72,9 @@ class GRULayer(object):
 		dimension is the time step, the second dimension are the sequences,
 		and the third dimension is the word projection.
 
+		Sets self.minimatch_output to a symbolic 2-dimensional matrix that
+		describes the hidden state output of the time steps.
+
 		:type theano_params: dict
 		:param theano_params: shared Theano variables
 
@@ -83,10 +86,6 @@ class GRULayer(object):
 		:type mask: theano.tensor.var.TensorVariable
 		:param mask: symbolic 2-dimensional matrix that masks out time steps in
 		             layer_input after sequence end
-
-		:rtype: theano.tensor.var.TensorVariable
-		:returns: symbolic 2-dimensional matrix that describes the hidden state
-		          outputs of the time steps
 		"""
 
 		if layer_input.ndim != 3:
@@ -133,6 +132,10 @@ class GRULayer(object):
 		2-dimensional: the first dimension is the sequence and the second is
 		the word projection.
 
+		Sets self.onestep_outputs to a list of symbolic 2-dimensional matrices
+		that describe the state outputs of the time steps. There's only one
+		state in a GRU layer, h_(t).
+
 		:type theano_params: dict
 		:param theano_params: shared Theano variables
 
@@ -145,11 +148,6 @@ class GRULayer(object):
 		:param state_input: a list of symbolic 2-dimensional matrices that
 		                    describe the state outputs of the previous time step
 		                    - only one state in a GRU layer, h_(t-1)
-
-		:rtype: theano.tensor.var.TensorVariable
-		:returns: a list of symbolic 2-dimensional matrices that describe the
-		          state outputs of the time steps - only one state in a GRU
-		          layer, h_(t)
 		"""
 
 		num_sequences = layer_input.shape[0]
@@ -209,10 +207,15 @@ class GRULayer(object):
 		:param h_in: h_(t-1), hidden state output of the previous time step
 
 		:type U_gates: theano.tensor.var.TensorVariable
-		:param U_gates: concatenation of the gate weights to be applied to h_(t-1)
+		:param U_gates: concatenation of the gate weights to be applied to
+		                h_(t-1)
 
 		:type U_candidate: theano.tensor.var.TensorVariable
-		:param U_candidate: candidate state weight matrix to be applied to h_(t-1)
+		:param U_candidate: candidate state weight matrix to be applied to
+		                    h_(t-1)
+		
+		:rtype: theano.tensor.var.TensorVariable
+		:returns: h_(t), the hidden state output
 		"""
 
 		# pre-activation of the gates

@@ -77,6 +77,9 @@ class SSLSTMLayer(object):
 		dimension is the time step, the second dimension are the sequences,
 		and the third dimension is the word projection.
 
+		Sets self.minibatch_output to a symbolic 2-dimensional matrix that
+		describes the hidden state output of the time steps.
+
 		:type theano_params: dict
 		:param theano_params: shared Theano variables
 
@@ -88,10 +91,6 @@ class SSLSTMLayer(object):
 		:type mask: theano.tensor.var.TensorVariable
 		:param mask: symbolic 2-dimensional matrix that masks out time steps in
 		             layer_input after sequence end
-
-		:rtype: theano.tensor.var.TensorVariable
-		:returns: symbolic 2-dimensional matrix that describes the hidden state
-		          outputs of the time steps
 		"""
 
 		if layer_input.ndim != 3:
@@ -138,6 +137,10 @@ class SSLSTMLayer(object):
 		2-dimensional: the first dimension is the sequence and the second is
 		the word projection.
 
+		Sets self.onestep_output to a list of symbolic 2-dimensional matrices
+		that describe the state outputs of the time steps. There's only one
+		state in a SS-LSTM layer, the hidden state h_(t).
+
 		:type theano_params: dict
 		:param theano_params: shared Theano variables
 
@@ -151,11 +154,6 @@ class SSLSTMLayer(object):
 		                    describe the state outputs of the previous time step
 		                    - only one state in a CLSTM layer, the hidden state
 		                    h_(t-1)
-
-		:rtype: theano.tensor.var.TensorVariable
-		:returns: a list of symbolic 2-dimensional matrices that describe the
-		          state outputs of the time steps - only one state in a CLSTM
-		          layer, the hidden state h_(t)
 		"""
 
 		num_sequences = layer_input.shape[0]
@@ -185,6 +183,7 @@ class SSLSTMLayer(object):
 				hidden_state_input,
 				U_gates,
 				U_candidate)
+
 		self.onestep_outputs = [outputs]
 
 	def __create_time_step(self, mask, x_preact_gates, x_preact_candidate, C_in,
@@ -221,6 +220,9 @@ class SSLSTMLayer(object):
 		:type U_candidate: theano.tensor.var.TensorVariable
 		:param U_candidate: candidate state weight matrix to be applied to
 		                    h_(t-1)
+		
+		:rtype: theano.tensor.var.TensorVariable
+		:returns: h_(t), the hidden state output
 		"""
 
 		# pre-activation of the gates

@@ -42,15 +42,15 @@ class OutputLayer(object):
 		dimension is the word projection. Before taking the softmax and
 		returning the probabilities, the first two dimensions are combined.
 
+		Sets self.minibatch_output to a symbolic matrix that describes the
+		output of this layer, i.e. the word probabilities.
+
 		:type theano_params: dict
 		:param theano_params: shared Theano variables
 
 		:type layer_input: theano.tensor.var.TensorVariable
 		:param layer_input: symbolic matrix that describes the output of the
 		previous layer
-
-		:rtype: theano.tensor.var.TensorVariable
-		:returns: symbolic matrix that describes the output of this layer
 		"""
 
 		preact = tensor.dot(layer_input, theano_params['output_W']) \
@@ -71,15 +71,15 @@ class OutputLayer(object):
 		2-dimensional: the first dimension is the sequence and the second is
 		the word projection.
 
+		Sets self.onestep_output to a symbolic matrix that describes the output
+		of this layer, i.e. the word probabilities.
+
 		:type theano_params: dict
 		:param theano_params: shared Theano variables
 
 		:type layer_input: theano.tensor.var.TensorVariable
 		:param layer_input: symbolic matrix that describes the output of the
 		previous layer
-
-		:rtype: theano.tensor.var.TensorVariable
-		:returns: symbolic matrix that describes the output of this layer
 		"""
 
 		preact = tensor.dot(layer_input, theano_params['output_W']) \
