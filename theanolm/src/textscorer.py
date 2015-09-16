@@ -10,8 +10,8 @@ class TextScorer(object):
 	"""
 
 	def __init__(self, network, options):
-		"""Creates a Theano function self.score_function that computes the
-		negative log probability of a text segment.
+		"""Creates a Theano function self.costs_function that computes the
+		negative log probabilities of given text sequences.
 
 		:type network: RNNLM
 		:param network: the neural network object
@@ -20,40 +20,36 @@ class TextScorer(object):
 		:param options: a dictionary of training options
 		"""
 
-		self.network = network
-		self.options = options
-
-		input_matrix = self.network.minibatch_input
-		input_flat = input_matrix.flatten()
-
-		# Input word IDs + the index times vocabulary size can be used to index
-		# a flattened output matrix.
-		flat_output_indices = \
-				tensor.arange(input_flat.shape[0]) * self.options['vocab_size'] \
-				+ input_flat
+		inputs = [network.minibatch_input, network.minibatch_mask]
 
 		# Calculate negative log probability of each word.
-		word_probs = self.network.minibatch_output
-		cost = -tensor.log(word_probs.flatten()[flat_output_indices])
-		cost = cost.reshape([input_matrix.shape[0], input_matrix.shape[1]])
+		costs = -tensor.log(network.minibatch_probs)
+		# Apply mask to the costs matrix.
+		costs = costs * network.minibatch_mask
+		# Sum costs over time steps to get the negative log probability of each
+		# sequence.
+		outputs = costs.sum(0)
 
-		# Apply mask to the cost matrix.
-		mask = self.network.minibatch_mask
-		cost = (cost * mask).sum(0)
-
-		inputs = [input_matrix, mask]
-		self.score_function = theano.function(inputs, cost, profile=self.options['profile'])
+		self.score_function = \
+				theano.function(inputs, outputs, profile=options['profile'])
 
 	def negative_log_probability(self, minibatch_iterator):
-		word_costs = []
+		"""Computes the mean negative log probability of mini-batches read using
+		the given iterator.
 
+		:type minibatch_iterator: MinibatchIterator
+		:param minibatch_iterator: iterator to the input file
+
+		:rtype: float
+		:returns: average sequence negative log probability
+		"""
+
+		costs = []
 		for input_matrix, mask in minibatch_iterator:
-			#pprobs = self.score_function(input_matrix, mask)
-			#for pp in pprobs:
-			#	word_costs.append(pp)
-			word_costs.extend(self.score_function(input_matrix, mask))
-
-			if numpy.isnan(numpy.mean(word_costs)):
+			# Append costs of each sequence in the mini-batch. 
+			costs.extend(self.score_function(input_matrix, mask))
+			if numpy.isnan(numpy.mean(costs)):
 				import ipdb; ipdb.set_trace()
 
-		return numpy.array(word_costs).mean()
+		# Return the average sequence cost.
+		return numpy.array(costs).mean()

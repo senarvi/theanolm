@@ -42,8 +42,9 @@ class OutputLayer(object):
 		dimension is the word projection. Before taking the softmax and
 		returning the probabilities, the first two dimensions are combined.
 
-		Sets self.minibatch_output to a symbolic matrix that describes the
-		output of this layer, i.e. the word probabilities.
+		Sets self.minibatch_output to a symbolic 3-dimensional matrix that
+		describes the output of this layer, i.e. the probability of every
+		vocabulary word for each input.
 
 		:type theano_params: dict
 		:param theano_params: shared Theano variables
@@ -71,8 +72,9 @@ class OutputLayer(object):
 		2-dimensional: the first dimension is the sequence and the second is
 		the word projection.
 
-		Sets self.onestep_output to a symbolic matrix that describes the output
-		of this layer, i.e. the word probabilities.
+		Sets self.onestep_output to a symbolic 3-dimensional matrix that
+		describes the output of this layer, i.e. the probability of every
+		vocabulary word for each input.
 
 		:type theano_params: dict
 		:param theano_params: shared Theano variables

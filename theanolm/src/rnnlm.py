@@ -92,20 +92,24 @@ class RNNLM(object):
 
 	def create_minibatch_structure(self):
 		"""Creates the network structure for mini-batch processing.
+		
+		Sets self.minibatch_output to a symbolic matrix, the same shape as
+		self.minibatch_input, containing the output word probabilities, and
+		self.minibatch_costs containing the negative log probabilities. 
 		"""
 
 		# minibatch_input describes the input matrix containing
-		# [ number of sequences * sequence length ] word IDs.
+		# [ number of time steps * number of sequences ] word IDs.
 		self.minibatch_input = tensor.matrix('minibatch_input', dtype='int64')
 		self.minibatch_input.tag.test_value = test_value(
-				size=(4, 16),
+				size=(16, 4),
 				max_value=self.options['vocab_size'])
 		
 		# mask is used to mask out the rest of the input matrix, when a sequence
 		# is shorter than the maximum sequence length.
 		self.minibatch_mask = tensor.matrix('minibatch_mask', dtype='float32')
 		self.minibatch_mask.tag.test_value = test_value(
-				size=(4, 16),
+				size=(16, 4),
 				max_value=1.0)
 
 		self.projection_layer.create_minibatch_structure(
@@ -125,6 +129,18 @@ class RNNLM(object):
 		
 		self.minibatch_output = self.output_layer.minibatch_output
 		
+		# Input word IDs + the index times vocabulary size can be used to index
+		# a flattened output matrix to read the probabilities of the input
+		# words.
+		input_flat = self.minibatch_input.flatten()
+		flat_output_indices = \
+				tensor.arange(input_flat.shape[0]) * self.options['vocab_size'] \
+				+ input_flat
+		input_word_probs = self.minibatch_output.flatten()[flat_output_indices]
+		input_word_probs = input_word_probs.reshape(
+				[self.minibatch_input.shape[0], self.minibatch_input.shape[1]])
+		self.minibatch_probs = input_word_probs
+
 	def create_onestep_structure(self):
 		"""Creates the network structure for one-step processing.
 		"""
