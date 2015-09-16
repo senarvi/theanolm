@@ -14,7 +14,7 @@ class BatchIterator(object):
 	             max_sequence_length=100):
 		"""
 		:type input_file: file object
-		:param input_file: input file
+		:param input_file: input text file
 
 		:type dictionary: Dictionary
 		:param dictionary: dictionary that provides mapping between words and
