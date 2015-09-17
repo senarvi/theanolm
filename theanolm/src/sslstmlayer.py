@@ -186,8 +186,8 @@ class SSLSTMLayer(object):
 
 		self.onestep_outputs = [outputs]
 
-	def __create_time_step(self, mask, x_preact_gates, x_preact_candidate, C_in,
-	                       h_in, U_gates, U_candidate):
+	def __create_time_step(self, mask, x_preact_gates, x_preact_candidate, h_in,
+	                       U_gates, U_candidate):
 		"""The SS-LSTM step function for theano.scan(). Creates the structure of
 		one time step.
 
