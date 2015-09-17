@@ -187,22 +187,27 @@ class RNNLM(object):
 
 	def __load_params(self):
 		"""Loads the neural network parameters from disk.
+		
+		This function should be called only in the constructor, before the
+		Theano shared variables are created.
 		"""
 
 		path = self.options['model_path']
-		print("Loading previous state from %s." % path)
 
 		# Reload the parameters.
 		data = numpy.load(path)
+		num_updated = 0
 		for name in self.init_params:
 			if name not in data:
 				warnings.warn('The parameter %s was not found from the archive.' % name)
 				continue
 			self.init_params[name] = data[name]
+			num_updated += 1
+		print("Read %d parameter values from %s." % (num_updated, path))
 
 		# Reload the error history.
 		if 'error_history' not in data:
-			warnings.warn('Error history was not found from the archive.' % name)
+			warnings.warn('Training error history was not found from the archive.' % name)
 		else:
 			saved_error_history = data['error_history'].tolist()
 			# If the error history was empty when the state was saved,
@@ -210,24 +215,22 @@ class RNNLM(object):
 			if not saved_error_history is None:
 				self.error_history = saved_error_history
 
-		print("Done.")
 		self.print_error_history()
 
-	def save_params(self, x=None):
+	def save_params(self, params=None):
 		"""Saves the neural network parameters to disk.
 
-		:type x: dict
-		:param x: if set to other than None, save these values, instead of the
+		:type params: dict
+		:param params: if set to other than None, save these values, instead of the
 				  current values from the Theano shared variables
 		"""
 
 		path = self.options['model_path']
-		print("Saving current state to %s." % path)
+		if params is None:
+			params = self.get_param_values()
 
-		params = x if x != None else self.get_param_values()
 		numpy.savez(path, error_history=self.error_history, **params)
-
-		print("Done.")
+		print("Saved %d parameter values to %s." % (len(params), path))
 
 	def print_error_history(self):
 		"""Prints the current error history.
@@ -235,7 +238,7 @@ class RNNLM(object):
 		We're using numpy for prettier formatting.
 		"""
 
-		print("Error history:")
+		print("Training error history:")
 		print(numpy.asarray(self.error_history))
 
 	def get_param_values(self):
