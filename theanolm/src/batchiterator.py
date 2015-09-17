@@ -111,6 +111,6 @@ class BatchIterator(object):
 		mask = numpy.zeros((minibatch_length, num_sequences)).astype('float32')
 		for i, sequence in enumerate(sequences):
 			word_ids[:sequence_lengths[i],i] = sequence
-			mask[:sequence_lengths[i]+1,i] = 1.
+			mask[:sequence_lengths[i]+1,i] = 1.0
 
 		return word_ids, mask

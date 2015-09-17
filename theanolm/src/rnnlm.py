@@ -23,14 +23,18 @@ class RNNLM(object):
 	Supports LSTM and GRU architectures.
 	"""
 
-	def __init__(self, options):
+	def __init__(self, dictionary, options):
 		"""Initializes the neural network parameters for all layers, and
 		creates Theano shared variables from them.
+
+		:type dictionary: Dictionary
+		:param dictionary: mapping between word IDs and word classes
 
 		:type options: dict
 		:param options: a dictionary of training options
 		"""
 
+		self.dictionary = dictionary
 		self.options = options
 
 		# This class stores the training error history too, because it's saved
@@ -40,7 +44,7 @@ class RNNLM(object):
 		# Create the layers.
 		
 		self.projection_layer = ProjectionLayer(
-				self.options['vocab_size'],
+				dictionary.num_classes(),
 				self.options['word_projection_dim'],
 				self.options)
 		
@@ -69,7 +73,7 @@ class RNNLM(object):
 		
 		self.output_layer = OutputLayer(
 				options['word_projection_dim'],
-				options['vocab_size'])
+				dictionary.num_classes())
 
 		# Initialize the parameters.
 		self.init_params = OrderedDict()
@@ -103,7 +107,7 @@ class RNNLM(object):
 		self.minibatch_input = tensor.matrix('minibatch_input', dtype='int64')
 		self.minibatch_input.tag.test_value = test_value(
 				size=(16, 4),
-				max_value=self.options['vocab_size'])
+				max_value=self.dictionary.num_classes())
 		
 		# mask is used to mask out the rest of the input matrix, when a sequence
 		# is shorter than the maximum sequence length.
@@ -134,7 +138,7 @@ class RNNLM(object):
 		# words.
 		input_flat = self.minibatch_input.flatten()
 		flat_output_indices = \
-				tensor.arange(input_flat.shape[0]) * self.options['vocab_size'] \
+				tensor.arange(input_flat.shape[0]) * self.dictionary.num_classes() \
 				+ input_flat
 		input_word_probs = self.minibatch_output.flatten()[flat_output_indices]
 		input_word_probs = input_word_probs.reshape(
@@ -150,7 +154,7 @@ class RNNLM(object):
 		self.onestep_input = tensor.vector('onestep_input', dtype='int64')
 		self.onestep_input.tag.test_value = test_value(
 				size=4,
-				max_value=self.options['vocab_size'])
+				max_value=self.dictionary.num_classes())
 		
 		# onestep_state describes the state outputs of the previous time step
 		# of the hidden layer. GRU has one state output, LSTM has two.

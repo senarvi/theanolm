@@ -1,6 +1,7 @@
 eclipse.preferences.version=1
 encoding//src/batchiterator.py=utf-8
 encoding//src/dictionary.py=utf-8
+encoding//src/exceptions.py=utf-8
 encoding//src/grulayer.py=utf-8
 encoding//src/lm.py=utf-8
 encoding//src/lstmlayer.py=utf-8
