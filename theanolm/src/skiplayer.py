@@ -31,28 +31,28 @@ class SkipLayer(object):
 		"""
 
 		# Create the parameters.
-		self.init_params = OrderedDict()
+		self.param_init_values = OrderedDict()
 
-		self.init_params['skip_W_in1'] = \
+		self.param_init_values['skip_W_in1'] = \
 				random_weight(in1_size, out_size, scale=0.01)
 
-		self.init_params['skip_b_in1'] = \
+		self.param_init_values['skip_b_in1'] = \
 				numpy.zeros((out_size,)).astype('float32')
 
-		self.init_params['skip_W_in2'] = \
+		self.param_init_values['skip_W_in2'] = \
 				random_weight(in2_size, out_size, scale=0.01)
 
-		self.init_params['skip_b_in2'] = \
+		self.param_init_values['skip_b_in2'] = \
 				numpy.zeros((out_size,)).astype('float32')
 
-	def create_structure(self, theano_params, layer_input_in1, layer_input_in2):
+	def create_structure(self, model_params, layer_input_in1, layer_input_in2):
 		""" Creates skip-layer structure.
 
 		Sets self.output to a symbolic matrix that describes the output of this
 		layer.
 
-		:type theano_params: dict
-		:param theano_params: shared Theano variables
+		:type model_params: dict
+		:param model_params: shared Theano variables
 
 		:type layer_input_in1: theano.tensor.var.TensorVariable
 		:param layer_input_in1: symbolic matrix that describes the output of the
@@ -63,8 +63,8 @@ class SkipLayer(object):
 		second input layer
 		"""
 
-		preact_in1 = tensor.dot(layer_input_in1, theano_params['skip_W_in1']) \
-				+ theano_params['skip_b_in1']
-		preact_in2 = tensor.dot(layer_input_in2, theano_params['skip_W_in2']) \
-				+ theano_params['skip_b_in2']
+		preact_in1 = tensor.dot(layer_input_in1, model_params['skip_W_in1']) \
+				+ model_params['skip_b_in1']
+		preact_in2 = tensor.dot(layer_input_in2, model_params['skip_W_in2']) \
+				+ model_params['skip_b_in2']
 		self.output = tensor.tanh(preact_in1 + preact_in2)

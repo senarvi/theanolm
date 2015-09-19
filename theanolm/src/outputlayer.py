@@ -26,15 +26,15 @@ class OutputLayer(object):
 		"""
 
 		# Create the parameters.
-		self.init_params = OrderedDict()
+		self.param_init_values = OrderedDict()
 
-		self.init_params['output_W'] = \
+		self.param_init_values['output_W'] = \
 				orthogonal_weight(in_size, out_size, scale=0.01)
 
-		self.init_params['output_b'] = \
+		self.param_init_values['output_b'] = \
 				numpy.zeros((out_size,)).astype('float32')
 
-	def create_minibatch_structure(self, theano_params, layer_input):
+	def create_minibatch_structure(self, model_params, layer_input):
 		""" Creates output layer structure for mini-batch processing.
 
 		In mini-batch training the input is 3-dimensional: the first dimension
@@ -46,16 +46,16 @@ class OutputLayer(object):
 		describes the output of this layer, i.e. the probability of every
 		vocabulary word for each input.
 
-		:type theano_params: dict
-		:param theano_params: shared Theano variables
+		:type model_params: dict
+		:param model_params: shared Theano variables
 
 		:type layer_input: theano.tensor.var.TensorVariable
 		:param layer_input: symbolic matrix that describes the output of the
 		previous layer
 		"""
 
-		preact = tensor.dot(layer_input, theano_params['output_W']) \
-				+ theano_params['output_b']
+		preact = tensor.dot(layer_input, model_params['output_W']) \
+				+ model_params['output_b']
 		
 		num_time_steps = preact.shape[0]
 		num_sequences = preact.shape[1]
@@ -65,7 +65,7 @@ class OutputLayer(object):
 		
 		self.minibatch_output = tensor.nnet.softmax(preact)
 
-	def create_onestep_structure(self, theano_params, layer_input):
+	def create_onestep_structure(self, model_params, layer_input):
 		""" Creates output layer structure for one-step processing.
 		
 		This function is used for creating a text generator. The input is
@@ -76,15 +76,15 @@ class OutputLayer(object):
 		describes the output of this layer, i.e. the probability of every
 		vocabulary word for each input.
 
-		:type theano_params: dict
-		:param theano_params: shared Theano variables
+		:type model_params: dict
+		:param model_params: shared Theano variables
 
 		:type layer_input: theano.tensor.var.TensorVariable
 		:param layer_input: symbolic matrix that describes the output of the
 		previous layer
 		"""
 
-		preact = tensor.dot(layer_input, theano_params['output_W']) \
-				+ theano_params['output_b']
+		preact = tensor.dot(layer_input, model_params['output_W']) \
+				+ model_params['output_b']
 
 		self.onestep_output = tensor.nnet.softmax(preact)

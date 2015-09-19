@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from exceptions import InvalidInput
+from exceptions import InputError
 
 class Dictionary(object):
 	"""Word Dictionary
@@ -97,10 +97,10 @@ class Dictionary(object):
 				word = fields[0]
 				file_id = fields[1]
 			else:
-				raise InvalidInput("%d fields on one line of dictionary file: %s" % (len(fields), line))
+				raise InputError("%d fields on one line of dictionary file: %s" % (len(fields), line))
 			
 			if word in self._word_to_class:
-				raise InvalidInput("Word `%s' appears more than once in the dictionary file." % word)
+				raise InputError("Word `%s' appears more than once in the dictionary file." % word)
 			if file_id in file_id_to_class:
 				word_class = file_id_to_class[file_id]
 				word_class.add(word)

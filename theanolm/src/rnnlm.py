@@ -42,12 +42,10 @@ class RNNLM(object):
 		self.error_history = []
 
 		# Create the layers.
-		
 		self.projection_layer = ProjectionLayer(
 				dictionary.num_classes(),
 				self.options['word_projection_dim'],
 				self.options)
-		
 		if self.options['hidden_layer_type'] == 'lstm':
 			self.hidden_layer = LSTMLayer(
 					self.options['word_projection_dim'],
@@ -65,36 +63,29 @@ class RNNLM(object):
 					self.options)
 		else:
 			raise ValueError("Invalid hidden layer type: " + self.options['hidden_layer_type'])
-		
 		self.skip_layer = SkipLayer(
 				self.options['hidden_layer_size'],
 				self.options['word_projection_dim'],
 				self.options['word_projection_dim'])
-		
 		self.output_layer = OutputLayer(
 				options['word_projection_dim'],
 				dictionary.num_classes())
 
-		# Initialize the parameters.
-		self.init_params = OrderedDict()
-		self.init_params.update(self.projection_layer.init_params)
-		self.init_params.update(self.hidden_layer.init_params)
-		self.init_params.update(self.skip_layer.init_params)
-		self.init_params.update(self.output_layer.init_params)
-
-		# Reload the parameters from disk if requested.
-		if self.options['reload_state'] and os.path.exists(self.options['model_path']):
-			self.__load_params()
+		# Create initial parameter values.
+		self.param_init_values = OrderedDict()
+		self.param_init_values.update(self.projection_layer.param_init_values)
+		self.param_init_values.update(self.hidden_layer.param_init_values)
+		self.param_init_values.update(self.skip_layer.param_init_values)
+		self.param_init_values.update(self.output_layer.param_init_values)
 
 		# Create Theano shared variables.
-		self.theano_params = OrderedDict()
-		for name, value in self.init_params.items():
-			self.theano_params[name] = theano.shared(value, name)
+		self.params = {name: theano.shared(value, name)
+				for name, value in self.param_init_values.items()}
 		
-		self.create_minibatch_structure()
-		self.create_onestep_structure()
+		self._create_minibatch_structure()
+		self._create_onestep_structure()
 
-	def create_minibatch_structure(self):
+	def _create_minibatch_structure(self):
 		"""Creates the network structure for mini-batch processing.
 		
 		Sets self.minibatch_output to a symbolic matrix, the same shape as
@@ -117,18 +108,18 @@ class RNNLM(object):
 				max_value=1.0)
 
 		self.projection_layer.create_minibatch_structure(
-				self.theano_params,
+				self.params,
 				self.minibatch_input)
 		self.hidden_layer.create_minibatch_structure(
-				self.theano_params,
+				self.params,
 				self.projection_layer.minibatch_output,
 				mask=self.minibatch_mask)
 		self.skip_layer.create_structure(
-				self.theano_params,
+				self.params,
 				self.hidden_layer.minibatch_output,
 				self.projection_layer.minibatch_output)
 		self.output_layer.create_minibatch_structure(
-				self.theano_params,
+				self.params,
 				self.skip_layer.output)
 		
 		self.minibatch_output = self.output_layer.minibatch_output
@@ -145,7 +136,7 @@ class RNNLM(object):
 				[self.minibatch_input.shape[0], self.minibatch_input.shape[1]])
 		self.minibatch_probs = input_word_probs
 
-	def create_onestep_structure(self):
+	def _create_onestep_structure(self):
 		"""Creates the network structure for one-step processing.
 		"""
 
@@ -166,71 +157,74 @@ class RNNLM(object):
 					max_value=1.0)
 
 		self.projection_layer.create_onestep_structure(
-				self.theano_params,
+				self.params,
 				self.onestep_input)
 		self.hidden_layer.create_onestep_structure(
-				self.theano_params,
+				self.params,
 				self.projection_layer.onestep_output,
 				self.onestep_state)
 		# The last state output from the hidden layer is the hidden state to be
 		# passed on the the next layer.
 		hidden_state_output = self.hidden_layer.onestep_outputs[-1]
 		self.skip_layer.create_structure(
-				self.theano_params,
+				self.params,
 				hidden_state_output,
 				self.projection_layer.onestep_output)
 		self.output_layer.create_onestep_structure(
-				self.theano_params,
+				self.params,
 				self.skip_layer.output)
 		
 		self.onestep_output = self.output_layer.onestep_output
 
-	def __load_params(self):
+	def load_params(self, path):
 		"""Loads the neural network parameters from disk.
-		
-		This function should be called only in the constructor, before the
-		Theano shared variables are created.
-		"""
 
-		path = self.options['model_path']
+		:type path: str
+		:param path: filesystem path where to read the parameters from
+		"""
 
 		# Reload the parameters.
 		data = numpy.load(path)
 		num_updated = 0
-		for name in self.init_params:
+		for name in self.param_init_values:
 			if name not in data:
 				warnings.warn('The parameter %s was not found from the archive.' % name)
 				continue
-			self.init_params[name] = data[name]
+			self.params[name].set_value(data[name])
 			num_updated += 1
 		print("Read %d parameter values from %s." % (num_updated, path))
 
 		# Reload the error history.
-		if 'error_history' not in data:
-			warnings.warn('Training error history was not found from the archive.' % name)
+		if not 'error_history' in data:
+			self.error_history = []
+			warnings.warn('Training error history was not found from the archive.')
 		else:
 			saved_error_history = data['error_history'].tolist()
 			# If the error history was empty when the state was saved,
 			# ndarray.tolist() will return None.
 			if not saved_error_history is None:
 				self.error_history = saved_error_history
+			self.print_error_history()
 
-		self.print_error_history()
+	def save_params(self, path, params=None):
+		"""Saves neural network parameters to disk.
 
-	def save_params(self, params=None):
-		"""Saves the neural network parameters to disk.
+		The current parameter values, or the values given in ``params`` argument
+		will be saved to disk.
+
+		:type path: str
+		:param path: filesystem path where to save the parameters to
 
 		:type params: dict
-		:param params: if set to other than None, save these values, instead of the
-				  current values from the Theano shared variables
+		:param params: if set to other than None, save these values instead of the
+		               current neural network parameters
 		"""
 
-		path = self.options['model_path']
 		if params is None:
 			params = self.get_param_values()
-
+		
 		numpy.savez(path, error_history=self.error_history, **params)
-		print("Saved %d parameter values to %s." % (len(params), path))
+		print("Saved %d parameter values and error history to %s." % (len(params), path))
 
 	def print_error_history(self):
 		"""Prints the current error history.
@@ -249,7 +243,7 @@ class RNNLM(object):
 		"""
 
 		result = OrderedDict()
-		for name, param in self.theano_params.items():
+		for name, param in self.params.items():
 			result[name] = param.get_value()
 		return result
 
@@ -261,4 +255,4 @@ class RNNLM(object):
 		"""
 
 		for name, value in x.items():
-			self.theano_params[name].set_value(value)
+			self.params[name].set_value(value)

@@ -28,20 +28,20 @@ class ProjectionLayer(object):
 		self.options = options
 
 		# Initialize the parameters.
-		self.init_params = OrderedDict()
+		self.param_init_values = OrderedDict()
 
-		self.init_params['word_projection'] = \
+		self.param_init_values['word_projection'] = \
 				orthogonal_weight(in_size, out_size, scale=0.01)
 
-	def create_minibatch_structure(self, theano_params, layer_input):
+	def create_minibatch_structure(self, model_params, layer_input):
 		"""Creates projection layer structure for mini-batch processing.
 
 		Creates the layer structure for 2-dimensional input: the first
 		dimension is the time step (index of word in a sequence) and the
 		second dimension are the sequences
 
-		:type theano_params: dict
-		:param theano_params: shared Theano variables
+		:type model_params: dict
+		:param model_params: shared Theano variables
 
 		:type layer_input: theano.tensor.var.TensorVariable
 		:param layer_input: symbolic 2-dimensional matrix that describes
@@ -60,7 +60,7 @@ class ProjectionLayer(object):
 		# word_projection_dim dimensional projection. Note that indexing the
 		# matrix with a vector of all the word IDs gives a concatenation of
 		# those projections.
-		projections = theano_params['word_projection'][layer_input.flatten()]
+		projections = model_params['word_projection'][layer_input.flatten()]
 		projections = projections.reshape([
 				num_time_steps,
 				num_sequences,
@@ -71,14 +71,14 @@ class ProjectionLayer(object):
 		zero_matrix = tensor.zeros_like(projections)
 		self.minibatch_output = tensor.set_subtensor(zero_matrix[1:], projections[:-1])
 
-	def create_onestep_structure(self, theano_params, layer_input):
+	def create_onestep_structure(self, model_params, layer_input):
 		"""Creates projection layer structure for one-step processing.
 
 		Creates the layer structure for 1-dimensional input. Simply
 		indexes the word projection matrix with each word ID.
 
-		:type theano_params: dict
-		:param theano_params: shared Theano variables
+		:type model_params: dict
+		:param model_params: shared Theano variables
 
 		:type layer_input: theano.tensor.var.TensorVariable
 		:param layer_input: symbolic vector that describes the word IDs
@@ -91,11 +91,11 @@ class ProjectionLayer(object):
 		          projections
 		"""
 
-		word_projection_dim = theano_params['word_projection'].shape[1]
+		word_projection_dim = model_params['word_projection'].shape[1]
 
 		# The generation starts with input value -1, which will be translated
 		# into zero word projection vector.
 		self.onestep_output = tensor.switch(
 				layer_input[:,None] < 0,
 				tensor.alloc(0.0, 1, word_projection_dim),
-				theano_params['word_projection'][layer_input])
+				model_params['word_projection'][layer_input])

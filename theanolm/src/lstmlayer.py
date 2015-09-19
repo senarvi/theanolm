@@ -33,39 +33,39 @@ class LSTMLayer(object):
 		self.num_state_variables = 2
 
 		# Initialize the parameters.
-		self.init_params = OrderedDict()
+		self.param_init_values = OrderedDict()
 
 		num_gates = 3
 
 		# concatenation of the input weights for each gate
-		self.init_params['encoder_W_gates'] = \
+		self.param_init_values['encoder_W_gates'] = \
 				numpy.concatenate(
 						[orthogonal_weight(in_size, out_size, scale=0.01) for _ in range(num_gates)],
 						axis=1)
 
 		# concatenation of the previous step output weights for each gate
-		self.init_params['encoder_U_gates'] = \
+		self.param_init_values['encoder_U_gates'] = \
 				numpy.concatenate(
 						[orthogonal_weight(out_size, out_size) for _ in range(num_gates)],
 						axis=1)
 
 		# concatenation of the biases for each gate
-		self.init_params['encoder_b_gates'] = \
+		self.param_init_values['encoder_b_gates'] = \
 				numpy.zeros((num_gates * out_size,)).astype('float32')
 		
 		# input weight for the candidate state
-		self.init_params['encoder_W_candidate'] = \
+		self.param_init_values['encoder_W_candidate'] = \
 				orthogonal_weight(in_size, out_size, scale=0.01)
 
 		# previous step output weight for the candidate state
-		self.init_params['encoder_U_candidate'] = \
+		self.param_init_values['encoder_U_candidate'] = \
 				orthogonal_weight(out_size, out_size)
 		
 		# bias for the candidate state
-		self.init_params['encoder_b_candidate'] = \
+		self.param_init_values['encoder_b_candidate'] = \
 				numpy.zeros((out_size,)).astype('float32') 
 
-	def create_minibatch_structure(self, theano_params, layer_input, mask):
+	def create_minibatch_structure(self, model_params, layer_input, mask):
 		"""Creates LSTM layer structure for mini-batch processing.
 
 		In mini-batch training the input is 3-dimensional: the first
@@ -75,8 +75,8 @@ class LSTMLayer(object):
 		Sets self.minibatch_output to a symbolic 2-dimensional matrix that
 		describes the hidden state output of the time steps.
 
-		:type theano_params: dict
-		:param theano_params: shared Theano variables
+		:type model_params: dict
+		:param model_params: shared Theano variables
 
 		:type layer_input: theano.tensor.var.TensorVariable
 		:param layer_input: x_(t), symbolic 3-dimensional matrix that describes
@@ -93,20 +93,20 @@ class LSTMLayer(object):
 
 		num_time_steps = layer_input.shape[0]
 		num_sequences = layer_input.shape[1]
-		self.layer_size = theano_params['encoder_U_candidate'].shape[1]
+		self.layer_size = model_params['encoder_U_candidate'].shape[1]
 
 		# Compute the gate pre-activations, which don't depend on the time step.
 		x_preact_gates = \
-				tensor.dot(layer_input, theano_params['encoder_W_gates']) \
-				+ theano_params['encoder_b_gates']
+				tensor.dot(layer_input, model_params['encoder_W_gates']) \
+				+ model_params['encoder_b_gates']
 		x_preact_candidate = \
-				tensor.dot(layer_input, theano_params['encoder_W_candidate']) \
-				+ theano_params['encoder_b_candidate']
+				tensor.dot(layer_input, model_params['encoder_W_candidate']) \
+				+ model_params['encoder_b_candidate']
 
 		# The weights and biases for the previous step output. These have to be
 		# applied inside the loop.
-		U_gates = theano_params['encoder_U_gates']
-		U_candidate = theano_params['encoder_U_candidate']
+		U_gates = model_params['encoder_U_gates']
+		U_candidate = model_params['encoder_U_candidate']
 
 		sequences = [mask, x_preact_gates, x_preact_candidate]
 		non_sequences = [U_gates, U_candidate]
@@ -127,7 +127,7 @@ class LSTMLayer(object):
 		
 		self.minibatch_output = outputs[1]
 
-	def create_onestep_structure(self, theano_params, layer_input, state_input):
+	def create_onestep_structure(self, model_params, layer_input, state_input):
 		"""Creates LSTM layer structure for one-step processing.
 
 		This function is used for creating a text generator. The input is
@@ -138,8 +138,8 @@ class LSTMLayer(object):
 		that describe the state outputs of the time steps: cell state C_(t) and
 		hidden state h_(t).
 
-		:type theano_params: dict
-		:param theano_params: shared Theano variables
+		:type model_params: dict
+		:param model_params: shared Theano variables
 
 		:type layer_input: theano.tensor.var.TensorVariable
 		:param layer_input: x_(t), symbolic 2-dimensional matrix that describes
@@ -153,25 +153,25 @@ class LSTMLayer(object):
 		"""
 
 		num_sequences = layer_input.shape[0]
-		self.layer_size = theano_params['encoder_U_candidate'].shape[1]
+		self.layer_size = model_params['encoder_U_candidate'].shape[1]
 
 		mask = tensor.alloc(1.0, num_sequences, 1)
 
 		# Compute the gate pre-activations, which don't depend on the time step.
 		x_preact_gates = \
-				tensor.dot(layer_input, theano_params['encoder_W_gates']) \
-				+ theano_params['encoder_b_gates']
+				tensor.dot(layer_input, model_params['encoder_W_gates']) \
+				+ model_params['encoder_b_gates']
 		x_preact_candidate = \
-				tensor.dot(layer_input, theano_params['encoder_W_candidate']) \
-				+ theano_params['encoder_b_candidate']
+				tensor.dot(layer_input, model_params['encoder_W_candidate']) \
+				+ model_params['encoder_b_candidate']
 		
 		cell_state_input = state_input[0]
 		hidden_state_input = state_input[1]
 		
 		# The weights and biases for the previous step output. These will
 		# be applied inside __create_time_step().
-		U_gates = theano_params['encoder_U_gates']
-		U_candidate = theano_params['encoder_U_candidate']
+		U_gates = model_params['encoder_U_gates']
+		U_candidate = model_params['encoder_U_candidate']
 
 		outputs = self.__create_time_step(
 				mask,
