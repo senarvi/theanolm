@@ -14,5 +14,6 @@ encoding//src/skiplayer.py=utf-8
 encoding//src/sslstmlayer.py=utf-8
 encoding//src/textsampler.py=utf-8
 encoding//src/textscorer.py=utf-8
+encoding//src/theanolm-score.py=utf-8
 encoding//src/train_lm_keskustelu2015.py=utf-8
 encoding//src/train_lm_morph.py=utf-8

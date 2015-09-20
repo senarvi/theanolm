@@ -37,10 +37,6 @@ class RNNLM(object):
 		self.dictionary = dictionary
 		self.options = options
 
-		# This class stores the training error history too, because it's saved
-		# in the same .npz file.
-		self.error_history = []
-
 		# Create the layers.
 		self.projection_layer = ProjectionLayer(
 				dictionary.num_classes(),
@@ -177,34 +173,20 @@ class RNNLM(object):
 		self.onestep_output = self.output_layer.onestep_output
 
 	def load_params(self, path):
-		"""Loads the neural network parameters from disk.
+		"""Loads the neural network state from disk.
 
 		:type path: str
-		:param path: filesystem path where to read the parameters from
+		:param path: filesystem path where to read the state from
 		"""
 
-		# Reload the parameters.
 		data = numpy.load(path)
 		num_updated = 0
-		for name in self.param_init_values:
-			if name not in data:
-				warnings.warn('The parameter %s was not found from the archive.' % name)
-				continue
+		for name in self.params:
+			if not name in data:
+				raise InputError("parameter %s was not found from %s." % (name, path))
 			self.params[name].set_value(data[name])
 			num_updated += 1
 		print("Read %d parameter values from %s." % (num_updated, path))
-
-		# Reload the error history.
-		if not 'error_history' in data:
-			self.error_history = []
-			warnings.warn('Training error history was not found from the archive.')
-		else:
-			saved_error_history = data['error_history'].tolist()
-			# If the error history was empty when the state was saved,
-			# ndarray.tolist() will return None.
-			if not saved_error_history is None:
-				self.error_history = saved_error_history
-			self.print_error_history()
 
 	def save_params(self, path, params=None):
 		"""Saves neural network parameters to disk.
@@ -223,17 +205,8 @@ class RNNLM(object):
 		if params is None:
 			params = self.get_param_values()
 		
-		numpy.savez(path, error_history=self.error_history, **params)
+		numpy.savez(path, **params)
 		print("Saved %d parameter values and error history to %s." % (len(params), path))
-
-	def print_error_history(self):
-		"""Prints the current error history.
-		
-		We're using numpy for prettier formatting.
-		"""
-
-		print("Training error history:")
-		print(numpy.asarray(self.error_history))
 
 	def get_param_values(self):
 		"""Pulls parameter values from Theano shared variables.
