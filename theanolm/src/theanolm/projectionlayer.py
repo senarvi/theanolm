@@ -3,29 +3,30 @@
 
 from collections import OrderedDict
 import theano.tensor as tensor
+from theanolm.matrixfunctions import orthogonal_weight
 
-from matrixfunctions import orthogonal_weight
+class InputError(Exception):
+	"""Exception raised for errors in the input.
+	"""
+	pass
 
 class ProjectionLayer(object):
 	"""Projection Layer for Neural Network Language Model
 	"""
 
-	def __init__(self, in_size, out_size, options):
+	def __init__(self, in_size, out_size):
 		"""Initializes the parameters for the first layer of a neural network
 		language model, which creates the word embeddings.
 
 		:type in_size: int
-		:param options: dimensionality of the input vectors, i.e. vocabulary
+		:param in_size: dimensionality of the input vectors, i.e. vocabulary
 		                size
 
 		:type out_size: int
-		:param options: dimensionality of the word projections
-
-		:type options: dict
-		:param options: a dictionary of training options
+		:param out_size: dimensionality of the word projections
 		"""
-
-		self.options = options
+		
+		self.word_projection_dim = out_size
 
 		# Initialize the parameters.
 		self.param_init_values = OrderedDict()
@@ -64,7 +65,7 @@ class ProjectionLayer(object):
 		projections = projections.reshape([
 				num_time_steps,
 				num_sequences,
-				self.options['word_projection_dim']])
+				self.word_projection_dim])
 
 		# Shift the projections matrix one time step down, setting the first
 		# time step to zero projection vectors.

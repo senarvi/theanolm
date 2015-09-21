@@ -2,19 +2,16 @@
 # -*- coding: utf-8 -*-
 
 from collections import OrderedDict
-import warnings
-import os
-import numpy
 import theano
 import theano.tensor as tensor
-
-from projectionlayer import ProjectionLayer
-from lstmlayer import LSTMLayer
-from sslstmlayer import SSLSTMLayer
-from grulayer import GRULayer
-from skiplayer import SkipLayer
-from outputlayer import OutputLayer
-from matrixfunctions import test_value
+from theanolm.exceptions import IncompatibleStateError
+from theanolm.projectionlayer import ProjectionLayer
+from theanolm.lstmlayer import LSTMLayer
+from theanolm.sslstmlayer import SSLSTMLayer
+from theanolm.grulayer import GRULayer
+from theanolm.skiplayer import SkipLayer
+from theanolm.outputlayer import OutputLayer
+from theanolm.matrixfunctions import test_value
 
 class RNNLM(object):
 	"""Recursive Neural Network Language Model
@@ -23,48 +20,59 @@ class RNNLM(object):
 	Supports LSTM and GRU architectures.
 	"""
 
-	def __init__(self, dictionary, options):
+	def __init__(self, dictionary, word_projection_dim, hidden_layer_type,
+	             hidden_layer_size, profile=False):
 		"""Initializes the neural network parameters for all layers, and
 		creates Theano shared variables from them.
 
 		:type dictionary: Dictionary
 		:param dictionary: mapping between word IDs and word classes
 
-		:type options: dict
-		:param options: a dictionary of training options
+		:type word_projection_dim: int
+		:param word_projection_dim: dimensionality of the word projections
+
+		:type hidden_layer_type: str
+		:param hidden_layer_type: name of the units used in the hidden layer
+
+		:type hidden_layer_size: int
+		:param hidden_layer_size: number of units in the hidden layer
+
+		:type profile: bool
+		:param profile: if set to True, creates a Theano profile object
 		"""
 
 		self.dictionary = dictionary
-		self.options = options
+		self.word_projection_dim = word_projection_dim
+		self.hidden_layer_type = hidden_layer_type
+		self.hidden_layer_size = hidden_layer_size
 
 		# Create the layers.
 		self.projection_layer = ProjectionLayer(
 				dictionary.num_classes(),
-				self.options['word_projection_dim'],
-				self.options)
-		if self.options['hidden_layer_type'] == 'lstm':
+				self.word_projection_dim)
+		if self.hidden_layer_type == 'lstm':
 			self.hidden_layer = LSTMLayer(
-					self.options['word_projection_dim'],
-					self.options['hidden_layer_size'],
-					self.options)
-		elif self.options['hidden_layer_type'] == 'ss-lstm':
+					self.word_projection_dim,
+					self.hidden_layer_size,
+					profile)
+		elif self.hidden_layer_type == 'ss-lstm':
 			self.hidden_layer = SSLSTMLayer(
-					self.options['word_projection_dim'],
-					self.options['hidden_layer_size'],
-					self.options)
-		elif self.options['hidden_layer_type'] == 'gru':
+					self.word_projection_dim,
+					self.hidden_layer_size,
+					profile)
+		elif self.hidden_layer_type == 'gru':
 			self.hidden_layer = GRULayer(
-					self.options['word_projection_dim'],
-					self.options['hidden_layer_size'],
-					self.options)
+					self.word_projection_dim,
+					self.hidden_layer_size,
+					profile)
 		else:
-			raise ValueError("Invalid hidden layer type: " + self.options['hidden_layer_type'])
+			raise ValueError("Invalid hidden layer type: " + self.hidden_layer_type)
 		self.skip_layer = SkipLayer(
-				self.options['hidden_layer_size'],
-				self.options['word_projection_dim'],
-				self.options['word_projection_dim'])
+				self.hidden_layer_size,
+				self.word_projection_dim,
+				self.word_projection_dim)
 		self.output_layer = OutputLayer(
-				options['word_projection_dim'],
+				self.word_projection_dim,
 				dictionary.num_classes())
 
 		# Create initial parameter values.
@@ -93,14 +101,14 @@ class RNNLM(object):
 		# [ number of time steps * number of sequences ] word IDs.
 		self.minibatch_input = tensor.matrix('minibatch_input', dtype='int64')
 		self.minibatch_input.tag.test_value = test_value(
-				size=(16, 4),
+				size=(100, 16),
 				max_value=self.dictionary.num_classes())
 		
 		# mask is used to mask out the rest of the input matrix, when a sequence
 		# is shorter than the maximum sequence length.
 		self.minibatch_mask = tensor.matrix('minibatch_mask', dtype='float32')
 		self.minibatch_mask.tag.test_value = test_value(
-				size=(16, 4),
+				size=(100, 16),
 				max_value=1.0)
 
 		self.projection_layer.create_minibatch_structure(
@@ -140,7 +148,7 @@ class RNNLM(object):
 		# as there are sequences (only one for the text sampler).
 		self.onestep_input = tensor.vector('onestep_input', dtype='int64')
 		self.onestep_input.tag.test_value = test_value(
-				size=4,
+				size=16,
 				max_value=self.dictionary.num_classes())
 		
 		# onestep_state describes the state outputs of the previous time step
@@ -149,7 +157,7 @@ class RNNLM(object):
 				for i in range(self.hidden_layer.num_state_variables)]
 		for state_variable in self.onestep_state:
 			state_variable.tag.test_value = test_value(
-					size=(1, self.options['hidden_layer_size']),
+					size=(1, self.hidden_layer_size),
 					max_value=1.0)
 
 		self.projection_layer.create_onestep_structure(
@@ -172,43 +180,7 @@ class RNNLM(object):
 		
 		self.onestep_output = self.output_layer.onestep_output
 
-	def load_params(self, path):
-		"""Loads the neural network state from disk.
-
-		:type path: str
-		:param path: filesystem path where to read the state from
-		"""
-
-		data = numpy.load(path)
-		num_updated = 0
-		for name in self.params:
-			if not name in data:
-				raise InputError("parameter %s was not found from %s." % (name, path))
-			self.params[name].set_value(data[name])
-			num_updated += 1
-		print("Read %d parameter values from %s." % (num_updated, path))
-
-	def save_params(self, path, params=None):
-		"""Saves neural network parameters to disk.
-
-		The current parameter values, or the values given in ``params`` argument
-		will be saved to disk.
-
-		:type path: str
-		:param path: filesystem path where to save the parameters to
-
-		:type params: dict
-		:param params: if set to other than None, save these values instead of the
-		               current neural network parameters
-		"""
-
-		if params is None:
-			params = self.get_param_values()
-		
-		numpy.savez(path, **params)
-		print("Saved %d parameter values and error history to %s." % (len(params), path))
-
-	def get_param_values(self):
+	def get_state(self):
 		"""Pulls parameter values from Theano shared variables.
 
 		:rtype: dict
@@ -218,14 +190,28 @@ class RNNLM(object):
 		result = OrderedDict()
 		for name, param in self.params.items():
 			result[name] = param.get_value()
+		result['rnnlm_word_projection_dim'] = self.word_projection_dim
+		result['rnnlm_hidden_layer_type'] = self.hidden_layer_type
+		result['rnnlm_hidden_layer_size'] = self.hidden_layer_size
 		return result
 
-	def set_param_values(self, x):
+	def set_state(self, state):
 		"""Sets the values of Theano shared variables.
+		
+		Requires that ``state`` contains values for all the neural network
+		parameters.
 
-		:type x: dict
-		:param x: a dictionary of the new parameter values
+		:type state: dict
+		:param state: dictionary of neural network parameters
 		"""
 
-		for name, value in x.items():
-			self.params[name].set_value(value)
+		for name, param in self.params.items():
+			if not name in state:
+				raise IncompatibleStateError("Parameter %s is missing from neural network state." % name)
+			param.set_value(state[name])
+		if state['rnnlm_word_projection_dim'] != self.word_projection_dim:
+			raise IncompatibleStateError("Attempting to restore incompatible state with word_projection_dim=%d, while this neural network has word_projection_dim=%d." % (state['rnnlm_word_projection_dim'], self.word_projection_dim))
+		if state['rnnlm_hidden_layer_type'] != self.hidden_layer_type:
+			raise IncompatibleStateError("Attempting to restore incompatible state with hidden_layer_type=%s, while this neural network has hidden_layer_type=%s." % (state['rnnlm_hidden_layer_type'], self.hidden_layer_type))
+		if state['rnnlm_hidden_layer_size'] != self.hidden_layer_size:
+			raise IncompatibleStateError("Attempting to restore incompatible state with hidden_layer_size=%d, while this neural network has hidden_layer_size=%d." % (state['rnnlm_hidden_layer_size'], self.hidden_layer_size))

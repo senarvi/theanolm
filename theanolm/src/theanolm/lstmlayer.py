@@ -5,37 +5,30 @@ from collections import OrderedDict
 import numpy
 import theano
 import theano.tensor as tensor
+from theanolm.matrixfunctions import orthogonal_weight, get_submatrix
 
-from matrixfunctions import orthogonal_weight, get_submatrix
-
-
-class SSLSTMLayer(object):
-	"""Single-State Long Short-Term Memory Layer for Neural Network Language
-	Model
-	
-	This is like an LSTM layer, but needs just one state output. A time step
-	uses the hidden state output instead of the cell state output (they differ
-	only by a tanh applied to the hidden state output).
+class LSTMLayer(object):
+	"""Long Short-Term Memory Layer for Neural Network Language Model
 	"""
 
-	def __init__(self, in_size, out_size, options):
-		"""Initializes the parameters for a CLSTM layer of a recurrent neural
+	def __init__(self, in_size, out_size, profile=False):
+		"""Initializes the parameters for an LSTM layer of a recurrent neural
 		network.
 
 		:type in_size: int
-		:param options: number of input connections
+		:param in_size: number of input connections
 
 		:type out_size: int
-		:param options: number of output connections
+		:param out_size: number of output connections
 
-		:type options: dict
-		:param options: a dictionary of training options
+		:type profile: bool
+		:param profile: if set to True, creates a Theano profile object
 		"""
 
-		self.options = options
+		self._profile = profile
 
 		# The number of state variables to be passed between time steps.
-		self.num_state_variables = 1
+		self.num_state_variables = 2
 
 		# Initialize the parameters.
 		self.param_init_values = OrderedDict()
@@ -71,7 +64,7 @@ class SSLSTMLayer(object):
 				numpy.zeros((out_size,)).astype('float32') 
 
 	def create_minibatch_structure(self, model_params, layer_input, mask):
-		"""Creates SS-LSTM layer structure for mini-batch processing.
+		"""Creates LSTM layer structure for mini-batch processing.
 
 		In mini-batch training the input is 3-dimensional: the first
 		dimension is the time step, the second dimension are the sequences,
@@ -94,7 +87,7 @@ class SSLSTMLayer(object):
 		"""
 
 		if layer_input.ndim != 3:
-			raise ValueError("SSLSTMLayer.create_minibatch_structure() requires 3-dimensional input.")
+			raise ValueError("LSTMLayer.create_minibatch_structure() requires 3-dimensional input.")
 
 		num_time_steps = layer_input.shape[0]
 		num_sequences = layer_input.shape[1]
@@ -115,31 +108,33 @@ class SSLSTMLayer(object):
 
 		sequences = [mask, x_preact_gates, x_preact_candidate]
 		non_sequences = [U_gates, U_candidate]
+		initial_cell_state = tensor.unbroadcast(
+				tensor.alloc(0.0, num_sequences, self.layer_size), 0)
 		initial_hidden_state = tensor.unbroadcast(
 				tensor.alloc(0.0, num_sequences, self.layer_size), 0)
 
 		outputs, _ = theano.scan(
-				self.__create_time_step,
+				self._create_time_step,
 				sequences = sequences,
-				outputs_info = [initial_hidden_state],
+				outputs_info = [initial_cell_state, initial_hidden_state],
 				non_sequences = non_sequences,
 				name = 'hidden_layer_steps',
 				n_steps = num_time_steps,
-				profile = self.options['profile'],
+				profile = self._profile,
 				strict = True)
 		
-		self.minibatch_output = outputs
+		self.minibatch_output = outputs[1]
 
 	def create_onestep_structure(self, model_params, layer_input, state_input):
-		"""Creates SS-LSTM layer structure for one-step processing.
+		"""Creates LSTM layer structure for one-step processing.
 
 		This function is used for creating a text generator. The input is
 		2-dimensional: the first dimension is the sequence and the second is
 		the word projection.
 
-		Sets self.onestep_output to a list of symbolic 2-dimensional matrices
-		that describe the state outputs of the time steps. There's only one
-		state in a SS-LSTM layer, the hidden state h_(t).
+		Sets self.onestep_outputs to a list of symbolic 2-dimensional matrices
+		that describe the state outputs of the time steps: cell state C_(t) and
+		hidden state h_(t).
 
 		:type model_params: dict
 		:param model_params: shared Theano variables
@@ -152,8 +147,7 @@ class SSLSTMLayer(object):
 		:type state_input: list of theano.tensor.var.TensorVariables
 		:param state_input: a list of symbolic 2-dimensional matrices that
 		                    describe the state outputs of the previous time step
-		                    - only one state in a CLSTM layer, the hidden state
-		                    h_(t-1)
+		                    - cell state C_(t-1) and hidden state h_(t-1)
 		"""
 
 		num_sequences = layer_input.shape[0]
@@ -169,26 +163,27 @@ class SSLSTMLayer(object):
 				tensor.dot(layer_input, model_params['encoder_W_candidate']) \
 				+ model_params['encoder_b_candidate']
 		
-		hidden_state_input = state_input[0]
+		cell_state_input = state_input[0]
+		hidden_state_input = state_input[1]
 		
 		# The weights and biases for the previous step output. These will
-		# be applied inside __create_time_step().
+		# be applied inside _create_time_step().
 		U_gates = model_params['encoder_U_gates']
 		U_candidate = model_params['encoder_U_candidate']
 
-		outputs = self.__create_time_step(
+		outputs = self._create_time_step(
 				mask,
 				x_preact_gates,
 				x_preact_candidate,
+				cell_state_input,
 				hidden_state_input,
 				U_gates,
 				U_candidate)
+		self.onestep_outputs = outputs
 
-		self.onestep_outputs = [outputs]
-
-	def __create_time_step(self, mask, x_preact_gates, x_preact_candidate, h_in,
-	                       U_gates, U_candidate):
-		"""The SS-LSTM step function for theano.scan(). Creates the structure of
+	def _create_time_step(self, mask, x_preact_gates, x_preact_candidate, C_in,
+	                       h_in, U_gates, U_candidate):
+		"""The LSTM step function for theano.scan(). Creates the structure of
 		one time step.
 
 		The required affine transformations have already been applied to the
@@ -210,6 +205,9 @@ class SSLSTMLayer(object):
 		                           weight W and bias b for the new candidate
 		                           state
 
+		:type C_in: theano.tensor.var.TensorVariable
+		:param C_in: C_(t-1), cell state output from the previous time step
+
 		:type h_in: theano.tensor.var.TensorVariable
 		:param h_in: h_(t-1), hidden state output of the previous time step
 
@@ -221,8 +219,8 @@ class SSLSTMLayer(object):
 		:param U_candidate: candidate state weight matrix to be applied to
 		                    h_(t-1)
 		
-		:rtype: theano.tensor.var.TensorVariable
-		:returns: h_(t), the hidden state output
+		:rtype: a tuple of two theano.tensor.var.TensorVariables
+		:returns: C_(t) and h_(t), the cell state and hidden state outputs
 		"""
 
 		# pre-activation of the gates
@@ -240,10 +238,11 @@ class SSLSTMLayer(object):
 
 		# cell state and hidden state outputs
 		C_candidate = tensor.tanh(preact_candidate)
-		C_out = f * h_in + i * C_candidate
+		C_out = f * C_in + i * C_candidate
 		h_out = o * tensor.tanh(C_out)
 
 		# Apply the mask.
+		C_out = mask[:,None] * C_out + (1.0 - mask)[:,None] * C_in
 		h_out = mask[:,None] * h_out + (1.0 - mask)[:,None] * h_in
 
-		return h_out
+		return C_out, h_out

@@ -9,15 +9,15 @@ class TextScorer(object):
 	"""Text Scoring Using a Neural Network Language Model
 	"""
 
-	def __init__(self, network, options):
+	def __init__(self, network, profile=False):
 		"""Creates a Theano function self.costs_function that computes the
 		negative log probabilities of given text sequences.
 
 		:type network: RNNLM
 		:param network: the neural network object
 
-		:type options: dict
-		:param options: a dictionary of training options
+		:type profile: bool
+		:param profile: if set to True, creates a Theano profile object
 		"""
 
 		inputs = [network.minibatch_input, network.minibatch_mask]
@@ -31,7 +31,7 @@ class TextScorer(object):
 		outputs = costs.sum(0)
 
 		self.score_function = \
-				theano.function(inputs, outputs, profile=options['profile'])
+				theano.function(inputs, outputs, profile=profile)
 
 	def negative_log_probability(self, minibatch_iterator):
 		"""Computes the mean negative log probability of mini-batches read using

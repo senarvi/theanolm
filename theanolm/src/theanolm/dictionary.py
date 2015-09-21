@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from exceptions import InputError
+from theanolm.exceptions import InputError
 
 class Dictionary(object):
 	"""Word Dictionary

@@ -12,7 +12,7 @@ class TextSampler(object):
 	model.
 	"""
 
-	def __init__(self, network, options):
+	def __init__(self, network):
 		"""Creates the neural network architecture.
 
 		Creates the function self.step_function that uses the state of the
@@ -20,16 +20,12 @@ class TextSampler(object):
 		the output distribution. It samples from the output distribution and
 		returns the sampled word ID along with the output state of this time
 		step.
-		 
+
 		:type network: RNNLM
 		:param network: the neural network object
-
-		:type options: dict
-		:param options: a dictionary of training options
 		"""
 
 		self.network = network
-		self.options = options
 		self.trng = RandomStreams(1234)
 
 		inputs = [self.network.onestep_input]
@@ -41,8 +37,7 @@ class TextSampler(object):
 		outputs.extend(self.network.hidden_layer.onestep_outputs)
 		
 		self.step_function = theano.function(
-				inputs, outputs, name='text_sampler',
-				profile=self.options['profile'])
+				inputs, outputs, name='text_sampler')
 
 	def generate(self, max_length=30):
 		""" Generates a text sequence.
@@ -62,7 +57,7 @@ class TextSampler(object):
 		# Construct a list of hidden layer state variables and initialize them
 		# to zeros. GRU has only one state that travels through the time steps,
 		# LSTM has two.
-		hidden_state_shape = (1, self.options['hidden_layer_size'])
+		hidden_state_shape = (1, self.network.hidden_layer_size)
 		hidden_layer_state = [
 				numpy.zeros(shape=hidden_state_shape).astype('float32')
 				for _ in range(self.network.hidden_layer.num_state_variables)]

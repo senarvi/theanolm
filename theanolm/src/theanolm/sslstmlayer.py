@@ -5,37 +5,40 @@ from collections import OrderedDict
 import numpy
 import theano
 import theano.tensor as tensor
+from theanolm.matrixfunctions import orthogonal_weight, get_submatrix
 
-from matrixfunctions import orthogonal_weight, get_submatrix
-
-
-class GRULayer(object):
-	"""Gated Recurrent Unit Layer for Neural Network Language Model
+class SSLSTMLayer(object):
+	"""Single-State Long Short-Term Memory Layer for Neural Network Language
+	Model
+	
+	This is like an LSTM layer, but needs just one state output. A time step
+	uses the hidden state output instead of the cell state output (they differ
+	only by a tanh applied to the hidden state output).
 	"""
 
-	def __init__(self, in_size, out_size, options):
-		"""Initializes the parameters for a GRU layer of a recurrent neural
+	def __init__(self, in_size, out_size, profile=False):
+		"""Initializes the parameters for a SS-LSTM layer of a recurrent neural
 		network.
 
 		:type in_size: int
-		:param options: number of input connections
+		:param in_size: number of input connections
 
 		:type out_size: int
-		:param options: number of output connections
+		:param out_size: number of output connections
 
-		:type options: dict
-		:param options: a dictionary of training options
+		:type profile: bool
+		:param profile: if set to True, creates a Theano profile object
 		"""
 
-		self.options = options
+		self._profile = profile
 
 		# The number of state variables to be passed between time steps.
 		self.num_state_variables = 1
-		
+
 		# Initialize the parameters.
 		self.param_init_values = OrderedDict()
-		
-		num_gates = 2
+
+		num_gates = 3
 
 		# concatenation of the input weights for each gate
 		self.param_init_values['encoder_W_gates'] = \
@@ -56,7 +59,7 @@ class GRULayer(object):
 		# input weight for the candidate state
 		self.param_init_values['encoder_W_candidate'] = \
 				orthogonal_weight(in_size, out_size, scale=0.01)
-		
+
 		# previous step output weight for the candidate state
 		self.param_init_values['encoder_U_candidate'] = \
 				orthogonal_weight(out_size, out_size)
@@ -66,13 +69,13 @@ class GRULayer(object):
 				numpy.zeros((out_size,)).astype('float32') 
 
 	def create_minibatch_structure(self, model_params, layer_input, mask):
-		"""Creates GRU layer structure for mini-batch processing.
+		"""Creates SS-LSTM layer structure for mini-batch processing.
 
 		In mini-batch training the input is 3-dimensional: the first
 		dimension is the time step, the second dimension are the sequences,
 		and the third dimension is the word projection.
 
-		Sets self.minimatch_output to a symbolic 2-dimensional matrix that
+		Sets self.minibatch_output to a symbolic 2-dimensional matrix that
 		describes the hidden state output of the time steps.
 
 		:type model_params: dict
@@ -89,7 +92,7 @@ class GRULayer(object):
 		"""
 
 		if layer_input.ndim != 3:
-			raise ValueError("GRULayer.create_minibatch_structure() requires 3-dimensional input.")
+			raise ValueError("SSLSTMLayer.create_minibatch_structure() requires 3-dimensional input.")
 
 		num_time_steps = layer_input.shape[0]
 		num_sequences = layer_input.shape[1]
@@ -102,7 +105,7 @@ class GRULayer(object):
 		x_preact_candidate = \
 				tensor.dot(layer_input, model_params['encoder_W_candidate']) \
 				+ model_params['encoder_b_candidate']
-		
+
 		# The weights and biases for the previous step output. These have to be
 		# applied inside the loop.
 		U_gates = model_params['encoder_U_gates']
@@ -114,40 +117,41 @@ class GRULayer(object):
 				tensor.alloc(0.0, num_sequences, self.layer_size), 0)
 
 		outputs, _ = theano.scan(
-				self.__create_time_step,
+				self._create_time_step,
 				sequences = sequences,
 				outputs_info = [initial_hidden_state],
 				non_sequences = non_sequences,
 				name = 'hidden_layer_steps',
 				n_steps = num_time_steps,
-				profile = self.options['profile'],
+				profile = self._profile,
 				strict = True)
 		
 		self.minibatch_output = outputs
 
 	def create_onestep_structure(self, model_params, layer_input, state_input):
-		"""Creates GRU layer structure for one-step processing.
+		"""Creates SS-LSTM layer structure for one-step processing.
 
 		This function is used for creating a text generator. The input is
 		2-dimensional: the first dimension is the sequence and the second is
 		the word projection.
 
-		Sets self.onestep_outputs to a list of symbolic 2-dimensional matrices
+		Sets self.onestep_output to a list of symbolic 2-dimensional matrices
 		that describe the state outputs of the time steps. There's only one
-		state in a GRU layer, h_(t).
+		state in a SS-LSTM layer, the hidden state h_(t).
 
 		:type model_params: dict
 		:param model_params: shared Theano variables
 
 		:type layer_input: theano.tensor.var.TensorVariable
-		:param layer_input: x_(t), symbolic 2-dimensional matrix that
-		                    describes the output of the previous layer (word
-		                    projections of the sequences)
+		:param layer_input: x_(t), symbolic 2-dimensional matrix that describes
+		                    the output of the previous layer (word projections
+		                    of the sequences)
 
 		:type state_input: list of theano.tensor.var.TensorVariables
 		:param state_input: a list of symbolic 2-dimensional matrices that
 		                    describe the state outputs of the previous time step
-		                    - only one state in a GRU layer, h_(t-1)
+		                    - only one state in a CLSTM layer, the hidden state
+		                    h_(t-1)
 		"""
 
 		num_sequences = layer_input.shape[0]
@@ -162,27 +166,28 @@ class GRULayer(object):
 		x_preact_candidate = \
 				tensor.dot(layer_input, model_params['encoder_W_candidate']) \
 				+ model_params['encoder_b_candidate']
-
+		
 		hidden_state_input = state_input[0]
 		
 		# The weights and biases for the previous step output. These will
-		# be applied inside __create_time_step().
+		# be applied inside _create_time_step().
 		U_gates = model_params['encoder_U_gates']
 		U_candidate = model_params['encoder_U_candidate']
 
-		outputs = self.__create_time_step(
+		outputs = self._create_time_step(
 				mask,
 				x_preact_gates,
 				x_preact_candidate,
 				hidden_state_input,
 				U_gates,
 				U_candidate)
+
 		self.onestep_outputs = [outputs]
 
-	def __create_time_step(self, mask, x_preact_gates, x_preact_candidate, h_in, U_gates,
-	                       U_candidate):
-		"""The GRU step function for theano.scan(). Creates the structure of one
-		time step.
+	def _create_time_step(self, mask, x_preact_gates, x_preact_candidate, h_in,
+	                       U_gates, U_candidate):
+		"""The SS-LSTM step function for theano.scan(). Creates the structure of
+		one time step.
 
 		The required affine transformations have already been applied to the
 		input prior to creating the loop. The transformed inputs and the mask
@@ -222,18 +227,19 @@ class GRULayer(object):
 		preact_gates = tensor.dot(h_in, U_gates)
 		preact_gates += x_preact_gates
 
-		# reset and update gates
-		r = tensor.nnet.sigmoid(get_submatrix(preact_gates, 0, self.layer_size))
-		u = tensor.nnet.sigmoid(get_submatrix(preact_gates, 1, self.layer_size))
+		# input, forget, and output gates
+		i = tensor.nnet.sigmoid(get_submatrix(preact_gates, 0, self.layer_size))
+		f = tensor.nnet.sigmoid(get_submatrix(preact_gates, 1, self.layer_size))
+		o = tensor.nnet.sigmoid(get_submatrix(preact_gates, 2, self.layer_size))
 
 		# pre-activation of the candidate state
 		preact_candidate = tensor.dot(h_in, U_candidate)
-		preact_candidate *= r
 		preact_candidate += x_preact_candidate
 
-		# hidden state output
-		h_candidate = tensor.tanh(preact_candidate)
-		h_out = (1.0 - u) * h_in + u * h_candidate
+		# cell state and hidden state outputs
+		C_candidate = tensor.tanh(preact_candidate)
+		C_out = f * h_in + i * C_candidate
+		h_out = o * tensor.tanh(C_out)
 
 		# Apply the mask.
 		h_out = mask[:,None] * h_out + (1.0 - mask)[:,None] * h_in

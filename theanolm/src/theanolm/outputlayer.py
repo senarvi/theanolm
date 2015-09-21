@@ -4,8 +4,7 @@
 import numpy
 from collections import OrderedDict
 import theano.tensor as tensor
-
-from matrixfunctions import orthogonal_weight
+from theanolm.matrixfunctions import orthogonal_weight
 
 class OutputLayer(object):
 	""" Output Layer for Neural Network Language Model
@@ -19,10 +18,10 @@ class OutputLayer(object):
 		network.
 
 		:type in_size: int
-		:param options: number of input connections
+		:param in_size: number of input connections
 		
 		:type out_size: int
-		:param options: size of the output
+		:param out_size: size of the output
 		"""
 
 		# Create the parameters.

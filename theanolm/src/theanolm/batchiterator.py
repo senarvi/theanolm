@@ -21,9 +21,8 @@ class BatchIterator(object):
 		                   word IDs
 
 		:type batch_size: int
-		:param batch_size: target size for a mini-batch - read lines until at
-		                   least this many words have been included or the end
-		                   of file is encountered
+		:param batch_size: number of sentences in one mini-batch (unless the end
+		                   of file is encountered earlier)
 	
 		:type max_sequence_length: int
 		:param max_sequence_length: if not None, limit to sequences shorter than

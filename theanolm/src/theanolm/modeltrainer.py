@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from collections import OrderedDict
 import time
 import theano
 import theano.tensor as tensor
 import numpy
-
-from exceptions import InputError, NumberError
+from theanolm.exceptions import IncompatibleStateError, NumberError
 
 class ModelTrainer(object):
 	"""Superclass for Neural Network Language Model Trainers
 	"""
 
-	def __init__(self, network, options):
+	def __init__(self, network, profile=False):
 		"""Creates Theano functions for training a neural network language
 		model.
 
@@ -29,8 +29,8 @@ class ModelTrainer(object):
 		:type network: RNNLM
 		:param network: the neural network object
 
-		:type options: dict
-		:param options: a dictionary of training options
+		:type profile: bool
+		:param profile: if set to True, creates a Theano profile object
 		"""
 
 		self.network = network
@@ -47,16 +47,16 @@ class ModelTrainer(object):
 				[self.network.minibatch_input, self.network.minibatch_mask],
 				cost,
 				updates=self._get_gradient_updates(),
-				profile=options['profile'])
+				profile=profile)
 
 		self.learning_rate = tensor.scalar('learning_rate', dtype='float32')
-		self.learning_rate.tag.test_value = numpy.float32('0.001')
+		self.learning_rate.tag.test_value = numpy.float32(0.001)
 		self.model_update_function = theano.function(
 				[self.learning_rate],
 				[],
 				updates=self._get_model_updates(),
 				on_unused_input='ignore',
-				profile=options['profile'])
+				profile=profile)
 
 		self.update_number = 0
 		self._cost_history = []
@@ -68,25 +68,37 @@ class ModelTrainer(object):
 		self.params = {name: theano.shared(value, name)
 				for name, value in self.param_init_values.items()}
 
-	def load_params(self, path):
-		"""Loads the training state from disk.
+	def get_state(self):
+		"""Pulls parameter values from Theano shared variables.
 
-		:type path: str
-		:param path: filesystem path where to read the state from
+		:rtype: dict
+		:returns: a dictionary of the parameter values
 		"""
 
-		data = numpy.load(path)
-		num_updated = 0
-		for name in self.params:
-			if not name in data:
-				raise InputError("Parameter %s was not found from %s." % (name, path))
-			self.params[name].set_value(data[name])
-			num_updated += 1
-		print("Read %d parameter values from %s." % (num_updated, path))
+		result = OrderedDict()
+		for name, param in self.params.items():
+			result[name] = param.get_value()
+		result['update_number'] = self.update_number
+		result['cost_history'] = self._cost_history
+		return result
 
-		if not 'cost_history' in data:
-			raise InputError("Validation set cost history was not found from %s." % (name, path))
-		saved_cost_history = data['cost_history'].tolist()
+	def set_state(self, state):
+		"""Sets the values of Theano shared variables.
+		
+		Requires that ``state`` contains values for all the training parameters.
+
+		:type state: dict
+		:param state: dictionary of training parameters
+		"""
+
+		for name, param in self.params.items():
+			if not name in state:
+				raise IncompatibleStateError("Parameter %s is missing from training state." % name)
+			param.set_value(state[name])
+
+		if not 'cost_history' in state:
+			raise IncompatibleStateError("Validation set cost history is missing from training state.")
+		saved_cost_history = state['cost_history'].tolist()
 		# If the error history was empty when the state was saved,
 		# ndarray.tolist() will return None.
 		if saved_cost_history is None:
@@ -95,20 +107,10 @@ class ModelTrainer(object):
 			self._cost_history = saved_cost_history
 		self.print_cost_history()
 
-		if not 'update_number' in data:
-			raise InputError("Current update number was not found from %s." % (name, path))
-		self.update_number = data['update_number']
+		if not 'update_number' in state:
+			raise IncompatibleStateError("Current update number is missing from training state.")
+		self.update_number = state['update_number']
 		print("Previous training has been stopped after update %d." % self.update_number)
-
-	def save_params(self, path):
-		"""Saves the current training state to disk.
-
-		:type path: str
-		:param path: filesystem path where to save the parameters to
-		"""
-
-		numpy.savez(path, update_number=self.update_number, cost_history=self._cost_history, **params)
-		print("Saved %d parameter values and error history to %s." % (len(params), path))
 
 	def print_cost_history(self):
 		"""Prints the current error history.
@@ -132,7 +134,7 @@ class ModelTrainer(object):
 		             contains input and 1.0 after sequence end
 
 		:type learning_rate: float
-		:param learning_rate: (initial) learning rate for the optimization
+		:param learning_rate: learning rate for the optimization
 
 		:type verbose: bool
 		:param verbos: if set to True, prints update cost and duration
@@ -184,14 +186,23 @@ class SGDTrainer(ModelTrainer):
 	"""Stochastic Gradient Descent Trainer for a Neural Network Language Model
 	"""
 
-	def __init__(self, network, options):
+	def __init__(self, network, profile):
+		"""Creates an SGD trainer.
+
+		:type network: RNNLM
+		:param network: the neural network object
+
+		:type profile: bool
+		:param profile: if set to True, creates a Theano profile object
+		"""
+		
 		self.param_init_values = {name + '_gradient': param.get_value() * 0.0
 				for name, param in network.params.items()}
 		self._create_params()
 		self._gradient_params = [self.params[name + '_gradient']
 				for name in network.params]
 
-		super().__init__(network, options)
+		super().__init__(network, profile)
 
 	def _get_gradient_updates(self):
 		return [(param, gradient)
@@ -199,7 +210,7 @@ class SGDTrainer(ModelTrainer):
 
 	def _get_model_updates(self):
 		return [(param, param - self.learning_rate * gradient)
-				for param, gradient in zip(self.network.params.values(), gradient_params)]
+				for param, gradient in zip(self.network.params.values(), self._gradient_params)]
 
 
 class AdamTrainer(ModelTrainer):
@@ -210,7 +221,16 @@ class AdamTrainer(ModelTrainer):
 	The International Conference on Learning Representations (ICLR), San Diego, 2015
 	"""
 
-	def __init__(self, network, options):
+	def __init__(self, network, profile):
+		"""Creates an Adam trainer.
+
+		:type network: RNNLM
+		:param network: the neural network object
+
+		:type profile: bool
+		:param profile: if set to True, creates a Theano profile object
+		"""
+		
 		self.param_init_values = dict()
 		for name, param in network.params.items():
 			self.param_init_values[name + '_gradient'] = param.get_value() * 0.0
@@ -222,7 +242,7 @@ class AdamTrainer(ModelTrainer):
 				for name in network.params]
 		self._timestep = self.params['adam_timestep']
 
-		super().__init__(network, options)
+		super().__init__(network, profile)
 
 	def _get_gradient_updates(self):
 		return [(param, gradient)

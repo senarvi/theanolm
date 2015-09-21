@@ -4,8 +4,7 @@
 import numpy
 from collections import OrderedDict
 import theano.tensor as tensor
-
-from matrixfunctions import random_weight
+from theanolm.matrixfunctions import random_weight
 
 class SkipLayer(object):
 	""" Skip-Layer for Neural Network Language Model
@@ -17,17 +16,14 @@ class SkipLayer(object):
 	def __init__(self, in1_size, in2_size, out_size):
 		"""Initializes the parameters for a skip-layer of a neural network.
 
-		:type options: dict
-		:param options: a dictionary of training options
-
 		:type in1_size: int
-		:param options: number of connections from the first input layer 
+		:param in1_size: number of connections from the first input layer 
 	
 		:type in2_size: int
-		:param options: number of connections from the second input layer
+		:param in2_size: number of connections from the second input layer
 	
 		:type out_size: int
-		:param options: number of output connections
+		:param out_size: number of output connections
 		"""
 
 		# Create the parameters.
