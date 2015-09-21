@@ -72,9 +72,6 @@ class BatchIterator(object):
 			self.end_of_file = True
 			return self.__prepare_minibatch(sequences)
 
-	def next(self):
-		return self.__next__()
-
 	def __reset(self):
 		self.input_file.seek(0)
 	

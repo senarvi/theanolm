@@ -43,10 +43,11 @@ def train(rnnlm, trainer, scorer, training_iter, validation_iter, args):
 
 	# Fast forward the input to the position where it was left last time.
 	for i in range(trainer.update_number):
-		for word_ids, mask in training_iter:
-			pass
+		next(training_iter)
 
 	for epoch_number in range(args.max_epochs):
+		print("### EPOCH", epoch_number)
+		
 		for word_ids, mask in training_iter:
 			trainer.update_minibatch(
 					word_ids,
