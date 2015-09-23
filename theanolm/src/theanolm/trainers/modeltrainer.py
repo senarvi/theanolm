@@ -175,17 +175,21 @@ class ModelTrainer(object):
 		if numpy.isinf(self.update_cost):
 			raise NumberError("Update %d cost has infinite value." % self.update_number)
 		self.model_update_function(learning_rate)
+		
+		# For print_update_states().
 		self.update_duration = time.time() - update_start_time
+		self.update_learning_rate = learning_rate
 		return True
 
 	def print_update_stats(self):
 		"""Print information about the previous mini-batch update.
 		"""
 
-		print("Update %d.%d (%d) -- mini-batch cost = %f, duration = %f seconds" % (\
+		print("Batch %d.%d (%d) -- lr = %f, cost = %f, duration = %f seconds" % (\
 				self.epoch_number,
 				self.update_number,
 				self.total_updates,
+				self.update_learning_rate,
 				self.update_cost,
 				self.update_duration))
 

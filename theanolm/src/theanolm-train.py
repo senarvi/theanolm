@@ -35,14 +35,14 @@ def save_model(path, state):
 	print("Saved %d parameters to %s." % (len(state), path))
 
 def train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args):
-	validation_cost = scorer.negative_log_probability(validation_iter)
-	print("Validation set average sentence cost before training:", validation_cost)
-
 	best_params = None
-	saved_params = None
-	saved_cost = None
 
 	while trainer.epoch_number <= args.max_epochs:
+		initial_cost = scorer.negative_log_probability(validation_iter)
+		print("Validation set average sentence cost at the start of epoch %d: %f" % (
+				trainer.epoch_number,
+				initial_cost))
+		
 		print("Creating a random permutation of %d training sentences." % len(sentence_starts))
 		training_order = numpy.random.permutation(sentence_starts)
 		training_iter = theanolm.OrderedBatchIterator(
@@ -73,8 +73,9 @@ def train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args):
 					best_params = rnnlm.get_state()
 				elif (args.wait_improvement >= 0) and \
 				     (validations_since_best > args.wait_improvement):
-					print("Stopping because validation set cost did not decrease in previous %d validations." % (args.wait_improvement + 1))
-					return best_params
+					if validations_cost >= initial_cost:
+						args.learning_rate /= 2
+					break
 	
 			if (args.save_interval >= 1) and \
 			   (trainer.total_updates % args.save_interval == 0):
@@ -154,7 +155,7 @@ dictionary = theanolm.Dictionary(args.dictionary_file)
 print("Number of words in vocabulary:", dictionary.num_words())
 print("Number of word classes:", dictionary.num_classes())
 
-print("Finding sentence start poisitions in training data.")
+print("Finding sentence start positions in training data.")
 sentence_starts = [0]
 # Can't use readline() here, otherwise TextIOWrapper disables tell().
 ch = args.training_file.read(1)
