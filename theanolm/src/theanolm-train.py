@@ -34,7 +34,7 @@ def save_model(path, state):
 	numpy.savez(path, **state)
 	print("Saved %d parameters to %s." % (len(state), path))
 
-def train(rnnlm, trainer, scorer, training_iter, validation_iter, args):
+def train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args):
 	validation_cost = scorer.negative_log_probability(validation_iter)
 	print("Validation set average sentence cost before training:", validation_cost)
 
@@ -42,44 +42,46 @@ def train(rnnlm, trainer, scorer, training_iter, validation_iter, args):
 	saved_params = None
 	saved_cost = None
 
-	# Fast forward the input to the position where it was left last time.
-	for i in range(trainer.update_number):
-		next(training_iter)
-
-	while trainer.update_minibatch(
-			training_iter,
-			args.max_epochs,
-			args.learning_rate):
-
-		if (args.verbose_interval >= 1) and \
-		   (trainer.total_updates % args.verbose_interval == 0):
-			trainer.print_update_stats()
-
-		if (args.validation_interval >= 1) and \
-		   (trainer.total_updates % args.validation_interval == 0):
-			validation_cost = scorer.negative_log_probability(validation_iter)
-			if numpy.isnan(validation_cost):
-				print("Stopping because an invalid floating point operation was performed while computing validation set cost. (Gradients exploded or vanished?)")
-				return best_params
-			if numpy.isinf(validation_cost):
-				print("Stopping because validation set cost exploded to infinity.")
-				return best_params
-
-			trainer.append_validation_cost(validation_cost)
-			validations_since_best = trainer.validations_since_min_cost()
-			if validations_since_best == 0:
-				best_params = rnnlm.get_state()
-			elif (args.wait_improvement >= 0) and \
-			     (validations_since_best > args.wait_improvement):
-				print("Stopping because validation set cost did not decrease in previous %d validations." % (args.wait_improvement + 1))
-				return best_params
-
-		if (args.save_interval >= 1) and \
-		   (trainer.total_updates % args.save_interval == 0):
-			# Save the best parameters and the current state.
-			if not best_params is None:
-				save_model(args.model_path, best_params)
-			save_training_state(args.state_path)
+	while trainer.epoch_number <= args.max_epochs:
+		print("Creating a random permutation of %d training sentences." % len(sentence_starts))
+		training_order = numpy.random.permutation(sentence_starts)
+		training_iter = theanolm.OrderedBatchIterator(
+				args.training_file, 
+				dictionary,
+				training_order,
+				batch_size=args.batch_size,
+				max_sequence_length=args.sequence_length)
+		
+		while trainer.update_minibatch(training_iter, args.learning_rate):
+			if (args.verbose_interval >= 1) and \
+			   (trainer.total_updates % args.verbose_interval == 0):
+				trainer.print_update_stats()
+	
+			if (args.validation_interval >= 1) and \
+			   (trainer.total_updates % args.validation_interval == 0):
+				validation_cost = scorer.negative_log_probability(validation_iter)
+				if numpy.isnan(validation_cost):
+					print("Stopping because an invalid floating point operation was performed while computing validation set cost. (Gradients exploded or vanished?)")
+					return best_params
+				if numpy.isinf(validation_cost):
+					print("Stopping because validation set cost exploded to infinity.")
+					return best_params
+	
+				trainer.append_validation_cost(validation_cost)
+				validations_since_best = trainer.validations_since_min_cost()
+				if validations_since_best == 0:
+					best_params = rnnlm.get_state()
+				elif (args.wait_improvement >= 0) and \
+				     (validations_since_best > args.wait_improvement):
+					print("Stopping because validation set cost did not decrease in previous %d validations." % (args.wait_improvement + 1))
+					return best_params
+	
+			if (args.save_interval >= 1) and \
+			   (trainer.total_updates % args.save_interval == 0):
+				# Save the best parameters and the current state.
+				if not best_params is None:
+					save_model(args.model_path, best_params)
+				save_training_state(args.state_path)
 
 	print("Stopping because %d epochs was reached." % args.max_epochs)
 	validation_cost = scorer.negative_log_probability(validation_iter)
@@ -152,11 +154,19 @@ dictionary = theanolm.Dictionary(args.dictionary_file)
 print("Number of words in vocabulary:", dictionary.num_words())
 print("Number of word classes:", dictionary.num_classes())
 
-training_iter = theanolm.BatchIterator(
-		args.training_file, 
-		dictionary,
-		batch_size=args.batch_size,
-		max_sequence_length=args.sequence_length)
+print("Finding sentence start poisitions in training data.")
+sentence_starts = [0]
+# Can't use readline() here, otherwise TextIOWrapper disables tell().
+ch = args.training_file.read(1)
+while ch != '':
+	if ch == '\n':
+		pos = args.training_file.tell()
+		ch = args.training_file.read(1)
+		if ch != '':
+			sentence_starts.append(pos)
+	else:
+		ch = args.training_file.read(1)
+
 validation_iter = theanolm.BatchIterator(
 		args.validation_file,
 		dictionary,
@@ -198,7 +208,7 @@ print("Building text scorer.")
 scorer = theanolm.TextScorer(rnnlm, args.profile)
 
 print("Training neural network.")
-best_params = train(rnnlm, trainer, scorer, training_iter, validation_iter, args)
+best_params = train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args)
 
 print("Saving neural network and training state.")
 save_training_state(args.state_path)

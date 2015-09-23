@@ -132,7 +132,7 @@ class ModelTrainer(object):
 		print("Validation set cost history during training:")
 		print(numpy.asarray(self._cost_history))
 
-	def update_minibatch(self, batch_iter, max_epochs, learning_rate):
+	def update_minibatch(self, batch_iter, learning_rate):
 		"""Optimizes the neural network parameters using the given inputs
 		and learning rate.
 
@@ -145,10 +145,6 @@ class ModelTrainer(object):
 		:param batch_iter: an iterator creating mini-batches from the
 		                   training data
 
-		:type max_epochs: int
-		:param max_epochs: number of epochs to advance before returning
-		                   False
-
 		:type mask: numpy.matrixlib.defmatrix.matrix
 		:param mask: a matrix the same shape as x that contains 0.0 where x
 		             contains input and 1.0 after sequence end
@@ -157,20 +153,17 @@ class ModelTrainer(object):
 		:param learning_rate: learning rate for the optimization
 
 		:rtype: bool
-		:returns: True while ``self.epoch_number`` is less than ``max_epochs``,
-		          False after ``max_epochs`` is reached
+		:returns: True if an update was performed, False if there was no more
+		          training data
 		"""
 
 		# Read the next mini-batch. StopIterator is risen at the end of input.
-		while True:
-			try:
-				word_ids, mask = next(batch_iter)
-				break
-			except StopIteration:
-				self.epoch_number += 1
-				self.update_number = 0
-				if self.epoch_number > max_epochs:
-					return False
+		try:
+			word_ids, mask = next(batch_iter)
+		except StopIteration:
+			self.epoch_number += 1
+			self.update_number = 0
+			return False
 
 		self.update_number += 1
 		self.total_updates += 1

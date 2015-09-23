@@ -4,7 +4,7 @@
 import numpy
 
 class BatchIterator(object):
-	""" Mini-Batch Iterator for Reading Text
+	""" Iterator for Reading Mini-Batches
 	"""
 	
 	def __init__(self,
@@ -50,32 +50,38 @@ class BatchIterator(object):
 		# rewind the file pointer now and raise StopIteration.
 		if self.end_of_file:
 			self.end_of_file = False
-			self.__reset()
+			self._reset()
 			raise StopIteration
 
 		sequences = []
-		for line in self.input_file:
+		while True:
+			line = self._readline()
+			if line == '':
+				break
 			words = line.split()
 			if not self.max_sequence_length is None and len(words) > self.max_sequence_length:
 				continue
 			sequences.append(self.dictionary.text_to_ids(words))
 			if len(sequences) >= self.batch_size:
-				return self.__prepare_minibatch(sequences)
+				return self._prepare_minibatch(sequences)
 
-		# When end of file is reached, if no lines were read, rewind the file
-		# and raise StopIteration. If lines were read, return them and raise
-		# StopIteration the next time this method is called.
+		# When end of file is reached, if no lines were read, rewind to first
+		# line and raise StopIteration. If lines were read, return them and
+		# raise StopIteration the next time this method is called.
 		if len(sequences) == 0:
-			self.__reset()
+			self._reset()
 			raise StopIteration
 		else:
 			self.end_of_file = True
-			return self.__prepare_minibatch(sequences)
+			return self._prepare_minibatch(sequences)
 
-	def __reset(self):
+	def _reset(self):
 		self.input_file.seek(0)
 	
-	def __prepare_minibatch(self, sequences):
+	def _readline(self):
+		return self.input_file.readline()
+	
+	def _prepare_minibatch(self, sequences):
 		"""Prepares a mini-batch for input to the neural network by transposing
 		the sequences matrix and creating a mask matrix.
 
@@ -110,3 +116,52 @@ class BatchIterator(object):
 			mask[:sequence_lengths[i]+1,i] = 1.0
 
 		return word_ids, mask
+
+class OrderedBatchIterator(BatchIterator):
+	""" Iterator for Reading Mini-Batches in Given Order
+	"""
+	
+	def __init__(self,
+	             input_file,
+	             dictionary,
+	             line_starts,
+	             batch_size=128,
+	             max_sequence_length=100):
+		"""
+		:type input_file: file object
+		:param input_file: input text file
+
+		:type dictionary: Dictionary
+		:param dictionary: dictionary that provides mapping between words and
+		                   word IDs
+
+		:type line_starts: numpy.ndarray
+		:param line_starts: a list of start positions of the input sentences;
+		                    the sentences will be read in the order they appear
+		                    in this list
+
+		:type batch_size: int
+		:param batch_size: number of sentences in one mini-batch (unless the end
+		                   of file is encountered earlier)
+	
+		:type max_sequence_length: int
+		:param max_sequence_length: if not None, limit to sequences shorter than
+		                            this
+		"""
+
+		super().__init__(input_file, dictionary, batch_size, max_sequence_length)
+		
+		self.line_starts = line_starts
+		self.next_line = 0
+
+	def _reset(self):
+		self.next_line = 0
+
+	def _readline(self):
+		if self.next_line >= len(self.line_starts):
+			return ''
+		else:
+			self.input_file.seek(self.line_starts[self.next_line])
+			line = self.input_file.readline()
+			self.next_line += 1
+			return line
