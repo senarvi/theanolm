@@ -6,6 +6,7 @@ import os
 import numpy
 import theano
 import theanolm
+import theanolm.trainers as trainers
 from filetypes import TextFileType
 
 def save_training_state(path):
@@ -45,40 +46,40 @@ def train(rnnlm, trainer, scorer, training_iter, validation_iter, args):
 	for i in range(trainer.update_number):
 		next(training_iter)
 
-	for epoch_number in range(args.max_epochs):
-		print("### EPOCH", epoch_number)
-		
-		for word_ids, mask in training_iter:
-			trainer.update_minibatch(
-					word_ids,
-					mask,
-					args.learning_rate,
-					(trainer.update_number + 1) % args.verbose_interval == 0)
+	while trainer.update_minibatch(
+			training_iter,
+			args.max_epochs,
+			args.learning_rate):
 
-			if (args.validation_interval >= 1) and \
-			   (trainer.update_number % args.validation_interval == 0):
-				validation_cost = scorer.negative_log_probability(validation_iter)
-				if numpy.isnan(validation_cost):
-					print("Stopping because validation set cost exploded.")
-					return best_params
+		if (args.verbose_interval >= 1) and \
+		   (trainer.total_updates % args.verbose_interval == 0):
+			trainer.print_update_stats()
 
-				trainer.append_validation_cost(validation_cost)
-				validations_since_best = trainer.validations_since_min_cost()
-				if validations_since_best == 0:
-					best_params = rnnlm.get_state()
-				elif (args.wait_improvement >= 0) and \
-				     (validations_since_best > args.wait_improvement):
-					print("Stopping because validation set cost did not decrease in previous %d validations." % (args.wait_improvement + 1))
-					return best_params
+		if (args.validation_interval >= 1) and \
+		   (trainer.total_updates % args.validation_interval == 0):
+			validation_cost = scorer.negative_log_probability(validation_iter)
+			if numpy.isnan(validation_cost):
+				print("Stopping because an invalid floating point operation was performed while computing validation set cost. (Gradients exploded or vanished?)")
+				return best_params
+			if numpy.isinf(validation_cost):
+				print("Stopping because validation set cost exploded to infinity.")
+				return best_params
 
-			if (args.save_interval >= 1) and \
-			   (trainer.update_number % args.save_interval == 0):
-				# Save the best parameters and the current state.
-				if not best_params is None:
-					save_model(args.model_path, best_params)
-				save_training_state(args.state_path)
+			trainer.append_validation_cost(validation_cost)
+			validations_since_best = trainer.validations_since_min_cost()
+			if validations_since_best == 0:
+				best_params = rnnlm.get_state()
+			elif (args.wait_improvement >= 0) and \
+			     (validations_since_best > args.wait_improvement):
+				print("Stopping because validation set cost did not decrease in previous %d validations." % (args.wait_improvement + 1))
+				return best_params
 
-		trainer.update_number = 0
+		if (args.save_interval >= 1) and \
+		   (trainer.total_updates % args.save_interval == 0):
+			# Save the best parameters and the current state.
+			if not best_params is None:
+				save_model(args.model_path, best_params)
+			save_training_state(args.state_path)
 
 	print("Stopping because %d epochs was reached." % args.max_epochs)
 	validation_cost = scorer.negative_log_probability(validation_iter)
@@ -110,15 +111,17 @@ argument_group.add_argument('--wait-improvement', metavar='N', type=int, default
 argument_group.add_argument('--max-epochs', metavar='N', type=int, default=1000,
 		help='perform at most N training epochs (default 1000)')
 argument_group.add_argument('--optimization-method', metavar='NAME', type=str, default='adam',
-		help='optimization method, "sgd" or "adam" (default "adam")')
+		help='optimization method, one of "sgd", "nesterov", "adadelta", "rmsprop-sgd", "rmsprop-momentum", "adam" (default "adam")')
 argument_group.add_argument('--learning-rate', metavar='ALPHA', type=float, default=0.001,
 		help='initial learning rate (default 0.001)')
+argument_group.add_argument('--momentum', metavar='BETA', type=float, default=0.9,
+		help='momentum coefficient for momentum optimization methods (default 0.9)')
 argument_group.add_argument('--validation-interval', metavar='N', type=int, default=1000,
 		help='cross-validation for early stopping is performed after every Nth mini-batch update (default 1000)')
 argument_group.add_argument('--save-interval', metavar='N', type=int, default=1000,
 		help='save training state after every Nth mini-batch update; if less than one, save the model only after training (default 1000)')
 argument_group.add_argument('--verbose-interval', metavar='N', type=int, default=100,
-		help='print statistics after every Nth mini-batch update; quiet if less than one (default 100)')
+		help='print statistics of every Nth mini-batch update; quiet if less than one (default 100)')
 
 argument_group = parser.add_argument_group("network structure")
 argument_group.add_argument('--word-projection-dim', metavar='N', type=int, default=100,
@@ -173,9 +176,17 @@ if not initial_state is None:
 
 print("Building neural network trainer.")
 if args.optimization_method == 'sgd':
-	trainer = theanolm.SGDTrainer(rnnlm, args.profile)
+	trainer = trainers.SGDTrainer(rnnlm, args.profile)
+elif args.optimization_method == 'nesterov':
+	trainer = trainers.NesterovTrainer(rnnlm, args.momentum, args.profile)
+elif args.optimization_method == 'adadelta':
+	trainer = trainers.AdadeltaTrainer(rnnlm, args.profile)
+elif args.optimization_method == 'rmsprop-sgd':
+	trainer = trainers.RMSPropSGDTrainer(rnnlm, args.profile)
+elif args.optimization_method == 'rmsprop-momentum':
+	trainer = trainers.RMSPropMomentumTrainer(rnnlm, args.momentum, args.profile)
 elif args.optimization_method == 'adam':
-	trainer = theanolm.AdamTrainer(rnnlm, args.profile)
+	trainer = trainers.AdamTrainer(rnnlm, args.profile)
 else:
 	print("Invalid optimization method requested:", args.optimization_method)
 	exit(1)

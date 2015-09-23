@@ -16,15 +16,15 @@ class ModelTrainer(object):
 		"""Creates Theano functions for training a neural network language
 		model.
 
-		The subclass constructor is expected to give default values to
-		all the required parameters in self.param_init_values first. This
-		constructor will then create the corresponding Theano shared
-		variables, and two update functions:
+		The subclass constructor is expected to give default values to all the
+		required parameters in self.param_init_values first. This constructor
+		will then create the corresponding Theano shared variables, and two
+		update functions:
 
-		* gradient_update_function: updates the gradient parameters and
-		  returns the cost
-		* model_update_function: updates model state given the gradients
-		  and the learning rate
+		* gradient_update_function: updates the gradient parameters and returns
+		  the cost
+		* model_update_function: updates model state given the gradients and the
+		  learning rate
 
 		:type network: RNNLM
 		:param network: the neural network object
@@ -41,8 +41,9 @@ class ModelTrainer(object):
 		costs = costs * self.network.minibatch_mask
 		# Sum costs over time steps and take the average over sequences.
 		cost = costs.sum(0).mean()
-		# Compute the symbolic gradient of each parameter.
-		self.gradients = tensor.grad(cost, wrt=list(self.network.params.values()))
+		# Compute the symbolic rule for updating the gradient of each parameter.
+		self._gradient_wrt_params = \
+				tensor.grad(cost, wrt=list(self.network.params.values()))
 		self.gradient_update_function = theano.function(
 				[self.network.minibatch_input, self.network.minibatch_mask],
 				cost,
@@ -58,7 +59,13 @@ class ModelTrainer(object):
 				on_unused_input='ignore',
 				profile=profile)
 
+		# current training epoch
+		self.epoch_number = 1
+		# number of mini-batch updates performed in this epoch
 		self.update_number = 0
+		# total number of mini-batch updates performed (after restart)
+		self.total_updates = 0
+		# validation set cost history
 		self._cost_history = []
 
 	def _create_params(self):
@@ -78,6 +85,7 @@ class ModelTrainer(object):
 		result = OrderedDict()
 		for name, param in self.params.items():
 			result[name] = param.get_value()
+		result['epoch_number'] = self.epoch_number
 		result['update_number'] = self.update_number
 		result['cost_history'] = self._cost_history
 		return result
@@ -107,10 +115,13 @@ class ModelTrainer(object):
 			self._cost_history = saved_cost_history
 		self.print_cost_history()
 
+		if not 'epoch_number' in state:
+			raise IncompatibleStateError("Current epoch number is missing from training state.")
+		self.epoch_number = state['epoch_number']
 		if not 'update_number' in state:
 			raise IncompatibleStateError("Current update number is missing from training state.")
 		self.update_number = state['update_number']
-		print("Previous training has been stopped after update %d." % self.update_number)
+		print("Previous training was stopped after update %d.%d." % (self.epoch_number, self.update_number))
 
 	def print_cost_history(self):
 		"""Prints the current error history.
@@ -121,13 +132,22 @@ class ModelTrainer(object):
 		print("Validation set cost history during training:")
 		print(numpy.asarray(self._cost_history))
 
-	def update_minibatch(self, x, mask, learning_rate, verbose=False):
+	def update_minibatch(self, batch_iter, max_epochs, learning_rate):
 		"""Optimizes the neural network parameters using the given inputs
 		and learning rate.
 
-		:type x: numpy.matrixlib.defmatrix.matrix
-		:param x: a 2-dimensional matrix indexed by time step and sequence
-		          that contains word IDs
+		``batch_iter`` is an iterator to the training data. On each call
+		it creates a tuple of two 2-dimensional matrices, both indexed by
+		time step and sequence. The first matrix contains the word IDs,
+		and the second one contains the mask.
+
+		:type batch_iter: BatchIterator
+		:param batch_iter: an iterator creating mini-batches from the
+		                   training data
+
+		:type max_epochs: int
+		:param max_epochs: number of epochs to advance before returning
+		                   False
 
 		:type mask: numpy.matrixlib.defmatrix.matrix
 		:param mask: a matrix the same shape as x that contains 0.0 where x
@@ -136,23 +156,45 @@ class ModelTrainer(object):
 		:type learning_rate: float
 		:param learning_rate: learning rate for the optimization
 
-		:type verbose: bool
-		:param verbos: if set to True, prints update cost and duration
+		:rtype: bool
+		:returns: True while ``self.epoch_number`` is less than ``max_epochs``,
+		          False after ``max_epochs`` is reached
 		"""
 
+		# Read the next mini-batch. StopIterator is risen at the end of input.
+		while True:
+			try:
+				word_ids, mask = next(batch_iter)
+				break
+			except StopIteration:
+				self.epoch_number += 1
+				self.update_number = 0
+				if self.epoch_number > max_epochs:
+					return False
+
 		self.update_number += 1
+		self.total_updates += 1
 
 		update_start_time = time.time()
-		cost = self.gradient_update_function(x, mask)
-		if numpy.isnan(cost):
+		self.update_cost = self.gradient_update_function(word_ids, mask)
+		if numpy.isnan(self.update_cost):
 			raise NumberError("Update %d cost has NaN value." % self.update_number)
-		if numpy.isinf(cost):
+		if numpy.isinf(self.update_cost):
 			raise NumberError("Update %d cost has infinite value." % self.update_number)
 		self.model_update_function(learning_rate)
-		update_duration = time.time() - update_start_time
+		self.update_duration = time.time() - update_start_time
+		return True
 
-		if verbose:
-			print("Update %d -- mini-batch cost = %f, duration = %f seconds" % (self.update_number, cost, update_duration))
+	def print_update_stats(self):
+		"""Print information about the previous mini-batch update.
+		"""
+
+		print("Update %d.%d (%d) -- mini-batch cost = %f, duration = %f seconds" % (\
+				self.epoch_number,
+				self.update_number,
+				self.total_updates,
+				self.update_cost,
+				self.update_duration))
 
 	def append_validation_cost(self, validation_cost):
 		"""Adds the validation set cost to the cost history.
@@ -180,92 +222,3 @@ class ModelTrainer(object):
 			# with the minimum value (in case there are several elements with the
 			# same value.
 			return numpy.argmin(self._cost_history[::-1])
-
-
-class SGDTrainer(ModelTrainer):
-	"""Stochastic Gradient Descent Trainer for a Neural Network Language Model
-	"""
-
-	def __init__(self, network, profile):
-		"""Creates an SGD trainer.
-
-		:type network: RNNLM
-		:param network: the neural network object
-
-		:type profile: bool
-		:param profile: if set to True, creates a Theano profile object
-		"""
-		
-		self.param_init_values = {name + '_gradient': param.get_value() * 0.0
-				for name, param in network.params.items()}
-		self._create_params()
-		self._gradient_params = [self.params[name + '_gradient']
-				for name in network.params]
-
-		super().__init__(network, profile)
-
-	def _get_gradient_updates(self):
-		return [(param, gradient)
-				for param, gradient in zip(self._gradient_params, self.gradients)]
-
-	def _get_model_updates(self):
-		return [(param, param - self.learning_rate * gradient)
-				for param, gradient in zip(self.network.params.values(), self._gradient_params)]
-
-
-class AdamTrainer(ModelTrainer):
-	"""Adam Trainer for a Neural Network Language Model
-
-	D.P. Kingma, J. Ba
-	Adam: A Method for Stochastic Optimization
-	The International Conference on Learning Representations (ICLR), San Diego, 2015
-	"""
-
-	def __init__(self, network, profile):
-		"""Creates an Adam trainer.
-
-		:type network: RNNLM
-		:param network: the neural network object
-
-		:type profile: bool
-		:param profile: if set to True, creates a Theano profile object
-		"""
-		
-		self.param_init_values = dict()
-		for name, param in network.params.items():
-			self.param_init_values[name + '_gradient'] = param.get_value() * 0.0
-			self.param_init_values[name + '_adam_m'] = param.get_value() * 0.0
-			self.param_init_values[name + '_adam_v'] = param.get_value() * 0.0
-		self.param_init_values['adam_timestep'] = numpy.float32(0.0)
-		self._create_params()
-		self._gradient_params = [self.params[name + '_gradient']
-				for name in network.params]
-		self._timestep = self.params['adam_timestep']
-
-		super().__init__(network, profile)
-
-	def _get_gradient_updates(self):
-		return [(param, gradient)
-				for param, gradient in zip(self._gradient_params, self.gradients)]
-
-	def _get_model_updates(self):
-		b1 = 0.9
-		b2 = 0.999
-		e = 1e-8
-
-		timestep_new = self._timestep + 1.0
-		alpha = self.learning_rate * tensor.sqrt(1.0 - b2**timestep_new) \
-				/ (1.0 - b1**timestep_new)
-
-		result = []
-		for name, param, gradient in zip(self.network.params, self.network.params.values(), self._gradient_params):
-			m = self.params[name + '_adam_m']
-			v = self.params[name + '_adam_v']
-			m_new = (b1 * m) + ((1.0 - b1) * gradient)
-			v_new = (b2 * v) + ((1.0 - b2) * tensor.sqr(gradient))
-			param_new = param - (alpha * m_new / (tensor.sqrt(v_new) + e))
-			result.append((m, m_new))
-			result.append((v, v_new))
-			result.append((param, param_new))
-		result.append((self._timestep, timestep_new))
-		return result

@@ -1,0 +1,6 @@
+from theanolm.trainers.sgdtrainer import SGDTrainer
+from theanolm.trainers.nesterovtrainer import NesterovTrainer
+from theanolm.trainers.adadeltatrainer import AdadeltaTrainer
+from theanolm.trainers.rmspropsgdtrainer import RMSPropSGDTrainer
+from theanolm.trainers.rmspropmomentumtrainer import RMSPropMomentumTrainer
+from theanolm.trainers.adamtrainer import AdamTrainer
