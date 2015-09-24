@@ -1,4 +1,5 @@
 eclipse.preferences.version=1
+encoding//src/filetypes.py=utf-8
 encoding//src/theanolm-sample.py=utf-8
 encoding//src/theanolm-score.py=utf-8
 encoding//src/theanolm-train.py=utf-8
