@@ -128,17 +128,20 @@ class RNNLM(object):
 		
 		self.minibatch_output = self.output_layer.minibatch_output
 		
+		# Projection layer moves the output one time step forward, so that the
+		# input at each time step is what the output (predicted word) should be.
 		# Input word IDs + the index times vocabulary size can be used to index
-		# a flattened output matrix to read the probabilities of the input
-		# words.
+		# a flattened output matrix to read the probabilities of the correct
+		# outputs.
 		input_flat = self.minibatch_input.flatten()
-		flat_output_indices = \
+		correct_output_indices = \
 				tensor.arange(input_flat.shape[0]) * self.dictionary.num_classes() \
 				+ input_flat
-		input_word_probs = self.minibatch_output.flatten()[flat_output_indices]
-		input_word_probs = input_word_probs.reshape(
+		correct_output_probs = \
+				self.minibatch_output.flatten()[correct_output_indices]
+		correct_output_probs = correct_output_probs.reshape(
 				[self.minibatch_input.shape[0], self.minibatch_input.shape[1]])
-		self.minibatch_probs = input_word_probs
+		self.training_probs = correct_output_probs
 
 	def _create_onestep_structure(self):
 		"""Creates the network structure for one-step processing.

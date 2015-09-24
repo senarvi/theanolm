@@ -28,9 +28,8 @@ class AdamTrainer(ModelTrainer):
 			self.param_init_values[name + '_gradient'] = numpy.zeros_like(param.get_value())
 			self.param_init_values[name + '_mean_gradient'] = numpy.zeros_like(param.get_value())
 			self.param_init_values[name + '_mean_sqr_gradient'] = numpy.zeros_like(param.get_value())
-		self.param_init_values['adam_timestep'] = numpy.float32(0.0)
+		self.param_init_values['timestep'] = numpy.float32(0.0)
 		self._create_params()
-		self._timestep = self.params['adam_timestep']
 		self._gamma_m = 0.9  # geometric rate for averaging gradients (decay rate)
 		self._gamma_ms = 0.999  # geometric rate for averaging squared gradients (decay rate)
 		self._epsilon = 1e-8
@@ -51,7 +50,8 @@ class AdamTrainer(ModelTrainer):
 		return result
 
 	def _get_model_updates(self):
-		timestep_new = self._timestep + 1.0
+		timestep = self.params['timestep']
+		timestep_new = timestep + 1.0
 		alpha = self.learning_rate * tensor.sqrt(1.0 - (self._gamma_ms ** timestep_new)) \
 				/ (1.0 - (self._gamma_m ** timestep_new))
 
@@ -62,5 +62,9 @@ class AdamTrainer(ModelTrainer):
 			rms_gradient = tensor.sqrt(ms_gradient) + self._epsilon
 			param_new = param - (alpha * m_gradient / rms_gradient)
 			result.append((param, param_new))
-		result.append((self._timestep, timestep_new))
+		result.append((timestep, timestep_new))
 		return result
+
+	def reset(self):
+		print("Resetting Adam timestep to zero.")
+		self.params['timestep'].set_value(numpy.float32(0.0))

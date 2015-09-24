@@ -44,11 +44,11 @@ def train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args):
 				initial_cost))
 		
 		print("Creating a random permutation of %d training sentences." % len(sentence_starts))
-		training_order = numpy.random.permutation(sentence_starts)
+		numpy.random.shuffle(sentence_starts)
 		training_iter = theanolm.OrderedBatchIterator(
-				args.training_file, 
+				args.training_file,
 				dictionary,
-				training_order,
+				sentence_starts,
 				batch_size=args.batch_size,
 				max_sequence_length=args.sequence_length)
 		
@@ -73,8 +73,9 @@ def train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args):
 					best_params = rnnlm.get_state()
 				elif (args.wait_improvement >= 0) and \
 				     (validations_since_best > args.wait_improvement):
-					if validations_cost >= initial_cost:
+					if validation_cost >= initial_cost:
 						args.learning_rate /= 2
+					trainer.next_epoch()
 					break
 	
 			if (args.save_interval >= 1) and \

@@ -23,7 +23,7 @@ class TextScorer(object):
 		inputs = [network.minibatch_input, network.minibatch_mask]
 
 		# Calculate negative log probability of each word.
-		costs = -tensor.log(network.minibatch_probs)
+		costs = -tensor.log(network.training_probs)
 		# Apply mask to the costs matrix.
 		costs = costs * network.minibatch_mask
 		# Sum costs over time steps to get the negative log probability of each
@@ -33,19 +33,19 @@ class TextScorer(object):
 		self.score_function = \
 				theano.function(inputs, outputs, profile=profile)
 
-	def negative_log_probability(self, minibatch_iterator):
+	def negative_log_probability(self, batch_iterator):
 		"""Computes the mean negative log probability of mini-batches read using
 		the given iterator.
 
-		:type minibatch_iterator: MinibatchIterator
-		:param minibatch_iterator: iterator to the input file
+		:type batch_iterator: BatchIterator
+		:param batch_iterator: iterator to the input file
 
 		:rtype: float
 		:returns: average sequence negative log probability
 		"""
 
 		costs = []
-		for input_matrix, mask in minibatch_iterator:
+		for input_matrix, mask in batch_iterator:
 			# Append costs of each sequence in the mini-batch. 
 			costs.extend(self.score_function(input_matrix, mask))
 			if numpy.isnan(numpy.mean(costs)):

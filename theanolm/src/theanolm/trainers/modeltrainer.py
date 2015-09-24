@@ -36,7 +36,7 @@ class ModelTrainer(object):
 		self.network = network
 
 		# Calculate negative log probability of each word.
-		costs = -tensor.log(self.network.minibatch_probs)
+		costs = -tensor.log(self.network.training_probs)
 		# Apply mask to the costs matrix.
 		costs = costs * self.network.minibatch_mask
 		# Sum costs over time steps and take the average over sequences.
@@ -124,12 +124,12 @@ class ModelTrainer(object):
 		print("Previous training was stopped after update %d.%d." % (self.epoch_number, self.update_number))
 
 	def print_cost_history(self):
-		"""Prints the current error history.
+		"""Prints the current cost history.
 		
 		We're using numpy for prettier formatting.
 		"""
 
-		print("Validation set cost history during training:")
+		print("Validation set cost history since last reset:")
 		print(numpy.asarray(self._cost_history))
 
 	def update_minibatch(self, batch_iter, learning_rate):
@@ -192,6 +192,23 @@ class ModelTrainer(object):
 				self.update_learning_rate,
 				self.update_cost,
 				self.update_duration))
+
+	def next_epoch(self):
+		"""Skips to the next epoch.
+
+		Called when the validation set cost stops decreasing.
+		"""
+
+		self.epoch_number += 1
+		self.update_number = 0
+		self._cost_history = []
+		self.reset()
+
+	def reset(self):
+		"""Resets training parameters if necessary before starting the next epoch
+		after cost won't decrease.
+		"""
+		pass
 
 	def append_validation_cost(self, validation_cost):
 		"""Adds the validation set cost to the cost history.
