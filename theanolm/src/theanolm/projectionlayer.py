@@ -6,98 +6,97 @@ import theano.tensor as tensor
 from theanolm.matrixfunctions import orthogonal_weight
 
 class InputError(Exception):
-	"""Exception raised for errors in the input.
-	"""
-	pass
+    """Exception raised for errors in the input.
+    """
+    pass
 
 class ProjectionLayer(object):
-	"""Projection Layer for Neural Network Language Model
-	"""
+    """Projection Layer for Neural Network Language Model
+    """
 
-	def __init__(self, in_size, out_size):
-		"""Initializes the parameters for the first layer of a neural network
-		language model, which creates the word embeddings.
+    def __init__(self, in_size, out_size):
+        """Initializes the parameters for the first layer of a neural network
+        language model, which creates the word embeddings.
 
-		:type in_size: int
-		:param in_size: dimensionality of the input vectors, i.e. vocabulary
-		                size
+        :type in_size: int
+        :param in_size: dimensionality of the input vectors, i.e. vocabulary
+                        size
 
-		:type out_size: int
-		:param out_size: dimensionality of the word projections
-		"""
-		
-		self.word_projection_dim = out_size
+        :type out_size: int
+        :param out_size: dimensionality of the word projections
+        """
 
-		# Initialize the parameters.
-		self.param_init_values = OrderedDict()
+        self.word_projection_dim = out_size
 
-		self.param_init_values['word_projection'] = \
-				orthogonal_weight(in_size, out_size, scale=0.01)
+        # Initialize the parameters.
+        self.param_init_values = OrderedDict()
 
-	def create_minibatch_structure(self, model_params, layer_input):
-		"""Creates projection layer structure for mini-batch processing.
+        self.param_init_values['word_projection'] = \
+                orthogonal_weight(in_size, out_size, scale=0.01)
 
-		Creates the layer structure for 2-dimensional input: the first
-		dimension is the time step (index of word in a sequence) and the
-		second dimension are the sequences
+    def create_minibatch_structure(self, model_params, layer_input):
+        """Creates projection layer structure for mini-batch processing.
 
-		:type model_params: dict
-		:param model_params: shared Theano variables
+        Creates the layer structure for 2-dimensional input: the first
+        dimension is the time step (index of word in a sequence) and the
+        second dimension are the sequences
 
-		:type layer_input: theano.tensor.var.TensorVariable
-		:param layer_input: symbolic 2-dimensional matrix that describes
-		                    the input
+        :type model_params: dict
+        :param model_params: shared Theano variables
 
-		:rtype: theano.tensor.var.TensorVariable
-		:returns: symbolic 3-dimensional matrix - the first dimension is
-		          the time step, the second dimension are the sequences,
-		          and the third dimension is the word projection
-		"""
+        :type layer_input: theano.tensor.var.TensorVariable
+        :param layer_input: symbolic 2-dimensional matrix that describes
+                            the input
 
-		num_time_steps = layer_input.shape[0]
-		num_sequences = layer_input.shape[1]
+        :rtype: theano.tensor.var.TensorVariable
+        :returns: symbolic 3-dimensional matrix - the first dimension is
+                  the time step, the second dimension are the sequences,
+                  and the third dimension is the word projection
+        """
 
-		# Indexing the word_projection matrix with a word ID returns the
-		# word_projection_dim dimensional projection. Note that indexing the
-		# matrix with a vector of all the word IDs gives a concatenation of
-		# those projections.
-		projections = model_params['word_projection'][layer_input.flatten()]
-		projections = projections.reshape([
-				num_time_steps,
-				num_sequences,
-				self.word_projection_dim])
+        num_time_steps = layer_input.shape[0]
+        num_sequences = layer_input.shape[1]
 
-		# Shift the projections matrix one time step down, setting the first
-		# time step to zero projection vectors. Thus the correct output for a
-		# time step can be read from the same row of the input matrix.
-		zero_matrix = tensor.zeros_like(projections)
-		self.minibatch_output = tensor.set_subtensor(zero_matrix[1:], projections[:-1])
+        # Indexing the word_projection matrix with a word ID returns the
+        # word_projection_dim dimensional projection. Note that indexing the
+        # matrix with a vector of all the word IDs gives a concatenation of
+        # those projections.
+        projections = model_params['word_projection'][layer_input.flatten()]
+        projections = projections.reshape([num_time_steps,
+                                           num_sequences,
+                                           self.word_projection_dim])
 
-	def create_onestep_structure(self, model_params, layer_input):
-		"""Creates projection layer structure for one-step processing.
+        # Shift the projections matrix one time step down, setting the first
+        # time step to zero projection vectors. Thus the correct output for a
+        # time step can be read from the same row of the input matrix.
+        zero_matrix = tensor.zeros_like(projections)
+        self.minibatch_output = tensor.set_subtensor(zero_matrix[1:], projections[:-1])
 
-		Creates the layer structure for 1-dimensional input. Simply
-		indexes the word projection matrix with each word ID.
+    def create_onestep_structure(self, model_params, layer_input):
+        """Creates projection layer structure for one-step processing.
 
-		:type model_params: dict
-		:param model_params: shared Theano variables
+        Creates the layer structure for 1-dimensional input. Simply
+        indexes the word projection matrix with each word ID.
 
-		:type layer_input: theano.tensor.var.TensorVariable
-		:param layer_input: symbolic vector that describes the word IDs
-		                    at the input at this time step (in theory
-		                    many sequences could be processed in
-		                    parallel).
+        :type model_params: dict
+        :param model_params: shared Theano variables
 
-		:rtype: theano.tensor.var.TensorVariable
-		:returns: symbolic 2-dimensional matrix that describes the word
-		          projections
-		"""
+        :type layer_input: theano.tensor.var.TensorVariable
+        :param layer_input: symbolic vector that describes the word IDs
+                            at the input at this time step (in theory
+                            many sequences could be processed in
+                            parallel).
 
-		word_projection_dim = model_params['word_projection'].shape[1]
+        :rtype: theano.tensor.var.TensorVariable
+        :returns: symbolic 2-dimensional matrix that describes the word
+                  projections
+        """
 
-		# The generation starts with input value -1, which will be translated
-		# into zero word projection vector.
-		self.onestep_output = tensor.switch(
-				layer_input[:,None] < 0,
-				tensor.alloc(0.0, 1, word_projection_dim),
-				model_params['word_projection'][layer_input])
+        word_projection_dim = model_params['word_projection'].shape[1]
+
+        # The generation starts with input value -1, which will be translated
+        # into zero word projection vector.
+        self.onestep_output = tensor.switch(
+            layer_input[:, None] < 0,
+            tensor.alloc(0.0, 1, word_projection_dim),
+            model_params['word_projection'][layer_input])
