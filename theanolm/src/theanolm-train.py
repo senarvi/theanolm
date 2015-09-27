@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+import sys
 import os
 import numpy
 import theano
@@ -44,6 +45,7 @@ def train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args):
             initial_cost))
 
         print("Creating a random permutation of %d training sentences." % len(sentence_starts))
+        sys.stdout.flush()
         numpy.random.shuffle(sentence_starts)
         training_iter = theanolm.OrderedBatchIterator(
             args.training_file,
@@ -56,6 +58,7 @@ def train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args):
             if (args.verbose_interval >= 1) and \
                (trainer.total_updates % args.verbose_interval == 0):
                 trainer.print_update_stats()
+                sys.stdout.flush()
 
             if (args.validation_interval >= 1) and \
                (trainer.total_updates % args.validation_interval == 0):
@@ -68,6 +71,8 @@ def train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args):
                     return best_params
 
                 trainer.append_validation_cost(validation_cost)
+                trainer.print_cost_history()
+                sys.stdout.flush()
                 validations_since_best = trainer.validations_since_min_cost()
                 if validations_since_best == 0:
                     best_params = rnnlm.get_state()
@@ -95,7 +100,7 @@ def train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args):
 
 parser = argparse.ArgumentParser()
 
-argument_group = parser.add_argument_group("training")
+argument_group = parser.add_argument_group("files")
 argument_group.add_argument(
     'model_path', metavar='MODEL', type=str,
     help='path where the best model state will be saved in numpy .npz format')
@@ -111,6 +116,22 @@ argument_group.add_argument(
 argument_group.add_argument(
     '--training-state', dest='state_path', metavar='FILE', type=str, default=None,
     help='the last training state will be read from and written to FILE in numpy .npz format (if not given, starts from scratch and only saves the best model)')
+argument_group.add_argument(
+    '--dictionary-format', metavar='NAME', type=str, default=None,
+    help='dictionary format, one of "words" (one word per line, default), "classes" (word and class ID per line), "srilm-classes" (class name, membership probability, and word per line)')
+
+argument_group = parser.add_argument_group("network structure")
+argument_group.add_argument(
+    '--word-projection-dim', metavar='N', type=int, default=100,
+    help='word projections will be N-dimensional (default 100)')
+argument_group.add_argument(
+    '--hidden-layer-size', metavar='N', type=int, default=1000,
+    help='hidden layer will contain N neurons (default 1000)')
+argument_group.add_argument(
+    '--hidden-layer-type', metavar='NAME', type=str, default='lstm',
+    help='hidden layer unit type, "lstm" or "gru" (default "lstm")')
+
+argument_group = parser.add_argument_group("training options")
 argument_group.add_argument(
     '--sequence-length', metavar='N', type=int, default=100,
     help='ignore sentences longer than N words (default 100)')
@@ -142,17 +163,6 @@ argument_group.add_argument(
     '--verbose-interval', metavar='N', type=int, default=100,
     help='print statistics of every Nth mini-batch update; quiet if less than one (default 100)')
 
-argument_group = parser.add_argument_group("network structure")
-argument_group.add_argument(
-    '--word-projection-dim', metavar='N', type=int, default=100,
-    help='word projections will be N-dimensional (default 100)')
-argument_group.add_argument(
-    '--hidden-layer-size', metavar='N', type=int, default=1000,
-    help='hidden layer will contain N neurons (default 1000)')
-argument_group.add_argument(
-    '--hidden-layer-type', metavar='NAME', type=str, default='lstm',
-    help='hidden layer unit type, "lstm" or "gru" (default "lstm")')
-
 argument_group = parser.add_argument_group("debugging")
 argument_group.add_argument(
     '--debug', metavar='\b', type=bool, default=False,
@@ -172,11 +182,13 @@ else:
     initial_state = None
 
 print("Reading dictionary.")
-dictionary = theanolm.Dictionary(args.dictionary_file)
+sys.stdout.flush()
+dictionary = theanolm.Dictionary(args.dictionary_file, args.dictionary_format)
 print("Number of words in vocabulary:", dictionary.num_words())
 print("Number of word classes:", dictionary.num_classes())
 
 print("Finding sentence start positions in training data.")
+sys.stdout.flush()
 sentence_starts = [0]
 # Can't use readline() here, otherwise TextIOWrapper disables tell().
 ch = args.training_file.read(1)
@@ -196,6 +208,7 @@ validation_iter = theanolm.BatchIterator(
     max_sequence_length=args.sequence_length)
 
 print("Building neural network.")
+sys.stdout.flush()
 rnnlm = theanolm.RNNLM(
     dictionary,
     args.word_projection_dim,
@@ -207,6 +220,7 @@ if not initial_state is None:
     rnnlm.set_state(initial_state)
 
 print("Building neural network trainer.")
+sys.stdout.flush()
 if args.optimization_method == 'sgd':
     trainer = trainers.SGDTrainer(rnnlm, args.profile)
 elif args.optimization_method == 'nesterov':
@@ -227,12 +241,15 @@ if not initial_state is None:
     trainer.set_state(initial_state)
 
 print("Building text scorer.")
+sys.stdout.flush()
 scorer = theanolm.TextScorer(rnnlm, args.profile)
 
 print("Training neural network.")
+sys.stdout.flush()
 best_params = train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args)
 
 print("Saving neural network and training state.")
+sys.stdout.flush()
 save_training_state(args.state_path)
 if best_params is None:
     print("Validation set cost did not decrease during training.")

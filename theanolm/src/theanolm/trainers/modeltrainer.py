@@ -218,7 +218,6 @@ class ModelTrainer(object):
         """
 
         self._cost_history.append(validation_cost)
-        self.print_cost_history()
 
     def validations_since_min_cost(self):
         """Returns the number of times the validation set cost has been computed

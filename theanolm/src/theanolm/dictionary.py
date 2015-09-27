@@ -13,21 +13,27 @@ class Dictionary(object):
         """Collection of Words and Their Membership Probabilities
 
         A word class contains one or more words and their probabilities within
-        the class. When word classes are not used, every class contains exactly
-        one word with probability 1.
+        the class. When a class-based model is not wanted, word classes will be
+        created with exactly one word per class.
+
+        The class does not enforce the membership probabilities to sum up to
+        one. The user has to call ``normalize_probs()`` after creating the
+        class.
         """
 
-        def __init__(self, word):
-            """Initializes the class with one word with probability 1.
+        def __init__(self, word, prob):
+            """Initializes the class with one word with given probability.
 
             :type word: string
             :param word: the initial word in the class
+
+            :type prob: float
+            :param prob: the membership probability of the word
             """
 
-            self.id = None
-            self._probs = {word: 1.0}
+            self._probs = {word: prob}
 
-        def add(self, word, prob=1.0):
+        def add(self, word, prob):
             """Adds a word to the class with given probability.
 
             The membership probabilities are not guaranteed to be normalized.
@@ -43,12 +49,6 @@ class Dictionary(object):
 
         def normalize_probs(self):
             """Normalizes the class membership probabilities to sum to one.
-
-            :type word: string
-            :param word: the word to add to the class
-
-            :type prob: float
-            :param prob: the membership probability of the new word
             """
 
             prob_sum = sum(self._probs.values())
@@ -64,17 +64,33 @@ class Dictionary(object):
 
             return next(iter(self._probs.keys()))
 
-    def __init__(self, input_file):
+    def __init__(self, input_file, input_format):
         """Creates word classes.
+
+	If ``input_format`` is one of:
+        * "words": ``input_file`` contains one word per line. Each word will be
+                   assigned to its own class.
+        * "classes": ``input_file`` contains a word followed by whitespace
+                     followed by class ID on each line. Each word will be
+                     assigned to the specified class. The class IDs can be
+                     anything; they will be translated to consecutive numbers
+                     after reading the file.
+        * "srilm-classes": ``input_file`` contains a class name, membership
+                           probability, and word, separated by whitespace, on
+                           each line.
 
         :type input_file: file object
         :param input_file: input dictionary file
+
+        :type input_format str
+        :param input_format: format of the input dictionary file, "words",
+	                     "classes", or "srilm-classes"
         """
 
         # The word classes with consecutive indices. The first two classes are
         # the sentence break and the unknown word token.
-        self._word_classes = [Dictionary.WordClass('<sb>'),
-                              Dictionary.WordClass('<UNK>')]
+        self._word_classes = [Dictionary.WordClass('<sb>', 1.0),
+                              Dictionary.WordClass('<UNK>', 1.0)]
         # Mapping from the IDs in the file to our word classes.
         file_id_to_class = dict()
         # Mapping from word strings to word classes.
@@ -88,12 +104,18 @@ class Dictionary(object):
             fields = line.split()
             if len(fields) == 0:
                 continue
-            elif len(fields) == 1:
+            if input_format == 'words' and len(fields) == 1:
                 word = fields[0]
                 file_id = None
-            elif len(fields) == 2:
+                prob = 1.0
+            elif input_format == 'classes' and len(fields) == 2:
                 word = fields[0]
-                file_id = fields[1]
+                file_id = int(fields[1])
+                prob = 1.0
+            elif input_format == 'srilm-classes' and len(fields) == 3:
+                file_id = fields[0]
+                prob = float(fields[1])
+                word = fields[2]
             else:
                 raise InputError("%d fields on one line of dictionary file: %s" % (len(fields), line))
 
@@ -101,10 +123,10 @@ class Dictionary(object):
                 raise InputError("Word `%s' appears more than once in the dictionary file." % word)
             if file_id in file_id_to_class:
                 word_class = file_id_to_class[file_id]
-                word_class.add(word)
+                word_class.add(word, prob)
             else:
                 # No ID in the file or a new ID.
-                word_class = Dictionary.WordClass(word)
+                word_class = Dictionary.WordClass(word, prob)
                 self._word_classes.append(word_class)
                 if not file_id is None:
                     file_id_to_class[file_id] = word_class
