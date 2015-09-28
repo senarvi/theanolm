@@ -36,7 +36,7 @@ class ModelTrainer(object):
         self.network = network
 
         # Calculate negative log probability of each word.
-        costs = -tensor.log(self.network.training_probs)
+        costs = -tensor.log(self.network.prediction_probs)
         # Apply mask to the costs matrix.
         costs = costs * self.network.minibatch_mask
         # Sum costs over time steps and take the average over sequences.
@@ -133,21 +133,18 @@ class ModelTrainer(object):
         print(numpy.asarray(self._cost_history))
 
     def update_minibatch(self, batch_iter, learning_rate):
-        """Optimizes the neural network parameters using the given inputs
-        and learning rate.
+        """Optimizes the neural network parameters using the given inputs and
+        learning rate.
 
-        ``batch_iter`` is an iterator to the training data. On each call
-        it creates a tuple of two 2-dimensional matrices, both indexed by
-        time step and sequence. The first matrix contains the word IDs,
-        and the second one contains the mask.
+        ``batch_iter`` is an iterator to the training data. On each call it
+        creates a tuple of three 2-dimensional matrices, all indexed by time
+        step and sequence. The first matrix contains the word IDs, the second
+        one (class membership probabilities) will be ignored in training, and
+        the third one masks out elements past the sequence ends.
 
         :type batch_iter: BatchIterator
-        :param batch_iter: an iterator creating mini-batches from the
+        :param batch_iter: an iterator that creates mini-batches from the
                            training data
-
-        :type mask: numpy.matrixlib.defmatrix.matrix
-        :param mask: a matrix the same shape as x that contains 0.0 where x
-                     contains input and 1.0 after sequence end
 
         :type learning_rate: float
         :param learning_rate: learning rate for the optimization
@@ -159,7 +156,7 @@ class ModelTrainer(object):
 
         # Read the next mini-batch. StopIterator is risen at the end of input.
         try:
-            word_ids, mask = next(batch_iter)
+            word_ids, _, mask = next(batch_iter)
         except StopIteration:
             self.epoch_number += 1
             self.update_number = 0

@@ -128,10 +128,10 @@ class RNNLM(object):
 
         self.minibatch_output = self.output_layer.minibatch_output
 
-        # Projection layer moves the output one time step forward, so that the
-        # input at each time step is what the output (predicted word) should be.
-        # Input word IDs + the index times vocabulary size can be used to index
-        # a flattened output matrix to read the probabilities of the correct
+        # Projection layer delays the output by one time step, so that the input
+        # at each time step is what the output (predicted word) should be. Input
+        # word IDs + the index times vocabulary size can be used to index a
+        # flattened output matrix to read the probabilities of the correct
         # outputs.
         input_flat = self.minibatch_input.flatten()
         correct_output_indices = \
@@ -141,7 +141,7 @@ class RNNLM(object):
             self.minibatch_output.flatten()[correct_output_indices]
         correct_output_probs = correct_output_probs.reshape(
             [self.minibatch_input.shape[0], self.minibatch_input.shape[1]])
-        self.training_probs = correct_output_probs
+        self.prediction_probs = correct_output_probs
 
     def _create_onestep_structure(self):
         """Creates the network structure for one-step processing.
@@ -218,3 +218,41 @@ class RNNLM(object):
             raise IncompatibleStateError("Attempting to restore incompatible state with hidden_layer_type=%s, while this neural network has hidden_layer_type=%s." % (state['rnnlm_hidden_layer_type'], self.hidden_layer_type))
         if state['rnnlm_hidden_layer_size'] != self.hidden_layer_size:
             raise IncompatibleStateError("Attempting to restore incompatible state with hidden_layer_size=%d, while this neural network has hidden_layer_size=%d." % (state['rnnlm_hidden_layer_size'], self.hidden_layer_size))
+
+    def sequences_to_minibatch(self, sequences):
+        """Transposes a list of sequences and Prepares a mini-batch for input to the neural network by transposing
+        a matrix of word ID sequences and creating a mask matrix.
+
+        The first dimensions of the returned matrix word_ids will be the time
+        step, i.e. the index to a word in a sequence. In other words, the first
+        row will contain the first word ID of each sequence, the second row the
+        second word ID of each sequence, and so on. The rest of the matrix will
+        be filled with zeros.
+
+        The other returned matrix, mask, is the same size as word_ids, and will
+        contain zeros where word_ids contains word IDs, and ones elsewhere
+        (after sequence end).
+
+        :type sequences: list of lists
+        :param sequences: list of sequences, each of which is a list of word
+                          IDs
+
+        :rtype: tuple of numpy matrices
+        :returns: two matrices - one contains the word IDs of each sequence
+                  (0 after the last word), and the other contains a mask that
+                  ís 1 after the last word
+        """
+
+        num_sequences = len(sequences)
+        sequence_lengths = [len(s) for s in sequences]
+        batch_length = numpy.max(sequence_lengths) + 1
+
+        word_ids = numpy.zeros((batch_length, num_sequences)).astype('int64')
+        probs = numpy.zeros((batch_length, num_sequences)).astype('float32')
+        mask = numpy.zeros((batch_length, num_sequences)).astype('float32')
+        for i, sequence in enumerate(sequences):
+            word_ids[:sequence_lengths[i], i] = sequence
+            mask[:sequence_lengths[i] + 1, i] = 1.0
+
+        return word_ids, mask
+

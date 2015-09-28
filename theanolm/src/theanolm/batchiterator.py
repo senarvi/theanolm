@@ -61,9 +61,10 @@ class BatchIterator(object):
             words = line.split()
             if not self.max_sequence_length is None and len(words) > self.max_sequence_length:
                 continue
-            sequences.append(self.dictionary.text_to_ids(words))
+            words.append('<sb>')
+            sequences.append(words)
             if len(sequences) >= self.batch_size:
-                return self._prepare_minibatch(sequences)
+                return self._prepare_batch(sequences)
 
         # When end of file is reached, if no lines were read, rewind to first
         # line and raise StopIteration. If lines were read, return them and
@@ -73,7 +74,7 @@ class BatchIterator(object):
             raise StopIteration
         else:
             self.end_of_file = True
-            return self._prepare_minibatch(sequences)
+            return self._prepare_batch(sequences)
 
     def _reset(self):
         self.input_file.seek(0)
@@ -81,41 +82,44 @@ class BatchIterator(object):
     def _readline(self):
         return self.input_file.readline()
 
-    def _prepare_minibatch(self, sequences):
-        """Prepares a mini-batch for input to the neural network by transposing
-        the sequences matrix and creating a mask matrix.
+    def _prepare_batch(self, sequences):
+        """Transposes a list of sequences into a list of time steps. Then
+        returns word ID and mask matrices ready to be input to the neural
+        network, and a matrix containing the class membership probabilities.
 
-        The first dimensions of the returned matrix word_ids will be the time
-        step, i.e. the index to a word in a sequence. In other words, the first
-        row will contain the first word ID of each sequence, the second row the
-        second word ID of each sequence, and so on. The rest of the matrix will
-        be filled with zeros.
+        The first returned matrix contains the word IDs, the second one contains
+        the class membership probabilities, and the third one contains a mask
+        that defines which elements are past the sequence end - where the other
+        matrices contain actual values, the mask matrix contains ones. All the
+        elements past the sequence ends will contain zeros.
 
-        The other returned matrix, mask, is the same size as word_ids, and will
-        contain zeros where word_ids contains word IDs, and ones elsewhere
-        (after sequence end).
+        All the returned matrices have the same shape. The first dimensions is
+        the time step, i.e. the index to a word in a sequence. The second
+        dimension selects the sequence. In other words, the first row is the
+        first word of each sequence and so on.
 
         :type sequences: list of lists
         :param sequences: list of sequences, each of which is a list of word
                           IDs
 
         :rtype: tuple of numpy matrices
-        :returns: two matrices - one contains the word IDs of each sequence
-                  (0 after the last word), and the other contains a mask that
-                  ís 1 after the last word
+        :returns: the word ID, class membership probability, and mask matrix
         """
 
         num_sequences = len(sequences)
-        sequence_lengths = [len(s) for s in sequences]
-        minibatch_length = numpy.max(sequence_lengths) + 1
+        batch_length = numpy.max([len(s) for s in sequences])
 
-        word_ids = numpy.zeros((minibatch_length, num_sequences)).astype('int64')
-        mask = numpy.zeros((minibatch_length, num_sequences)).astype('float32')
+        word_ids = numpy.zeros((batch_length, num_sequences)).astype('int64')
+        probs = numpy.zeros((batch_length, num_sequences)).astype('float32')
+        mask = numpy.zeros((batch_length, num_sequences)).astype('float32')
+
         for i, sequence in enumerate(sequences):
-            word_ids[:sequence_lengths[i], i] = sequence
-            mask[:sequence_lengths[i] + 1, i] = 1.0
+            length = len(sequence)
+            word_ids[:length, i] = self.dictionary.words_to_ids(sequence)
+            probs[:length, i] = self.dictionary.words_to_probs(sequence)
+            mask[:length, i] = 1.0
 
-        return word_ids, mask
+        return word_ids, probs, mask
 
 class OrderedBatchIterator(BatchIterator):
     """ Iterator for Reading Mini-Batches in Given Order

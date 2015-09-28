@@ -31,6 +31,7 @@ class Dictionary(object):
             :param prob: the membership probability of the word
             """
 
+            self.id = None
             self._probs = {word: prob}
 
         def add(self, word, prob):
@@ -46,6 +47,18 @@ class Dictionary(object):
             """
 
             self._probs[word] = prob
+
+        def get_prob(self, word):
+            """Returns the class membership probability of a word.
+
+            :type word: string
+            :param word: a word that belongs to this class
+
+            :rtype: float
+            :returns: the class membership probability of the word
+            """
+
+            return self._probs[word]
 
         def normalize_probs(self):
             """Normalizes the class membership probabilities to sum to one.
@@ -154,28 +167,48 @@ class Dictionary(object):
 
         return len(self._word_classes)
 
-    def text_to_ids(self, text):
+    def words_to_ids(self, words):
         """Translates words into word (class) IDs.
 
-        :type text: list of strings
-        :param text: a list of words
+        :type words: list of strings
+        :param words: a list of words
 
         :rtype: list of ints
         :returns: the given words translated into word IDs
         """
 
-        return [self._word_to_class[word].id if word in self._word_to_class else self.unk_id
-                for word in text]
+        return [self._word_to_class[word].id
+                if word in self._word_to_class
+                else self.unk_id
+                for word in words]
 
-    def ids_to_text(self, word_ids):
+    def ids_to_words(self, word_ids):
         """Translates word (class) IDs into words. If classes are used, samples
         a word from the membership probability distribution.
 
-        :type text: list of ints
-        :param text: a list of word IDs
+        :type word_ids: list of ints
+        :param word_ids: a list of word IDs
 
         :rtype: list of strings
         :returns: the given word IDs translated into words
         """
 
-        return [self._word_classes[word_id].sample() for word_id in word_ids]
+        return [self._word_classes[word_id].sample()
+                for word_id in word_ids]
+
+    def words_to_probs(self, words):
+        """Returns a list of class membership probabilities for each input word.
+
+        :type words: numpy.ndarray of strs
+        :param words: a vector or matrix of words
+
+        :rtype: numpy.ndarray of floats
+        :returns: a matrix the same shape as ``words`` containing the class
+                  membership probabilities
+        """
+
+        # <unk> has class membership probability 1.0.
+        return [self._word_to_class[word].get_prob(word)
+                if word in self._word_to_class
+                else 1.0
+                for word in words]

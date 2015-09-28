@@ -23,7 +23,7 @@ class TextScorer(object):
         inputs = [network.minibatch_input, network.minibatch_mask]
 
         # Calculate negative log probability of each word.
-        costs = -tensor.log(network.training_probs)
+        costs = -tensor.log(network.prediction_probs)
         # Apply mask to the costs matrix.
         costs = costs * network.minibatch_mask
         # Sum costs over time steps to get the negative log probability of each
@@ -33,21 +33,34 @@ class TextScorer(object):
         self.score_function = \
                 theano.function(inputs, outputs, profile=profile)
 
-    def negative_log_probability(self, batch_iterator):
+    def negative_log_probability(self, batch_iter):
         """Computes the mean negative log probability of mini-batches read using
         the given iterator.
 
-        :type batch_iterator: BatchIterator
-        :param batch_iterator: iterator to the input file
+        ``batch_iter`` is an iterator to the input data. On each call it creates
+        a tuple of three 2-dimensional matrices, all indexed by time step and
+        sequence. The first matrix contains the word IDs, the second one
+        contains class membership probabilities, and the third one masks out
+        elements past the sequence ends.
+
+        :type batch_iter: BatchIterator
+        :param batch_iter: an iterator that creates mini-batches from the input
+                           data
 
         :rtype: float
         :returns: average sequence negative log probability
         """
 
         costs = []
-        for input_matrix, mask in batch_iterator:
-            # Append costs of each sequence in the mini-batch.
-            costs.extend(self.score_function(input_matrix, mask))
+        for word_ids, membership_probs, mask in batch_iter:
+            # A vector of costs of each sequence in the mini-batch.
+            batch_costs = self.score_function(word_ids, mask)
+            # A matrix of costs from class membership of each word in the
+            # mini-batch.
+            membership_costs = -numpy.log(membership_probs)
+            membership_costs[mask < 0.5] = 0.0
+            batch_costs += membership_costs.sum(0)
+            costs.extend(batch_costs)
             if numpy.isnan(numpy.mean(costs)):
                 import ipdb; ipdb.set_trace()
 
