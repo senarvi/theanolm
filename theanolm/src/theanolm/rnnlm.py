@@ -45,6 +45,10 @@ class RNNLM(object):
         self.word_projection_dim = word_projection_dim
         self.hidden_layer_type = hidden_layer_type
         self.hidden_layer_size = hidden_layer_size
+        
+        print("Word projection dimensionality:", self.word_projection_dim)
+        print("Hidden layer type:", self.hidden_layer_type)
+        print("Hidden layer size:", self.hidden_layer_size)
 
         # Create the layers.
         self.projection_layer = ProjectionLayer(

@@ -24,9 +24,22 @@ model:
       model.npz \
       training-data.txt.gz \
       validation-data.txt.gz \
-      dictionary.txt \
+      dictionary.classes \
+      --dictionary-format srilm-classes \
       --training-state training-state.npz \
       --hidden-layer-size 300 \
       --hidden-layer-type lstm \
       --batch-size 4 \
       --learning-rate 0.001
+
+
+## Scoring a text file
+
+After training the model state can be loaded and used to compute score for a
+text file using theanolm-score.py:
+
+    theanolm-score.py \
+      model.npz \
+      evaluation-data.txt.gz \
+      dictionary.classes \
+      --dictionary-format srilm-classes

@@ -64,7 +64,8 @@ class ProjectionLayer(object):
         projections = model_params['word_projection'][layer_input.flatten()]
         projections = projections.reshape([num_time_steps,
                                            num_sequences,
-                                           self.word_projection_dim])
+                                           self.word_projection_dim],
+                                          ndim=3)
 
         # Shift the projections matrix one time step down, setting the first
         # time step to zero projection vectors. Thus the correct output for a
