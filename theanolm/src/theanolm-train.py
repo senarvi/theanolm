@@ -80,6 +80,7 @@ def train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args):
                      (validations_since_best > args.wait_improvement):
                     if validation_cost >= initial_cost:
                         args.learning_rate /= 2
+                    rnnlm.set_state(best_params)
                     trainer.next_epoch()
                     break
 
