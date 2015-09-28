@@ -118,7 +118,7 @@ argument_group.add_argument(
     '--training-state', dest='state_path', metavar='FILE', type=str, default=None,
     help='the last training state will be read from and written to FILE in numpy .npz format (if not given, starts from scratch and only saves the best model)')
 argument_group.add_argument(
-    '--dictionary-format', metavar='NAME', type=str, default=None,
+    '--dictionary-format', metavar='FORMAT', type=str, default='words',
     help='dictionary format, one of "words" (one word per line, default), "classes" (word and class ID per line), "srilm-classes" (class name, membership probability, and word per line)')
 
 argument_group = parser.add_argument_group("network structure")
@@ -129,7 +129,7 @@ argument_group.add_argument(
     '--hidden-layer-size', metavar='N', type=int, default=1000,
     help='hidden layer will contain N neurons (default 1000)')
 argument_group.add_argument(
-    '--hidden-layer-type', metavar='NAME', type=str, default='lstm',
+    '--hidden-layer-type', metavar='TYPE', type=str, default='lstm',
     help='hidden layer unit type, "lstm" or "gru" (default "lstm")')
 
 argument_group = parser.add_argument_group("training options")
@@ -146,7 +146,7 @@ argument_group.add_argument(
     '--max-epochs', metavar='N', type=int, default=1000,
     help='perform at most N training epochs (default 1000)')
 argument_group.add_argument(
-    '--optimization-method', metavar='NAME', type=str, default='adam',
+    '--optimization-method', metavar='METHOD', type=str, default='adam',
     help='optimization method, one of "sgd", "nesterov", "adadelta", "rmsprop-sgd", "rmsprop-momentum", "adam" (default "adam")')
 argument_group.add_argument(
     '--learning-rate', metavar='ALPHA', type=float, default=0.001,

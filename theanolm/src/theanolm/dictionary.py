@@ -80,7 +80,7 @@ class Dictionary(object):
     def __init__(self, input_file, input_format):
         """Creates word classes.
 
-	If ``input_format`` is one of:
+        If ``input_format`` is one of:
         * "words": ``input_file`` contains one word per line. Each word will be
                    assigned to its own class.
         * "classes": ``input_file`` contains a word followed by whitespace

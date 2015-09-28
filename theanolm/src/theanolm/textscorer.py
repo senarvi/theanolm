@@ -66,3 +66,34 @@ class TextScorer(object):
 
         # Return the average sequence cost.
         return numpy.array(costs).mean()
+
+    def score_sentence(self, word_ids, membership_probs):
+        """Computes the mean negative log probability of mini-batches read using
+        the given iterator.
+
+        ``batch_iter`` is an iterator to the input data. On each call it creates
+        a tuple of three 2-dimensional matrices, all indexed by time step and
+        sequence. The first matrix contains the word IDs, the second one
+        contains class membership probabilities, and the third one masks out
+        elements past the sequence ends.
+
+        :type batch_iter: BatchIterator
+        :param batch_iter: an iterator that creates mini-batches from the input
+                           data
+
+        :rtype: float
+        :returns: average sequence negative log probability
+        """
+
+        mask = numpy.ones_like(membership_probs)
+        # A vector containing the cost of the one sentence.
+        costs = self.score_function(word_ids, mask)
+        # A matrix of costs from class membership of each word in the one
+        # sentence.
+        membership_costs = -numpy.log(membership_probs)
+        costs += membership_costs.sum(0)
+        if numpy.isnan(numpy.mean(costs)):
+            import ipdb; ipdb.set_trace()
+
+        # Return the average of the one sentence cost.
+        return numpy.array(costs).mean()
