@@ -33,7 +33,7 @@ class TextScorer(object):
         self.score_function = \
                 theano.function(inputs, outputs, profile=profile)
 
-    def negative_log_probability(self, batch_iter):
+    def mean_negative_log_probability(self, batch_iter):
         """Computes the mean negative log probability of mini-batches read using
         the given iterator.
 
@@ -50,8 +50,24 @@ class TextScorer(object):
         :rtype: float
         :returns: average sequence negative log probability
         """
+        costs, _ = self.negative_log_probabilities(batch_iter)
+        return costs.mean()
+
+
+    def negative_log_probabilities(self, batch_iter):
+        """Computes the negative log probabilities and word counts
+        for each sequence from the given iterator.
+        :type batch_iter: BatchIterator
+        :param batch_iter: an iterator that creates mini-batches from the input
+                           data
+
+        :rtype: numpy.array, numpy.array
+        :returns: negative log probability for each sequence,
+                  word count for each sequence
+        """
 
         costs = []
+        counts = []
         for word_ids, membership_probs, mask in batch_iter:
             # A vector of costs of each sequence in the mini-batch.
             batch_costs = self.score_function(word_ids, mask)
@@ -61,11 +77,13 @@ class TextScorer(object):
             membership_costs[mask < 0.5] = 0.0
             batch_costs += membership_costs.sum(0)
             costs.extend(batch_costs)
+            counts.append(mask.sum())
             if numpy.isnan(numpy.mean(costs)):
                 import ipdb; ipdb.set_trace()
 
-        # Return the average sequence cost.
-        return numpy.array(costs).mean()
+        # Return the sequence costs and word counts.
+        return numpy.array(costs), numpy.array(counts)
+
 
     def score_sentence(self, word_ids, membership_probs):
         """Computes the mean negative log probability of mini-batches read using

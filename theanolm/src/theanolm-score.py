@@ -78,7 +78,17 @@ sys.stdout.flush()
 scorer = theanolm.TextScorer(rnnlm)
 
 if args.input_format == 'text':
-    args.output_file.write("Average sentence negative log probability: %f\n" % \
-        scorer.negative_log_probability(validation_iter))
+    costs, counts = scorer.negative_log_probabilities(validation_iter)
+    sentence_average = costs.mean()
+    per_word = costs.sum() / counts.sum()
+    perplexity_per_word = numpy.exp(per_word)
+    args.output_file.write(
+        "Average sentence negative log probability: "
+        "{}\n".format(sentence_average))
+    args.output_file.write(
+        "Average word negative log probability: "
+        "{}\n".format(per_word))
+    args.output_file.write(
+        "Perplexity per word: {}\n".format(perplexity_per_word))
 elif args.input_format == 'srilm-nbest':
     rescore_nbest(args.input_file, dictionary, scorer, args.output_file)
