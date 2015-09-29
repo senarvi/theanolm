@@ -8,11 +8,11 @@ import theano
 import theanolm
 from filetypes import TextFileType
 
-def rescore_nbest(input_file, dictionary, scorer, output_file):
-    for line in input_file:
+def rescore_nbest(input_file, dictionary, scorer, output_file, lscore_field=1, w1_field=3):
+    for line_num, line in enumerate(input_file):
         fields = line.split()
         
-        words = fields[3:]
+        words = fields[w1_field:]
         words.append('<sb>')
         
         word_ids = dictionary.words_to_ids(words)
@@ -20,10 +20,14 @@ def rescore_nbest(input_file, dictionary, scorer, output_file):
         
         probs = dictionary.words_to_probs(words)
         probs = numpy.array([[x] for x in probs]).astype('float32')
-        
+
         lm_score = scorer.score_sentence(word_ids, probs)
-        fields[1] = str(lm_score)
+        fields[lscore_field] = str(lm_score)
         output_file.write(' '.join(fields) + '\n')
+
+        if line_num % 100 == 0:
+            print("%d sentences rescored." % (line_num + 1))
+        sys.stdout.flush()
 
 parser = argparse.ArgumentParser()
 
@@ -39,7 +43,7 @@ argument_group.add_argument(
     help='text or .gz file containing word list (one word per line) or word to class ID mappings (word and ID per line)')
 argument_group.add_argument(
     '--input-format', metavar='FORMAT', type=str, default='text',
-    help='input text format, one of "text" (one sentence per line, default), "srilm-nbest" (n-best list containing "ascore lscore nwords w1 w2 w3 ..." on each line)')
+    help='input text format, one of "text" (one sentence per line, default), "srilm-nbest" (n-best list containing "ascore lscore nwords w1 w2 w3 ..." on each line), "id-nbest" (n-best list containing "id ascore lscore nwords w1 w2 w3 ..." on each line)')
 argument_group.add_argument(
     '--dictionary-format', metavar='FORMAT', type=str, default='words',
     help='dictionary format, one of "words" (one word per line, default), "classes" (word and class ID per line), "srilm-classes" (class name, membership probability, and word per line)')
@@ -84,7 +88,7 @@ if args.input_format == 'text':
     costs, counts = scorer.negative_log_probabilities(validation_iter)
     sentence_average = costs.mean()
     per_word = costs.sum() / counts.sum()
-    perplexity_per_word = numpy.exp(per_word)
+    perplexity_per_word = numpy.exp(-per_word)
     args.output_file.write(
         "Average sentence negative log probability: "
         "{}\n".format(sentence_average))
@@ -94,7 +98,11 @@ if args.input_format == 'text':
     args.output_file.write(
         "Perplexity per word: {}\n".format(perplexity_per_word))
 elif args.input_format == 'srilm-nbest':
+    print("Rescoring n-best list.")
     rescore_nbest(args.input_file, dictionary, scorer, args.output_file)
+elif args.input_format == 'id-nbest':
+    print("Rescoring n-best list.")
+    rescore_nbest(args.input_file, dictionary, scorer, args.output_file, lscore_field=2, w1_field=4)
 
 if args.num_samples > 0:
     print("Sampling...")
