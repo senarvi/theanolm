@@ -10,7 +10,7 @@ class TextScorer(object):
     """
 
     def __init__(self, network, profile=False):
-        """Creates a Theano function self.costs_function that computes the
+        """Creates a Theano function self.score_function that computes the
         negative log probabilities of given text sequences.
 
         :type network: RNNLM
@@ -33,8 +33,8 @@ class TextScorer(object):
         self.score_function = \
                 theano.function(inputs, outputs, profile=profile)
 
-    def negative_log_probability(self, batch_iter):
-        """Computes the mean negative log probability of mini-batches read using
+    def score_text(self, batch_iter):
+        """Computes the mean sentence log probability of mini-batches read using
         the given iterator.
 
         ``batch_iter`` is an iterator to the input data. On each call it creates
@@ -48,52 +48,49 @@ class TextScorer(object):
                            data
 
         :rtype: float
-        :returns: average sequence negative log probability
+        :returns: average sequence log probability
         """
 
-        costs = []
+        logprobs = []
         for word_ids, membership_probs, mask in batch_iter:
-            # A vector of costs of each sequence in the mini-batch.
-            batch_costs = self.score_function(word_ids, mask)
-            # A matrix of costs from class membership of each word in the
+            # A vector of logprobs of each sequence in the mini-batch.
+            batch_logprobs = -self.score_function(word_ids, mask)
+            # A matrix of logprobs from class membership of each word in the
             # mini-batch.
-            membership_costs = -numpy.log(membership_probs)
-            membership_costs[mask < 0.5] = 0.0
-            batch_costs += membership_costs.sum(0)
-            costs.extend(batch_costs)
-            if numpy.isnan(numpy.mean(costs)):
+            membership_logprobs = numpy.log(membership_probs)
+            membership_logprobs[mask < 0.5] = 0.0
+            batch_logprobs += membership_logprobs.sum(0)
+            logprobs.extend(batch_logprobs)
+            if numpy.isnan(numpy.mean(logprobs)):
                 import ipdb; ipdb.set_trace()
 
         # Return the average sequence cost.
-        return numpy.array(costs).mean()
+        return numpy.array(logprobs).mean()
 
     def score_sentence(self, word_ids, membership_probs):
-        """Computes the mean negative log probability of mini-batches read using
-        the given iterator.
+        """Computes the log probability of a sentence.
 
-        ``batch_iter`` is an iterator to the input data. On each call it creates
-        a tuple of three 2-dimensional matrices, all indexed by time step and
-        sequence. The first matrix contains the word IDs, the second one
-        contains class membership probabilities, and the third one masks out
-        elements past the sequence ends.
+        :type word_ids: numpy.ndarray of int64s
+        :param word_ids: a 2-dimensional matrices representing a transposed
+        vector of word IDs
 
-        :type batch_iter: BatchIterator
-        :param batch_iter: an iterator that creates mini-batches from the input
-                           data
+        :type membership_probs: numpy.ndarray of float32s
+        :param membership_probs: a 2-dimensional matrices representing a
+        transposed vector of class membership probabilities
 
         :rtype: float
-        :returns: average sequence negative log probability
+        :returns: log probability of the sentence
         """
 
         mask = numpy.ones_like(membership_probs)
         # A vector containing the cost of the one sentence.
-        costs = self.score_function(word_ids, mask)
-        # A matrix of costs from class membership of each word in the one
+        logprobs = -self.score_function(word_ids, mask)
+        # A matrix of logprobs from class membership of each word in the one
         # sentence.
-        membership_costs = -numpy.log(membership_probs)
-        costs += membership_costs.sum(0)
-        if numpy.isnan(numpy.mean(costs)):
+        membership_logprobs = numpy.log(membership_probs)
+        logprobs += membership_logprobs.sum(0)
+        if numpy.isnan(numpy.mean(logprobs)):
             import ipdb; ipdb.set_trace()
 
-        # Return the average of the one sentence cost.
-        return numpy.array(costs).mean()
+        # Return the average of the one sentence logprob.
+        return numpy.array(logprobs).mean()
