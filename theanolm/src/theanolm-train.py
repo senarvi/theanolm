@@ -39,7 +39,7 @@ def train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args):
     best_params = None
 
     while trainer.epoch_number <= args.max_epochs:
-        initial_cost = scorer.negative_log_probability(validation_iter)
+        initial_cost = -scorer.score_text(validation_iter)
         print("Validation set average sentence cost at the start of epoch %d: %f" % (
             trainer.epoch_number,
             initial_cost))
@@ -62,7 +62,7 @@ def train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args):
 
             if (args.validation_interval >= 1) and \
                (trainer.total_updates % args.validation_interval == 0):
-                validation_cost = scorer.negative_log_probability(validation_iter)
+                validation_cost = -scorer.score_text(validation_iter)
                 if numpy.isnan(validation_cost):
                     print("Stopping because an invalid floating point operation was performed while computing validation set cost. (Gradients exploded or vanished?)")
                     return best_params
@@ -92,7 +92,7 @@ def train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args):
                 save_training_state(args.state_path)
 
     print("Stopping because %d epochs was reached." % args.max_epochs)
-    validation_cost = scorer.negative_log_probability(validation_iter)
+    validation_cost = -scorer.score_text(validation_iter)
     trainer.append_validation_cost(validation_cost)
     if trainer.validations_since_min_cost() == 0:
         best_params = rnnlm.get_state()
@@ -257,5 +257,5 @@ if best_params is None:
 else:
     save_model(args.model_path, best_params)
     rnnlm.set_state(best_params)
-    validation_cost = scorer.negative_log_probability(validation_iter)
-    print("Best validation set average sentence cost:", validation_cost)
+    validation_logprob = scorer.score_text(validation_iter)
+    print("Best validation set average sentence logprob:", validation_logprob)
