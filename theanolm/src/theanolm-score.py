@@ -46,6 +46,9 @@ argument_group.add_argument(
 argument_group.add_argument(
     '--output-file', metavar='OUTPUT', type=TextFileType('w'), default='-',
     help='where to write the score or rescored n-best list (default stdout)')
+argument_group.add_argument(
+    '--num-samples', dest='num_samples', type=int, default=0,
+    help='Number of example sentences to generate')
 
 args = parser.parse_args()
 
@@ -92,3 +95,11 @@ if args.input_format == 'text':
         "Perplexity per word: {}\n".format(perplexity_per_word))
 elif args.input_format == 'srilm-nbest':
     rescore_nbest(args.input_file, dictionary, scorer, args.output_file)
+
+if args.num_samples > 0:
+    print("Sampling...")
+    sampler = theanolm.TextSampler(rnnlm, dictionary)
+    for i in range(args.num_samples):
+        words = sampler.generate()
+        args.output_file.write('{}: {}\n'.format(
+            i, ' '.join(words)))
