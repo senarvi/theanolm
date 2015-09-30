@@ -50,9 +50,6 @@ argument_group.add_argument(
 argument_group.add_argument(
     '--output-file', metavar='OUTPUT', type=TextFileType('w'), default='-',
     help='where to write the score or rescored n-best list (default stdout)')
-argument_group.add_argument(
-    '--num-samples', dest='num_samples', type=int, default=0,
-    help='Number of example sentences to generate')
 
 args = parser.parse_args()
 
@@ -101,11 +98,3 @@ elif args.input_format == 'srilm-nbest':
 elif args.input_format == 'id-nbest':
     print("Rescoring n-best list.")
     rescore_nbest(args.input_file, dictionary, scorer, args.output_file, lscore_field=2, w1_field=4)
-
-if args.num_samples > 0:
-    print("Sampling...")
-    sampler = theanolm.TextSampler(rnnlm, dictionary)
-    for i in range(args.num_samples):
-        words = sampler.generate()
-        args.output_file.write('{}: {}\n'.format(
-            i, ' '.join(words)))

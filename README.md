@@ -43,3 +43,15 @@ text file using theanolm-score.py:
       evaluation-data.txt.gz \
       dictionary.classes \
       --dictionary-format srilm-classes
+
+
+## Generating text using a model
+
+After training the model state can be loaded and used to generate text using
+theanolm-sample.py:
+
+    theanolm-sample.py \
+      model.npz \
+      dictionary.classes \
+      --dictionary-format srilm-classes
+      --num-sentences 10
