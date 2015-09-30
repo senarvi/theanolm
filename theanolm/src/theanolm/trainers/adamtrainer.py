@@ -13,11 +13,14 @@ class AdamTrainer(ModelTrainer):
     The International Conference on Learning Representations (ICLR), San Diego, 2015
     """
 
-    def __init__(self, network, profile):
+    def __init__(self, network, training_options, profile):
         """Creates an Adam trainer.
 
         :type network: Network
         :param network: the neural network object
+
+        :type training_options: dict
+        :param training_options: a dictionary of training options
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
@@ -30,11 +33,28 @@ class AdamTrainer(ModelTrainer):
             self.param_init_values[name + '.mean_sqr_gradient'] = numpy.zeros_like(param.get_value())
         self.param_init_values['adam.timestep'] = numpy.float32(0.0)
         self._create_params()
-        self._gamma_m = 0.9  # geometric rate for averaging gradients (decay rate)
-        self._gamma_ms = 0.999  # geometric rate for averaging squared gradients (decay rate)
-        self._epsilon = 1e-8
 
-        super().__init__(network, profile)
+        # geometric rate for averaging gradients
+        if not 'gradient_decay_rate' in training_options:
+            raise ValueError("Gradient decay rate is not given in training options.")
+        self._gamma_m = training_options['gradient_decay_rate']
+
+        # geometric rate for averaging squared gradients
+        if not 'sqr_gradient_decay_rate' in training_options:
+            raise ValueError("Squared gradient decay rate is not given in training options.")
+        self._gamma_ms = training_options['sqr_gradient_decay_rate']
+
+        # numerical stability / smoothing term to prevent divide-by-zero
+        if not 'epsilon' in training_options:
+            raise ValueError("Epsilon is not given in training options.")
+        self._epsilon = training_options['epsilon']
+
+        # momentum
+        if not 'momentum' in training_options:
+            raise ValueError("Momentum is not given in training options.")
+        self._momentum = training_options['momentum']
+
+        super().__init__(network, training_options, profile)
 
     def _get_gradient_updates(self):
         result = []

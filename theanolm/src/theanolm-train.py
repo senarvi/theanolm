@@ -67,7 +67,9 @@ def train(network, trainer, scorer, sentence_starts, validation_iter, args):
                (trainer.total_updates % args.validation_interval == 0):
                 validation_cost = -scorer.score_text(validation_iter)
                 if numpy.isnan(validation_cost):
-                    print("Stopping because an invalid floating point operation was performed while computing validation set cost. (Gradients exploded or vanished?)")
+                    print("Stopping because an invalid floating point "
+                          "operation was performed while computing validation "
+                          "set cost. (Gradients exploded or vanished?)")
                     return best_params
                 if numpy.isinf(validation_cost):
                     print("Stopping because validation set cost exploded to infinity.")
@@ -113,16 +115,22 @@ argument_group.add_argument(
     help='text or .gz file containing training data (one sentence per line)')
 argument_group.add_argument(
     'validation_file', metavar='VALIDATION-SET', type=TextFileType('r'),
-    help='text or .gz file containing validation data (one sentence per line) for early stopping')
+    help='text or .gz file containing validation data (one sentence per line) '
+         'for early stopping')
 argument_group.add_argument(
     'dictionary_file', metavar='DICTIONARY', type=TextFileType('r'),
-    help='text or .gz file containing word list (one word per line) or word to class ID mappings (word and ID per line)')
+    help='text or .gz file containing word list (one word per line) or word to '
+         'class ID mappings (word and ID per line)')
 argument_group.add_argument(
     '--training-state', dest='state_path', metavar='FILE', type=str, default=None,
-    help='the last training state will be read from and written to FILE in numpy .npz format (if not given, starts from scratch and only saves the best model)')
+    help='the last training state will be read from and written to FILE in '
+         'numpy .npz format (if not given, starts from scratch and only saves '
+         'the best model)')
 argument_group.add_argument(
     '--dictionary-format', metavar='FORMAT', type=str, default='words',
-    help='dictionary format, one of "words" (one word per line, default), "classes" (word and class ID per line), "srilm-classes" (class name, membership probability, and word per line)')
+    help='dictionary format, one of "words" (one word per line, default), '
+         '"classes" (word and class ID per line), "srilm-classes" (class '
+         'name, membership probability, and word per line)')
 
 argument_group = parser.add_argument_group("network structure")
 argument_group.add_argument(
@@ -147,13 +155,16 @@ argument_group.add_argument(
     help='each mini-batch will contain N sentences (default 16)')
 argument_group.add_argument(
     '--wait-improvement', metavar='N', type=int, default=10,
-    help='wait N updates for validation set cost to decrease before stopping; if less than zero, stops only after maximum number of epochs is reached (default 10)')
+    help='wait N updates for validation set cost to decrease before stopping; '
+         'if less than zero, stops only after maximum number of epochs is '
+         'reached (default 10)')
 argument_group.add_argument(
     '--max-epochs', metavar='N', type=int, default=1000,
     help='perform at most N training epochs (default 1000)')
 argument_group.add_argument(
     '--optimization-method', metavar='METHOD', type=str, default='adam',
-    help='optimization method, one of "sgd", "nesterov", "adadelta", "rmsprop-sgd", "rmsprop-momentum", "adam" (default "adam")')
+    help='optimization method, one of "sgd", "nesterov", "adadelta", '
+         '"rmsprop-sgd", "rmsprop-momentum", "adam" (default "adam")')
 argument_group.add_argument(
     '--learning-rate', metavar='ALPHA', type=float, default=0.001,
     help='initial learning rate (default 0.001)')
@@ -161,14 +172,33 @@ argument_group.add_argument(
     '--momentum', metavar='BETA', type=float, default=0.9,
     help='momentum coefficient for momentum optimization methods (default 0.9)')
 argument_group.add_argument(
+    '--gradient-decay-rate', metavar='GAMMA', type=float, default=0.9,
+    help='geometric rate for averaging gradients (default 0.9)')
+argument_group.add_argument(
+    '--sqr-gradient-decay-rate', metavar='GAMMA', type=float, default=0.999,
+    help='geometric rate for averaging squared gradients in Adam optimizer '
+         '(default 0.999)')
+argument_group.add_argument(
+    '--numerical-stability-term', metavar='EPSILON', type=float, default=1e-7,
+    help='a value that is used to prevent instability when dividing by very '
+         'small numbers (default 1e-7)')
+argument_group.add_argument(
+    '--gradient-normalization', metavar='THRESHOLD', type=float, default=None,
+    help='scale down the gradients if necessary to make sure their norm '
+         '(normalized by mini-batch size) will not exceed THRESHOLD (no '
+         'scaling by default)')
+argument_group.add_argument(
     '--validation-interval', metavar='N', type=int, default=1000,
-    help='cross-validation for early stopping is performed after every Nth mini-batch update (default 1000)')
+    help='cross-validation for early stopping is performed after every Nth '
+         'mini-batch update (default 1000)')
 argument_group.add_argument(
     '--save-interval', metavar='N', type=int, default=1000,
-    help='save training state after every Nth mini-batch update; if less than one, save the model only after training (default 1000)')
+    help='save training state after every Nth mini-batch update; if less than '
+         'one, save the model only after training (default 1000)')
 argument_group.add_argument(
     '--verbose-interval', metavar='N', type=int, default=100,
-    help='print statistics of every Nth mini-batch update; quiet if less than one (default 100)')
+    help='print statistics of every Nth mini-batch update; quiet if less than '
+         'one (default 100)')
 
 argument_group = parser.add_argument_group("debugging")
 argument_group.add_argument(
@@ -229,18 +259,28 @@ if not initial_state is None:
 
 print("Building neural network trainer.")
 sys.stdout.flush()
+training_options = {
+    'epsilon': args.numerical_stability_term,
+    'gradient_decay_rate': args.gradient_decay_rate,
+    'sqr_gradient_decay_rate': args.sqr_gradient_decay_rate,
+    'momentum': args.momentum}
+if not args.gradient_normalization is None:
+    # The gradients should be divided by mini-batch size before normalization.
+    # Instead we multiply the normalization threshold by the mini-batch size.
+    training_options['max_gradient_norm'] = \
+        args.gradient_normalization * args.batch_size
 if args.optimization_method == 'sgd':
-    trainer = trainers.SGDTrainer(network, args.profile)
+    trainer = trainers.SGDTrainer(network, training_options, args.profile)
 elif args.optimization_method == 'nesterov':
-    trainer = trainers.NesterovTrainer(network, args.momentum, args.profile)
+    trainer = trainers.NesterovTrainer(network, training_options, args.profile)
 elif args.optimization_method == 'adadelta':
-    trainer = trainers.AdadeltaTrainer(network, args.profile)
+    trainer = trainers.AdadeltaTrainer(network, training_options, args.profile)
 elif args.optimization_method == 'rmsprop-sgd':
-    trainer = trainers.RMSPropSGDTrainer(network, args.profile)
+    trainer = trainers.RMSPropSGDTrainer(network, training_options, args.profile)
 elif args.optimization_method == 'rmsprop-momentum':
-    trainer = trainers.RMSPropMomentumTrainer(network, args.momentum, args.profile)
+    trainer = trainers.RMSPropMomentumTrainer(network, training_options, args.profile)
 elif args.optimization_method == 'adam':
-    trainer = trainers.AdamTrainer(network, args.profile)
+    trainer = trainers.AdamTrainer(network, training_options, args.profile)
 else:
     print("Invalid optimization method requested:", args.optimization_method)
     exit(1)

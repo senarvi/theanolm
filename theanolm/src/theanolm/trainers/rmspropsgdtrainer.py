@@ -19,11 +19,14 @@ class RMSPropSGDTrainer(ModelTrainer):
     gradient starts to increase.
     """
 
-    def __init__(self, network, profile):
+    def __init__(self, network, training_options, profile):
         """Creates an RMSProp trainer.
 
         :type network: Network
         :param network: the neural network object
+
+        :type training_options: dict
+        :param training_options: a dictionary of training options
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
@@ -34,10 +37,18 @@ class RMSPropSGDTrainer(ModelTrainer):
             self.param_init_values[name + '.gradient'] = numpy.zeros_like(param.get_value())
             self.param_init_values[name + '.mean_sqr_gradient'] = numpy.zeros_like(param.get_value())
         self._create_params()
-        self._gamma = 0.95  # geometric rate for averaging gradients (decay rate)
-        self._epsilon = 1e-6  # numerical stability / smoothing term to prevent divide-by-zero
 
-        super().__init__(network, profile)
+        # geometric rate for averaging gradients
+        if not 'gradient_decay_rate' in training_options:
+            raise ValueError("Gradient decay rate is not given in training options.")
+        self._gamma = training_options['gradient_decay_rate']
+
+        # numerical stability / smoothing term to prevent divide-by-zero
+        if not 'epsilon' in training_options:
+            raise ValueError("Epsilon is not given in training options.")
+        self._epsilon = training_options['epsilon']
+
+        super().__init__(network, training_options, profile)
 
     def _get_gradient_updates(self):
         result = []

@@ -19,15 +19,14 @@ class NesterovTrainer(ModelTrainer):
     params_{t} = params_{t-1} + mu * v_{t} - lr * gradient(params_{t-1})
     """
 
-    def __init__(self, network, momentum=0.9, profile=False):
+    def __init__(self, network, training_options, profile=False):
         """Creates a Nesterov momentum trainer.
 
         :type network: Network
         :param network: the neural network object
 
-        :type momentum: float
-        :param momentum: geometric rate for averaging velocities, i.e. how
-                         much to retain the previous update direction
+        :type training_options: dict
+        :param training_options: a dictionary of training options
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
@@ -38,10 +37,13 @@ class NesterovTrainer(ModelTrainer):
             self.param_init_values[name + '.gradient'] = numpy.zeros_like(param.get_value())
             self.param_init_values[name + '.velocity'] = numpy.zeros_like(param.get_value())
         self._create_params()
-        self._momentum = momentum
-        self._epsilon = 1e-8
 
-        super().__init__(network, profile)
+        # momentum
+        if not 'momentum' in training_options:
+            raise ValueError("Momentum is not given in training options.")
+        self._momentum = training_options['momentum']
+
+        super().__init__(network, training_options, profile)
 
     def _get_gradient_updates(self):
         result = []

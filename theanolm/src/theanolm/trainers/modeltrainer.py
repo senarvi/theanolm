@@ -12,7 +12,7 @@ class ModelTrainer(object):
     """Superclass for Neural Network Language Model Trainers
     """
 
-    def __init__(self, network, profile=False):
+    def __init__(self, network, training_options, profile=False):
         """Creates Theano functions for training a neural network language
         model.
 
@@ -29,6 +29,9 @@ class ModelTrainer(object):
         :type network: Network
         :param network: the neural network object
 
+        :type training_options: dict
+        :param training_options: a dictionary of training options
+
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
         """
@@ -41,9 +44,24 @@ class ModelTrainer(object):
         costs = costs * self.network.minibatch_mask
         # Sum costs over time steps and take the average over sequences.
         cost = costs.sum(0).mean()
-        # Compute the symbolic rule for updating the gradient of each parameter.
-        self._gradient_wrt_params = \
-                tensor.grad(cost, wrt=list(self.network.params.values()))
+
+        # Compute the symbolic expression for updating the gradient with regard
+        # to each parameter.
+        gradients = tensor.grad(cost, wrt=list(self.network.params.values()))
+
+        # Normalize the norm of the gradients to given maximum value.
+        if 'max_gradient_norm' in training_options:
+            max_norm = training_options['max_gradient_norm']
+            epsilon = training_options['epsilon']
+            squares = [tensor.sqr(gradient) for gradient in gradients]
+            sums = [tensor.sum(square) for square in squares]
+            total_sum = sum(sums)  # sum over parameter variables
+            norm = tensor.sqrt(total_sum)
+            target_norm = tensor.clip(norm, 0.0, max_norm)
+            gradients = [gradient * target_norm / (epsilon + norm)
+                         for gradient in gradients]
+
+        self._gradient_wrt_params = gradients
         self.gradient_update_function = \
             theano.function([self.network.minibatch_input, self.network.minibatch_mask],
                             cost,

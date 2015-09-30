@@ -8,11 +8,14 @@ class SGDTrainer(ModelTrainer):
     """Stochastic Gradient Descent Optimization Method
     """
 
-    def __init__(self, network, profile):
+    def __init__(self, network, training_options, profile):
         """Creates a Stochastic Gradient Descent trainer.
 
         :type network: Network
         :param network: the neural network object
+
+        :type training_options: dict
+        :param training_options: a dictionary of training options
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
@@ -23,7 +26,7 @@ class SGDTrainer(ModelTrainer):
              for name, param in network.params.items()}
         self._create_params()
 
-        super().__init__(network, profile)
+        super().__init__(network, training_options, profile)
 
     def _get_gradient_updates(self):
         result = []

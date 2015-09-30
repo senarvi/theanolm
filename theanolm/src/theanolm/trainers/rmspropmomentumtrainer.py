@@ -27,15 +27,14 @@ class RMSPropMomentumTrainer(ModelTrainer):
     http://arxiv.org/abs/1308.0850
     """
 
-    def __init__(self, network, momentum=0.9, profile=False):
+    def __init__(self, network, training_options, profile=False):
         """Creates an RMSProp trainer.
 
         :type network: Network
         :param network: the neural network object
 
-        :type momentum: float
-        :param momentum: geometric rate for averaging velocities, i.e. how
-                         much to retain the previous update direction
+        :type training_options: dict
+        :param training_options: a dictionary of training options
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
@@ -48,11 +47,23 @@ class RMSPropMomentumTrainer(ModelTrainer):
             self.param_init_values[name + '.mean_sqr_gradient'] = numpy.zeros_like(param.get_value())
             self.param_init_values[name + '.velocity'] = numpy.zeros_like(param.get_value())
         self._create_params()
-        self._gamma = 0.95  # geometric rate for averaging gradients (decay rate)
-        self._momentum = momentum
-        self._epsilon = 0.0001
 
-        super().__init__(network, profile)
+        # geometric rate for averaging gradients
+        if not 'gradient_decay_rate' in training_options:
+            raise ValueError("Gradient decay rate is not given in training options.")
+        self._gamma = training_options['gradient_decay_rate']
+
+        # numerical stability / smoothing term to prevent divide-by-zero
+        if not 'epsilon' in training_options:
+            raise ValueError("Epsilon is not given in training options.")
+        self._epsilon = training_options['epsilon']
+
+        # momentum
+        if not 'momentum' in training_options:
+            raise ValueError("Momentum is not given in training options.")
+        self._momentum = training_options['momentum']
+
+        super().__init__(network, training_options, profile)
 
     def _get_gradient_updates(self):
         result = []
