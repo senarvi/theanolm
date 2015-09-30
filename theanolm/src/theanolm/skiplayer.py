@@ -29,16 +29,16 @@ class SkipLayer(object):
         # Create the parameters.
         self.param_init_values = OrderedDict()
 
-        self.param_init_values['skip_W_in1'] = \
+        self.param_init_values['skip.W_in1'] = \
                 random_weight(in1_size, out_size, scale=0.01)
 
-        self.param_init_values['skip_b_in1'] = \
+        self.param_init_values['skip.b_in1'] = \
                 numpy.zeros((out_size,)).astype('float32')
 
-        self.param_init_values['skip_W_in2'] = \
+        self.param_init_values['skip.W_in2'] = \
                 random_weight(in2_size, out_size, scale=0.01)
 
-        self.param_init_values['skip_b_in2'] = \
+        self.param_init_values['skip.b_in2'] = \
                 numpy.zeros((out_size,)).astype('float32')
 
     def create_structure(self, model_params, layer_input_in1, layer_input_in2):
@@ -59,8 +59,8 @@ class SkipLayer(object):
         second input layer
         """
 
-        preact_in1 = tensor.dot(layer_input_in1, model_params['skip_W_in1']) \
-                + model_params['skip_b_in1']
-        preact_in2 = tensor.dot(layer_input_in2, model_params['skip_W_in2']) \
-                + model_params['skip_b_in2']
+        preact_in1 = tensor.dot(layer_input_in1, model_params['skip.W_in1']) \
+                + model_params['skip.b_in1']
+        preact_in2 = tensor.dot(layer_input_in2, model_params['skip.W_in2']) \
+                + model_params['skip.b_in2']
         self.output = tensor.tanh(preact_in1 + preact_in2)

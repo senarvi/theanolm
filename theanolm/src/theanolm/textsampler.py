@@ -21,7 +21,7 @@ class TextSampler(object):
         returns the sampled word ID along with the output state of this time
         step.
 
-        :type network: RNNLM
+        :type network: Network
         :param network: the neural network object
         """
 
@@ -57,7 +57,7 @@ class TextSampler(object):
         # Construct a list of hidden layer state variables and initialize them
         # to zeros. GRU has only one state that travels through the time steps,
         # LSTM has two.
-        hidden_state_shape = (1, self.network.hidden_layer_size)
+        hidden_state_shape = (1, self.network.architecture.hidden_layer_size)
         hidden_layer_state = [
             numpy.zeros(shape=hidden_state_shape).astype('float32')
             for _ in range(self.network.hidden_layer.num_state_variables)]

@@ -22,7 +22,7 @@ class NesterovTrainer(ModelTrainer):
     def __init__(self, network, momentum=0.9, profile=False):
         """Creates a Nesterov momentum trainer.
 
-        :type network: RNNLM
+        :type network: Network
         :param network: the neural network object
 
         :type momentum: float
@@ -35,8 +35,8 @@ class NesterovTrainer(ModelTrainer):
 
         self.param_init_values = dict()
         for name, param in network.params.items():
-            self.param_init_values[name + '_gradient'] = numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '_velocity'] = numpy.zeros_like(param.get_value())
+            self.param_init_values[name + '.gradient'] = numpy.zeros_like(param.get_value())
+            self.param_init_values[name + '.velocity'] = numpy.zeros_like(param.get_value())
         self._create_params()
         self._momentum = momentum
         self._epsilon = 1e-8
@@ -46,15 +46,15 @@ class NesterovTrainer(ModelTrainer):
     def _get_gradient_updates(self):
         result = []
         for name, gradient_new in zip(self.network.params, self._gradient_wrt_params):
-            gradient = self.params[name + '_gradient']
+            gradient = self.params[name + '.gradient']
             result.append((gradient, gradient_new))
         return result
 
     def _get_model_updates(self):
         result = []
         for name, param in self.network.params.items():
-            gradient = self.params[name + '_gradient']
-            velocity = self.params[name + '_velocity']
+            gradient = self.params[name + '.gradient']
+            velocity = self.params[name + '.velocity']
             standard_update = -(self.learning_rate * gradient)
             velocity_new = (self._momentum * velocity) + standard_update
             param_new = param + (self._momentum * velocity_new) + standard_update

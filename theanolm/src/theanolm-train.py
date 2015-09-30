@@ -10,14 +10,16 @@ import theanolm
 import theanolm.trainers as trainers
 from filetypes import TextFileType
 
-def save_training_state(path):
+def save_training_state(path, network, trainer):
     """Saves current neural network and training state to disk.
 
     :type path: str
     :param path: filesystem path where to save the parameters to
+
+    :type network: Network
     """
 
-    state = rnnlm.get_state()
+    state = network.get_state()
     state.update(trainer.get_state())
     numpy.savez(path, **state)
     print("Saved %d parameters to %s." % (len(state), path))
@@ -35,13 +37,14 @@ def save_model(path, state):
     numpy.savez(path, **state)
     print("Saved %d parameters to %s." % (len(state), path))
 
-def train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args):
+def train(network, trainer, scorer, sentence_starts, validation_iter, args):
     best_params = None
 
     while trainer.epoch_number <= args.max_epochs:
         initial_cost = -scorer.score_text(validation_iter)
-        print("Validation set average sentence cost at the start of epoch %d: %f" % (
+        print("Validation set average sentence cost at the start of epoch %d/%d: %f" % (
             trainer.epoch_number,
+            args.max_epochs,
             initial_cost))
 
         print("Creating a random permutation of %d training sentences." % len(sentence_starts))
@@ -75,12 +78,12 @@ def train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args):
                 sys.stdout.flush()
                 validations_since_best = trainer.validations_since_min_cost()
                 if validations_since_best == 0:
-                    best_params = rnnlm.get_state()
+                    best_params = network.get_state()
                 elif (args.wait_improvement >= 0) and \
                      (validations_since_best > args.wait_improvement):
-                    if validation_cost >= initial_cost:
-                        args.learning_rate /= 2
-                    rnnlm.set_state(best_params)
+#                   if validation_cost >= initial_cost:
+                    args.learning_rate /= 2
+                    network.set_state(best_params)
                     trainer.next_epoch()
                     break
 
@@ -89,13 +92,13 @@ def train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args):
                 # Save the best parameters and the current state.
                 if not best_params is None:
                     save_model(args.model_path, best_params)
-                save_training_state(args.state_path)
+                save_training_state(args.state_path, network, trainer)
 
     print("Stopping because %d epochs was reached." % args.max_epochs)
     validation_cost = -scorer.score_text(validation_iter)
     trainer.append_validation_cost(validation_cost)
     if trainer.validations_since_min_cost() == 0:
-        best_params = rnnlm.get_state()
+        best_params = network.get_state()
     return best_params
 
 
@@ -131,6 +134,9 @@ argument_group.add_argument(
 argument_group.add_argument(
     '--hidden-layer-type', metavar='TYPE', type=str, default='lstm',
     help='hidden layer unit type, "lstm" or "gru" (default "lstm")')
+argument_group.add_argument(
+    '--include-skip-layer', action="store_true",
+    help='include connections that skip the hidden layer')
 
 argument_group = parser.add_argument_group("training options")
 argument_group.add_argument(
@@ -166,10 +172,10 @@ argument_group.add_argument(
 
 argument_group = parser.add_argument_group("debugging")
 argument_group.add_argument(
-    '--debug', metavar='\b', type=bool, default=False,
+    '--debug', action="store_true",
     help='enables debugging Theano errors')
 argument_group.add_argument(
-    '--profile', metavar='\b', type=bool, default=False,
+    '--profile', action="store_true",
     help='enables profiling Theano functions')
 
 args = parser.parse_args()
@@ -210,30 +216,31 @@ validation_iter = theanolm.BatchIterator(
 
 print("Building neural network.")
 sys.stdout.flush()
-rnnlm = theanolm.RNNLM(
-    dictionary,
+architecture = theanolm.Network.Architecture(
     args.word_projection_dim,
     args.hidden_layer_type,
     args.hidden_layer_size,
-    args.profile)
+    args.include_skip_layer)
+print(architecture)
+network = theanolm.Network(dictionary, architecture, args.profile)
 if not initial_state is None:
     print("Restoring neural network to previous state.")
-    rnnlm.set_state(initial_state)
+    network.set_state(initial_state)
 
 print("Building neural network trainer.")
 sys.stdout.flush()
 if args.optimization_method == 'sgd':
-    trainer = trainers.SGDTrainer(rnnlm, args.profile)
+    trainer = trainers.SGDTrainer(network, args.profile)
 elif args.optimization_method == 'nesterov':
-    trainer = trainers.NesterovTrainer(rnnlm, args.momentum, args.profile)
+    trainer = trainers.NesterovTrainer(network, args.momentum, args.profile)
 elif args.optimization_method == 'adadelta':
-    trainer = trainers.AdadeltaTrainer(rnnlm, args.profile)
+    trainer = trainers.AdadeltaTrainer(network, args.profile)
 elif args.optimization_method == 'rmsprop-sgd':
-    trainer = trainers.RMSPropSGDTrainer(rnnlm, args.profile)
+    trainer = trainers.RMSPropSGDTrainer(network, args.profile)
 elif args.optimization_method == 'rmsprop-momentum':
-    trainer = trainers.RMSPropMomentumTrainer(rnnlm, args.momentum, args.profile)
+    trainer = trainers.RMSPropMomentumTrainer(network, args.momentum, args.profile)
 elif args.optimization_method == 'adam':
-    trainer = trainers.AdamTrainer(rnnlm, args.profile)
+    trainer = trainers.AdamTrainer(network, args.profile)
 else:
     print("Invalid optimization method requested:", args.optimization_method)
     exit(1)
@@ -243,19 +250,19 @@ if not initial_state is None:
 
 print("Building text scorer.")
 sys.stdout.flush()
-scorer = theanolm.TextScorer(rnnlm, args.profile)
+scorer = theanolm.TextScorer(network, args.profile)
 
 print("Training neural network.")
 sys.stdout.flush()
-best_params = train(rnnlm, trainer, scorer, sentence_starts, validation_iter, args)
+best_params = train(network, trainer, scorer, sentence_starts, validation_iter, args)
 
 print("Saving neural network and training state.")
 sys.stdout.flush()
-save_training_state(args.state_path)
+save_training_state(args.state_path, network, trainer)
 if best_params is None:
     print("Validation set cost did not decrease during training.")
 else:
     save_model(args.model_path, best_params)
-    rnnlm.set_state(best_params)
+    network.set_state(best_params)
     validation_logprob = scorer.score_text(validation_iter)
     print("Best validation set average sentence logprob:", validation_logprob)

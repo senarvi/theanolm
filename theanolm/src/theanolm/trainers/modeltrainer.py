@@ -26,7 +26,7 @@ class ModelTrainer(object):
         * model_update_function: updates model state given the gradients and the
           learning rate
 
-        :type network: RNNLM
+        :type network: Network
         :param network: the neural network object
 
         :type profile: bool
@@ -182,13 +182,13 @@ class ModelTrainer(object):
         """Print information about the previous mini-batch update.
         """
 
-        print("Batch %d.%d (%d) -- lr = %f, cost = %f, duration = %f seconds" % (\
+        print("Batch %d.%d (%d) -- lr = %g, cost = %.2f, duration = %.2f ms" % (\
                 self.epoch_number,
                 self.update_number,
                 self.total_updates,
                 self.update_learning_rate,
                 self.update_cost,
-                self.update_duration))
+                self.update_duration * 100))
 
     def next_epoch(self):
         """Skips to the next epoch.

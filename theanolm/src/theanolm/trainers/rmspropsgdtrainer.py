@@ -22,7 +22,7 @@ class RMSPropSGDTrainer(ModelTrainer):
     def __init__(self, network, profile):
         """Creates an RMSProp trainer.
 
-        :type network: RNNLM
+        :type network: Network
         :param network: the neural network object
 
         :type profile: bool
@@ -31,8 +31,8 @@ class RMSPropSGDTrainer(ModelTrainer):
 
         self.param_init_values = dict()
         for name, param in network.params.items():
-            self.param_init_values[name + '_gradient'] = numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '_mean_sqr_gradient'] = numpy.zeros_like(param.get_value())
+            self.param_init_values[name + '.gradient'] = numpy.zeros_like(param.get_value())
+            self.param_init_values[name + '.mean_sqr_gradient'] = numpy.zeros_like(param.get_value())
         self._create_params()
         self._gamma = 0.95  # geometric rate for averaging gradients (decay rate)
         self._epsilon = 1e-6  # numerical stability / smoothing term to prevent divide-by-zero
@@ -42,8 +42,8 @@ class RMSPropSGDTrainer(ModelTrainer):
     def _get_gradient_updates(self):
         result = []
         for name, gradient_new in zip(self.network.params, self._gradient_wrt_params):
-            gradient = self.params[name + '_gradient']
-            ms_gradient = self.params[name + '_mean_sqr_gradient']
+            gradient = self.params[name + '.gradient']
+            ms_gradient = self.params[name + '.mean_sqr_gradient']
             ms_gradient_new = (self._gamma * ms_gradient) + ((1.0 - self._gamma) * tensor.sqr(gradient_new))
             result.append((gradient, gradient_new))
             result.append((ms_gradient, ms_gradient_new))
@@ -52,8 +52,8 @@ class RMSPropSGDTrainer(ModelTrainer):
     def _get_model_updates(self):
         result = []
         for name, param in self.network.params.items():
-            gradient = self.params[name + '_gradient']
-            ms_gradient = self.params[name + '_mean_sqr_gradient']
+            gradient = self.params[name + '.gradient']
+            ms_gradient = self.params[name + '.mean_sqr_gradient']
             rms_gradient = tensor.sqrt(ms_gradient + self._epsilon)
             param_new = param - (self.learning_rate * gradient / rms_gradient)
             result.append((param, param_new))

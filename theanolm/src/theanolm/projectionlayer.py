@@ -31,7 +31,7 @@ class ProjectionLayer(object):
         # Initialize the parameters.
         self.param_init_values = OrderedDict()
 
-        self.param_init_values['word_projection'] = \
+        self.param_init_values['proj.W'] = \
                 orthogonal_weight(in_size, out_size, scale=0.01)
 
     def create_minibatch_structure(self, model_params, layer_input):
@@ -61,7 +61,7 @@ class ProjectionLayer(object):
         # word_projection_dim dimensional projection. Note that indexing the
         # matrix with a vector of all the word IDs gives a concatenation of
         # those projections.
-        projections = model_params['word_projection'][layer_input.flatten()]
+        projections = model_params['proj.W'][layer_input.flatten()]
         projections = projections.reshape([num_time_steps,
                                            num_sequences,
                                            self.word_projection_dim],
@@ -93,11 +93,12 @@ class ProjectionLayer(object):
                   projections
         """
 
-        word_projection_dim = model_params['word_projection'].shape[1]
+        # Get the output dimensionality from the transformation matrix.
+        word_projection_dim = model_params['proj.W'].shape[1]
 
         # The generation starts with input value -1, which will be translated
         # into zero word projection vector.
         self.onestep_output = tensor.switch(
             layer_input[:, None] < 0,
             tensor.alloc(0.0, 1, word_projection_dim),
-            model_params['word_projection'][layer_input])
+            model_params['proj.W'][layer_input])

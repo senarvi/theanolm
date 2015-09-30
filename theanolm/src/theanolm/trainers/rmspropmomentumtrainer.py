@@ -30,7 +30,7 @@ class RMSPropMomentumTrainer(ModelTrainer):
     def __init__(self, network, momentum=0.9, profile=False):
         """Creates an RMSProp trainer.
 
-        :type network: RNNLM
+        :type network: Network
         :param network: the neural network object
 
         :type momentum: float
@@ -43,10 +43,10 @@ class RMSPropMomentumTrainer(ModelTrainer):
 
         self.param_init_values = dict()
         for name, param in network.params.items():
-            self.param_init_values[name + '_gradient'] = numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '_mean_gradient'] = numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '_mean_sqr_gradient'] = numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '_velocity'] = numpy.zeros_like(param.get_value())
+            self.param_init_values[name + '.gradient'] = numpy.zeros_like(param.get_value())
+            self.param_init_values[name + '.mean_gradient'] = numpy.zeros_like(param.get_value())
+            self.param_init_values[name + '.mean_sqr_gradient'] = numpy.zeros_like(param.get_value())
+            self.param_init_values[name + '.velocity'] = numpy.zeros_like(param.get_value())
         self._create_params()
         self._gamma = 0.95  # geometric rate for averaging gradients (decay rate)
         self._momentum = momentum
@@ -57,9 +57,9 @@ class RMSPropMomentumTrainer(ModelTrainer):
     def _get_gradient_updates(self):
         result = []
         for name, gradient_new in zip(self.network.params, self._gradient_wrt_params):
-            gradient = self.params[name + '_gradient']
-            m_gradient = self.params[name + '_mean_gradient']
-            ms_gradient = self.params[name + '_mean_sqr_gradient']
+            gradient = self.params[name + '.gradient']
+            m_gradient = self.params[name + '.mean_gradient']
+            ms_gradient = self.params[name + '.mean_sqr_gradient']
             m_gradient_new = (self._gamma * m_gradient) + ((1.0 - self._gamma) * gradient_new)
             ms_gradient_new = (self._gamma * ms_gradient) + ((1.0 - self._gamma) * tensor.sqr(gradient_new))
             result.append((gradient, gradient_new))
@@ -70,10 +70,10 @@ class RMSPropMomentumTrainer(ModelTrainer):
     def _get_model_updates(self):
         result = []
         for name, param in self.network.params.items():
-            gradient = self.params[name + '_gradient']
-            m_gradient = self.params[name + '_mean_gradient']
-            ms_gradient = self.params[name + '_mean_sqr_gradient']
-            velocity = self.params[name + '_velocity']
+            gradient = self.params[name + '.gradient']
+            m_gradient = self.params[name + '.mean_gradient']
+            ms_gradient = self.params[name + '.mean_sqr_gradient']
+            velocity = self.params[name + '.velocity']
             # I don't know why the square of average gradient is subtracted, but
             # I've seen this used when RMSProp is implemented with a momentum
             # method.

@@ -13,77 +13,170 @@ from theanolm.skiplayer import SkipLayer
 from theanolm.outputlayer import OutputLayer
 from theanolm.matrixfunctions import test_value
 
-class RNNLM(object):
-    """Recursive Neural Network Language Model
+class Network(object):
+    """Neural Network
 
-    A recursive neural network language model implemented using Theano.
-    Supports LSTM and GRU architectures.
+    A class that stores the neural network architecture and state.
     """
 
-    def __init__(self, dictionary, word_projection_dim, hidden_layer_type,
-                 hidden_layer_size, profile=False):
+    class Architecture(object):
+        """Neural Network Architecture
+        """
+
+        def __init__(self, word_projection_dim, hidden_layer_type,
+                     hidden_layer_size, include_skip_layer):
+            """Constructs a description of the specified network architecture.
+
+            :type word_projection_dim: int
+            :param word_projection_dim: dimensionality of the word projections
+
+            :type hidden_layer_type: str
+            :param hidden_layer_type: name of the units used in the hidden layer
+
+            :type hidden_layer_size: int
+            :param hidden_layer_size: number of units in the hidden layer
+
+            :type include_skip_layer: bool
+            :param include_skip_layer: include connections that skip the hidden
+                                       layer
+            """
+
+            self.word_projection_dim = word_projection_dim
+            self.hidden_layer_type = hidden_layer_type
+            self.hidden_layer_size = hidden_layer_size
+            self.include_skip_layer = include_skip_layer
+
+        @classmethod
+        def from_state(classname, state):
+            return classname(
+                state['arch.word_projection_dim'],
+                state['arch.hidden_layer_type'],
+                state['arch.hidden_layer_size'],
+                state['arch.include_skip_layer'])
+
+        def __str__(self):
+            """Returns a string representation of the architecture for printing
+            to the user.
+
+            :rtype: str
+            :returns: a string describing the architecture
+            """
+
+            result = "Word projection dimensionality: "
+            result += str(self.word_projection_dim)
+            result += "\nHidden layer type: "
+            result += str(self.hidden_layer_type)
+            result += "\nHidden layer size: "
+            result += str(self.hidden_layer_size)
+            result += "\nInclude skip layer: "
+            result += str(self.include_skip_layer)
+            return(result)
+
+        def get_state(self):
+            """Returns a dictionary of parameters that should be saved along
+            with the network state.
+
+            :rtype: dict
+            :returns: a dictionary of the architecture parameters
+            """
+
+            result = OrderedDict()
+            result['arch.word_projection_dim'] = self.word_projection_dim
+            result['arch.hidden_layer_type'] = self.hidden_layer_type
+            result['arch.hidden_layer_size'] = self.hidden_layer_size
+            result['arch.include_skip_layer'] = self.include_skip_layer
+            return result
+
+        def check_state(self, state):
+            """Checks that the architecture stored in a state matches this
+            network architecture, and raises an ``IncompatibleStateError``
+            if not.
+
+            :type state: dict
+            :param state: dictionary of neural network parameters
+            """
+
+            self._check_parameter('arch.word_projection_dim', state, self.word_projection_dim)
+            self._check_parameter('arch.hidden_layer_type', state, self.hidden_layer_type)
+            self._check_parameter('arch.hidden_layer_size', state, self.hidden_layer_size)
+            self._check_parameter('arch.include_skip_layer', state, self.include_skip_layer)
+
+        def _check_parameter(self, name, state, current_value):
+            """Checks that the parameter value stored in a state matches the
+            current value, and raises an ``IncompatibleStateError`` if not.
+
+            :type state: dict
+            :param state: dictionary of neural network parameters
+            """
+
+            if not name in state:
+                raise IncompatibleStateError(
+                    "Parameter {0} is missing from neural network state."
+                    "".format(name))
+            if state[name] != current_value:
+                raise IncompatibleStateError(
+                    "Neural network state has {0}={1}, while this architecture "
+                    "has {0}={2}.".format(name, state[name], current_value))
+
+
+    def __init__(self, dictionary, architecture, profile=False):
         """Initializes the neural network parameters for all layers, and
         creates Theano shared variables from them.
 
         :type dictionary: Dictionary
         :param dictionary: mapping between word IDs and word classes
 
-        :type word_projection_dim: int
-        :param word_projection_dim: dimensionality of the word projections
-
-        :type hidden_layer_type: str
-        :param hidden_layer_type: name of the units used in the hidden layer
-
-        :type hidden_layer_size: int
-        :param hidden_layer_size: number of units in the hidden layer
+        :type architecture: Network.Architecture
+        :param architecture: an object that describes the network architecture
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
         """
 
         self.dictionary = dictionary
-        self.word_projection_dim = word_projection_dim
-        self.hidden_layer_type = hidden_layer_type
-        self.hidden_layer_size = hidden_layer_size
-        
-        print("Word projection dimensionality:", self.word_projection_dim)
-        print("Hidden layer type:", self.hidden_layer_type)
-        print("Hidden layer size:", self.hidden_layer_size)
+        self.architecture = architecture
 
         # Create the layers.
         self.projection_layer = ProjectionLayer(
             dictionary.num_classes(),
-            self.word_projection_dim)
-        if self.hidden_layer_type == 'lstm':
+            self.architecture.word_projection_dim)
+        if self.architecture.hidden_layer_type == 'lstm':
             self.hidden_layer = LSTMLayer(
-                self.word_projection_dim,
-                self.hidden_layer_size,
+                self.architecture.word_projection_dim,
+                self.architecture.hidden_layer_size,
                 profile)
-        elif self.hidden_layer_type == 'ss-lstm':
+        elif self.architecture.hidden_layer_type == 'ss-lstm':
             self.hidden_layer = SSLSTMLayer(
-                self.word_projection_dim,
-                self.hidden_layer_size,
+                self.architecture.word_projection_dim,
+                self.architecture.hidden_layer_size,
                 profile)
-        elif self.hidden_layer_type == 'gru':
+        elif self.architecture.hidden_layer_type == 'gru':
             self.hidden_layer = GRULayer(
-                self.word_projection_dim,
-                self.hidden_layer_size,
+                self.architecture.word_projection_dim,
+                self.architecture.hidden_layer_size,
                 profile)
         else:
-            raise ValueError("Invalid hidden layer type: " + self.hidden_layer_type)
-        self.skip_layer = SkipLayer(
-            self.hidden_layer_size,
-            self.word_projection_dim,
-            self.word_projection_dim)
-        self.output_layer = OutputLayer(
-            self.word_projection_dim,
-            dictionary.num_classes())
+            raise ValueError("Invalid hidden layer type: " + \
+                             self.architecture.hidden_layer_type)
+        if self.architecture.include_skip_layer:
+            self.skip_layer = SkipLayer(
+                self.architecture.hidden_layer_size,
+                self.architecture.word_projection_dim,
+                self.architecture.word_projection_dim)
+            self.output_layer = OutputLayer(
+                self.architecture.word_projection_dim,
+                dictionary.num_classes())
+        else:
+            self.output_layer = OutputLayer(
+                self.architecture.hidden_layer_size,
+                dictionary.num_classes())
 
         # Create initial parameter values.
         self.param_init_values = OrderedDict()
         self.param_init_values.update(self.projection_layer.param_init_values)
         self.param_init_values.update(self.hidden_layer.param_init_values)
-        self.param_init_values.update(self.skip_layer.param_init_values)
+        if self.architecture.include_skip_layer:
+            self.param_init_values.update(self.skip_layer.param_init_values)
         self.param_init_values.update(self.output_layer.param_init_values)
 
         # Create Theano shared variables.
@@ -122,13 +215,18 @@ class RNNLM(object):
             self.params,
             self.projection_layer.minibatch_output,
             mask=self.minibatch_mask)
-        self.skip_layer.create_structure(
-            self.params,
-            self.hidden_layer.minibatch_output,
-            self.projection_layer.minibatch_output)
-        self.output_layer.create_minibatch_structure(
-            self.params,
-            self.skip_layer.output)
+        if self.architecture.include_skip_layer:
+            self.skip_layer.create_structure(
+                self.params,
+                self.hidden_layer.minibatch_output,
+                self.projection_layer.minibatch_output)
+            self.output_layer.create_minibatch_structure(
+                self.params,
+                self.skip_layer.output)
+        else:
+            self.output_layer.create_minibatch_structure(
+                self.params,
+                self.hidden_layer.minibatch_output)
 
         self.minibatch_output = self.output_layer.minibatch_output
 
@@ -164,7 +262,7 @@ class RNNLM(object):
                               for i in range(self.hidden_layer.num_state_variables)]
         for state_variable in self.onestep_state:
             state_variable.tag.test_value = test_value(
-                size=(1, self.hidden_layer_size),
+                size=(1, self.architecture.hidden_layer_size),
                 max_value=1.0)
 
         self.projection_layer.create_onestep_structure(
@@ -177,13 +275,18 @@ class RNNLM(object):
         # The last state output from the hidden layer is the hidden state to be
         # passed on the the next layer.
         hidden_state_output = self.hidden_layer.onestep_outputs[-1]
-        self.skip_layer.create_structure(
-            self.params,
-            hidden_state_output,
-            self.projection_layer.onestep_output)
-        self.output_layer.create_onestep_structure(
-            self.params,
-            self.skip_layer.output)
+        if self.architecture.include_skip_layer:
+            self.skip_layer.create_structure(
+                self.params,
+                hidden_state_output,
+                self.projection_layer.onestep_output)
+            self.output_layer.create_onestep_structure(
+                self.params,
+                self.skip_layer.output)
+        else:
+            self.output_layer.create_onestep_structure(
+                self.params,
+                hidden_state_output)
 
         self.onestep_output = self.output_layer.onestep_output
 
@@ -191,15 +294,13 @@ class RNNLM(object):
         """Pulls parameter values from Theano shared variables.
 
         :rtype: dict
-        :returns: a dictionary of the parameter values
+        :returns: a dictionary of the parameter values and network architecture
         """
 
         result = OrderedDict()
         for name, param in self.params.items():
             result[name] = param.get_value()
-        result['rnnlm_word_projection_dim'] = self.word_projection_dim
-        result['rnnlm_hidden_layer_type'] = self.hidden_layer_type
-        result['rnnlm_hidden_layer_size'] = self.hidden_layer_size
+        result.update(self.architecture.get_state())
         return result
 
     def set_state(self, state):
@@ -214,14 +315,15 @@ class RNNLM(object):
 
         for name, param in self.params.items():
             if not name in state:
-                raise IncompatibleStateError("Parameter %s is missing from neural network state." % name)
+                raise IncompatibleStateError(
+                    "Parameter %s is missing from neural network state." % name)
             param.set_value(state[name])
-        if state['rnnlm_word_projection_dim'] != self.word_projection_dim:
-            raise IncompatibleStateError("Attempting to restore incompatible state with word_projection_dim=%d, while this neural network has word_projection_dim=%d." % (state['rnnlm_word_projection_dim'], self.word_projection_dim))
-        if state['rnnlm_hidden_layer_type'] != self.hidden_layer_type:
-            raise IncompatibleStateError("Attempting to restore incompatible state with hidden_layer_type=%s, while this neural network has hidden_layer_type=%s." % (state['rnnlm_hidden_layer_type'], self.hidden_layer_type))
-        if state['rnnlm_hidden_layer_size'] != self.hidden_layer_size:
-            raise IncompatibleStateError("Attempting to restore incompatible state with hidden_layer_size=%d, while this neural network has hidden_layer_size=%d." % (state['rnnlm_hidden_layer_size'], self.hidden_layer_size))
+        try:
+            self.architecture.check_state(state)
+        except e:
+            raise IncompatibleStateError(
+                "Attempting to restore state of a network that is incompatible "
+                "with this architecture. " + e.message)
 
     def sequences_to_minibatch(self, sequences):
         """Transposes a list of sequences and Prepares a mini-batch for input to the neural network by transposing
@@ -259,4 +361,3 @@ class RNNLM(object):
             mask[:sequence_lengths[i] + 1, i] = 1.0
 
         return word_ids, mask
-

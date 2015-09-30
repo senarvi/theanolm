@@ -69,17 +69,15 @@ validation_iter = theanolm.BatchIterator(
 
 print("Building neural network.")
 sys.stdout.flush()
-rnnlm = theanolm.RNNLM(
-    dictionary,
-    state['rnnlm_word_projection_dim'],
-    state['rnnlm_hidden_layer_type'],
-    state['rnnlm_hidden_layer_size'])
+architecture = theanolm.Network.Architecture.from_state(state)
+print(architecture)
+network = theanolm.Network(dictionary, architecture)
 print("Restoring neural network state.")
-rnnlm.set_state(state)
+network.set_state(state)
 
 print("Building text scorer.")
 sys.stdout.flush()
-scorer = theanolm.TextScorer(rnnlm)
+scorer = theanolm.TextScorer(network)
 
 if args.input_format == 'text':
     args.output_file.write("Average sentence negative log probability: %f\n" % \

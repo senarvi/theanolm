@@ -13,7 +13,7 @@ class TextScorer(object):
         """Creates a Theano function self.score_function that computes the
         negative log probabilities of given text sequences.
 
-        :type network: RNNLM
+        :type network: Network
         :param network: the neural network object
 
         :type profile: bool

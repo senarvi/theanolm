@@ -27,10 +27,10 @@ class OutputLayer(object):
         # Create the parameters.
         self.param_init_values = OrderedDict()
 
-        self.param_init_values['output_W'] = \
+        self.param_init_values['output.W'] = \
                 orthogonal_weight(in_size, out_size, scale=0.01)
 
-        self.param_init_values['output_b'] = \
+        self.param_init_values['output.b'] = \
                 numpy.zeros((out_size,)).astype('float32')
 
     def create_minibatch_structure(self, model_params, layer_input):
@@ -53,8 +53,8 @@ class OutputLayer(object):
         previous layer
         """
 
-        preact = tensor.dot(layer_input, model_params['output_W']) \
-                + model_params['output_b']
+        preact = tensor.dot(layer_input, model_params['output.W']) \
+                + model_params['output.b']
         
         num_time_steps = preact.shape[0]
         num_sequences = preact.shape[1]
@@ -83,7 +83,7 @@ class OutputLayer(object):
         previous layer
         """
 
-        preact = tensor.dot(layer_input, model_params['output_W']) \
-                + model_params['output_b']
+        preact = tensor.dot(layer_input, model_params['output.W']) \
+                + model_params['output.b']
 
         self.onestep_output = tensor.nnet.softmax(preact)
