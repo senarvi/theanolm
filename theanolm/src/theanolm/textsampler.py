@@ -12,7 +12,7 @@ class TextSampler(object):
     model.
     """
 
-    def __init__(self, network):
+    def __init__(self, network, dictionary):
         """Creates the neural network architecture.
 
         Creates the function self.step_function that uses the state of the
@@ -26,6 +26,7 @@ class TextSampler(object):
         """
 
         self.network = network
+        self.dictionary = dictionary
         self.trng = RandomStreams(1234)
 
         inputs = [self.network.onestep_input]
@@ -71,4 +72,4 @@ class TextSampler(object):
             result.append(word_id)
             if word_id == 0:
                 break
-        return result
+        return self.dictionary.ids_to_words(result)

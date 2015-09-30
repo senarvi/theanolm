@@ -50,8 +50,24 @@ class TextScorer(object):
         :rtype: float
         :returns: average sequence log probability
         """
+        costs, _ = self.negative_log_probabilities(batch_iter)
+        return costs.mean()
+
+
+    def negative_log_probabilities(self, batch_iter):
+        """Computes the negative log probabilities and word counts
+        for each sequence from the given iterator.
+        :type batch_iter: BatchIterator
+        :param batch_iter: an iterator that creates mini-batches from the input
+                           data
+
+        :rtype: numpy.array, numpy.array
+        :returns: negative log probability for each sequence,
+                  word count for each sequence
+        """
 
         logprobs = []
+        counts = []
         for word_ids, membership_probs, mask in batch_iter:
             # A vector of logprobs of each sequence in the mini-batch.
             batch_logprobs = -self.score_function(word_ids, mask)
@@ -61,11 +77,12 @@ class TextScorer(object):
             membership_logprobs[mask < 0.5] = 0.0
             batch_logprobs += membership_logprobs.sum(0)
             logprobs.extend(batch_logprobs)
+            counts.append(mask.sum())
             if numpy.isnan(numpy.mean(logprobs)):
                 import ipdb; ipdb.set_trace()
 
-        # Return the average sequence cost.
-        return numpy.array(logprobs).mean()
+        # Return the sequence costs and word counts.
+        return numpy.array(logprobs), numpy.array(counts)
 
     def score_sentence(self, word_ids, membership_probs):
         """Computes the log probability of a sentence.

@@ -50,6 +50,9 @@ argument_group.add_argument(
 argument_group.add_argument(
     '--output-file', metavar='OUTPUT', type=TextFileType('w'), default='-',
     help='where to write the score or rescored n-best list (default stdout)')
+argument_group.add_argument(
+    '--num-samples', dest='num_samples', type=int, default=0,
+    help='Number of example sentences to generate')
 
 args = parser.parse_args()
 
@@ -80,11 +83,29 @@ sys.stdout.flush()
 scorer = theanolm.TextScorer(network)
 
 if args.input_format == 'text':
-    args.output_file.write("Average sentence negative log probability: %f\n" % \
-        scorer.score_text(validation_iter))
+    costs, counts = scorer.negative_log_probabilities(validation_iter)
+    sentence_average = costs.mean()
+    per_word = costs.sum() / counts.sum()
+    perplexity_per_word = numpy.exp(-per_word)
+    args.output_file.write(
+        "Average sentence negative log probability: "
+        "{}\n".format(sentence_average))
+    args.output_file.write(
+        "Average word negative log probability: "
+        "{}\n".format(per_word))
+    args.output_file.write(
+        "Perplexity per word: {}\n".format(perplexity_per_word))
 elif args.input_format == 'srilm-nbest':
     print("Rescoring n-best list.")
     rescore_nbest(args.input_file, dictionary, scorer, args.output_file)
 elif args.input_format == 'id-nbest':
     print("Rescoring n-best list.")
     rescore_nbest(args.input_file, dictionary, scorer, args.output_file, lscore_field=2, w1_field=4)
+
+if args.num_samples > 0:
+    print("Sampling...")
+    sampler = theanolm.TextSampler(rnnlm, dictionary)
+    for i in range(args.num_samples):
+        words = sampler.generate()
+        args.output_file.write('{}: {}\n'.format(
+            i, ' '.join(words)))
