@@ -38,12 +38,16 @@ class ModelTrainer(object):
 
         self.network = network
 
-        # Calculate negative log probability of each word.
-        costs = -tensor.log(self.network.prediction_probs)
-        # Apply mask to the costs matrix.
-        costs = costs * self.network.minibatch_mask
-        # Sum costs over time steps and take the average over sequences.
-        cost = costs.sum(0).mean()
+        # Calculate log probability of each word.
+        logprobs = tensor.log(self.network.prediction_probs)
+        # Set the log probability to 0 after sequence ends.
+        logprobs = logprobs * self.network.minibatch_mask
+        # Calculate log probability of each sequence.
+        sequence_logprobs = logprobs.sum(0)
+        # Cost is defined as the negative logprob of the mini-batch normalized
+        # by the number of sequences. By taking a mean instead of a sum, the
+        # gradients will also be normalized by mini-batch size.
+        cost = -sequence_logprobs.mean()
 
         # Compute the symbolic expression for updating the gradient with regard
         # to each parameter.

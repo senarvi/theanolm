@@ -5,12 +5,7 @@ from collections import OrderedDict
 import theano
 import theano.tensor as tensor
 from theanolm.exceptions import IncompatibleStateError
-from theanolm.projectionlayer import ProjectionLayer
-from theanolm.lstmlayer import LSTMLayer
-from theanolm.sslstmlayer import SSLSTMLayer
-from theanolm.grulayer import GRULayer
-from theanolm.skiplayer import SkipLayer
-from theanolm.outputlayer import OutputLayer
+from theanolm.layers import *
 from theanolm.matrixfunctions import test_value
 
 class Network(object):
@@ -24,35 +19,39 @@ class Network(object):
         """
 
         def __init__(self, word_projection_dim, hidden_layer_type,
-                     hidden_layer_size, include_skip_layer):
+                     hidden_layer_size, skip_layer_size):
             """Constructs a description of the specified network architecture.
 
             :type word_projection_dim: int
             :param word_projection_dim: dimensionality of the word projections
 
             :type hidden_layer_type: str
-            :param hidden_layer_type: name of the units used in the hidden layer
+            :param hidden_layer_type: type of the units used in the hidden layer
 
             :type hidden_layer_size: int
-            :param hidden_layer_size: number of units in the hidden layer
+            :param hidden_layer_size: number of outputs in the hidden layer
 
-            :type include_skip_layer: bool
-            :param include_skip_layer: include connections that skip the hidden
-                                       layer
+            :type skip_layer_size: int
+            :param skip_layer_size: number of outputs in the skip-layer, or 0
+                                    for no skip-layer
             """
 
             self.word_projection_dim = word_projection_dim
             self.hidden_layer_type = hidden_layer_type
             self.hidden_layer_size = hidden_layer_size
-            self.include_skip_layer = include_skip_layer
+            self.skip_layer_size = skip_layer_size
 
         @classmethod
         def from_state(classname, state):
+            classname._check_parameter_in_state('arch.word_projection_dim', state)
+            classname._check_parameter_in_state('arch.hidden_layer_type', state)
+            classname._check_parameter_in_state('arch.hidden_layer_size', state)
+            classname._check_parameter_in_state('arch.skip_layer_size', state)
             return classname(
                 state['arch.word_projection_dim'],
                 state['arch.hidden_layer_type'],
                 state['arch.hidden_layer_size'],
-                state['arch.include_skip_layer'])
+                state['arch.skip_layer_size'])
 
         def __str__(self):
             """Returns a string representation of the architecture for printing
@@ -68,8 +67,8 @@ class Network(object):
             result += str(self.hidden_layer_type)
             result += "\nHidden layer size: "
             result += str(self.hidden_layer_size)
-            result += "\nInclude skip layer: "
-            result += str(self.include_skip_layer)
+            result += "\nSkip layer size: "
+            result += str(self.skip_layer_size)
             return(result)
 
         def get_state(self):
@@ -84,7 +83,7 @@ class Network(object):
             result['arch.word_projection_dim'] = self.word_projection_dim
             result['arch.hidden_layer_type'] = self.hidden_layer_type
             result['arch.hidden_layer_size'] = self.hidden_layer_size
-            result['arch.include_skip_layer'] = self.include_skip_layer
+            result['arch.skip_layer_size'] = self.skip_layer_size
             return result
 
         def check_state(self, state):
@@ -96,14 +95,39 @@ class Network(object):
             :param state: dictionary of neural network parameters
             """
 
-            self._check_parameter('arch.word_projection_dim', state, self.word_projection_dim)
-            self._check_parameter('arch.hidden_layer_type', state, self.hidden_layer_type)
-            self._check_parameter('arch.hidden_layer_size', state, self.hidden_layer_size)
-            self._check_parameter('arch.include_skip_layer', state, self.include_skip_layer)
+            self._check_parameter_value(
+                'arch.word_projection_dim', state, self.word_projection_dim)
+            self._check_parameter_value(
+                'arch.hidden_layer_type', state, self.hidden_layer_type)
+            self._check_parameter_value(
+                'arch.hidden_layer_size', state, self.hidden_layer_size)
+            self._check_parameter_value(
+                'arch.skip_layer_size', state, self.skip_layer_size)
 
-        def _check_parameter(self, name, state, current_value):
+        def _check_parameter_value(self, name, state, current_value):
             """Checks that the parameter value stored in a state matches the
             current value, and raises an ``IncompatibleStateError`` if not.
+
+            :type name: str
+            :param name: the parameter key in the state
+
+            :type state: dict
+            :param state: dictionary of neural network parameters
+            """
+
+            Network.Architecture._check_parameter_in_state(name, state)
+            if state[name] != current_value:
+                raise IncompatibleStateError(
+                    "Neural network state has {0}={1}, while this architecture "
+                    "has {0}={2}.".format(name, state[name], current_value))
+
+        @staticmethod
+        def _check_parameter_in_state(name, state):
+            """Checks that the parameter value is stored in a state, and raises
+            an ``IncompatibleStateError`` if not.
+
+            :type name: str
+            :param name: the parameter key in the state
 
             :type state: dict
             :param state: dictionary of neural network parameters
@@ -113,10 +137,6 @@ class Network(object):
                 raise IncompatibleStateError(
                     "Parameter {0} is missing from neural network state."
                     "".format(name))
-            if state[name] != current_value:
-                raise IncompatibleStateError(
-                    "Neural network state has {0}={1}, while this architecture "
-                    "has {0}={2}.".format(name, state[name], current_value))
 
 
     def __init__(self, dictionary, architecture, profile=False):
@@ -158,13 +178,13 @@ class Network(object):
         else:
             raise ValueError("Invalid hidden layer type: " + \
                              self.architecture.hidden_layer_type)
-        if self.architecture.include_skip_layer:
+        if self.architecture.skip_layer_size > 0:
             self.skip_layer = SkipLayer(
                 self.architecture.hidden_layer_size,
                 self.architecture.word_projection_dim,
-                self.architecture.word_projection_dim)
+                self.architecture.skip_layer_size)
             self.output_layer = OutputLayer(
-                self.architecture.word_projection_dim,
+                self.architecture.skip_layer_size,
                 dictionary.num_classes())
         else:
             self.output_layer = OutputLayer(
@@ -175,7 +195,7 @@ class Network(object):
         self.param_init_values = OrderedDict()
         self.param_init_values.update(self.projection_layer.param_init_values)
         self.param_init_values.update(self.hidden_layer.param_init_values)
-        if self.architecture.include_skip_layer:
+        if self.architecture.skip_layer_size > 0:
             self.param_init_values.update(self.skip_layer.param_init_values)
         self.param_init_values.update(self.output_layer.param_init_values)
 
@@ -215,7 +235,7 @@ class Network(object):
             self.params,
             self.projection_layer.minibatch_output,
             mask=self.minibatch_mask)
-        if self.architecture.include_skip_layer:
+        if self.architecture.skip_layer_size > 0:
             self.skip_layer.create_structure(
                 self.params,
                 self.hidden_layer.minibatch_output,
@@ -275,7 +295,7 @@ class Network(object):
         # The last state output from the hidden layer is the hidden state to be
         # passed on the the next layer.
         hidden_state_output = self.hidden_layer.onestep_outputs[-1]
-        if self.architecture.include_skip_layer:
+        if self.architecture.skip_layer_size > 0:
             self.skip_layer.create_structure(
                 self.params,
                 hidden_state_output,
@@ -320,10 +340,10 @@ class Network(object):
             param.set_value(state[name])
         try:
             self.architecture.check_state(state)
-        except e:
+        except IncompatibleStateError as error:
             raise IncompatibleStateError(
                 "Attempting to restore state of a network that is incompatible "
-                "with this architecture. " + e.message)
+                "with this architecture. " + str(error))
 
     def sequences_to_minibatch(self, sequences):
         """Transposes a list of sequences and Prepares a mini-batch for input to the neural network by transposing

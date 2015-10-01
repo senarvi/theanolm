@@ -8,7 +8,47 @@ import theano
 import theanolm
 from filetypes import TextFileType
 
-def rescore_nbest(input_file, dictionary, scorer, output_file, lscore_field=1, w1_field=3):
+def score_text(input_file, dictionary, scorer, output_file):
+    validation_iter = theanolm.BatchIterator(
+        input_file,
+        dictionary,
+        batch_size=1,
+        max_sequence_length=None)
+
+    total_logprob = 0
+    num_words = 0
+    num_sentences = 0
+    for word_ids, membership_probs, mask in validation_iter:
+        logprobs = scorer.score_batch(word_ids, membership_probs, mask)
+        for seq_index, seq_logprobs in enumerate(logprobs):
+            seq_logprob = sum(seq_logprobs)
+            seq_length = len(seq_logprobs)
+            total_logprob += seq_logprob
+            num_words += seq_length
+            num_sentences += 1
+            if not args.verbose:
+                continue
+            seq_word_ids = word_ids[:, seq_index]
+            args.output_file.write("### Sentence {0}\n".format(num_sentences))
+            seq_details = [str(word_id) + ":" + str(logprob)
+                for word_id, logprob in zip(seq_word_ids, seq_logprobs)]
+            args.output_file.write(" ".join(seq_details) + "\n")
+            args.output_file.write("Sentence perplexity: {0}\n\n".format(
+                numpy.exp(-seq_logprob / seq_length)))
+
+    output_file.write("Number of words: {0}\n".format(num_words))
+    output_file.write("Number of sentences: {0}\n".format(num_sentences))
+    if num_words > 0:
+        cross_entropy = -total_logprob / num_words
+        perplexity_e = numpy.exp(cross_entropy)
+        perplexity_10 = numpy.power(10, cross_entropy)
+        output_file.write("Cross entropy: {0}\n".format(cross_entropy))
+        output_file.write("Perplexity (base e): {0}\n".format(perplexity_e))
+        output_file.write("Perplexity (base 10): {0}\n".format(perplexity_10))
+
+
+def rescore_nbest(input_file, dictionary, scorer, output_file, lscore_field=1,
+                  w1_field=3):
     for line_num, line in enumerate(input_file):
         fields = line.split()
         
@@ -51,6 +91,11 @@ argument_group.add_argument(
     '--output-file', metavar='OUTPUT', type=TextFileType('w'), default='-',
     help='where to write the score or rescored n-best list (default stdout)')
 
+argument_group = parser.add_argument_group("scoring")
+argument_group.add_argument(
+    '--verbose', action='store_true',
+    help='print detailed per word probabilities')
+
 args = parser.parse_args()
 
 state = numpy.load(args.model_path)
@@ -60,12 +105,6 @@ sys.stdout.flush()
 dictionary = theanolm.Dictionary(args.dictionary_file, args.dictionary_format)
 print("Number of words in vocabulary:", dictionary.num_words())
 print("Number of word classes:", dictionary.num_classes())
-
-validation_iter = theanolm.BatchIterator(
-    args.input_file,
-    dictionary,
-    batch_size=1,
-    max_sequence_length=None)
 
 print("Building neural network.")
 sys.stdout.flush()
@@ -80,21 +119,11 @@ sys.stdout.flush()
 scorer = theanolm.TextScorer(network)
 
 if args.input_format == 'text':
-    costs, counts = scorer.negative_log_probabilities(validation_iter)
-    sentence_average = costs.mean()
-    per_word = costs.sum() / counts.sum()
-    perplexity_per_word = numpy.exp(-per_word)
-    args.output_file.write(
-        "Average sentence negative log probability: "
-        "{}\n".format(sentence_average))
-    args.output_file.write(
-        "Average word negative log probability: "
-        "{}\n".format(per_word))
-    args.output_file.write(
-        "Perplexity per word: {}\n".format(perplexity_per_word))
+    score_text(args.input_file, dictionary, scorer, args.output_file)
 elif args.input_format == 'srilm-nbest':
     print("Rescoring n-best list.")
     rescore_nbest(args.input_file, dictionary, scorer, args.output_file)
 elif args.input_format == 'id-nbest':
     print("Rescoring n-best list.")
-    rescore_nbest(args.input_file, dictionary, scorer, args.output_file, lscore_field=2, w1_field=4)
+    rescore_nbest(args.input_file, dictionary, scorer, args.output_file,
+                  lscore_field=2, w1_field=4)

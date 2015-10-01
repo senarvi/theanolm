@@ -41,11 +41,9 @@ def train(network, trainer, scorer, sentence_starts, validation_iter, args):
     best_params = None
 
     while trainer.epoch_number <= args.max_epochs:
-        initial_cost = -scorer.score_text(validation_iter)
-        print("Validation set average sentence cost at the start of epoch %d/%d: %f" % (
-            trainer.epoch_number,
-            args.max_epochs,
-            initial_cost))
+        initial_ppl = scorer.compute_perplexity(validation_iter)
+        print("Validation set perplexity at the start of epoch {0}/{1}: {2}"
+              "".format(trainer.epoch_number, args.max_epochs, initial_ppl))
 
         print("Creating a random permutation of %d training sentences." % len(sentence_starts))
         sys.stdout.flush()
@@ -65,17 +63,18 @@ def train(network, trainer, scorer, sentence_starts, validation_iter, args):
 
             if (args.validation_interval >= 1) and \
                (trainer.total_updates % args.validation_interval == 0):
-                validation_cost = -scorer.score_text(validation_iter)
-                if numpy.isnan(validation_cost):
+                validation_ppl = scorer.compute_perplexity(validation_iter)
+                if numpy.isnan(validation_ppl):
                     print("Stopping because an invalid floating point "
                           "operation was performed while computing validation "
-                          "set cost. (Gradients exploded or vanished?)")
+                          "set perplexity. (Gradients exploded?)")
                     return best_params
-                if numpy.isinf(validation_cost):
-                    print("Stopping because validation set cost exploded to infinity.")
+                if numpy.isinf(validation_ppl):
+                    print("Stopping because validation set perplexity exploded "
+                          "to infinity.")
                     return best_params
 
-                trainer.append_validation_cost(validation_cost)
+                trainer.append_validation_cost(validation_ppl)
                 trainer.print_cost_history()
                 sys.stdout.flush()
                 validations_since_best = trainer.validations_since_min_cost()
@@ -83,7 +82,7 @@ def train(network, trainer, scorer, sentence_starts, validation_iter, args):
                     best_params = network.get_state()
                 elif (args.wait_improvement >= 0) and \
                      (validations_since_best > args.wait_improvement):
-#                   if validation_cost >= initial_cost:
+#                   if validation_ppl >= initial_ppl:
                     args.learning_rate /= 2
                     network.set_state(best_params)
                     trainer.next_epoch()
@@ -97,8 +96,8 @@ def train(network, trainer, scorer, sentence_starts, validation_iter, args):
                 save_training_state(args.state_path, network, trainer)
 
     print("Stopping because %d epochs was reached." % args.max_epochs)
-    validation_cost = -scorer.score_text(validation_iter)
-    trainer.append_validation_cost(validation_cost)
+    validation_ppl = scorer.compute_perplexity(validation_iter)
+    trainer.append_validation_cost(validation_ppl)
     if trainer.validations_since_min_cost() == 0:
         best_params = network.get_state()
     return best_params
@@ -138,13 +137,15 @@ argument_group.add_argument(
     help='word projections will be N-dimensional (default 100)')
 argument_group.add_argument(
     '--hidden-layer-size', metavar='N', type=int, default=1000,
-    help='hidden layer will contain N neurons (default 1000)')
+    help='hidden layer will contain N outputs (default 1000)')
 argument_group.add_argument(
     '--hidden-layer-type', metavar='TYPE', type=str, default='lstm',
     help='hidden layer unit type, "lstm" or "gru" (default "lstm")')
 argument_group.add_argument(
-    '--include-skip-layer', action="store_true",
-    help='include connections that skip the hidden layer')
+    '--skip-layer-size', metavar='N', type=int, default=0,
+    help='if N is greater than zero, include a layer between hidden and output '
+         'layers, with N outputs, and direct connections from input layer '
+         '(default is to not create such layer)')
 
 argument_group = parser.add_argument_group("training options")
 argument_group.add_argument(
@@ -155,7 +156,7 @@ argument_group.add_argument(
     help='each mini-batch will contain N sentences (default 16)')
 argument_group.add_argument(
     '--wait-improvement', metavar='N', type=int, default=10,
-    help='wait N updates for validation set cost to decrease before stopping; '
+    help='wait N updates for validation set perplexity to decrease before stopping; '
          'if less than zero, stops only after maximum number of epochs is '
          'reached (default 10)')
 argument_group.add_argument(
@@ -250,7 +251,7 @@ architecture = theanolm.Network.Architecture(
     args.word_projection_dim,
     args.hidden_layer_type,
     args.hidden_layer_size,
-    args.include_skip_layer)
+    args.skip_layer_size)
 print(architecture)
 network = theanolm.Network(dictionary, architecture, args.profile)
 if not initial_state is None:
@@ -265,10 +266,7 @@ training_options = {
     'sqr_gradient_decay_rate': args.sqr_gradient_decay_rate,
     'momentum': args.momentum}
 if not args.gradient_normalization is None:
-    # The gradients should be divided by mini-batch size before normalization.
-    # Instead we multiply the normalization threshold by the mini-batch size.
-    training_options['max_gradient_norm'] = \
-        args.gradient_normalization * args.batch_size
+    training_options['max_gradient_norm'] = args.gradient_normalization
 if args.optimization_method == 'sgd':
     trainer = trainers.SGDTrainer(network, training_options, args.profile)
 elif args.optimization_method == 'nesterov':
@@ -300,9 +298,9 @@ print("Saving neural network and training state.")
 sys.stdout.flush()
 save_training_state(args.state_path, network, trainer)
 if best_params is None:
-    print("Validation set cost did not decrease during training.")
+    print("Validation set perplexity did not decrease during training.")
 else:
     save_model(args.model_path, best_params)
     network.set_state(best_params)
-    validation_logprob = scorer.score_text(validation_iter)
-    print("Best validation set average sentence logprob:", validation_logprob)
+    validation_ppl = scorer.compute_perplexity(validation_iter)
+    print("Best validation set perplexity:", validation_ppl)
