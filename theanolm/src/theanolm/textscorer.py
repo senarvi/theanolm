@@ -28,16 +28,16 @@ class TextScorer(object):
     def score_batch(self, word_ids, membership_probs, mask):
         """Computes the log probability of each word in a mini-batch.
 
-        :type word_ids: numpy.ndarray of int64s
+        :type word_ids: numpy.ndarray of an integer type
         :param word_ids: a 2-dimensional matrix, indexed by time step and
                          sequence, that contains the word IDs
 
-        :type membership_probs: numpy.ndarray of float32s
+        :type membership_probs: numpy.ndarray of a floating point type
         :param membership_probs: a 2-dimensional matrix, indexed by time step
                                  and sequences, that contains the class
                                  membership probabilities of the words
 
-        :type mask: numpy.ndarray of float32s
+        :type mask: numpy.ndarray of a floating point type
         :param mask: a 2-dimensional matrix, indexed by time step and sequence,
                      that masks out elements past the sequence ends.
 
@@ -94,11 +94,11 @@ class TextScorer(object):
     def score_sentence(self, word_ids, membership_probs):
         """Computes the log probability of a sentence.
 
-        :type word_ids: numpy.ndarray of int64s
+        :type word_ids: numpy.ndarray of an integer type
         :param word_ids: a 2-dimensional matrix representing a transposed
         vector of word IDs
 
-        :type membership_probs: numpy.ndarray of float32s
+        :type membership_probs: numpy.ndarray of a floating point type
         :param membership_probs: a 2-dimensional matrix representing a
         transposed vector of class membership probabilities
 

@@ -3,9 +3,9 @@
 
 from collections import OrderedDict
 import time
+import numpy
 import theano
 import theano.tensor as tensor
-import numpy
 from theanolm.exceptions import IncompatibleStateError, NumberError
 
 class ModelTrainer(object):
@@ -42,12 +42,10 @@ class ModelTrainer(object):
         logprobs = tensor.log(self.network.prediction_probs)
         # Set the log probability to 0 after sequence ends.
         logprobs = logprobs * self.network.minibatch_mask
-        # Calculate log probability of each sequence.
-        sequence_logprobs = logprobs.sum(0)
-        # Cost is defined as the negative logprob of the mini-batch normalized
-        # by the number of sequences. By taking a mean instead of a sum, the
-        # gradients will also be normalized by mini-batch size.
-        cost = -sequence_logprobs.mean()
+        # Calculate the negative log probability normalized by the number of
+        # training examples in the mini-batch. By taking a mean instead of a
+        # sum, the gradients will also be normalized by the number of words.
+        cost = -logprobs.mean()
 
         # Compute the symbolic expression for updating the gradient with regard
         # to each parameter.
@@ -65,15 +63,17 @@ class ModelTrainer(object):
             gradients = [gradient * target_norm / (epsilon + norm)
                          for gradient in gradients]
 
-        self._gradient_wrt_params = gradients
+        self._gradient_exprs = gradients
         self.gradient_update_function = \
             theano.function([self.network.minibatch_input, self.network.minibatch_mask],
                             cost,
                             updates=self._get_gradient_updates(),
                             profile=profile)
 
-        self.learning_rate = tensor.scalar('learning_rate', dtype='float32')
-        self.learning_rate.tag.test_value = numpy.float32(0.001)
+        self.learning_rate = \
+            tensor.scalar('learning_rate', dtype=theano.config.floatX)
+        self.learning_rate.tag.test_value = \
+            numpy.dtype(theano.config.floatX).type(0.001)
         self.model_update_function = \
             theano.function([self.learning_rate],
                             [],
@@ -100,16 +100,19 @@ class ModelTrainer(object):
     def get_state(self):
         """Pulls parameter values from Theano shared variables.
 
-        :rtype: dict
+        For consistency, all the parameter values are returned as numpy types,
+        since state read from a model file also contains numpy types.
+
+        :rtype: dict of numpy types
         :returns: a dictionary of the parameter values
         """
 
         result = OrderedDict()
         for name, param in self.params.items():
             result[name] = param.get_value()
-        result['epoch_number'] = self.epoch_number
-        result['update_number'] = self.update_number
-        result['cost_history'] = self._cost_history
+        result['epoch_number'] = numpy.int64(self.epoch_number)
+        result['update_number'] = numpy.int64(self.update_number)
+        result['cost_history'] = numpy.asarray(self._cost_history)
         return result
 
     def set_state(self, state):
@@ -117,8 +120,8 @@ class ModelTrainer(object):
         
         Requires that ``state`` contains values for all the training parameters.
 
-        :type state: dict
-        :param state: dictionary of training parameters
+        :type state: dict of numpy types
+        :param state: a dictionary of training parameters
         """
 
         for name, param in self.params.items():
@@ -139,10 +142,10 @@ class ModelTrainer(object):
 
         if not 'epoch_number' in state:
             raise IncompatibleStateError("Current epoch number is missing from training state.")
-        self.epoch_number = state['epoch_number']
+        self.epoch_number = state['epoch_number'].item()
         if not 'update_number' in state:
             raise IncompatibleStateError("Current update number is missing from training state.")
-        self.update_number = state['update_number']
+        self.update_number = state['update_number'].item()
         print("Previous training was stopped after update %d.%d." % (self.epoch_number, self.update_number))
 
     def print_cost_history(self):

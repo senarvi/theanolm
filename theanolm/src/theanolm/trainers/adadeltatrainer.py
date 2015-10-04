@@ -48,7 +48,7 @@ class AdadeltaTrainer(ModelTrainer):
 
     def _get_gradient_updates(self):
         result = []
-        for name, gradient_new in zip(self.network.params, self._gradient_wrt_params):
+        for name, gradient_new in zip(self.network.params, self._gradient_exprs):
             gradient = self.params[name + '.gradient']
             ms_gradient = self.params[name + '.mean_sqr_gradient']
             ms_gradient_new = (self._gamma * ms_gradient) + ((1.0 - self._gamma) * tensor.sqr(gradient_new))

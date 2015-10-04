@@ -30,7 +30,7 @@ class SGDTrainer(ModelTrainer):
 
     def _get_gradient_updates(self):
         result = []
-        for name, gradient_new in zip(self.network.params, self._gradient_wrt_params):
+        for name, gradient_new in zip(self.network.params, self._gradient_exprs):
             gradient = self.params[name + '.gradient']
             result.append((gradient, gradient_new))
         return result

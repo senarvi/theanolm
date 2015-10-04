@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import numpy
 from collections import OrderedDict
+import numpy
+import theano
 import theano.tensor as tensor
 from theanolm.matrixfunctions import random_weight
 
@@ -33,13 +34,13 @@ class SkipLayer(object):
                 random_weight(in1_size, out_size, scale=0.01)
 
         self.param_init_values['skip.b_in1'] = \
-                numpy.zeros((out_size,)).astype('float32')
+                numpy.zeros((out_size,)).astype(theano.config.floatX)
 
         self.param_init_values['skip.W_in2'] = \
                 random_weight(in2_size, out_size, scale=0.01)
 
         self.param_init_values['skip.b_in2'] = \
-                numpy.zeros((out_size,)).astype('float32')
+                numpy.zeros((out_size,)).astype(theano.config.floatX)
 
     def create_structure(self, model_params, layer_input_in1, layer_input_in2):
         """ Creates skip-layer structure.

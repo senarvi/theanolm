@@ -38,7 +38,8 @@ def save_model(path, state):
     print("Saved %d parameters to %s." % (len(state), path))
 
 def train(network, trainer, scorer, sentence_starts, validation_iter, args):
-    best_params = None
+    network_state_min_cost = None
+    trainer_state_min_cost = None
 
     while trainer.epoch_number <= args.max_epochs:
         initial_ppl = scorer.compute_perplexity(validation_iter)
@@ -68,39 +69,43 @@ def train(network, trainer, scorer, sentence_starts, validation_iter, args):
                     print("Stopping because an invalid floating point "
                           "operation was performed while computing validation "
                           "set perplexity. (Gradients exploded?)")
-                    return best_params
+                    return network_state_min_cost
                 if numpy.isinf(validation_ppl):
                     print("Stopping because validation set perplexity exploded "
                           "to infinity.")
-                    return best_params
+                    return network_state_min_cost
 
                 trainer.append_validation_cost(validation_ppl)
                 trainer.print_cost_history()
                 sys.stdout.flush()
                 validations_since_best = trainer.validations_since_min_cost()
                 if validations_since_best == 0:
-                    best_params = network.get_state()
+                    # This the minimum cost so far.
+                    network_state_min_cost = network.get_state()
+                    trainer_state_min_cost = trainer.get_state()
                 elif (args.wait_improvement >= 0) and \
                      (validations_since_best > args.wait_improvement):
-#                   if validation_ppl >= initial_ppl:
+                    # Too many validations without improvement.
+# XXX               if validation_ppl >= initial_ppl:
                     args.learning_rate /= 2
-                    network.set_state(best_params)
+                    network.set_state(network_state_min_cost)
+                    trainer.set_state(trainer_state_min_cost)
                     trainer.next_epoch()
                     break
 
             if (args.save_interval >= 1) and \
                (trainer.total_updates % args.save_interval == 0):
                 # Save the best parameters and the current state.
-                if not best_params is None:
-                    save_model(args.model_path, best_params)
+                if not network_state_min_cost is None:
+                    save_model(args.model_path, network_state_min_cost)
                 save_training_state(args.state_path, network, trainer)
 
     print("Stopping because %d epochs was reached." % args.max_epochs)
     validation_ppl = scorer.compute_perplexity(validation_iter)
     trainer.append_validation_cost(validation_ppl)
     if trainer.validations_since_min_cost() == 0:
-        best_params = network.get_state()
-    return best_params
+        network_state_min_cost = network.get_state()
+    return network_state_min_cost
 
 
 parser = argparse.ArgumentParser()
@@ -268,17 +273,29 @@ training_options = {
 if not args.gradient_normalization is None:
     training_options['max_gradient_norm'] = args.gradient_normalization
 if args.optimization_method == 'sgd':
-    trainer = trainers.SGDTrainer(network, training_options, args.profile)
+    trainer = trainers.SGDTrainer(network,
+                                  training_options,
+                                  args.profile)
 elif args.optimization_method == 'nesterov':
-    trainer = trainers.NesterovTrainer(network, training_options, args.profile)
+    trainer = trainers.NesterovTrainer(network,
+                                       training_options,
+                                       args.profile)
 elif args.optimization_method == 'adadelta':
-    trainer = trainers.AdadeltaTrainer(network, training_options, args.profile)
+    trainer = trainers.AdadeltaTrainer(network,
+                                       training_options,
+                                       args.profile)
 elif args.optimization_method == 'rmsprop-sgd':
-    trainer = trainers.RMSPropSGDTrainer(network, training_options, args.profile)
+    trainer = trainers.RMSPropSGDTrainer(network,
+                                         training_options,
+                                         args.profile)
 elif args.optimization_method == 'rmsprop-momentum':
-    trainer = trainers.RMSPropMomentumTrainer(network, training_options, args.profile)
+    trainer = trainers.RMSPropMomentumTrainer(network,
+                                              training_options,
+                                              args.profile)
 elif args.optimization_method == 'adam':
-    trainer = trainers.AdamTrainer(network, training_options, args.profile)
+    trainer = trainers.AdamTrainer(network,
+                                   training_options,
+                                   args.profile)
 else:
     print("Invalid optimization method requested:", args.optimization_method)
     exit(1)
@@ -292,15 +309,15 @@ scorer = theanolm.TextScorer(network, args.profile)
 
 print("Training neural network.")
 sys.stdout.flush()
-best_params = train(network, trainer, scorer, sentence_starts, validation_iter, args)
+best_state = train(network, trainer, scorer, sentence_starts, validation_iter, args)
 
 print("Saving neural network and training state.")
 sys.stdout.flush()
 save_training_state(args.state_path, network, trainer)
-if best_params is None:
+if best_state is None:
     print("Validation set perplexity did not decrease during training.")
 else:
-    save_model(args.model_path, best_params)
-    network.set_state(best_params)
+    save_model(args.model_path, best_state)
+    network.set_state(best_state)
     validation_ppl = scorer.compute_perplexity(validation_iter)
     print("Best validation set perplexity:", validation_ppl)

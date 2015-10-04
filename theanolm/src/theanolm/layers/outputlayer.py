@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import numpy
 from collections import OrderedDict
+import numpy
+import theano
 import theano.tensor as tensor
 from theanolm.matrixfunctions import orthogonal_weight
 
@@ -31,7 +32,7 @@ class OutputLayer(object):
                 orthogonal_weight(in_size, out_size, scale=0.01)
 
         self.param_init_values['output.b'] = \
-                numpy.zeros((out_size,)).astype('float32')
+                numpy.zeros((out_size,)).astype(theano.config.floatX)
 
     def create_minibatch_structure(self, model_params, layer_input):
         """ Creates output layer structure for mini-batch processing.

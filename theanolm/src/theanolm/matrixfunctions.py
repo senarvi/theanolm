@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy
+import theano
 
 def random_weight(in_size, out_size, scale=None):
     """ Generates a weight matrix from “standard normal” distribution.
@@ -22,7 +23,7 @@ def random_weight(in_size, out_size, scale=None):
     result = numpy.random.randn(in_size, out_size)
     if scale is not None:
         result = scale * result
-    return result.astype('float32')
+    return result.astype(theano.config.floatX)
 
 def orthogonal_weight(in_size, out_size, scale=None):
     """ Generates a weight matrix from “standard normal” distribution. If
@@ -44,7 +45,7 @@ def orthogonal_weight(in_size, out_size, scale=None):
 
     nonorthogonal_matrix = numpy.random.randn(in_size, out_size)
     result, _, _ = numpy.linalg.svd(nonorthogonal_matrix)
-    return result.astype('float32')
+    return result.astype(theano.config.floatX)
 
 def test_value(size, max_value):
     """ Creates a matrix of random numbers that can be used as a test value for
@@ -63,7 +64,7 @@ def test_value(size, max_value):
     if type(max_value) is int:
         return numpy.random.randint(0, max_value, size=size).astype('int64')
     elif type(max_value) is float:
-        return max_value * numpy.random.rand(*size).astype('float32')
+        return max_value * numpy.random.rand(*size).astype(theano.config.floatX)
 
 def get_submatrix(matrices, index, size):
     """Returns a submatrix of a concatenation of 2 or 3 dimensional

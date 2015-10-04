@@ -59,7 +59,7 @@ def rescore_nbest(input_file, dictionary, scorer, output_file, lscore_field=1,
         word_ids = numpy.array([[x] for x in word_ids]).astype('int64')
         
         probs = dictionary.words_to_probs(words)
-        probs = numpy.array([[x] for x in probs]).astype('float32')
+        probs = numpy.array([[x] for x in probs]).astype(theano.config.floatX)
 
         lm_score = scorer.score_sentence(word_ids, probs)
         fields[lscore_field] = str(lm_score)

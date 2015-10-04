@@ -60,7 +60,7 @@ class TextSampler(object):
         # LSTM has two.
         hidden_state_shape = (1, self.network.architecture.hidden_layer_size)
         hidden_layer_state = [
-            numpy.zeros(shape=hidden_state_shape).astype('float32')
+            numpy.zeros(shape=hidden_state_shape).astype(theano.config.floatX)
             for _ in range(self.network.hidden_layer.num_state_variables)]
 
         result = []

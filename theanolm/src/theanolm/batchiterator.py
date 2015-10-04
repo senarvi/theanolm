@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy
+import theano
 
 class BatchIterator(object):
     """ Iterator for Reading Mini-Batches
@@ -110,8 +111,8 @@ class BatchIterator(object):
         batch_length = numpy.max([len(s) for s in sequences])
 
         word_ids = numpy.zeros((batch_length, num_sequences)).astype('int64')
-        probs = numpy.zeros((batch_length, num_sequences)).astype('float32')
-        mask = numpy.zeros((batch_length, num_sequences)).astype('float32')
+        probs = numpy.zeros((batch_length, num_sequences)).astype(theano.config.floatX)
+        mask = numpy.zeros((batch_length, num_sequences)).astype(theano.config.floatX)
 
         for i, sequence in enumerate(sequences):
             length = len(sequence)

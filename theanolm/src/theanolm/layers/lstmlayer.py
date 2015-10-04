@@ -49,7 +49,7 @@ class LSTMLayer(object):
 
         # concatenation of the biases for each gate
         self.param_init_values['lstm.b_gates'] = \
-                numpy.zeros((num_gates * out_size,)).astype('float32')
+                numpy.zeros((num_gates * out_size,)).astype(theano.config.floatX)
 
         # input weight for the candidate state
         self.param_init_values['lstm.W_candidate'] = \
@@ -61,7 +61,7 @@ class LSTMLayer(object):
 
         # bias for the candidate state
         self.param_init_values['lstm.b_candidate'] = \
-                numpy.zeros((out_size,)).astype('float32')
+                numpy.zeros((out_size,)).astype(theano.config.floatX)
 
     def create_minibatch_structure(self, model_params, layer_input, mask):
         """Creates LSTM layer structure for mini-batch processing.

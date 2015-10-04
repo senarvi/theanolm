@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 
 from theanolm.trainers.modeltrainer import ModelTrainer
-import theano.tensor as tensor
 import numpy
+import theano
+import theano.tensor as tensor
 
 class AdamTrainer(ModelTrainer):
     """Adam Optimization Method
@@ -31,7 +32,8 @@ class AdamTrainer(ModelTrainer):
             self.param_init_values[name + '.gradient'] = numpy.zeros_like(param.get_value())
             self.param_init_values[name + '.mean_gradient'] = numpy.zeros_like(param.get_value())
             self.param_init_values[name + '.mean_sqr_gradient'] = numpy.zeros_like(param.get_value())
-        self.param_init_values['adam.timestep'] = numpy.float32(0.0)
+        self.param_init_values['adam.timestep'] = \
+            numpy.dtype(theano.config.floatX).type(0.0)
         self._create_params()
 
         # geometric rate for averaging gradients
@@ -58,7 +60,7 @@ class AdamTrainer(ModelTrainer):
 
     def _get_gradient_updates(self):
         result = []
-        for name, gradient_new in zip(self.network.params, self._gradient_wrt_params):
+        for name, gradient_new in zip(self.network.params, self._gradient_exprs):
             gradient = self.params[name + '.gradient']
             m_gradient = self.params[name + '.mean_gradient']
             ms_gradient = self.params[name + '.mean_sqr_gradient']
@@ -87,4 +89,5 @@ class AdamTrainer(ModelTrainer):
 
     def reset(self):
         print("Resetting Adam timestep to zero.")
-        self.params['adam.timestep'].set_value(numpy.float32(0.0))
+        self.params['adam.timestep'].set_value(
+            numpy.dtype(theano.config.floatX).type(0.0))

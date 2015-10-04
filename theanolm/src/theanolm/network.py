@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from collections import OrderedDict
+import numpy
 import theano
 import theano.tensor as tensor
 from theanolm.exceptions import IncompatibleStateError
@@ -43,15 +44,22 @@ class Network(object):
 
         @classmethod
         def from_state(classname, state):
+            """Constructs a description of the network architecture stored in a
+            state.
+
+            :type state: dict of numpy types
+            :param state: a dictionary of the architecture parameters
+            """
+
             classname._check_parameter_in_state('arch.word_projection_dim', state)
             classname._check_parameter_in_state('arch.hidden_layer_type', state)
             classname._check_parameter_in_state('arch.hidden_layer_size', state)
             classname._check_parameter_in_state('arch.skip_layer_size', state)
             return classname(
-                state['arch.word_projection_dim'],
-                state['arch.hidden_layer_type'],
-                state['arch.hidden_layer_size'],
-                state['arch.skip_layer_size'])
+                state['arch.word_projection_dim'].item(),
+                state['arch.hidden_layer_type'].item(),
+                state['arch.hidden_layer_size'].item(),
+                state['arch.skip_layer_size'].item())
 
         def __str__(self):
             """Returns a string representation of the architecture for printing
@@ -75,15 +83,18 @@ class Network(object):
             """Returns a dictionary of parameters that should be saved along
             with the network state.
 
-            :rtype: dict
+            For consistency, all the parameter values are returned as numpy
+            types, since state read from a model file also contains numpy types.
+
+            :rtype: dict of numpy types
             :returns: a dictionary of the architecture parameters
             """
 
             result = OrderedDict()
-            result['arch.word_projection_dim'] = self.word_projection_dim
-            result['arch.hidden_layer_type'] = self.hidden_layer_type
-            result['arch.hidden_layer_size'] = self.hidden_layer_size
-            result['arch.skip_layer_size'] = self.skip_layer_size
+            result['arch.word_projection_dim'] = numpy.int64(self.word_projection_dim)
+            result['arch.hidden_layer_type'] = numpy.str_(self.hidden_layer_type)
+            result['arch.hidden_layer_size'] = numpy.int64(self.hidden_layer_size)
+            result['arch.skip_layer_size'] = numpy.int64(self.skip_layer_size)
             return result
 
         def check_state(self, state):
@@ -91,7 +102,7 @@ class Network(object):
             network architecture, and raises an ``IncompatibleStateError``
             if not.
 
-            :type state: dict
+            :type state: dict of numpy types
             :param state: dictionary of neural network parameters
             """
 
@@ -223,7 +234,8 @@ class Network(object):
 
         # mask is used to mask out the rest of the input matrix, when a sequence
         # is shorter than the maximum sequence length.
-        self.minibatch_mask = tensor.matrix('minibatch_mask', dtype='float32')
+        self.minibatch_mask = \
+            tensor.matrix('minibatch_mask', dtype=theano.config.floatX)
         self.minibatch_mask.tag.test_value = test_value(
             size=(100, 16),
             max_value=1.0)
@@ -278,8 +290,10 @@ class Network(object):
 
         # onestep_state describes the state outputs of the previous time step
         # of the hidden layer. GRU has one state output, LSTM has two.
-        self.onestep_state = [tensor.matrix('onestep_state_' + str(i), dtype='float32')
-                              for i in range(self.hidden_layer.num_state_variables)]
+        self.onestep_state = \
+            [tensor.matrix('onestep_state_' + str(i),
+                           dtype=theano.config.floatX)
+             for i in range(self.hidden_layer.num_state_variables)]
         for state_variable in self.onestep_state:
             state_variable.tag.test_value = test_value(
                 size=(1, self.architecture.hidden_layer_size),
@@ -313,7 +327,10 @@ class Network(object):
     def get_state(self):
         """Pulls parameter values from Theano shared variables.
 
-        :rtype: dict
+        For consistency, all the parameter values are returned as numpy
+        types, since state read from a model file also contains numpy types.
+
+        :rtype: dict of numpy types
         :returns: a dictionary of the parameter values and network architecture
         """
 
@@ -329,8 +346,8 @@ class Network(object):
         Requires that ``state`` contains values for all the neural network
         parameters.
 
-        :type state: dict
-        :param state: dictionary of neural network parameters
+        :type state: dict of numpy types
+        :param state: a dictionary of neural network parameters
         """
 
         for name, param in self.params.items():
@@ -374,8 +391,10 @@ class Network(object):
         batch_length = numpy.max(sequence_lengths) + 1
 
         word_ids = numpy.zeros((batch_length, num_sequences)).astype('int64')
-        probs = numpy.zeros((batch_length, num_sequences)).astype('float32')
-        mask = numpy.zeros((batch_length, num_sequences)).astype('float32')
+        probs = numpy.zeros((batch_length, num_sequences))
+        probs = probs.astype(theano.config.floatX)
+        mask = numpy.zeros((batch_length, num_sequences))
+        mask = mask.astype(theano.config.floatX)
         for i, sequence in enumerate(sequences):
             word_ids[:sequence_lengths[i], i] = sequence
             mask[:sequence_lengths[i] + 1, i] = 1.0
