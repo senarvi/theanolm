@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy
+import theano
 from theanolm.trainers.modeltrainer import ModelTrainer
 
 class NesterovTrainer(ModelTrainer):
@@ -33,9 +34,21 @@ class NesterovTrainer(ModelTrainer):
         """
 
         self.param_init_values = dict()
+
+        # Learning rate / step size will change during the iterations, so we'll
+        # make it a shared variable.
+        if not 'learning_rate' in training_options:
+            raise ValueError("Learning rate is not given in training options.")
+        self.param_init_values['trainer.learning_rate'] = \
+            numpy.dtype(theano.config.floatX).type(
+                training_options['learning_rate'])
+
         for name, param in network.params.items():
-            self.param_init_values[name + '.gradient'] = numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '.velocity'] = numpy.zeros_like(param.get_value())
+            self.param_init_values[name + '.gradient'] = \
+                numpy.zeros_like(param.get_value())
+            self.param_init_values[name + '.velocity'] = \
+                numpy.zeros_like(param.get_value())
+
         self._create_params()
 
         # momentum
@@ -53,11 +66,13 @@ class NesterovTrainer(ModelTrainer):
         return result
 
     def _get_model_updates(self):
+        alpha = self.params['trainer.learning_rate']
+        
         result = []
         for name, param in self.network.params.items():
             gradient = self.params[name + '.gradient']
             velocity = self.params[name + '.velocity']
-            standard_update = -(self.learning_rate * gradient)
+            standard_update = -alpha * gradient
             velocity_new = (self._momentum * velocity) + standard_update
             param_new = param + (self._momentum * velocity_new) + standard_update
             result.append((velocity, velocity_new))

@@ -4,6 +4,7 @@
 import argparse
 import sys
 import os
+import logging
 import numpy
 import theano
 import theanolm
@@ -37,7 +38,7 @@ def save_model(path, state):
     numpy.savez(path, **state)
     print("Saved %d parameters to %s." % (len(state), path))
 
-def train(network, trainer, scorer, sentence_starts, validation_iter, args):
+def train(network, trainer, scorer, training_iter, validation_iter, args):
     network_state_min_cost = None
     trainer_state_min_cost = None
 
@@ -46,17 +47,7 @@ def train(network, trainer, scorer, sentence_starts, validation_iter, args):
         print("Validation set perplexity at the start of epoch {0}/{1}: {2}"
               "".format(trainer.epoch_number, args.max_epochs, initial_ppl))
 
-        print("Creating a random permutation of %d training sentences." % len(sentence_starts))
-        sys.stdout.flush()
-        numpy.random.shuffle(sentence_starts)
-        training_iter = theanolm.OrderedBatchIterator(
-            args.training_file,
-            dictionary,
-            sentence_starts,
-            batch_size=args.batch_size,
-            max_sequence_length=args.sequence_length)
-
-        while trainer.update_minibatch(training_iter, args.learning_rate):
+        while trainer.update_minibatch(training_iter):
             if (args.verbose_interval >= 1) and \
                (trainer.total_updates % args.verbose_interval == 0):
                 trainer.print_update_stats()
@@ -86,12 +77,13 @@ def train(network, trainer, scorer, sentence_starts, validation_iter, args):
                 elif (args.wait_improvement >= 0) and \
                      (validations_since_best > args.wait_improvement):
                     # Too many validations without improvement.
+                    network.set_state(network_state_min_cost)  # XXX
+                    trainer.set_state(trainer_state_min_cost)  # XXX
 # XXX               if validation_ppl >= initial_ppl:
-                    args.learning_rate /= 2
-                    network.set_state(network_state_min_cost)
-                    trainer.set_state(trainer_state_min_cost)
-                    trainer.next_epoch()
-                    break
+# XXX                   trainer.decrese_learning_rate(only_reset_cost_and_timestep)
+# XXX               else:
+# XXX                   trainer.decrease_learning_rate()
+                    trainer.decrease_learning_rate()
 
             if (args.save_interval >= 1) and \
                (trainer.total_updates % args.save_interval == 0):
@@ -216,7 +208,14 @@ argument_group.add_argument(
 
 args = parser.parse_args()
 
-theano.config.compute_test_value = 'warn' if args.debug else 'off'
+logging.basicConfig(format="%(funcName)s: %(message)s")
+
+if args.debug:
+    logging.getLogger('root').setLevel(logging.DEBUG)
+    theano.config.compute_test_value = 'warn'
+else:
+    logging.getLogger('root').setLevel(logging.INFO)
+    theano.config.compute_test_value = 'off'
 
 if (not args.state_path is None) and os.path.exists(args.state_path):
     print("Reading previous state from %s." % args.state_path)
@@ -244,6 +243,13 @@ while ch != '':
     else:
         ch = args.training_file.read(1)
 
+training_iter = theanolm.ShufflingBatchIterator(
+    args.training_file,
+    dictionary,
+    sentence_starts,
+    batch_size=args.batch_size,
+    max_sequence_length=args.sequence_length)
+
 validation_iter = theanolm.BatchIterator(
     args.validation_file,
     dictionary,
@@ -269,6 +275,7 @@ training_options = {
     'epsilon': args.numerical_stability_term,
     'gradient_decay_rate': args.gradient_decay_rate,
     'sqr_gradient_decay_rate': args.sqr_gradient_decay_rate,
+    'learning_rate': args.learning_rate,
     'momentum': args.momentum}
 if not args.gradient_normalization is None:
     training_options['max_gradient_norm'] = args.gradient_normalization
@@ -309,7 +316,7 @@ scorer = theanolm.TextScorer(network, args.profile)
 
 print("Training neural network.")
 sys.stdout.flush()
-best_state = train(network, trainer, scorer, sentence_starts, validation_iter, args)
+best_state = train(network, trainer, scorer, training_iter, validation_iter, args)
 
 print("Saving neural network and training state.")
 sys.stdout.flush()

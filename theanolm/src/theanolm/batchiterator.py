@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import logging
 import numpy
 import theano
 
@@ -29,11 +30,13 @@ class BatchIterator(object):
         :param max_sequence_length: if not None, limit to sequences shorter than
                                     this
         """
+
         self.input_file = input_file
         self.dictionary = dictionary
         self.batch_size = batch_size
         self.max_sequence_length = max_sequence_length
         self.end_of_file = False
+        self.input_file.seek(0)
 
     def __iter__(self):
         return self
@@ -122,8 +125,11 @@ class BatchIterator(object):
 
         return word_ids, probs, mask
 
-class OrderedBatchIterator(BatchIterator):
-    """ Iterator for Reading Mini-Batches in Given Order
+class ShufflingBatchIterator(BatchIterator):
+    """ Iterator for Reading Mini-Batches in a Random Order
+    
+    Receives the positions of the line starts in the constructor, and shuffles
+    the array whenever the end is reached.
     """
 
     def __init__(self,
@@ -154,13 +160,14 @@ class OrderedBatchIterator(BatchIterator):
                                     this
         """
 
-        super().__init__(input_file, dictionary, batch_size, max_sequence_length)
-
         self.line_starts = line_starts
+        super().__init__(input_file, dictionary, batch_size, max_sequence_length)
         self.next_line = 0
 
     def _reset(self):
         self.next_line = 0
+        logging.info("Shuffling the order of input lines.")
+        numpy.random.shuffle(self.line_starts)
 
     def _readline(self):
         if self.next_line >= len(self.line_starts):

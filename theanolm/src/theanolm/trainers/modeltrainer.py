@@ -70,15 +70,10 @@ class ModelTrainer(object):
                             updates=self._get_gradient_updates(),
                             profile=profile)
 
-        self.learning_rate = \
-            tensor.scalar('learning_rate', dtype=theano.config.floatX)
-        self.learning_rate.tag.test_value = \
-            numpy.dtype(theano.config.floatX).type(0.001)
         self.model_update_function = \
-            theano.function([self.learning_rate],
+            theano.function([],
                             [],
                             updates=self._get_model_updates(),
-                            on_unused_input='ignore',
                             profile=profile)
 
         # current training epoch
@@ -126,11 +121,13 @@ class ModelTrainer(object):
 
         for name, param in self.params.items():
             if not name in state:
-                raise IncompatibleStateError("Parameter %s is missing from training state." % name)
+                raise IncompatibleStateError("Parameter %s is missing from "
+                                             "training state." % name)
             param.set_value(state[name])
 
         if not 'cost_history' in state:
-            raise IncompatibleStateError("Validation set cost history is missing from training state.")
+            raise IncompatibleStateError("Validation set cost history is "
+                                         "missing from training state.")
         saved_cost_history = state['cost_history'].tolist()
         # If the error history was empty when the state was saved,
         # ndarray.tolist() will return None.
@@ -141,10 +138,12 @@ class ModelTrainer(object):
         self.print_cost_history()
 
         if not 'epoch_number' in state:
-            raise IncompatibleStateError("Current epoch number is missing from training state.")
+            raise IncompatibleStateError("Current epoch number is missing from "
+                                         "training state.")
         self.epoch_number = state['epoch_number'].item()
         if not 'update_number' in state:
-            raise IncompatibleStateError("Current update number is missing from training state.")
+            raise IncompatibleStateError("Current update number is missing "
+                                         "from training state.")
         self.update_number = state['update_number'].item()
         print("Previous training was stopped after update %d.%d." % (self.epoch_number, self.update_number))
 
@@ -157,7 +156,7 @@ class ModelTrainer(object):
         print("Validation set cost history since last reset:")
         print(numpy.asarray(self._cost_history))
 
-    def update_minibatch(self, batch_iter, learning_rate):
+    def update_minibatch(self, batch_iter):
         """Optimizes the neural network parameters using the given inputs and
         learning rate.
 
@@ -171,15 +170,12 @@ class ModelTrainer(object):
         :param batch_iter: an iterator that creates mini-batches from the
                            training data
 
-        :type learning_rate: float
-        :param learning_rate: learning rate for the optimization
-
         :rtype: bool
         :returns: True if an update was performed, False if there was no more
                   training data
         """
 
-        # Read the next mini-batch. StopIterator is risen at the end of input.
+        # Read the next mini-batch. StopIteration is risen at the end of input.
         try:
             word_ids, _, mask = next(batch_iter)
         except StopIteration:
@@ -196,39 +192,44 @@ class ModelTrainer(object):
             raise NumberError("Update %d cost has NaN value." % self.update_number)
         if numpy.isinf(self.update_cost):
             raise NumberError("Update %d cost has infinite value." % self.update_number)
-        self.model_update_function(learning_rate)
+        self.model_update_function()
 
         # For print_update_states().
         self.update_duration = time.time() - update_start_time
-        self.update_learning_rate = learning_rate
         return True
 
     def print_update_stats(self):
         """Print information about the previous mini-batch update.
         """
 
-        print("Batch %d.%d (%d) -- lr = %g, cost = %.2f, duration = %.2f ms" % (\
-                self.epoch_number,
-                self.update_number,
-                self.total_updates,
-                self.update_learning_rate,
-                self.update_cost,
-                self.update_duration * 100))
+        if 'learning_rate' in self.params:
+            print("Batch %d.%d (%d) -- lr = %g, cost = %.2f, duration = %.2f ms" % (\
+                    self.epoch_number,
+                    self.update_number,
+                    self.total_updates,
+                    self.params['learning_rate'].get_value(),
+                    self.update_cost,
+                    self.update_duration * 100))
+        else:
+            print("Batch %d.%d (%d) -- cost = %.2f, duration = %.2f ms" % (\
+                    self.epoch_number,
+                    self.update_number,
+                    self.total_updates,
+                    self.update_cost,
+                    self.update_duration * 100))
 
-    def next_epoch(self):
-        """Skips to the next epoch.
-
-        Called when the validation set cost stops decreasing.
+    def decrease_learning_rate(self):
+        """Called when the validation set cost stops decreasing.
         """
 
-        self.epoch_number += 1
-        self.update_number = 0
+        learning_rate = self.params['learning_rate'].get_value()
+        self.params['learning_rate'].set_value(learning_rate / 2)
         self._cost_history = []
         self.reset()
 
     def reset(self):
-        """Resets training parameters if necessary before starting the next epoch
-        after cost won't decrease.
+        """Resets training parameters if necessary when decreasing learning
+        rate.
         """
         pass
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from theanolm.trainers.modeltrainer import ModelTrainer
-import theano.tensor as tensor
 import numpy
+import theano
+import theano.tensor as tensor
+from theanolm.trainers.modeltrainer import ModelTrainer
 
 class AdadeltaTrainer(ModelTrainer):
     """Adadelta Optimization Method
@@ -28,10 +29,15 @@ class AdadeltaTrainer(ModelTrainer):
         """
 
         self.param_init_values = dict()
+
         for name, param in network.params.items():
-            self.param_init_values[name + '.gradient'] = numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '.mean_sqr_gradient'] = numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '.mean_sqr_velocity'] = numpy.zeros_like(param.get_value())
+            self.param_init_values[name + '.gradient'] = \
+                numpy.zeros_like(param.get_value())
+            self.param_init_values[name + '.mean_sqr_gradient'] = \
+                numpy.zeros_like(param.get_value())
+            self.param_init_values[name + '.mean_sqr_velocity'] = \
+                numpy.zeros_like(param.get_value())
+
         self._create_params()
 
         # geometric rate for averaging gradients

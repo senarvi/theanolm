@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from theanolm.trainers.modeltrainer import ModelTrainer
+import logging
 import numpy
 import theano
 import theano.tensor as tensor
+from theanolm.trainers.modeltrainer import ModelTrainer
 
 class AdamTrainer(ModelTrainer):
     """Adam Optimization Method
@@ -28,22 +29,37 @@ class AdamTrainer(ModelTrainer):
         """
 
         self.param_init_values = dict()
-        for name, param in network.params.items():
-            self.param_init_values[name + '.gradient'] = numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '.mean_gradient'] = numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '.mean_sqr_gradient'] = numpy.zeros_like(param.get_value())
-        self.param_init_values['adam.timestep'] = \
+
+        # Learning rate / step size will change during the iterations, so we'll
+        # make it a shared variable.
+        if not 'learning_rate' in training_options:
+            raise ValueError("Learning rate is not given in training options.")
+        self.param_init_values['trainer.learning_rate'] = \
+            numpy.dtype(theano.config.floatX).type(
+                training_options['learning_rate'])
+
+        self.param_init_values['trainer.timestep'] = \
             numpy.dtype(theano.config.floatX).type(0.0)
+
+        for name, param in network.params.items():
+            self.param_init_values[name + '.gradient'] = \
+                numpy.zeros_like(param.get_value())
+            self.param_init_values[name + '.mean_gradient'] = \
+                numpy.zeros_like(param.get_value())
+            self.param_init_values[name + '.mean_sqr_gradient'] = \
+                numpy.zeros_like(param.get_value())
         self._create_params()
 
         # geometric rate for averaging gradients
         if not 'gradient_decay_rate' in training_options:
-            raise ValueError("Gradient decay rate is not given in training options.")
+            raise ValueError("Gradient decay rate is not given in training "
+                             "options.")
         self._gamma_m = training_options['gradient_decay_rate']
 
         # geometric rate for averaging squared gradients
         if not 'sqr_gradient_decay_rate' in training_options:
-            raise ValueError("Squared gradient decay rate is not given in training options.")
+            raise ValueError("Squared gradient decay rate is not given in "
+                             "training options.")
         self._gamma_ms = training_options['sqr_gradient_decay_rate']
 
         # numerical stability / smoothing term to prevent divide-by-zero
@@ -72,10 +88,11 @@ class AdamTrainer(ModelTrainer):
         return result
 
     def _get_model_updates(self):
-        timestep = self.params['adam.timestep']
+        timestep = self.params['trainer.timestep']
         timestep_new = timestep + 1.0
-        alpha = self.learning_rate * tensor.sqrt(1.0 - (self._gamma_ms ** timestep_new)) \
-                / (1.0 - (self._gamma_m ** timestep_new))
+        alpha = self.params['trainer.learning_rate']
+        alpha *= tensor.sqrt(1.0 - (self._gamma_ms ** timestep_new))
+        alpha /= 1.0 - (self._gamma_m ** timestep_new)
 
         result = []
         for name, param in self.network.params.items():
@@ -88,6 +105,9 @@ class AdamTrainer(ModelTrainer):
         return result
 
     def reset(self):
-        print("Resetting Adam timestep to zero.")
-        self.params['adam.timestep'].set_value(
+        """Resets training parameters when decreasing learning rate.
+        """
+
+        logging.info("Resetting Adam timestep parameter to zero.")
+        self.params['trainer.timestep'].set_value(
             numpy.dtype(theano.config.floatX).type(0.0))
