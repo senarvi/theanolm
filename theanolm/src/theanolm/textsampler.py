@@ -12,7 +12,7 @@ class TextSampler(object):
     model.
     """
 
-    def __init__(self, network, dictionary, random_seed):
+    def __init__(self, network, dictionary):
         """Creates the neural network architecture.
 
         Creates the function self.step_function that uses the state of the
@@ -23,17 +23,31 @@ class TextSampler(object):
 
         :type network: Network
         :param network: the neural network object
+
+        :type dictionary: Dictionary
+        :param dictionary: dictionary that provides mapping between words and
+                           word IDs
         """
 
         self.network = network
         self.dictionary = dictionary
-        self.trng = RandomStreams(random_seed)
+
+        M1 = 2147483647
+        M2 = 2147462579
+        random_seed = [
+            numpy.random.randint(0, M1),
+            numpy.random.randint(0, M1),
+            numpy.random.randint(1, M1),
+            numpy.random.randint(0, M2),
+            numpy.random.randint(0, M2),
+            numpy.random.randint(1, M2)]
+        random = RandomStreams(random_seed)
 
         inputs = [self.network.onestep_input]
         inputs.extend(self.network.onestep_state)
 
         word_probs = self.network.onestep_output
-        word_ids = self.trng.multinomial(pvals=word_probs).argmax(1)
+        word_ids = random.multinomial(pvals=word_probs).argmax(1)
         outputs = [word_ids]
         outputs.extend(self.network.hidden_layer.onestep_outputs)
 
@@ -46,6 +60,12 @@ class TextSampler(object):
         Calls self.step_function() repeatedly, reading the word output and
         the state output of the hidden layer and passing the hidden layer state
         output to the next time step.
+
+        Generates at most ``max_length`` words, stopping if a sentence break is
+        generated.
+
+        :type max_length: int
+        :param max_length: maximum number of words to generate
 
         :rtype: list of strs
         :returns: list of the generated words

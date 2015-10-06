@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from collections import OrderedDict
+import numpy
 from theanolm.exceptions import InputError
 
 class Dictionary(object):
@@ -32,7 +34,7 @@ class Dictionary(object):
             """
 
             self.id = None
-            self._probs = {word: prob}
+            self._probs = OrderedDict({word: prob})
 
         def add(self, word, prob):
             """Adds a word to the class with given probability.
@@ -75,7 +77,12 @@ class Dictionary(object):
             :returns: a random word from this class
             """
 
-            return next(iter(self._probs.keys()))
+            words = list(self._probs.keys())
+            probs = list(self._probs.values())
+            sample_distribution = numpy.random.multinomial(1, probs)
+            indices = numpy.flatnonzero(sample_distribution)
+            assert len(indices) == 1
+            return words[indices[0]]
 
     def __init__(self, input_file, input_format):
         """Creates word classes.

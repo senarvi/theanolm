@@ -16,10 +16,13 @@ argument_group.add_argument(
     help='path where the best model state will be saved in numpy .npz format')
 argument_group.add_argument(
     'dictionary_file', metavar='DICTIONARY', type=TextFileType('r'),
-    help='text or .gz file containing word list (one word per line) or word to class ID mappings (word and ID per line)')
+    help='text or .gz file containing word list (one word per line) or word to '
+         'class ID mappings (word and ID per line)')
 argument_group.add_argument(
     '--dictionary-format', metavar='FORMAT', type=str, default='words',
-    help='dictionary format, one of "words" (one word per line, default), "classes" (word and class ID per line), "srilm-classes" (class name, membership probability, and word per line)')
+    help='dictionary format, one of "words" (one word per line, default), '
+         '"classes" (word and class ID per line), "srilm-classes" (class name, '
+         'membership probability, and word per line)')
 argument_group.add_argument(
     '--output-file', metavar='OUTPUT', type=TextFileType('w'), default='-',
     help='where to write the generated sentences (default stdout)')
@@ -29,10 +32,13 @@ argument_group.add_argument(
     '--num-sentences', metavar='N', type=int, default=10,
     help='generate N sentences')
 argument_group.add_argument(
-    '--random-seed', metavar='N', type=int, default=12345,
-    help='seed to initialize the random state, between 1 and 2147462578 (default 12345)')
+    '--random-seed', metavar='N', type=int, default=None,
+    help='seed to initialize the random state (default is to seed from a '
+         'random source provided by the oprating system)')
 
 args = parser.parse_args()
+
+numpy.random.seed(args.random_seed)
 
 state = numpy.load(args.model_path)
 
@@ -52,7 +58,7 @@ network.set_state(state)
 
 print("Building text sampler.")
 sys.stdout.flush()
-sampler = theanolm.TextSampler(network, dictionary, args.random_seed)
+sampler = theanolm.TextSampler(network, dictionary)
 
 for i in range(args.num_sentences):
     words = sampler.generate()
