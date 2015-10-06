@@ -4,6 +4,7 @@
 import argparse
 import sys
 import os
+import subprocess
 import logging
 import numpy
 import theano
@@ -50,7 +51,7 @@ def train(network, trainer, scorer, training_iter, validation_iter, args):
         while trainer.update_minibatch(training_iter):
             if (args.verbose_interval >= 1) and \
                (trainer.total_updates % args.verbose_interval == 0):
-                trainer.print_update_stats()
+                trainer.log_update()
                 sys.stdout.flush()
 
             if (args.validation_interval >= 1) and \
@@ -67,11 +68,9 @@ def train(network, trainer, scorer, training_iter, validation_iter, args):
                     return network_state_min_cost
 
                 trainer.append_validation_cost(validation_ppl)
-                trainer.print_cost_history()
-                sys.stdout.flush()
                 validations_since_best = trainer.validations_since_min_cost()
                 if validations_since_best == 0:
-                    # This the minimum cost so far.
+                    # This is the minimum cost so far.
                     network_state_min_cost = network.get_state()
                     trainer_state_min_cost = trainer.get_state()
                 elif (args.wait_improvement >= 0) and \
@@ -216,6 +215,13 @@ if args.debug:
 else:
     logging.getLogger('root').setLevel(logging.INFO)
     theano.config.compute_test_value = 'off'
+
+try:
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    git_description = subprocess.check_output(['git', 'describe'], cwd=script_path)
+    logging.info("Git repository description: %s", git_description.decode('utf-8'))
+except CalledProcessError:
+    logging.info("Git repository description is not available.")
 
 if (not args.state_path is None) and os.path.exists(args.state_path):
     print("Reading previous state from %s." % args.state_path)

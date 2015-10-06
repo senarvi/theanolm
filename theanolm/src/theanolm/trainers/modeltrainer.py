@@ -3,6 +3,7 @@
 
 from collections import OrderedDict
 import time
+import logging
 import numpy
 import theano
 import theano.tensor as tensor
@@ -135,7 +136,8 @@ class ModelTrainer(object):
             self._cost_history = []
         else:
             self._cost_history = saved_cost_history
-        self.print_cost_history()
+        logging.debug("Validation set cost history since last reset:")
+        logging.debug(str(numpy.asarray(self._cost_history)))
 
         if not 'epoch_number' in state:
             raise IncompatibleStateError("Current epoch number is missing from "
@@ -145,16 +147,8 @@ class ModelTrainer(object):
             raise IncompatibleStateError("Current update number is missing "
                                          "from training state.")
         self.update_number = state['update_number'].item()
-        print("Previous training was stopped after update %d.%d." % (self.epoch_number, self.update_number))
-
-    def print_cost_history(self):
-        """Prints the current cost history.
-        
-        We're using numpy for prettier formatting.
-        """
-
-        print("Validation set cost history since last reset:")
-        print(numpy.asarray(self._cost_history))
+        logging.info("Restored training state from update %d.%d.",
+            self.epoch_number, self.update_number)
 
     def update_minibatch(self, batch_iter):
         """Optimizes the neural network parameters using the given inputs and
@@ -194,36 +188,40 @@ class ModelTrainer(object):
             raise NumberError("Update %d cost has infinite value." % self.update_number)
         self.model_update_function()
 
-        # For print_update_states().
+        # For log_update().
         self.update_duration = time.time() - update_start_time
         return True
 
-    def print_update_stats(self):
-        """Print information about the previous mini-batch update.
+    def log_update(self):
+        """Logs information about the previous mini-batch update.
         """
 
-        if 'learning_rate' in self.params:
-            print("Batch %d.%d (%d) -- lr = %g, cost = %.2f, duration = %.2f ms" % (\
+        if 'trainer.learning_rate' in self.params:
+            logging.info("Batch %d.%d (%d) -- lr = %g, cost = %.2f, duration = %.2f ms",
                     self.epoch_number,
                     self.update_number,
                     self.total_updates,
-                    self.params['learning_rate'].get_value(),
+                    self.params['trainer.learning_rate'].get_value(),
                     self.update_cost,
-                    self.update_duration * 100))
+                    self.update_duration * 100)
         else:
-            print("Batch %d.%d (%d) -- cost = %.2f, duration = %.2f ms" % (\
+            logging.info("Batch %d.%d (%d) -- cost = %.2f, duration = %.2f ms",
                     self.epoch_number,
                     self.update_number,
                     self.total_updates,
                     self.update_cost,
-                    self.update_duration * 100))
+                    self.update_duration * 100)
 
     def decrease_learning_rate(self):
         """Called when the validation set cost stops decreasing.
         """
 
-        learning_rate = self.params['learning_rate'].get_value()
-        self.params['learning_rate'].set_value(learning_rate / 2)
+        if 'trainer.learning_rate' in self.params:
+            old_value = self.params['trainer.learning_rate'].get_value()
+            new_value = old_value / 2
+            self.params['trainer.learning_rate'].set_value(new_value)
+            logging.info("Learning rate reduced from %g to %g." %
+                (old_value, new_value))
         self._cost_history = []
         self.reset()
 
@@ -231,6 +229,7 @@ class ModelTrainer(object):
         """Resets training parameters if necessary when decreasing learning
         rate.
         """
+
         pass
 
     def append_validation_cost(self, validation_cost):
@@ -241,6 +240,8 @@ class ModelTrainer(object):
         """
 
         self._cost_history.append(validation_cost)
+        logging.debug("Validation set cost history since last reset:")
+        logging.debug(str(numpy.asarray(self._cost_history)))
 
     def validations_since_min_cost(self):
         """Returns the number of times the validation set cost has been computed
