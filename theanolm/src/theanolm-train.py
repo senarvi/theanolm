@@ -50,7 +50,7 @@ def train(network, trainer, scorer, training_iter, validation_iter, args):
 
         while trainer.update_minibatch(training_iter):
             if (args.log_update_interval >= 1) and \
-               (trainer.total_updates % args.verbose_interval == 0):
+               (trainer.total_updates % args.log_update_interval == 0):
                 trainer.log_update()
 
             if (args.validation_interval >= 1) and \
@@ -163,7 +163,7 @@ argument_group.add_argument(
     '--restore-min-cost', action="store_true",
     help='restore the state of minimum validation cost after reducing learning '
          'rate (default is to continue with the current state and seems to '
-         'give a better final model)')
+         'generalize better)')
 argument_group.add_argument(
     '--max-epochs', metavar='N', type=int, default=1000,
     help='perform at most N training epochs (default 1000)')
@@ -256,17 +256,7 @@ print("Number of word classes:", dictionary.num_classes())
 
 print("Finding sentence start positions in training data.")
 sys.stdout.flush()
-sentence_starts = [0]
-# Can't use readline() here, otherwise TextIOWrapper disables tell().
-ch = args.training_file.read(1)
-while ch != '':
-    if ch == '\n':
-        pos = args.training_file.tell()
-        ch = args.training_file.read(1)
-        if ch != '':
-            sentence_starts.append(pos)
-    else:
-        ch = args.training_file.read(1)
+sentence_starts = theanolm.find_sentence_starts(args.training_file)
 
 training_iter = theanolm.ShufflingBatchIterator(
     args.training_file,
@@ -274,7 +264,6 @@ training_iter = theanolm.ShufflingBatchIterator(
     sentence_starts,
     batch_size=args.batch_size,
     max_sequence_length=args.sequence_length)
-
 validation_iter = theanolm.BatchIterator(
     args.validation_file,
     dictionary,

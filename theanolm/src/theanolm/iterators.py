@@ -1,9 +1,37 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import mmap
 import logging
 import numpy
 import theano
+
+def find_sentence_starts(path):
+    """Finds the positions inside a file, where the sentences (lines) start.
+
+    :type path: str
+    :param path: path to the input file
+
+    :rtype: list of ints
+    :returns: a list of file offsets pointing to the next character from a
+              newline (including file start and excluding file end)
+    """
+
+    result = [0]
+
+    # TextIOWrapper disables tell() when readline() is called, so we use mmap
+    # instead.
+    data = mmap.mmap(path.fileno(), 0, access=mmap.ACCESS_READ)
+    pos = 0
+    while True:
+        pos = data.find(b'\n', pos)
+        if pos == -1:
+            break;
+        pos += 1
+        if pos < len(data):
+            result.append(pos)
+
+    return result
 
 class BatchIterator(object):
     """ Iterator for Reading Mini-Batches
