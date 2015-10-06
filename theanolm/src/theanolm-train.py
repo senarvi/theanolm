@@ -24,7 +24,7 @@ def save_training_state(path, network, trainer):
     state = network.get_state()
     state.update(trainer.get_state())
     numpy.savez(path, **state)
-    print("Saved %d parameters to %s." % (len(state), path))
+    logging.info("Saved %d parameters to %s.", len(state), path)
 
 def save_model(path, state):
     """Saves the given model parameters to disk.
@@ -37,7 +37,7 @@ def save_model(path, state):
     """
 
     numpy.savez(path, **state)
-    print("Saved %d parameters to %s." % (len(state), path))
+    logging.info("Saved %d parameters to %s.", len(state), path)
 
 def train(network, trainer, scorer, training_iter, validation_iter, args):
     network_state_min_cost = None
@@ -49,10 +49,9 @@ def train(network, trainer, scorer, training_iter, validation_iter, args):
               "".format(trainer.epoch_number, args.max_epochs, initial_ppl))
 
         while trainer.update_minibatch(training_iter):
-            if (args.verbose_interval >= 1) and \
+            if (args.log_update_interval >= 1) and \
                (trainer.total_updates % args.verbose_interval == 0):
                 trainer.log_update()
-                sys.stdout.flush()
 
             if (args.validation_interval >= 1) and \
                (trainer.total_updates % args.validation_interval == 0):
@@ -76,8 +75,9 @@ def train(network, trainer, scorer, training_iter, validation_iter, args):
                 elif (args.wait_improvement >= 0) and \
                      (validations_since_best > args.wait_improvement):
                     # Too many validations without improvement.
-                    network.set_state(network_state_min_cost)  # XXX
-                    trainer.set_state(trainer_state_min_cost)  # XXX
+                    if args.restore_min_cost:
+                        network.set_state(network_state_min_cost)
+                        trainer.set_state(trainer_state_min_cost)
 # XXX               if validation_ppl >= initial_ppl:
 # XXX                   trainer.decrese_learning_rate(only_reset_cost_and_timestep)
 # XXX               else:
@@ -151,10 +151,19 @@ argument_group.add_argument(
     '--batch-size', metavar='N', type=int, default=16,
     help='each mini-batch will contain N sentences (default 16)')
 argument_group.add_argument(
+    '--validation-interval', metavar='N', type=int, default=1000,
+    help='cross-validation for reducing learning rate is performed after every '
+         'Nth mini-batch update (default 1000)')
+argument_group.add_argument(
     '--wait-improvement', metavar='N', type=int, default=10,
-    help='wait N updates for validation set perplexity to decrease before stopping; '
-         'if less than zero, stops only after maximum number of epochs is '
-         'reached (default 10)')
+    help='if the validation set perplexity has not decreased during the last N '
+         'validations, decrease learning rate; if less than zero, never '
+         'decrese learning rate (default 10)')
+argument_group.add_argument(
+    '--restore-min-cost', action="store_true",
+    help='restore the state of minimum validation cost after reducing learning '
+         'rate (default is to continue with the current state and seems to '
+         'give a better final model)')
 argument_group.add_argument(
     '--max-epochs', metavar='N', type=int, default=1000,
     help='perform at most N training epochs (default 1000)')
@@ -185,19 +194,22 @@ argument_group.add_argument(
          '(normalized by mini-batch size) will not exceed THRESHOLD (no '
          'scaling by default)')
 argument_group.add_argument(
-    '--validation-interval', metavar='N', type=int, default=1000,
-    help='cross-validation for early stopping is performed after every Nth '
-         'mini-batch update (default 1000)')
-argument_group.add_argument(
     '--save-interval', metavar='N', type=int, default=1000,
     help='save training state after every Nth mini-batch update; if less than '
          'one, save the model only after training (default 1000)')
-argument_group.add_argument(
-    '--verbose-interval', metavar='N', type=int, default=100,
-    help='print statistics of every Nth mini-batch update; quiet if less than '
-         'one (default 100)')
 
-argument_group = parser.add_argument_group("debugging")
+argument_group = parser.add_argument_group("logging and debugging")
+argument_group.add_argument(
+    '--log-file', metavar='FILE', type=str, default='-',
+    help='path where to write log file (default is standard output)')
+argument_group.add_argument(
+    '--log-level', metavar='LEVEL', type=str, default='info',
+    help='minimum level of events to log, one of "debug", "info", "warn" '
+         '(default "info")')
+argument_group.add_argument(
+    '--log-update-interval', metavar='N', type=int, default=1000,
+    help='print statistics of every Nth mini-batch update; quiet if less than '
+         'one (default 1000)')
 argument_group.add_argument(
     '--debug', action="store_true",
     help='enables debugging Theano errors')
@@ -207,13 +219,20 @@ argument_group.add_argument(
 
 args = parser.parse_args()
 
-logging.basicConfig(format="%(funcName)s: %(message)s")
+log_file = args.log_file
+log_level = getattr(logging, args.log_level.upper(), None)
+if not isinstance(log_level, int):
+    raise ValueError("Invalid logging level requested: %s".format(
+        args.log_level))
+log_format = '%(asctime)s %(funcName)s: %(message)s'
+if args.log_file == '-':
+    logging.basicConfig(stream=sys.stdout, format=log_format, level=log_level)
+else:
+    logging.basicConfig(filename=log_file, format=log_format, level=log_level)
 
 if args.debug:
-    logging.getLogger('root').setLevel(logging.DEBUG)
     theano.config.compute_test_value = 'warn'
 else:
-    logging.getLogger('root').setLevel(logging.INFO)
     theano.config.compute_test_value = 'off'
 
 try:
