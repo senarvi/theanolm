@@ -12,7 +12,7 @@ class TextSampler(object):
     model.
     """
 
-    def __init__(self, network, dictionary):
+    def __init__(self, network, dictionary, random_seed):
         """Creates the neural network architecture.
 
         Creates the function self.step_function that uses the state of the
@@ -27,7 +27,7 @@ class TextSampler(object):
 
         self.network = network
         self.dictionary = dictionary
-        self.trng = RandomStreams(1234)
+        self.trng = RandomStreams(random_seed)
 
         inputs = [self.network.onestep_input]
         inputs.extend(self.network.onestep_state)
@@ -56,8 +56,8 @@ class TextSampler(object):
         word_ids = -1 * numpy.ones(shape=(1,)).astype('int64')
 
         # Construct a list of hidden layer state variables and initialize them
-        # to zeros. GRU has only one state that travels through the time steps,
-        # LSTM has two.
+        # to zeros. GRU has only one state that is passed through the time
+        # steps, LSTM has two.
         hidden_state_shape = (1, self.network.architecture.hidden_layer_size)
         hidden_layer_state = [
             numpy.zeros(shape=hidden_state_shape).astype(theano.config.floatX)

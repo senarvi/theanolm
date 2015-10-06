@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from collections import OrderedDict
+import numpy
+import theano
 import theano.tensor as tensor
 from theanolm.matrixfunctions import orthogonal_weight
 
@@ -98,7 +100,10 @@ class ProjectionLayer(object):
 
         # The generation starts with input value -1, which will be translated
         # into zero word projection vector.
+        initial_value = numpy.dtype(theano.config.floatX).type(0.0)
+        initial_projection = \
+            tensor.alloc(initial_value, 1, word_projection_dim)
         self.onestep_output = tensor.switch(
             layer_input[:, None] < 0,
-            tensor.alloc(0.0, 1, word_projection_dim),
+            initial_projection,
             model_params['proj.W'][layer_input])

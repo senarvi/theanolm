@@ -28,6 +28,9 @@ argument_group = parser.add_argument_group("sampling")
 argument_group.add_argument(
     '--num-sentences', metavar='N', type=int, default=10,
     help='generate N sentences')
+argument_group.add_argument(
+    '--random-seed', metavar='N', type=int, default=12345,
+    help='seed to initialize the random state, between 1 and 2147462578 (default 12345)')
 
 args = parser.parse_args()
 
@@ -49,7 +52,7 @@ network.set_state(state)
 
 print("Building text sampler.")
 sys.stdout.flush()
-sampler = theanolm.TextSampler(rnnlm, dictionary)
+sampler = theanolm.TextSampler(network, dictionary, args.random_seed)
 
 for i in range(args.num_sentences):
     words = sampler.generate()

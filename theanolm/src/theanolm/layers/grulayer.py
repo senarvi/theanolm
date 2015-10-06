@@ -106,8 +106,9 @@ class GRULayer(object):
 
         sequences = [mask, x_preact_gates, x_preact_candidate]
         non_sequences = [U_gates, U_candidate]
+        initial_value = numpy.dtype(theano.config.floatX).type(0.0)
         initial_hidden_state = tensor.unbroadcast(
-            tensor.alloc(0.0, num_sequences, self.layer_size), 0)
+            tensor.alloc(initial_value, num_sequences, self.layer_size), 0)
 
         outputs, _ = theano.scan(
             self._create_time_step,
@@ -149,7 +150,8 @@ class GRULayer(object):
         num_sequences = layer_input.shape[0]
         self.layer_size = model_params['gru.U_candidate'].shape[1]
 
-        mask = tensor.alloc(1.0, num_sequences, 1)
+        mask_value = numpy.dtype(theano.config.floatX).type(1.0)
+        mask = tensor.alloc(mask_value, num_sequences, 1)
 
         # Compute the gate pre-activations, which don't depend on the time step.
         x_preact_gates = \
