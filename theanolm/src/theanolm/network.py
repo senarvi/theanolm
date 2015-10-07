@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from collections import OrderedDict
+import logging
 import numpy
 import theano
 import theano.tensor as tensor
@@ -354,7 +355,12 @@ class Network(object):
             if not name in state:
                 raise IncompatibleStateError(
                     "Parameter %s is missing from neural network state." % name)
-            param.set_value(state[name])
+            new_value = state[name]
+            param.set_value(new_value)
+            if len(new_value.shape) == 0:
+                logging.debug("name <- %s", str(new_value))
+            else:
+                logging.debug("name <- array%s", str(new_value.shape))
         try:
             self.architecture.check_state(state)
         except IncompatibleStateError as error:

@@ -70,7 +70,7 @@ def train(network, trainer, scorer, training_iter, validation_iter, args):
                 elif (args.wait_improvement >= 0) and \
                      (validations_since_best > args.wait_improvement):
                     # Too many validations without improvement.
-                    if args.restore_min_cost:
+                    if args.recall_when_annealing:
                         network.set_state(network_state_min_cost)
                         trainer.set_state(trainer_state_min_cost)
 # XXX               if validation_ppl >= initial_ppl:
@@ -78,6 +78,8 @@ def train(network, trainer, scorer, training_iter, validation_iter, args):
 # XXX               else:
 # XXX                   trainer.decrease_learning_rate()
                     trainer.decrease_learning_rate()
+                    if args.reset_when_annealing:
+                        trainer.reset()
 
             if (args.save_interval >= 1) and \
                (trainer.total_updates % args.save_interval == 0):
@@ -155,10 +157,13 @@ argument_group.add_argument(
          'validations, decrease learning rate; if less than zero, never '
          'decrese learning rate (default 10)')
 argument_group.add_argument(
-    '--restore-min-cost', action="store_true",
-    help='restore the state of minimum validation cost after reducing learning '
-         'rate (default is to continue with the current state, which is better '
-         'if learning rate is reduced hastily)')
+    '--recall-when-annealing', action="store_true",
+    help='restore the state of minimum validation cost when decreasing '
+         'learning rate (default is to continue with the current state, which '
+         'is better if learning rate is reduced hastily)')
+argument_group.add_argument(
+    '--reset-when-annealing', action="store_true",
+    help='reset the optimizer timestep when decreasing learning rate')
 argument_group.add_argument(
     '--max-epochs', metavar='N', type=int, default=1000,
     help='perform at most N training epochs (default 1000)')

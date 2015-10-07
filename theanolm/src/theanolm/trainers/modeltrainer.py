@@ -124,7 +124,12 @@ class ModelTrainer(object):
             if not name in state:
                 raise IncompatibleStateError("Parameter %s is missing from "
                                              "training state." % name)
-            param.set_value(state[name])
+            new_value = state[name]
+            param.set_value(new_value)
+            if len(new_value.shape) == 0:
+                logging.debug("name <- %s", str(new_value))
+            else:
+                logging.debug("name <- array%s", str(new_value.shape))
 
         if not 'cost_history' in state:
             raise IncompatibleStateError("Validation set cost history is "
@@ -136,7 +141,8 @@ class ModelTrainer(object):
             self._cost_history = []
         else:
             self._cost_history = saved_cost_history
-        logging.debug("Validation set cost history since last reset:")
+        logging.debug("Validation set cost history since learning rate was "
+                      "decreased:")
         logging.debug(str(numpy.asarray(self._cost_history)))
 
         if not 'epoch_number' in state:
@@ -223,11 +229,10 @@ class ModelTrainer(object):
             logging.info("Learning rate reduced from %g to %g." %
                 (old_value, new_value))
         self._cost_history = []
-        self.reset()
 
     def reset(self):
-        """Resets training parameters if necessary when decreasing learning
-        rate.
+        """Resets the optimizer timestep. May be called after decreasing
+        learning rate, depending on the program options.
         """
 
         pass
@@ -240,7 +245,8 @@ class ModelTrainer(object):
         """
 
         self._cost_history.append(validation_cost)
-        logging.debug("Validation set cost history since last reset:")
+        logging.debug("Validation set cost history since learning rate as "
+                      "decreased:")
         logging.debug(str(numpy.asarray(self._cost_history)))
 
     def validations_since_min_cost(self):

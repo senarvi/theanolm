@@ -105,9 +105,10 @@ class AdamTrainer(ModelTrainer):
         return result
 
     def reset(self):
-        """Resets training parameters when decreasing learning rate.
+        """Resets the optimizer timestep. May be called after decreasing
+        learning rate, depending on the program options.
         """
 
-        logging.info("Resetting Adam timestep parameter to zero.")
+        logging.info("Resetting optimizer timestep to zero.")
         self.params['trainer.timestep'].set_value(
             numpy.dtype(theano.config.floatX).type(0.0))
