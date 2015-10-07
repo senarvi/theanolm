@@ -3,6 +3,8 @@
 
 import argparse
 import sys
+import os
+import subprocess
 import numpy
 import theano
 import theanolm
@@ -98,6 +100,14 @@ argument_group.add_argument(
 
 args = parser.parse_args()
 
+try:
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    git_description = subprocess.check_output(['git', 'describe'], cwd=script_path)
+    print("TheanoLM %s", git_description.decode('utf-8'))
+except subprocess.CalledProcessError:
+    pass
+
+print("Reading model state from %s." % args.model_path)
 state = numpy.load(args.model_path)
 
 print("Reading dictionary.")

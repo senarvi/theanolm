@@ -56,14 +56,9 @@ def train(network, trainer, scorer, training_iter, validation_iter, args):
             if (args.validation_interval >= 1) and \
                (trainer.total_updates % args.validation_interval == 0):
                 validation_ppl = scorer.compute_perplexity(validation_iter)
-                if numpy.isnan(validation_ppl):
-                    print("Stopping because an invalid floating point "
-                          "operation was performed while computing validation "
-                          "set perplexity. (Gradients exploded?)")
-                    return network_state_min_cost
-                if numpy.isinf(validation_ppl):
-                    print("Stopping because validation set perplexity exploded "
-                          "to infinity.")
+                if numpy.isnan(validation_ppl) or numpy.isinf(validation_ppl):
+                    print("Stopping because computing validation set "
+                          "perplexity resulted in a numerical error.")
                     return network_state_min_cost
 
                 trainer.append_validation_cost(validation_ppl)
@@ -143,7 +138,7 @@ argument_group.add_argument(
          'layers, with N outputs, and direct connections from input layer '
          '(default is to not create such layer)')
 
-argument_group = parser.add_argument_group("training options")
+argument_group = parser.add_argument_group("training")
 argument_group.add_argument(
     '--sequence-length', metavar='N', type=int, default=100,
     help='ignore sentences longer than N words (default 100)')
@@ -162,8 +157,8 @@ argument_group.add_argument(
 argument_group.add_argument(
     '--restore-min-cost', action="store_true",
     help='restore the state of minimum validation cost after reducing learning '
-         'rate (default is to continue with the current state and seems to '
-         'generalize better)')
+         'rate (default is to continue with the current state, which is better '
+         'if learning rate is reduced hastily)')
 argument_group.add_argument(
     '--max-epochs', metavar='N', type=int, default=1000,
     help='perform at most N training epochs (default 1000)')
@@ -197,6 +192,10 @@ argument_group.add_argument(
     '--save-interval', metavar='N', type=int, default=1000,
     help='save training state after every Nth mini-batch update; if less than '
          'one, save the model only after training (default 1000)')
+argument_group.add_argument(
+    '--random-seed', metavar='N', type=int, default=None,
+    help='seed to initialize the random state (default is to seed from a '
+         'random source provided by the oprating system)')
 
 argument_group = parser.add_argument_group("logging and debugging")
 argument_group.add_argument(
@@ -219,6 +218,8 @@ argument_group.add_argument(
 
 args = parser.parse_args()
 
+numpy.random.seed(args.random_seed)
+
 log_file = args.log_file
 log_level = getattr(logging, args.log_level.upper(), None)
 if not isinstance(log_level, int):
@@ -238,9 +239,9 @@ else:
 try:
     script_path = os.path.dirname(os.path.realpath(__file__))
     git_description = subprocess.check_output(['git', 'describe'], cwd=script_path)
-    logging.info("Git repository description: %s", git_description.decode('utf-8'))
-except CalledProcessError:
-    logging.info("Git repository description is not available.")
+    print("TheanoLM %s", git_description.decode('utf-8'))
+except subprocess.CalledProcessError:
+    logging.warn("Git repository description is not available.")
 
 if (not args.state_path is None) and os.path.exists(args.state_path):
     print("Reading previous state from %s." % args.state_path)
