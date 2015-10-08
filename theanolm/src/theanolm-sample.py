@@ -3,6 +3,8 @@
 
 import argparse
 import sys
+import os
+import subprocess
 import numpy
 import theano
 import theanolm
@@ -36,9 +38,26 @@ argument_group.add_argument(
     help='seed to initialize the random state (default is to seed from a '
          'random source provided by the oprating system)')
 
+argument_group = parser.add_argument_group("debugging")
+argument_group.add_argument(
+    '--debug', action="store_true",
+    help='enables debugging Theano errors')
+
 args = parser.parse_args()
 
 numpy.random.seed(args.random_seed)
+
+if args.debug:
+    theano.config.compute_test_value = 'warn'
+else:
+    theano.config.compute_test_value = 'off'
+
+try:
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    git_description = subprocess.check_output(['git', 'describe'], cwd=script_path)
+    print("TheanoLM", git_description.decode('utf-8'))
+except subprocess.CalledProcessError:
+    pass
 
 state = numpy.load(args.model_path)
 

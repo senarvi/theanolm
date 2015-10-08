@@ -127,9 +127,9 @@ class ModelTrainer(object):
             new_value = state[name]
             param.set_value(new_value)
             if len(new_value.shape) == 0:
-                logging.debug("name <- %s", str(new_value))
+                logging.debug("%s <- %s", name, str(new_value))
             else:
-                logging.debug("name <- array%s", str(new_value.shape))
+                logging.debug("%s <- array%s", name, str(new_value.shape))
 
         if not 'cost_history' in state:
             raise IncompatibleStateError("Validation set cost history is "
@@ -245,7 +245,7 @@ class ModelTrainer(object):
         """
 
         self._cost_history.append(validation_cost)
-        logging.debug("Validation set cost history since learning rate as "
+        logging.debug("Validation set cost history since learning rate was "
                       "decreased:")
         logging.debug(str(numpy.asarray(self._cost_history)))
 
