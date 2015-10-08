@@ -85,7 +85,7 @@ class TrainingProcess(object):
             sys.stdout.flush()
             self.trainer.set_state(initial_state)
 
-        print("Finding sentence start positions in %s." % args.training_file)
+        print("Finding sentence start positions in training data.")
         sys.stdout.flush()
         sentence_starts = theanolm.find_sentence_starts(args.training_file)
 
@@ -125,6 +125,7 @@ class TrainingProcess(object):
         """Saves current neural network and training state to disk.
         """
 
+        path = self.state_path
         state = self.network.get_state()
         state.update(self.trainer.get_state())
         numpy.savez(path, **state)
@@ -136,6 +137,7 @@ class TrainingProcess(object):
         """
 
         if not self.network_state_min_cost is None:
+            path = self.model_path
             state = self.network_state_min_cost
             numpy.savez(path, **state)
             logging.info("Saved %d parameters to %s.", len(state), path)
