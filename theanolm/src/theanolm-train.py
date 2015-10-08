@@ -121,7 +121,7 @@ class TrainingProcess(object):
         self.recall_when_annealing = args.recall_when_annealing
         self.reset_when_annealing = args.recall_when_annealing
 
-    def save_training_state():
+    def save_training_state(self):
         """Saves current neural network and training state to disk.
         """
 
@@ -130,12 +130,12 @@ class TrainingProcess(object):
         numpy.savez(path, **state)
         logging.info("Saved %d parameters to %s.", len(state), path)
 
-    def save_model():
+    def save_model(self):
         """Saves the model parameters found to provide the minimum validatation
         set perplexity to disk.
         """
 
-        if not network_state_min_cost is None:
+        if not self.network_state_min_cost is None:
             state = self.network_state_min_cost
             numpy.savez(path, **state)
             logging.info("Saved %d parameters to %s.", len(state), path)
