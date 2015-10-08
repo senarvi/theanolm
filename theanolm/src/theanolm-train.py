@@ -143,6 +143,8 @@ class TrainingProcess(object):
             logging.info("Saved %d parameters to %s.", len(state), path)
 
     def run(self):
+        local_perplexities = None
+
         while self.trainer.epoch_number <= self.max_epochs:
             self.epoch_start_ppl = \
                 self.scorer.compute_perplexity(self.validation_iter)
@@ -158,7 +160,15 @@ class TrainingProcess(object):
 
                 if (self.validation_interval_updates >= 1) and \
                    (self.trainer.total_updates % self.validation_interval_updates == 0):
-                    self._validate()
+                    local_perplexities = []
+
+                if not local_perplexities is None:
+                    ppl = self.scorer.compute_perplexity(self.validation_iter)
+                    local_perplexities.append(ppl)
+                    if len(local_perplexities) >= 10:
+                        ppl = numpy.mean(numpy.asarray(local_perplexities))
+                        self._validate(ppl)
+                        local_perplexities = None
 
                 if (self.save_interval >= 1) and \
                    (self.trainer.total_updates % self.save_interval == 0):
@@ -176,8 +186,7 @@ class TrainingProcess(object):
         if self.trainer.validations_since_min_cost() == 0:
             self.network_state_min_cost = self.network.get_state()
 
-    def _validate(self):
-        validation_ppl = self.scorer.compute_perplexity(self.validation_iter)
+    def _validate(self, validation_ppl):
         if numpy.isnan(validation_ppl) or numpy.isinf(validation_ppl):
             raise NumberError("Validation set perplexity computation resulted "
                               "in a numerical error.")
