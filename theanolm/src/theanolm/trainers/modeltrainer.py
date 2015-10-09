@@ -207,9 +207,9 @@ class ModelTrainer(object):
         else:
             learning_rate = 0
 
-        logging.info("[%d] %.2f %% of epoch %d -- "
+        logging.info("Update %d (%.2f %%) of epoch %d -- "
                      "lr = %g, cost = %.2f, duration = %.2f ms",
-                     self.total_updates,
+                     self.update_number,
                      self.update_number / updates_per_epoch * 100,
                      self.epoch_number,
                      learning_rate,
