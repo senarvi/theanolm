@@ -9,7 +9,7 @@ import logging
 import numpy
 import theano
 import theanolm
-import theanolm.trainers as trainers
+from theanolm.trainers import create_trainer
 from filetypes import TextFileType
 
 class TrainingProcess(object):
@@ -51,35 +51,8 @@ class TrainingProcess(object):
             'momentum': args.momentum}
         if not args.gradient_normalization is None:
             training_options['max_gradient_norm'] = args.gradient_normalization
-
-        if args.optimization_method == 'sgd':
-            self.trainer = trainers.SGDTrainer(self.network,
-                                               training_options,
-                                               args.profile)
-        elif args.optimization_method == 'nesterov':
-            self.trainer = trainers.NesterovTrainer(self.network,
-                                                    training_options,
-                                                    args.profile)
-        elif args.optimization_method == 'adadelta':
-            self.trainer = trainers.AdadeltaTrainer(self.network,
-                                                    training_options,
-                                                    args.profile)
-        elif args.optimization_method == 'rmsprop-sgd':
-            self.trainer = trainers.RMSPropSGDTrainer(self.network,
-                                                      training_options,
-                                                      args.profile)
-        elif args.optimization_method == 'rmsprop-momentum':
-            self.trainer = trainers.RMSPropMomentumTrainer(self.network,
-                                                           training_options,
-                                                           args.profile)
-        elif args.optimization_method == 'adam':
-            self.trainer = trainers.AdamTrainer(self.network,
-                                                training_options,
-                                                args.profile)
-        else:
-            raise ValueError("Invalid optimization method requested: " + \
-                args.optimization_method)
-
+        self.trainer = create_trainer(args.optimization_method, self.network,
+                                      training_options, args.profile)
         if not initial_state is None:
             print("Restoring training to previous state.")
             sys.stdout.flush()
@@ -96,30 +69,26 @@ class TrainingProcess(object):
             batch_size=args.batch_size,
             max_sequence_length=args.sequence_length)
 
+        print("Computing the number of training updates per epoch.")
+        sys.stdout.flush()
+        self.updates_per_epoch = len(self.training_iter)
+
         self.state_path = args.state_path
         self.model_path = args.model_path
 
-        self.network_state_min_cost = None
-        self.trainer_state_min_cost = None
-
         self.log_update_interval = args.log_update_interval
-        self.save_interval = args.save_interval
+        self.save_frequency = args.save_frequency
+        self.validation_frequency = args.validation_frequency
 
-        if args.validation_interval.endswith('e'):
-            self.validation_interval_updates = 0
-            self.validation_interval_epochs = int(args.validation_interval[:-1])
-            print("Performing validation every %d epochs." % \
-                  self.validation_interval_epochs)
-        else:
-            self.validation_interval_updates = int(args.validation_interval)
-            self.validation_interval_epochs = 0
-            print("Performing validation every %d updates." % \
-                  self.validation_interval_updates)
-
-        self.max_epochs = args.max_epochs
         self.wait_improvement = args.wait_improvement
         self.recall_when_annealing = args.recall_when_annealing
         self.reset_when_annealing = args.recall_when_annealing
+        self.max_epochs = args.max_epochs
+
+        self.network_state_min_cost = None
+        self.trainer_state_min_cost = None
+        self.network_state_previous = None
+        self.trainer_state_previous = None
 
     def save_training_state(self):
         """Saves current neural network and training state to disk.
@@ -156,35 +125,50 @@ class TrainingProcess(object):
             while self.trainer.update_minibatch(self.training_iter):
                 if (self.log_update_interval >= 1) and \
                    (self.trainer.total_updates % self.log_update_interval == 0):
-                    self.trainer.log_update()
+                    self.trainer.log_update(self.updates_per_epoch)
 
-                if (self.validation_interval_updates >= 1) and \
-                   (self.trainer.total_updates % self.validation_interval_updates == 0):
-                    local_perplexities = []
-
-                if not local_perplexities is None:
+                if self._time_to_perform(self.validation_frequency):
                     ppl = self.scorer.compute_perplexity(self.validation_iter)
-                    local_perplexities.append(ppl)
-                    if len(local_perplexities) >= 10:
-                        ppl = numpy.mean(numpy.asarray(local_perplexities))
-                        self._validate(ppl)
-                        local_perplexities = None
-
-                if (self.save_interval >= 1) and \
-                   (self.trainer.total_updates % self.save_interval == 0):
-                    # Save the best parameters and the current state.
-                    self.save_model()
-                    self.save_training_state()
-
-            if (self.validation_interval_epochs >= 1) and \
-               (self.trainer.epoch_number % self.validation_interval_epochs == 0):
-                self._validate()
+                    self._validate(ppl)
+#                    local_perplexities = []
+#
+#                if not local_perplexities is None:
+#                    ppl = self.scorer.compute_perplexity(self.validation_iter)
+#                    local_perplexities.append(ppl)
+#                    if len(local_perplexities) >= 10:
+#                        ppl = numpy.mean(numpy.asarray(local_perplexities))
+#                        self._validate(ppl)
+#                        local_perplexities = None
+#
+#                if self._time_to_perform(self.save_frequency):
+#                    self.save_training_state()
 
         print("Stopping because %d epochs was reached." % self.trainer.epoch_number)
         validation_ppl = self.scorer.compute_perplexity(self.validation_iter)
         self.trainer.append_validation_cost(validation_ppl)
         if self.trainer.validations_since_min_cost() == 0:
             self.network_state_min_cost = self.network.get_state()
+            self.save_model()
+
+        self.save_training_state()
+
+    def _time_to_perform(self, frequency):
+        """Check if it's time to perform an operation that should be performed
+        ``frequency`` times at each epoch.
+
+        :type frequency: int
+        :param frequency: how many times per epoch the operation should be
+                          performed
+
+        :rtype: bool
+        :returns: whether to perform the operation at this point
+        """
+
+        previous_floor = (self.trainer.update_number - 1) * frequency // \
+                         self.updates_per_epoch
+        current_floor = self.trainer.update_number * frequency // \
+                        self.updates_per_epoch
+        return current_floor > previous_floor
 
     def _validate(self, validation_ppl):
         if numpy.isnan(validation_ppl) or numpy.isinf(validation_ppl):
@@ -194,25 +178,46 @@ class TrainingProcess(object):
         self.trainer.append_validation_cost(validation_ppl)
         validations_since_best = self.trainer.validations_since_min_cost()
         if validations_since_best == 0:
-            # This is the minimum cost so far.
-            self.network_state_min_cost = self.network.get_state()
-            self.trainer_state_min_cost = self.trainer.get_state()
-        elif (self.wait_improvement >= 0) and \
-             (validations_since_best > self.wait_improvement):
-            # Too many validations without improvement.
-            if self.recall_when_annealing:
-                self.network.set_state(self.network_state_min_cost)
-                self.trainer.set_state(self.trainer_state_min_cost)
-# XXX       if validation_ppl >= initial_ppl:
-# XXX           self.trainer.reset()
-# XXX           self.trainer.reset_cost_history()
-# XXX       else:
-# XXX           self.trainer.decrease_learning_rate()
-# XXX           self.trainer.reset()
-# XXX           self.trainer.reset_cost_history()
-            self.trainer.decrease_learning_rate()
-            if self.reset_when_annealing:
-                self.trainer.reset()
+            # The minimum average perplexity is from the three previous
+            # validations. Previous validation is in the middle of those
+            # validations
+            self.network_state_min_cost = self.network_state_previous
+            self.trainer_state_min_cost = self.trainer_state_previous
+            self.save_model()
+        else:
+            self.network_state_previous = self.network.get_state()
+            self.trainer_state_previous = self.trainer.get_state()
+            if (self.wait_improvement >= 0) and \
+               (validations_since_best > self.wait_improvement):
+                logging.debug("%d validations since the minimum perplexity was "
+                              "measured. Decreasing learning rate.",
+                              validations_since_best)
+                if self.recall_when_annealing:
+                    self.network.set_state(self.network_state_min_cost)
+                    self.trainer.set_state(self.trainer_state_min_cost)
+                self.trainer.decrease_learning_rate()
+                if self.reset_when_annealing:
+                    self.trainer.reset()
+#            # This is the minimum cost so far.
+#            self.network_state_min_cost = self.network.get_state()
+#            self.trainer_state_min_cost = self.trainer.get_state()
+#            self.save_model()
+#        elif (self.wait_improvement >= 0) and \
+#             (validations_since_best > self.wait_improvement):
+#            # Too many validations without improvement.
+#            if self.recall_when_annealing:
+#                self.network.set_state(self.network_state_min_cost)
+#                self.trainer.set_state(self.trainer_state_min_cost)
+## XXX       if validation_ppl >= initial_ppl:
+## XXX           self.trainer.reset()
+## XXX           self.trainer.reset_cost_history()
+## XXX       else:
+## XXX           self.trainer.decrease_learning_rate()
+## XXX           self.trainer.reset()
+## XXX           self.trainer.reset_cost_history()
+#            self.trainer.decrease_learning_rate()
+#            if self.reset_when_annealing:
+#                self.trainer.reset()
 
 
 parser = argparse.ArgumentParser()
@@ -267,10 +272,9 @@ argument_group.add_argument(
     '--batch-size', metavar='N', type=int, default=16,
     help='each mini-batch will contain N sentences (default 16)')
 argument_group.add_argument(
-    '--validation-interval', metavar='N', type=str, default='1e',
-    help='cross-validation for reducing learning rate is performed after every '
-         'Nth mini-batch update, or every Nth epoch if N is followed by the '
-         'unit "e" (default is "1e", meaning after every epoch)')
+    '--validation-frequency', metavar='N', type=int, default='100',
+    help='cross-validate for reducing learning rate N times per training epoch '
+         '(default 100)')
 argument_group.add_argument(
     '--wait-improvement', metavar='N', type=int, default=0,
     help='wait for N validations, before decreasing learning rate, if '
@@ -315,9 +319,9 @@ argument_group.add_argument(
          '(normalized by mini-batch size) will not exceed THRESHOLD (no '
          'scaling by default)')
 argument_group.add_argument(
-    '--save-interval', metavar='N', type=int, default=1000,
-    help='save training state after every Nth mini-batch update; if less than '
-         'one, save the model only after training (default 1000)')
+    '--save-frequency', metavar='N', type=int, default=10,
+    help='save training state N times per training epoch; if less than one, '
+         'save the model only after training (default 10)')
 argument_group.add_argument(
     '--random-seed', metavar='N', type=int, default=None,
     help='seed to initialize the random state (default is to seed from a '
@@ -408,13 +412,9 @@ print("Training neural network.")
 sys.stdout.flush()
 process.run()
 
-print("Saving neural network and training state.")
-sys.stdout.flush()
-process.save_training_state()
 if process.network_state_min_cost is None:
     print("Validation set perplexity did not decrease during training.")
 else:
-    process.save_model()
     network.set_state(process.network_state_min_cost)
     validation_ppl = scorer.compute_perplexity(validation_iter)
     print("Best validation set perplexity:", validation_ppl)

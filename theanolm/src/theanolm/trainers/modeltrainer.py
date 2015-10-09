@@ -198,25 +198,23 @@ class ModelTrainer(object):
         self.update_duration = time.time() - update_start_time
         return True
 
-    def log_update(self):
+    def log_update(self, updates_per_epoch):
         """Logs information about the previous mini-batch update.
         """
 
         if 'trainer.learning_rate' in self.params:
-            logging.info("Batch %d.%d (%d) -- lr = %g, cost = %.2f, duration = %.2f ms",
-                    self.epoch_number,
-                    self.update_number,
-                    self.total_updates,
-                    self.params['trainer.learning_rate'].get_value(),
-                    self.update_cost,
-                    self.update_duration * 100)
+            learning_rate = self.params['trainer.learning_rate'].get_value()
         else:
-            logging.info("Batch %d.%d (%d) -- cost = %.2f, duration = %.2f ms",
-                    self.epoch_number,
-                    self.update_number,
-                    self.total_updates,
-                    self.update_cost,
-                    self.update_duration * 100)
+            learning_rate = 0
+
+        logging.info("[%d] %.2f %% of epoch %d -- "
+                     "lr = %g, cost = %.2f, duration = %.2f ms",
+                     self.total_updates,
+                     self.update_number / updates_per_epoch * 100,
+                     self.epoch_number,
+                     learning_rate,
+                     self.update_cost,
+                     self.update_duration * 100)
 
     def decrease_learning_rate(self):
         """Called when the validation set cost stops decreasing.
@@ -258,10 +256,21 @@ class ModelTrainer(object):
                   validation is the best so far)
         """
 
-        if len(self._cost_history) == 0:
-            raise RuntimeError("ModelTrainer.validations_since_min_cost() called with empty cost history.")
+        averaged_cost_history = \
+            [numpy.mean(numpy.asarray(self._cost_history[i - 3:i]))
+             for i in range(3, len(self._cost_history) + 1)]
+        logging.debug("Cost history averaged over 3 consecutive validations:")
+        logging.debug(str(numpy.asarray(averaged_cost_history)))
+
+        if len(averaged_cost_history) == 0:
+            return -1
         else:
-            # Reverse the order of self._cost_history to find the last element
-            # with the minimum value (in case there are several elements with the
-            # same value.
-            return numpy.argmin(self._cost_history[::-1])
+            return numpy.argmin(averaged_cost_history[::-1])
+
+#        if len(self._cost_history) == 0:
+#            raise RuntimeError("ModelTrainer.validations_since_min_cost() called with empty cost history.")
+#        else:
+#            # Reverse the order of self._cost_history to find the last element
+#            # with the minimum value (in case there are several elements with the
+#            # same value.
+#            return numpy.argmin(self._cost_history[::-1])

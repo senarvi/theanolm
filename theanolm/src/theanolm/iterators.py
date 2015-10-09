@@ -108,6 +108,28 @@ class BatchIterator(object):
             self.end_of_file = True
             return self._prepare_batch(sequences)
 
+    def __len__(self):
+        """Returns the number of mini-batches that the iterator creates at each
+        epoch.
+
+        :rtype: int
+        :returns: the number of mini-batches that the iterator creates
+        """
+
+        self.input_file.seek(0)
+        num_sequences = 0
+
+        while True:
+            line = self.input_file.readline()
+            if line == '':
+                break
+            if (not self.max_sequence_length is None) and \
+               (len(line.split()) > self.max_sequence_length):
+                continue
+            num_sequences += 1
+
+        return (num_sequences + self.batch_size - 1) // self.batch_size
+
     def _reset(self):
         self.input_file.seek(0)
 
