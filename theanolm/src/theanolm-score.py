@@ -42,11 +42,9 @@ def score_text(input_file, dictionary, scorer, output_file):
     output_file.write("Number of sentences: {0}\n".format(num_sentences))
     if num_words > 0:
         cross_entropy = -total_logprob / num_words
-        perplexity_e = numpy.exp(cross_entropy)
-        perplexity_10 = numpy.power(10, cross_entropy)
-        output_file.write("Cross entropy: {0}\n".format(cross_entropy))
-        output_file.write("Perplexity (base e): {0}\n".format(perplexity_e))
-        output_file.write("Perplexity (base 10): {0}\n".format(perplexity_10))
+        perplexity = numpy.exp(cross_entropy)
+        output_file.write("Cross entropy (base e): {0}\n".format(cross_entropy))
+        output_file.write("Perplexity: {0}\n".format(perplexity))
 
 
 def rescore_nbest(input_file, dictionary, scorer, output_file, lscore_field=1,
