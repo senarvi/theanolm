@@ -40,8 +40,8 @@ class BatchIterator(object):
     def __init__(self,
                  input_file,
                  dictionary,
-                 batch_size=128,
-                 max_sequence_length=100):
+                 batch_size=1,
+                 max_sequence_length=None):
         """
         :type input_file: file object
         :param input_file: input text file

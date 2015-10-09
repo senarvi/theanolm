@@ -11,11 +11,7 @@ import theanolm
 from filetypes import TextFileType
 
 def score_text(input_file, dictionary, scorer, output_file):
-    validation_iter = theanolm.BatchIterator(
-        input_file,
-        dictionary,
-        batch_size=1,
-        max_sequence_length=None)
+    validation_iter = theanolm.BatchIterator(input_file, dictionary)
 
     total_logprob = 0
     num_words = 0
@@ -101,7 +97,7 @@ args = parser.parse_args()
 try:
     script_path = os.path.dirname(os.path.realpath(__file__))
     git_description = subprocess.check_output(['git', 'describe'], cwd=script_path)
-    print("TheanoLM %s", git_description.decode('utf-8'))
+    print("TheanoLM", git_description.decode('utf-8'))
 except subprocess.CalledProcessError:
     pass
 
