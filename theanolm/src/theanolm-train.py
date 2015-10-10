@@ -218,22 +218,22 @@ training_options = {
 
 print("Building neural network trainer.")
 sys.stdout.flush()
-process = training.BasicTrainer(
+trainer = training.MeanValidationTrainer(
     dictionary, network, scorer,
     args.training_file, validation_iter,
     initial_state, training_options, optimization_options,
     args.profile)
-process.set_state_saving(args.state_path, args.save_frequency)
-process.set_model_saving(args.model_path)
-process.set_logging(args.log_update_interval)
+trainer.set_state_saving(args.state_path, args.save_frequency)
+trainer.set_model_saving(args.model_path)
+trainer.set_logging(args.log_update_interval)
 
 print("Training neural network.")
 sys.stdout.flush()
-process.run()
+trainer.run()
 
-if process.network_state_min_cost is None:
+if trainer.network_state_min_cost is None:
     print("Validation set perplexity did not decrease during training.")
 else:
-    network.set_state(process.network_state_min_cost)
+    network.set_state(trainer.network_state_min_cost)
     validation_ppl = scorer.compute_perplexity(validation_iter)
     print("Best validation set perplexity:", validation_ppl)

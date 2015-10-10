@@ -3,7 +3,7 @@
 
 from theanolm.training.basictrainer import BasicTrainer
 
-def MeanValidationTrainer(BasicTrainer):
+class MeanValidationTrainer(BasicTrainer):
     """A trainer that computes perplexity at several points after the actual
     validation point and computes the mean.
 

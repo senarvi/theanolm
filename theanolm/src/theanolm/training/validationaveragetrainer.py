@@ -3,7 +3,7 @@
 
 from theanolm.training.basictrainer import BasicTrainer
 
-def ValidationAverageTrainer(BasicTrainer):
+class ValidationAverageTrainer(BasicTrainer):
     """A trainer that computes the average of the perplexity from three
     consecutive validations.
     """
