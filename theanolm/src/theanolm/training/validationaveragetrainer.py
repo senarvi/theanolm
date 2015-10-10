@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import numpy
 from theanolm.training.basictrainer import BasicTrainer
 
 class ValidationAverageTrainer(BasicTrainer):
