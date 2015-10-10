@@ -3,9 +3,9 @@
 
 import numpy
 import theano
-from theanolm.trainers.modeltrainer import ModelTrainer
+from theanolm.optimizers.basicoptimizer import BasicOptimizer
 
-class NesterovTrainer(ModelTrainer):
+class NesterovOptimizer(BasicOptimizer):
     """Nesterov Momentum Optimization Method
 
     Normally Nesterov momentum is implemented by first taking a step towards
@@ -20,14 +20,14 @@ class NesterovTrainer(ModelTrainer):
     params_{t} = params_{t-1} + mu * v_{t} - lr * gradient(params_{t-1})
     """
 
-    def __init__(self, network, training_options, profile=False):
-        """Creates a Nesterov momentum trainer.
+    def __init__(self, network, optimization_options, profile=False):
+        """Creates a Nesterov momentum optimizer.
 
         :type network: Network
         :param network: the neural network object
 
-        :type training_options: dict
-        :param training_options: a dictionary of training options
+        :type optimization_options: dict
+        :param optimization_options: a dictionary of optimization options
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
@@ -37,11 +37,11 @@ class NesterovTrainer(ModelTrainer):
 
         # Learning rate / step size will change during the iterations, so we'll
         # make it a shared variable.
-        if not 'learning_rate' in training_options:
-            raise ValueError("Learning rate is not given in training options.")
-        self.param_init_values['trainer.learning_rate'] = \
+        if not 'learning_rate' in optimization_options:
+            raise ValueError("Learning rate is not given in optimization options.")
+        self.param_init_values['optimizer.learning_rate'] = \
             numpy.dtype(theano.config.floatX).type(
-                training_options['learning_rate'])
+                optimization_options['learning_rate'])
 
         for name, param in network.params.items():
             self.param_init_values[name + '.gradient'] = \
@@ -52,11 +52,11 @@ class NesterovTrainer(ModelTrainer):
         self._create_params()
 
         # momentum
-        if not 'momentum' in training_options:
-            raise ValueError("Momentum is not given in training options.")
-        self._momentum = training_options['momentum']
+        if not 'momentum' in optimization_options:
+            raise ValueError("Momentum is not given in optimization options.")
+        self._momentum = optimization_options['momentum']
 
-        super().__init__(network, training_options, profile)
+        super().__init__(network, optimization_options, profile)
 
     def _get_gradient_updates(self):
         result = []
@@ -66,7 +66,7 @@ class NesterovTrainer(ModelTrainer):
         return result
 
     def _get_model_updates(self):
-        alpha = self.params['trainer.learning_rate']
+        alpha = self.params['optimizer.learning_rate']
         
         result = []
         for name, param in self.network.params.items():

@@ -9,11 +9,11 @@ import theano
 import theano.tensor as tensor
 from theanolm.exceptions import IncompatibleStateError, NumberError
 
-class ModelTrainer(object):
-    """Superclass for Neural Network Language Model Trainers
+class BasicOptimizer(object):
+    """Superclass for Neural Network Language Model Optimizers
     """
 
-    def __init__(self, network, training_options, profile=False):
+    def __init__(self, network, optimization_options, profile=False):
         """Creates Theano functions for training a neural network language
         model.
 
@@ -30,8 +30,8 @@ class ModelTrainer(object):
         :type network: Network
         :param network: the neural network object
 
-        :type training_options: dict
-        :param training_options: a dictionary of training options
+        :type optimization_options: dict
+        :param optimization_options: a dictionary of optimization options
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
@@ -53,9 +53,9 @@ class ModelTrainer(object):
         gradients = tensor.grad(cost, wrt=list(self.network.params.values()))
 
         # Normalize the norm of the gradients to given maximum value.
-        if 'max_gradient_norm' in training_options:
-            max_norm = training_options['max_gradient_norm']
-            epsilon = training_options['epsilon']
+        if 'max_gradient_norm' in optimization_options:
+            max_norm = optimization_options['max_gradient_norm']
+            epsilon = optimization_options['epsilon']
             squares = [tensor.sqr(gradient) for gradient in gradients]
             sums = [tensor.sum(square) for square in squares]
             total_sum = sum(sums)  # sum over parameter variables
@@ -77,15 +77,6 @@ class ModelTrainer(object):
                             updates=self._get_model_updates(),
                             profile=profile)
 
-        # current training epoch
-        self.epoch_number = 1
-        # number of mini-batch updates performed in this epoch
-        self.update_number = 0
-        # total number of mini-batch updates performed (after restart)
-        self.total_updates = 0
-        # validation set cost history
-        self._cost_history = []
-
     def _create_params(self):
         """Creates Theano shared variables from the initial parameter values.
         """
@@ -106,9 +97,6 @@ class ModelTrainer(object):
         result = OrderedDict()
         for name, param in self.params.items():
             result[name] = param.get_value()
-        result['epoch_number'] = numpy.int64(self.epoch_number)
-        result['update_number'] = numpy.int64(self.update_number)
-        result['cost_history'] = numpy.asarray(self._cost_history)
         return result
 
     def set_state(self, state):
@@ -131,32 +119,13 @@ class ModelTrainer(object):
             else:
                 logging.debug("%s <- array%s", name, str(new_value.shape))
 
-        if not 'cost_history' in state:
-            raise IncompatibleStateError("Validation set cost history is "
-                                         "missing from training state.")
-        saved_cost_history = state['cost_history'].tolist()
-        # If the error history was empty when the state was saved,
-        # ndarray.tolist() will return None.
-        if saved_cost_history is None:
-            self._cost_history = []
+    def get_learning_rate(self):
+        if 'optimizer.learning_rate' in self.params:
+            return self.params['optimizer.learning_rate'].get_value()
         else:
-            self._cost_history = saved_cost_history
-        logging.debug("Validation set cost history since learning rate was "
-                      "decreased:")
-        logging.debug(str(numpy.asarray(self._cost_history)))
+            return 0
 
-        if not 'epoch_number' in state:
-            raise IncompatibleStateError("Current epoch number is missing from "
-                                         "training state.")
-        self.epoch_number = state['epoch_number'].item()
-        if not 'update_number' in state:
-            raise IncompatibleStateError("Current update number is missing "
-                                         "from training state.")
-        self.update_number = state['update_number'].item()
-        logging.info("Restored training state from update %d.%d.",
-            self.epoch_number, self.update_number)
-
-    def update_minibatch(self, batch_iter):
+    def update_minibatch(self, word_ids, mask):
         """Optimizes the neural network parameters using the given inputs and
         learning rate.
 
@@ -175,35 +144,20 @@ class ModelTrainer(object):
                   training data
         """
 
-        # Read the next mini-batch. StopIteration is risen at the end of input.
-        try:
-            word_ids, _, mask = next(batch_iter)
-        except StopIteration:
-            self.epoch_number += 1
-            self.update_number = 0
-            return False
-
-        self.update_number += 1
-        self.total_updates += 1
-
         update_start_time = time.time()
         self.update_cost = self.gradient_update_function(word_ids, mask)
-        if numpy.isnan(self.update_cost):
-            raise NumberError("Update %d cost has NaN value." % self.update_number)
-        if numpy.isinf(self.update_cost):
-            raise NumberError("Update %d cost has infinite value." % self.update_number)
+        if numpy.isnan(self.update_cost) or numpy.isinf(self.update_cost):
+            raise NumberError("Update {} cost computation resulted in a "
+                              "numerical error.".format(self.update_number))
         self.model_update_function()
-
-        # For log_update().
         self.update_duration = time.time() - update_start_time
-        return True
 
     def log_update(self, updates_per_epoch):
         """Logs information about the previous mini-batch update.
         """
 
-        if 'trainer.learning_rate' in self.params:
-            learning_rate = self.params['trainer.learning_rate'].get_value()
+        if 'optimizer.learning_rate' in self.params:
+            learning_rate = self.params['optimizer.learning_rate'].get_value()
         else:
             learning_rate = 0
 
@@ -220,13 +174,12 @@ class ModelTrainer(object):
         """Called when the validation set cost stops decreasing.
         """
 
-        if 'trainer.learning_rate' in self.params:
-            old_value = self.params['trainer.learning_rate'].get_value()
+        if 'optimizer.learning_rate' in self.params:
+            old_value = self.params['optimizer.learning_rate'].get_value()
             new_value = old_value / 2
-            self.params['trainer.learning_rate'].set_value(new_value)
+            self.params['optimizer.learning_rate'].set_value(new_value)
             logging.info("Learning rate reduced from %g to %g." %
                 (old_value, new_value))
-        self._cost_history = []
 
     def reset(self):
         """Resets the optimizer timestep. May be called after decreasing
@@ -234,43 +187,3 @@ class ModelTrainer(object):
         """
 
         pass
-
-    def append_validation_cost(self, validation_cost):
-        """Adds the validation set cost to the cost history.
-
-        :type validation_cost: float
-        :param validation_cost: the new validation set cost to be added to the history
-        """
-
-        self._cost_history.append(validation_cost)
-        logging.debug("Validation set cost history since learning rate was "
-                      "decreased:")
-        logging.debug(str(numpy.asarray(self._cost_history)))
-
-    def validations_since_min_cost(self):
-        """Returns the number of times the validation set cost has been computed
-        since the minimum cost was obtained.
-
-        :rtype: int
-        :returns: number of validations since the minimum cost (0 means the last
-                  validation is the best so far)
-        """
-
-        averaged_cost_history = \
-            [numpy.mean(numpy.asarray(self._cost_history[i - 3:i]))
-             for i in range(3, len(self._cost_history) + 1)]
-        logging.debug("Cost history averaged over 3 consecutive validations:")
-        logging.debug(str(numpy.asarray(averaged_cost_history)))
-
-        if len(averaged_cost_history) == 0:
-            return -1
-        else:
-            return numpy.argmin(averaged_cost_history[::-1])
-
-#        if len(self._cost_history) == 0:
-#            raise RuntimeError("ModelTrainer.validations_since_min_cost() called with empty cost history.")
-#        else:
-#            # Reverse the order of self._cost_history to find the last element
-#            # with the minimum value (in case there are several elements with the
-#            # same value.
-#            return numpy.argmin(self._cost_history[::-1])

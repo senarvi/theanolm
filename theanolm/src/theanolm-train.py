@@ -9,215 +9,8 @@ import logging
 import numpy
 import theano
 import theanolm
-from theanolm.trainers import create_trainer
+import theanolm.training as training
 from filetypes import TextFileType
-
-class TrainingProcess(object):
-    def __init__(self, dictionary, network, scorer, validation_iter,
-                 initial_state, args):
-        """Creates the optimizer and initializes the training process.
-
-        :type dictionary: theanolm.Dictionary
-        :param dictionary: dictionary that provides mapping between words and
-                           word IDs
-
-        :type network: theanolm.Network
-        :param network: a neural network to be trained
-
-        :type scorer: theanolm.TextScorer
-        :param scorer: a text scorer for computing validation set perplexity
-
-        :type validation_iter: theanolm.BatchIterator
-        :param validation_iter: an iterator for computing validation set
-                                perplexity
-
-        :type initial_state: dict
-        :param initial_state: if not None, the trainer will be initialized with
-                              the parameters loaded from this dictionary
-
-        :type args: dict
-        :param args: a dictionary of command line arguments
-        """
-
-        self.network = network
-        self.scorer = scorer
-        self.validation_iter = validation_iter
-
-        training_options = {
-            'epsilon': args.numerical_stability_term,
-            'gradient_decay_rate': args.gradient_decay_rate,
-            'sqr_gradient_decay_rate': args.sqr_gradient_decay_rate,
-            'learning_rate': args.learning_rate,
-            'momentum': args.momentum}
-        if not args.gradient_normalization is None:
-            training_options['max_gradient_norm'] = args.gradient_normalization
-        self.trainer = create_trainer(args.optimization_method, self.network,
-                                      training_options, args.profile)
-        if not initial_state is None:
-            print("Restoring training to previous state.")
-            sys.stdout.flush()
-            self.trainer.set_state(initial_state)
-
-        print("Finding sentence start positions in training data.")
-        sys.stdout.flush()
-        sentence_starts = theanolm.find_sentence_starts(args.training_file)
-
-        self.training_iter = theanolm.ShufflingBatchIterator(
-            args.training_file,
-            dictionary,
-            sentence_starts,
-            batch_size=args.batch_size,
-            max_sequence_length=args.sequence_length)
-
-        print("Computing the number of training updates per epoch.")
-        sys.stdout.flush()
-        self.updates_per_epoch = len(self.training_iter)
-
-        self.state_path = args.state_path
-        self.model_path = args.model_path
-
-        self.log_update_interval = args.log_update_interval
-        self.save_frequency = args.save_frequency
-        self.validation_frequency = args.validation_frequency
-
-        self.wait_improvement = args.wait_improvement
-        self.recall_when_annealing = args.recall_when_annealing
-        self.reset_when_annealing = args.recall_when_annealing
-        self.max_epochs = args.max_epochs
-
-        self.network_state_min_cost = None
-        self.trainer_state_min_cost = None
-        self.network_state_previous = None
-        self.trainer_state_previous = None
-
-    def save_training_state(self):
-        """Saves current neural network and training state to disk.
-        """
-
-        path = self.state_path
-        state = self.network.get_state()
-        state.update(self.trainer.get_state())
-        numpy.savez(path, **state)
-        logging.info("Saved %d parameters to %s.", len(state), path)
-
-    def save_model(self):
-        """Saves the model parameters found to provide the minimum validatation
-        set perplexity to disk.
-        """
-
-        if not self.network_state_min_cost is None:
-            path = self.model_path
-            state = self.network_state_min_cost
-            numpy.savez(path, **state)
-            logging.info("Saved %d parameters to %s.", len(state), path)
-
-    def run(self):
-        local_perplexities = None
-
-        while self.trainer.epoch_number <= self.max_epochs:
-            self.epoch_start_ppl = \
-                self.scorer.compute_perplexity(self.validation_iter)
-            print("Validation set perplexity at the start of epoch {0}/{1}: {2}"
-                  "".format(self.trainer.epoch_number,
-                            self.max_epochs,
-                            self.epoch_start_ppl))
-
-            while self.trainer.update_minibatch(self.training_iter):
-                if (self.log_update_interval >= 1) and \
-                   (self.trainer.total_updates % self.log_update_interval == 0):
-                    self.trainer.log_update(self.updates_per_epoch)
-
-                if self._time_to_perform(self.validation_frequency):
-                    ppl = self.scorer.compute_perplexity(self.validation_iter)
-                    self._validate(ppl)
-#                    local_perplexities = []
-#
-#                if not local_perplexities is None:
-#                    ppl = self.scorer.compute_perplexity(self.validation_iter)
-#                    local_perplexities.append(ppl)
-#                    if len(local_perplexities) >= 10:
-#                        ppl = numpy.mean(numpy.asarray(local_perplexities))
-#                        self._validate(ppl)
-#                        local_perplexities = None
-#
-#                if self._time_to_perform(self.save_frequency):
-#                    self.save_training_state()
-
-        print("Stopping because %d epochs was reached." % self.trainer.epoch_number)
-        validation_ppl = self.scorer.compute_perplexity(self.validation_iter)
-        self.trainer.append_validation_cost(validation_ppl)
-        if self.trainer.validations_since_min_cost() == 0:
-            self.network_state_min_cost = self.network.get_state()
-            self.save_model()
-
-        self.save_training_state()
-
-    def _time_to_perform(self, frequency):
-        """Check if it's time to perform an operation that should be performed
-        ``frequency`` times at each epoch.
-
-        :type frequency: int
-        :param frequency: how many times per epoch the operation should be
-                          performed
-
-        :rtype: bool
-        :returns: whether to perform the operation at this point
-        """
-
-        previous_floor = (self.trainer.update_number - 1) * frequency // \
-                         self.updates_per_epoch
-        current_floor = self.trainer.update_number * frequency // \
-                        self.updates_per_epoch
-        return current_floor > previous_floor
-
-    def _validate(self, validation_ppl):
-        if numpy.isnan(validation_ppl) or numpy.isinf(validation_ppl):
-            raise NumberError("Validation set perplexity computation resulted "
-                              "in a numerical error.")
-
-        self.trainer.append_validation_cost(validation_ppl)
-        validations_since_best = self.trainer.validations_since_min_cost()
-        if validations_since_best == 0:
-            # The minimum average perplexity is from the three previous
-            # validations. Previous validation is in the middle of those
-            # validations
-            self.network_state_min_cost = self.network_state_previous
-            self.trainer_state_min_cost = self.trainer_state_previous
-            self.save_model()
-        else:
-            self.network_state_previous = self.network.get_state()
-            self.trainer_state_previous = self.trainer.get_state()
-            if (self.wait_improvement >= 0) and \
-               (validations_since_best > self.wait_improvement):
-                logging.debug("%d validations since the minimum perplexity was "
-                              "measured. Decreasing learning rate.",
-                              validations_since_best)
-                if self.recall_when_annealing:
-                    self.network.set_state(self.network_state_min_cost)
-                    self.trainer.set_state(self.trainer_state_min_cost)
-                self.trainer.decrease_learning_rate()
-                if self.reset_when_annealing:
-                    self.trainer.reset()
-#            # This is the minimum cost so far.
-#            self.network_state_min_cost = self.network.get_state()
-#            self.trainer_state_min_cost = self.trainer.get_state()
-#            self.save_model()
-#        elif (self.wait_improvement >= 0) and \
-#             (validations_since_best > self.wait_improvement):
-#            # Too many validations without improvement.
-#            if self.recall_when_annealing:
-#                self.network.set_state(self.network_state_min_cost)
-#                self.trainer.set_state(self.trainer_state_min_cost)
-## XXX       if validation_ppl >= initial_ppl:
-## XXX           self.trainer.reset()
-## XXX           self.trainer.reset_cost_history()
-## XXX       else:
-## XXX           self.trainer.decrease_learning_rate()
-## XXX           self.trainer.reset()
-## XXX           self.trainer.reset_cost_history()
-#            self.trainer.decrease_learning_rate()
-#            if self.reset_when_annealing:
-#                self.trainer.reset()
 
 
 parser = argparse.ArgumentParser()
@@ -404,9 +197,35 @@ scorer = theanolm.TextScorer(network, args.profile)
 
 validation_iter = theanolm.BatchIterator(args.validation_file, dictionary)
 
+optimization_options = {
+    'method': args.optimization_method,
+    'epsilon': args.numerical_stability_term,
+    'gradient_decay_rate': args.gradient_decay_rate,
+    'sqr_gradient_decay_rate': args.sqr_gradient_decay_rate,
+    'learning_rate': args.learning_rate,
+    'momentum': args.momentum}
+if not args.gradient_normalization is None:
+    optimization_options['max_gradient_norm'] = args.gradient_normalization
+
+training_options = {
+    'batch_size': args.batch_size,
+    'sequence_length': args.sequence_length,
+    'validation_frequency': args.validation_frequency,
+    'wait_improvement': args.wait_improvement,
+    'recall_when_annealing': args.recall_when_annealing,
+    'reset_when_annealing': args.recall_when_annealing,
+    'max_epochs': args.max_epochs}
+
 print("Building neural network trainer.")
 sys.stdout.flush()
-process = TrainingProcess(dictionary, network, scorer, validation_iter, initial_state, args)
+process = training.BasicTrainer(
+    dictionary, network, scorer,
+    args.training_file, validation_iter,
+    initial_state, training_options, optimization_options,
+    args.profile)
+process.set_state_saving(args.state_path, args.save_frequency)
+process.set_model_saving(args.model_path)
+process.set_logging(args.log_update_interval)
 
 print("Training neural network.")
 sys.stdout.flush()

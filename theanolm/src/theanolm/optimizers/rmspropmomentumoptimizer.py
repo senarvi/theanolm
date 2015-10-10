@@ -4,9 +4,9 @@
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.trainers.modeltrainer import ModelTrainer
+from theanolm.optimizers.basicoptimizer import BasicOptimizer
 
-class RMSPropMomentumTrainer(ModelTrainer):
+class RMSPropMomentumOptimizer(BasicOptimizer):
     """RMSProp variation of Momentum Optimization Method
     
     RMSProp is currently an unpublished method. Usually people cite slide 29
@@ -28,14 +28,14 @@ class RMSPropMomentumTrainer(ModelTrainer):
     http://arxiv.org/abs/1308.0850
     """
 
-    def __init__(self, network, training_options, profile=False):
-        """Creates an RMSProp trainer.
+    def __init__(self, network, optimization_options, profile=False):
+        """Creates an RMSProp optimizer.
 
         :type network: Network
         :param network: the neural network object
 
-        :type training_options: dict
-        :param training_options: a dictionary of training options
+        :type optimization_options: dict
+        :param optimization_options: a dictionary of optimization options
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
@@ -45,11 +45,11 @@ class RMSPropMomentumTrainer(ModelTrainer):
 
         # Learning rate / step size will change during the iterations, so we'll
         # make it a shared variable.
-        if not 'learning_rate' in training_options:
-            raise ValueError("Learning rate is not given in training options.")
-        self.param_init_values['trainer.learning_rate'] = \
+        if not 'learning_rate' in optimization_options:
+            raise ValueError("Learning rate is not given in optimization options.")
+        self.param_init_values['optimizer.learning_rate'] = \
             numpy.dtype(theano.config.floatX).type(
-                training_options['learning_rate'])
+                optimization_options['learning_rate'])
 
         for name, param in network.params.items():
             self.param_init_values[name + '.gradient'] = \
@@ -64,22 +64,22 @@ class RMSPropMomentumTrainer(ModelTrainer):
         self._create_params()
 
         # geometric rate for averaging gradients
-        if not 'gradient_decay_rate' in training_options:
+        if not 'gradient_decay_rate' in optimization_options:
             raise ValueError("Gradient decay rate is not given in training "
                              "options.")
-        self._gamma = training_options['gradient_decay_rate']
+        self._gamma = optimization_options['gradient_decay_rate']
 
         # numerical stability / smoothing term to prevent divide-by-zero
-        if not 'epsilon' in training_options:
-            raise ValueError("Epsilon is not given in training options.")
-        self._epsilon = training_options['epsilon']
+        if not 'epsilon' in optimization_options:
+            raise ValueError("Epsilon is not given in optimization options.")
+        self._epsilon = optimization_options['epsilon']
 
         # momentum
-        if not 'momentum' in training_options:
-            raise ValueError("Momentum is not given in training options.")
-        self._momentum = training_options['momentum']
+        if not 'momentum' in optimization_options:
+            raise ValueError("Momentum is not given in optimization options.")
+        self._momentum = optimization_options['momentum']
 
-        super().__init__(network, training_options, profile)
+        super().__init__(network, optimization_options, profile)
 
     def _get_gradient_updates(self):
         result = []
@@ -95,7 +95,7 @@ class RMSPropMomentumTrainer(ModelTrainer):
         return result
 
     def _get_model_updates(self):
-        alpha = self.params['trainer.learning_rate']
+        alpha = self.params['optimizer.learning_rate']
 
         result = []
         for name, param in self.network.params.items():
