@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import numpy
 from theanolm.trainers.basictrainer import BasicTrainer
 
 class MedianValidationTrainer(BasicTrainer):
@@ -28,8 +29,8 @@ class MedianValidationTrainer(BasicTrainer):
                                                  numpy.std(self.current_score)))
             super()._validate(median)
 
-        elif self._updates_to_next_event(self.options['validation_frequency']) \
-             < self.num_validations:
+        elif self._is_scheduled(self.options['validation_frequency'],
+                                self.num_validations - 1):
             perplexity = self.scorer.compute_perplexity(self.validation_iter)
             self.current_score.append(perplexity)
             if len(self.current_score) > self.num_validations:

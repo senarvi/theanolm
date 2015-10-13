@@ -123,7 +123,7 @@ class BasicTrainer(object):
                    (self.total_updates % self.log_update_interval == 0):
                     self.log_update()
 
-                if self._time_to_perform(self.options['validation_frequency']):
+                if self._is_scheduled(self.options['validation_frequency']):
                     perplexity = self.scorer.compute_perplexity(self.validation_iter)
                     if numpy.isnan(perplexity) or numpy.isinf(perplexity):
                         raise NumberError("Validation set perplexity computation resulted "
@@ -132,7 +132,7 @@ class BasicTrainer(object):
                     perplexity = None
                 self._validate(perplexity)
 
-                if self._time_to_perform(self.save_frequency):
+                if self._is_scheduled(self.save_frequency):
                     self.save_training_state()
 
                 if not self.stopper.start_new_minibatch():
@@ -247,33 +247,34 @@ class BasicTrainer(object):
         self._cost_history = []
         self.stopper.learning_rate_decreased()
 
-    def _time_to_perform(self, frequency):
-        """Check if it's time to perform an operation that should be performed
-        ``frequency`` times at each epoch.
+    def _is_scheduled(self, frequency, within=0):
+        """Checks if an event is scheduled to be performed within given number
+        of updates after this point.
+
+        For example, updates_per_epoch=9, frequency=2:
+
+        update_number:  1   2   3   4  [5]  6   7   8  [9] 10  11  12
+        * frequency:    2   4   6   8  10  12  14  16  18  20  22  24
+        modulo:         2   4   6   8   1   3   5   7   0   2   4   6
+        within:         4   3   2   1   0   3   2   1   0   4   3   2
+        * frequency:    8   6   4   2   0   6   4   2   0   8   6   4
 
         :type frequency: int
-        :param frequency: how many times per epoch the operation should be
+        :param frequency: how many times per epoch the event should be
                           performed
 
+        :type within: int
+        :param within: if zero, returns True if the event should be performed
+                       now; otherwise returns True if the event should be
+                       performed within this many updates in the future
+
         :rtype: bool
-        :returns: whether to perform the operation at this point
+        :returns: whether the operation is scheduled to be performed
         """
 
-        previous_floor = (self.update_number - 1) * frequency // \
-                         self.updates_per_epoch
-        current_floor = self.update_number * frequency // \
-                        self.updates_per_epoch
-        return current_floor > previous_floor
-
-    def _updates_to_next_event(self, frequency):
-        """Returns the number of updates before the next event occurs.
-        """
-
-        # our position between the adjacent events on the scale from 0 to
-        # self.updates_per_epoch
-        modulo = (self.update_number * frequency) % self.updates_per_epoch
-        # distance to the next event rounded up
-        return (self.updates_per_epoch - modulo + frequency - 1) // frequency
+        modulo = self.update_number * frequency % self.updates_per_epoch
+        return modulo < frequency or \
+               self.updates_per_epoch - modulo <= within * frequency
 
     def _validate(self, perplexity):
         if perplexity is None:

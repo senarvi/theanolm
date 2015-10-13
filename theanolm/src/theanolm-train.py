@@ -219,7 +219,7 @@ if not args.gradient_normalization is None:
 
 training_options = {
     'strategy': args.training_strategy,
-    'stopping_criterion': args.training_strategy,
+    'stopping_criterion': args.stopping_criterion,
     'batch_size': args.batch_size,
     'sequence_length': args.sequence_length,
     'validation_frequency': args.validation_frequency,

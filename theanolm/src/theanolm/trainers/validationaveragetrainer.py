@@ -13,7 +13,7 @@ class ValidationAverageTrainer(BasicTrainer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.network_state_previous = None
-        self.optimizer_state_previous = None
+        self.trainer_state_previous = None
 
     def _validate(self, perplexity):
         if perplexity is None:
