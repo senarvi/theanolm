@@ -15,17 +15,14 @@ class AdamOptimizer(BasicOptimizer):
     The International Conference on Learning Representations (ICLR), San Diego, 2015
     """
 
-    def __init__(self, network, optimization_options, profile):
+    def __init__(self, optimization_options, network, *args, **kwargs):
         """Creates an Adam optimizer.
-
-        :type network: Network
-        :param network: the neural network object
 
         :type optimization_options: dict
         :param optimization_options: a dictionary of optimization options
 
-        :type profile: bool
-        :param profile: if set to True, creates a Theano profile object
+        :type network: Network
+        :param network: the neural network object
         """
 
         self.param_init_values = dict()
@@ -72,7 +69,7 @@ class AdamOptimizer(BasicOptimizer):
             raise ValueError("Momentum is not given in optimization options.")
         self._momentum = optimization_options['momentum']
 
-        super().__init__(network, optimization_options, profile)
+        super().__init__(optimization_options, network, *args, **kwargs)
 
     def _get_gradient_updates(self):
         result = []

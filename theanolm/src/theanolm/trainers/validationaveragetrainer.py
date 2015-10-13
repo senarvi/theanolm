@@ -1,22 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import logging
 import numpy
-from theanolm.training.basictrainer import BasicTrainer
+from theanolm.trainers.basictrainer import BasicTrainer
 
 class ValidationAverageTrainer(BasicTrainer):
     """A trainer that computes the average of the perplexity from three
     consecutive validations.
     """
 
-    def __init__(self, dictionary, network, scorer,
-                 training_file, validation_iter,
-                 initial_state, training_options, optimization_options,
-                 profile=False):
-        super().__init__(dictionary, network, scorer,
-                         training_file, validation_iter,
-                         initial_state, training_options, optimization_options,
-                         profile)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.network_state_previous = None
         self.optimizer_state_previous = None
 

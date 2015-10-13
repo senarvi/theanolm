@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from theanolm.training.basictrainer import BasicTrainer
+from theanolm.trainers.basictrainer import BasicTrainer
 
 class MedianValidationTrainer(BasicTrainer):
     """A trainer that computes perplexity at several points ahead of the actual
@@ -12,14 +12,8 @@ class MedianValidationTrainer(BasicTrainer):
     validation set perplexity.
     """
 
-    def __init__(self, dictionary, network, scorer,
-                 training_file, validation_iter,
-                 initial_state, training_options, optimization_options,
-                 profile=False):
-        super().__init__(dictionary, network, scorer,
-                         training_file, validation_iter,
-                         initial_state, training_options, optimization_options,
-                         profile)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.num_validations = 10
         self.current_score = []
 

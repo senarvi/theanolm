@@ -20,17 +20,14 @@ class RMSPropSGDOptimizer(BasicOptimizer):
     gradient starts to increase.
     """
 
-    def __init__(self, network, optimization_options, profile):
-        """Creates an RMSProp optimizer.
-
-        :type network: Network
-        :param network: the neural network object
+    def __init__(self, optimization_options, network, *args, **kwargs):
+        """Creates an RMSProp SGD optimizer.
 
         :type optimization_options: dict
         :param optimization_options: a dictionary of optimization options
 
-        :type profile: bool
-        :param profile: if set to True, creates a Theano profile object
+        :type network: Network
+        :param network: the neural network object
         """
 
         self.param_init_values = dict()
@@ -62,7 +59,7 @@ class RMSPropSGDOptimizer(BasicOptimizer):
             raise ValueError("Epsilon is not given in optimization options.")
         self._epsilon = optimization_options['epsilon']
 
-        super().__init__(network, optimization_options, profile)
+        super().__init__(optimization_options, network, *args, **kwargs)
 
     def _get_gradient_updates(self):
         result = []

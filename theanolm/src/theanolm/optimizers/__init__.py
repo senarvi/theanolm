@@ -5,15 +5,15 @@ from theanolm.optimizers.rmspropsgdoptimizer import RMSPropSGDOptimizer
 from theanolm.optimizers.rmspropmomentumoptimizer import RMSPropMomentumOptimizer
 from theanolm.optimizers.adamoptimizer import AdamOptimizer
 
-def create_optimizer(network, optimization_options,
-                     profile=False):
-    """Constructs one of the BasicOptimizer subclasses based on a string argument.
-
-    :type network: Network
-    :param network: the neural network object
+def create_optimizer(optimization_options, *args, **kwargs):
+    """Constructs one of the BasicOptimizer subclasses based on optimization
+    options.
 
     :type optimization_options: dict
     :param optimization_options: a dictionary of optimization options
+
+    :type network: Network
+    :param network: the neural network object
 
     :type profile: bool
     :param profile: if set to True, creates a Theano profile object
@@ -21,17 +21,17 @@ def create_optimizer(network, optimization_options,
 
     optimization_method = optimization_options['method']
     if optimization_method == 'sgd':
-        return SGDOptimizer(network, optimization_options, profile)
+        return SGDOptimizer(optimization_options, *args, **kwargs)
     elif optimization_method == 'nesterov':
-        return NesterovOptimizer(network, optimization_options, profile)
+        return NesterovOptimizer(optimization_options, *args, **kwargs)
     elif optimization_method == 'adadelta':
-        return AdadeltaOptimizer(network, optimization_options, profile)
+        return AdadeltaOptimizer(optimization_options, *args, **kwargs)
     elif optimization_method == 'rmsprop-sgd':
-        return RMSPropSGDOptimizer(network, optimization_options, profile)
+        return RMSPropSGDOptimizer(optimization_options, *args, **kwargs)
     elif optimization_method == 'rmsprop-momentum':
-        return RMSPropMomentumOptimizer(network, optimization_options, profile)
+        return RMSPropMomentumOptimizer(optimization_options, *args, **kwargs)
     elif optimization_method == 'adam':
-        return AdamOptimizer(network, optimization_options, profile)
+        return AdamOptimizer(optimization_options, *args, **kwargs)
     else:
         raise ValueError("Invalid optimization method requested: " + \
                          optimization_method)

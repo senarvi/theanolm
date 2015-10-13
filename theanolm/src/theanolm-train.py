@@ -9,7 +9,7 @@ import logging
 import numpy
 import theano
 import theanolm
-import theanolm.training as training
+from theanolm.trainers import create_trainer
 from filetypes import TextFileType
 
 
@@ -49,7 +49,7 @@ argument_group.add_argument(
     '--hidden-layer-size', metavar='N', type=int, default=1000,
     help='hidden layer will contain N outputs (default 1000)')
 argument_group.add_argument(
-    '--hidden-layer-type', metavar='TYPE', type=str, default='lstm',
+    '--hidden-layer-type', metavar='NAME', type=str, default='lstm',
     help='hidden layer unit type, "lstm" or "gru" (default "lstm")')
 argument_group.add_argument(
     '--skip-layer-size', metavar='N', type=int, default=0,
@@ -58,6 +58,14 @@ argument_group.add_argument(
          '(default is to not create such layer)')
 
 argument_group = parser.add_argument_group("training")
+argument_group.add_argument(
+    '--training-strategy', metavar='NAME', type=str, default='basic',
+    help='selects a training and validation strategy, one of "basic", '
+        '"local-mean", "local-median", "validation-average" (default "basic")')
+argument_group.add_argument(
+    '--stopping-criterion', metavar='NAME', type=str, default='basic',
+    help='selects a criterion for early-stopping, one of "basic" (fixed number '
+         'of epochs), "learning-rate", "patience" (default "basic")')
 argument_group.add_argument(
     '--sequence-length', metavar='N', type=int, default=100,
     help='ignore sentences longer than N words (default 100)')
@@ -86,7 +94,17 @@ argument_group.add_argument(
     '--max-epochs', metavar='N', type=int, default=1000,
     help='perform at most N training epochs (default 1000)')
 argument_group.add_argument(
-    '--optimization-method', metavar='METHOD', type=str, default='adam',
+    '--save-frequency', metavar='N', type=int, default=10,
+    help='save training state N times per training epoch; if less than one, '
+         'save the model only after training (default 10)')
+argument_group.add_argument(
+    '--random-seed', metavar='N', type=int, default=None,
+    help='seed to initialize the random state (default is to seed from a '
+         'random source provided by the oprating system)')
+
+argument_group = parser.add_argument_group("optimization")
+argument_group.add_argument(
+    '--optimization-method', metavar='NAME', type=str, default='adam',
     help='optimization method, one of "sgd", "nesterov", "adadelta", '
          '"rmsprop-sgd", "rmsprop-momentum", "adam" (default "adam")')
 argument_group.add_argument(
@@ -111,14 +129,6 @@ argument_group.add_argument(
     help='scale down the gradients if necessary to make sure their norm '
          '(normalized by mini-batch size) will not exceed THRESHOLD (no '
          'scaling by default)')
-argument_group.add_argument(
-    '--save-frequency', metavar='N', type=int, default=10,
-    help='save training state N times per training epoch; if less than one, '
-         'save the model only after training (default 10)')
-argument_group.add_argument(
-    '--random-seed', metavar='N', type=int, default=None,
-    help='seed to initialize the random state (default is to seed from a '
-         'random source provided by the oprating system)')
 
 argument_group = parser.add_argument_group("logging and debugging")
 argument_group.add_argument(
@@ -208,6 +218,8 @@ if not args.gradient_normalization is None:
     optimization_options['max_gradient_norm'] = args.gradient_normalization
 
 training_options = {
+    'strategy': args.training_strategy,
+    'stopping_criterion': args.training_strategy,
     'batch_size': args.batch_size,
     'sequence_length': args.sequence_length,
     'validation_frequency': args.validation_frequency,
@@ -218,10 +230,10 @@ training_options = {
 
 print("Building neural network trainer.")
 sys.stdout.flush()
-trainer = training.MeanValidationTrainer(
-    dictionary, network, scorer,
+trainer = create_trainer(training_options, optimization_options,
+    network, dictionary, scorer,
     args.training_file, validation_iter,
-    initial_state, training_options, optimization_options,
+    initial_state,
     args.profile)
 trainer.set_state_saving(args.state_path, args.save_frequency)
 trainer.set_model_saving(args.model_path)

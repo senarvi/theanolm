@@ -3,24 +3,22 @@
 
 from collections import OrderedDict
 import sys
-import time
 import logging
 import numpy
-import theano
-import theano.tensor as tensor
 from theanolm import find_sentence_starts, ShufflingBatchIterator
 from theanolm.exceptions import IncompatibleStateError, NumberError
 from theanolm.optimizers import create_optimizer
-from theanolm.training.stoppingconditions import BasicStoppingCondition
+from theanolm.trainers.stoppingcriteria import create_stopper
 
 class BasicTrainer(object):
     """Basic training process saves a history of validation costs and "
     decreases learning rate when the cost does not decrease anymore.
     """
 
-    def __init__(self, dictionary, network, scorer,
+    def __init__(self, training_options, optimization_options,
+                 network, dictionary, scorer,
                  training_file, validation_iter,
-                 initial_state, training_options, optimization_options,
+                 initial_state,
                  profile=False):
         """Creates the optimizer and initializes the training process.
 
@@ -53,8 +51,8 @@ class BasicTrainer(object):
         self.scorer = scorer
         self.validation_iter = validation_iter
 
-        self.optimizer = create_optimizer(self.network,
-                                          optimization_options,
+        self.optimizer = create_optimizer(optimization_options,
+                                          self.network,
                                           profile)
         if not initial_state is None:
             print("Restoring training to previous state.")
@@ -76,7 +74,7 @@ class BasicTrainer(object):
         sys.stdout.flush()
         self.updates_per_epoch = len(self.training_iter)
 
-        self.stopper = BasicStoppingCondition(self, training_options)
+        self.stopper = create_stopper(training_options, self)
 
         self.options = training_options
 
@@ -108,8 +106,6 @@ class BasicTrainer(object):
         self.log_update_interval = interval
 
     def run(self):
-        local_perplexities = None
-
         while self.stopper.start_new_epoch():
             self.epoch_start_ppl = \
                 self.scorer.compute_perplexity(self.validation_iter)

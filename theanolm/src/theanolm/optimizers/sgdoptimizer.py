@@ -9,17 +9,14 @@ class SGDOptimizer(BasicOptimizer):
     """Stochastic Gradient Descent Optimization Method
     """
 
-    def __init__(self, network, optimization_options, profile):
+    def __init__(self, optimization_options, network, *args, **kwargs):
         """Creates a Stochastic Gradient Descent optimizer.
-
-        :type network: Network
-        :param network: the neural network object
 
         :type optimization_options: dict
         :param optimization_options: a dictionary of optimization options
 
-        :type profile: bool
-        :param profile: if set to True, creates a Theano profile object
+        :type network: Network
+        :param network: the neural network object
         """
 
         self.param_init_values = dict()
@@ -37,7 +34,7 @@ class SGDOptimizer(BasicOptimizer):
 
         self._create_params()
 
-        super().__init__(network, optimization_options, profile)
+        super().__init__(optimization_options, network, *args, **kwargs)
 
     def _get_gradient_updates(self):
         result = []

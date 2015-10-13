@@ -13,7 +13,7 @@ class BasicOptimizer(object):
     """Superclass for Neural Network Language Model Optimizers
     """
 
-    def __init__(self, network, optimization_options, profile=False):
+    def __init__(self, optimization_options, network, profile=False):
         """Creates Theano functions for training a neural network language
         model.
 
@@ -27,11 +27,11 @@ class BasicOptimizer(object):
         * model_update_function: updates model state given the gradients and the
           learning rate
 
-        :type network: Network
-        :param network: the neural network object
-
         :type optimization_options: dict
         :param optimization_options: a dictionary of optimization options
+
+        :type network: Network
+        :param network: the neural network object
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
