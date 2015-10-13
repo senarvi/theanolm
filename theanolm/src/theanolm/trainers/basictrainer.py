@@ -238,7 +238,6 @@ class BasicTrainer(object):
         logging.debug(str(numpy.asarray(self._cost_history)))
 
         self.optimizer.set_state(state)
-        self.validator.set_state(state)
 
     def decrease_learning_rate(self):
         """Called when the validation set cost stops decreasing.
@@ -327,7 +326,7 @@ class BasicTrainer(object):
         """
 
         if len(self._cost_history) == 0:
-            raise RuntimeError("BasicValidator.validations_since_min_cost() "
+            raise RuntimeError("BasicTrainer.validations_since_min_cost() "
                                "called with empty cost history.")
         else:
             # Reverse the order of self._cost_history to find the last element
