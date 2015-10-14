@@ -58,25 +58,31 @@ class LocalStatisticsTrainer(BasicTrainer):
             self.__add_sample(perplexity)
 
     def __add_sample(self, perplexity):
+        if len(self.local_perplexities) == 0:
+            logging.debug("First sample collected at update %d, perplexity %.2f.",
+                          self.update_number,
+                          perplexity)
         self.local_perplexities.append(perplexity)
         if len(self.local_perplexities) < self.samples_per_validation:
             return
 
+        assert not self.network_state_validation is None
+        assert not self.trainer_state_validation is None
+
         stat = self.stat_function(self.local_perplexities)
         self._append_validation_cost(stat)
-        logging.debug("%d local perplexity samples, stat %.2f, update %d",
+        logging.debug("%d samples collected at update %d, validation center at %d, stat %.2f.",
                       len(self.local_perplexities),
-                      stat,
-                      self.validation_update_number)
+                      self.update_number,
+                      self.validation_update_number,
+                      stat)
         self.local_perplexities = []
 
         validations_since_best = self._validations_since_min_cost()
         if validations_since_best == 0:
             # This is the minimum cost so far.
-            assert not self.network_state_validation is None
             self.network_state_min_cost = self.network_state_validation
             self.network_state_validation = None
-            assert not self.trainer_state_validation is None
             self.trainer_state_min_cost = self.trainer_state_validation
             self.trainer_state_validation = None
             self.save_model()

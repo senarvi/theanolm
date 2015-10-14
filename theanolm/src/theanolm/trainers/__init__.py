@@ -1,3 +1,4 @@
+import numpy
 from theanolm.trainers.basictrainer import BasicTrainer
 from theanolm.trainers.localstatisticstrainer import LocalStatisticsTrainer
 from theanolm.trainers.medianvalidationtrainer import MedianValidationTrainer
