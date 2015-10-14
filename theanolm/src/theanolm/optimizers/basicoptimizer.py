@@ -147,28 +147,10 @@ class BasicOptimizer(object):
         update_start_time = time.time()
         self.update_cost = self.gradient_update_function(word_ids, mask)
         if numpy.isnan(self.update_cost) or numpy.isinf(self.update_cost):
-            raise NumberError("Update {} cost computation resulted in a "
-                              "numerical error.".format(self.update_number))
+            raise NumberError("Mini-batch cost computation resulted in a "
+                              "numerical error.")
         self.model_update_function()
         self.update_duration = time.time() - update_start_time
-
-    def log_update(self, updates_per_epoch):
-        """Logs information about the previous mini-batch update.
-        """
-
-        if 'optimizer.learning_rate' in self.params:
-            learning_rate = self.params['optimizer.learning_rate'].get_value()
-        else:
-            learning_rate = 0
-
-        logging.info("Update %d (%.2f %%) of epoch %d -- "
-                     "lr = %g, cost = %.2f, duration = %.2f ms",
-                     self.update_number,
-                     self.update_number / updates_per_epoch * 100,
-                     self.epoch_number,
-                     learning_rate,
-                     self.update_cost,
-                     self.update_duration * 100)
 
     def decrease_learning_rate(self):
         """Called when the validation set cost stops decreasing.

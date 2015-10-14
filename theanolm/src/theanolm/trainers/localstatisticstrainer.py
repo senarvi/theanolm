@@ -19,6 +19,11 @@ class LocalStatisticsTrainer(BasicTrainer):
         training state at the validation point. Training state is saved at only
         one validation point at a time, so validation interval is at least the
         the number of samples used per validation.
+
+        :type stat_function: Python function
+        :param stat_function: a function to be performed on a list to collect
+                              the statistic to be used as a cost (median by
+                              default)
         """
 
         super().__init__(*args, **kwargs)
@@ -35,6 +40,10 @@ class LocalStatisticsTrainer(BasicTrainer):
         and adds to the list of samples. After the actual validation point,
         computes new perplexity values until samples_per_validation values have
         been computed.
+
+        :type perplexity: float
+        :param perplexity: computed perplexity at a validation point, None
+                           elsewhere
         """
 
         if not perplexity is None:
@@ -58,12 +67,20 @@ class LocalStatisticsTrainer(BasicTrainer):
             self.__add_sample(perplexity)
 
     def __add_sample(self, perplexity):
-        if len(self.local_perplexities) == 0:
-            logging.debug("First sample collected at update %d, perplexity %.2f.",
-                          self.update_number,
-                          perplexity)
+        """Appends computed perplexity to the list of local samples, and if
+        enough samples have been collected, computes the statistic, appends to
+        the cost history, and validates whether there was improvement.
+
+        :type perplexity: float
+        :param perplexity: computed perplexity
+        """
+
         self.local_perplexities.append(perplexity)
         if len(self.local_perplexities) < self.samples_per_validation:
+            if len(self.local_perplexities) == 1:
+                logging.debug("[d] First sample collected, perplexity %.2f.",
+                              self.update_number,
+                              perplexity)
             return
 
         assert not self.network_state_validation is None
@@ -71,9 +88,9 @@ class LocalStatisticsTrainer(BasicTrainer):
 
         stat = self.stat_function(self.local_perplexities)
         self._append_validation_cost(stat)
-        logging.debug("%d samples collected at update %d, validation center at %d, stat %.2f.",
-                      len(self.local_perplexities),
+        logging.debug("[%d] %d samples collected, validation center at %d, stat %.2f.",
                       self.update_number,
+                      len(self.local_perplexities),
                       self.validation_update_number,
                       stat)
         self.local_perplexities = []

@@ -16,6 +16,14 @@ class ValidationAverageTrainer(BasicTrainer):
         self.trainer_state_previous = None
 
     def _validate(self, perplexity):
+        """When ``perplexity`` is not None, appends it to cost history and
+        validates whether there was improvement.
+
+        :type perplexity: float
+        :param perplexity: computed perplexity at a validation point, None
+                           elsewhere
+        """
+
         if perplexity is None:
             return
 
@@ -55,7 +63,8 @@ class ValidationAverageTrainer(BasicTrainer):
         averaged_cost_history = \
             [numpy.mean(numpy.asarray(self._cost_history[i - 3:i]))
              for i in range(3, len(self._cost_history) + 1)]
-        logging.debug("Cost history averaged over 3 consecutive validations:")
+        logging.debug("[%d] Cost history averaged over 3 consecutive validations:",
+                      self.update_number)
         logging.debug(str(numpy.asarray(averaged_cost_history)))
 
         if len(averaged_cost_history) == 0:

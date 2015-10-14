@@ -19,6 +19,15 @@ class MedianValidationTrainer(BasicTrainer):
         self.current_score = []
 
     def _validate(self, perplexity):
+        """When approaching a validation point, computes perplexity and appends
+        it to cost history. At a validation point computes median and validates
+        whether there was improvement.
+
+        :type perplexity: float
+        :param perplexity: computed perplexity at a validation point, None
+                           elsewhere
+        """
+
         if not perplexity is None:
             self.current_score.append(perplexity)
             median = numpy.median(self.current_score)

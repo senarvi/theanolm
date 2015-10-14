@@ -18,6 +18,16 @@ class MeanValidationTrainer(BasicTrainer):
         self.local_perplexities = None
 
     def _validate(self, perplexity):
+        """When ``perplexity`` is not None, creates a new cost history that
+        contains only the computed perplexity. On successive calls computes new
+        perplexity values until enough samples have been collected. Then
+        computes the mean and validates whether there was improvement.
+
+        :type perplexity: float
+        :param perplexity: computed perplexity at a validation point, None
+                           elsewhere
+        """
+
         if not perplexity is None:
             self.local_perplexities = [perplexity]
         else:

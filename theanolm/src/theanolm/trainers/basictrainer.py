@@ -154,8 +154,8 @@ class BasicTrainer(object):
         """Logs information about the previous mini-batch update.
         """
 
-        logging.info("Update %d (%.2f %%) of epoch %d -- "
-                     "lr = %g, cost = %.2f, duration = %.2f ms",
+        logging.info("[%d] (%.2f %%) of epoch %d -- lr = %g, cost = %.2f, "
+                     "duration = %.2f ms",
                      self.update_number,
                      self.update_number / self.updates_per_epoch * 100,
                      self.epoch_number,
@@ -233,8 +233,8 @@ class BasicTrainer(object):
             self._cost_history = []
         else:
             self._cost_history = saved_cost_history
-        logging.debug("Validation set cost history since learning rate was "
-                      "decreased:")
+        logging.debug("[%d] Validation set cost history since learning rate was "
+                      "decreased:", self.update_number)
         logging.debug(str(numpy.asarray(self._cost_history)))
 
         self.optimizer.set_state(state)
@@ -277,6 +277,14 @@ class BasicTrainer(object):
                self.updates_per_epoch - modulo <= within * frequency
 
     def _validate(self, perplexity):
+        """When ``perplexity`` is not None, appends it to cost history and
+        validates whether there was improvement.
+
+        :type perplexity: float
+        :param perplexity: computed perplexity at a validation point, None
+                           elsewhere
+        """
+
         if perplexity is None:
             return
 
@@ -313,8 +321,8 @@ class BasicTrainer(object):
         """
 
         self._cost_history.append(validation_cost)
-        logging.debug("Validation set cost history since learning rate was "
-                      "decreased:")
+        logging.debug("[%d] Validation set cost history since learning rate was "
+                      "decreased:", self.update_number)
         logging.debug(str(numpy.asarray(self._cost_history)))
 
     def _validations_since_min_cost(self):
