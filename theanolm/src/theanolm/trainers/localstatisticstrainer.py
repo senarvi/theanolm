@@ -78,7 +78,7 @@ class LocalStatisticsTrainer(BasicTrainer):
         self.local_perplexities.append(perplexity)
         if len(self.local_perplexities) < self.samples_per_validation:
             if len(self.local_perplexities) == 1:
-                logging.debug("[d] First sample collected, perplexity %.2f.",
+                logging.debug("[%d] First sample collected, perplexity %.2f.",
                               self.update_number,
                               perplexity)
             return
