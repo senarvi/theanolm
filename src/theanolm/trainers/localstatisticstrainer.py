@@ -97,7 +97,11 @@ class LocalStatisticsTrainer(BasicTrainer):
 
         validations_since_best = self._validations_since_min_cost()
         if validations_since_best == 0:
-            # This is the minimum cost so far.
+            # This is the minimum cost so far. Take the state at the actual
+            # validation point and replace the cost history with the current
+            # cost history that also includes this latest cost.
+            self.validation_state['cost_history'] = \
+                numpy.asarray(self._cost_history)
             self._set_min_cost_state(self.validation_state)
             self.validation_state = None
         elif (self.options['wait_improvement'] >= 0) and \

@@ -16,6 +16,7 @@ encoding//src/theanolm/optimizers/sgdoptimizer.py=utf-8
 encoding//src/theanolm/textsampler.py=utf-8
 encoding//src/theanolm/textscorer.py=utf-8
 encoding//src/theanolm/trainers/basictrainer.py=utf-8
+encoding//src/theanolm/trainers/localstatisticstrainer.py=utf-8
 encoding//src/theanolm/trainers/meanvalidationtrainer.py=utf-8
 encoding//src/theanolm/trainers/medianvalidationtrainer.py=utf-8
 encoding//src/theanolm/trainers/stoppingcriteria.py=utf-8
