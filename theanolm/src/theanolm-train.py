@@ -233,8 +233,11 @@ sys.stdout.flush()
 trainer = create_trainer(training_options, optimization_options,
     network, dictionary, scorer,
     args.training_file, validation_iter,
-    initial_state,
     args.profile)
+if not initial_state is None:
+    print("Restoring training to previous state.")
+    sys.stdout.flush()
+    trainer.set_state(initial_state)
 trainer.set_state_saving(args.state_path, args.save_frequency)
 trainer.set_model_saving(args.model_path)
 trainer.set_logging(args.log_update_interval)

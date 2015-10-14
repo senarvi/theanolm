@@ -18,7 +18,6 @@ class BasicTrainer(object):
     def __init__(self, training_options, optimization_options,
                  network, dictionary, scorer,
                  training_file, validation_iter,
-                 initial_state,
                  profile=False):
         """Creates the optimizer and initializes the training process.
 
@@ -36,10 +35,6 @@ class BasicTrainer(object):
         :param validation_iter: an iterator for computing validation set
                                 perplexity
 
-        :type initial_state: dict
-        :param initial_state: if not None, the trainer will be initialized with
-                              the parameters loaded from this dictionary
-
         :type training_options: dict
         :param training_options: a dictionary of training options
 
@@ -54,10 +49,6 @@ class BasicTrainer(object):
         self.optimizer = create_optimizer(optimization_options,
                                           self.network,
                                           profile)
-        if not initial_state is None:
-            print("Restoring training to previous state.")
-            sys.stdout.flush()
-            self.optimizer.set_state(initial_state)
 
         print("Finding sentence start positions in training data.")
         sys.stdout.flush()
@@ -220,8 +211,10 @@ class BasicTrainer(object):
             raise IncompatibleStateError("Current update number is missing "
                                          "from training state.")
         self.update_number = state['update_number'].item()
-        logging.info("Restored training state from update %d.%d.",
-            self.epoch_number, self.update_number)
+        logging.info("[%d] (%.2f %%) of epoch %d",
+                     self.update_number,
+                     self.update_number / self.updates_per_epoch * 100,
+                     self.epoch_number)
 
         if not 'cost_history' in state:
             raise IncompatibleStateError("Validation set cost history is "
