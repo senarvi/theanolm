@@ -31,11 +31,6 @@ argument_group.add_argument(
     help='text or .gz file containing word list (one word per line) or word to '
          'class ID mappings (word and ID per line)')
 argument_group.add_argument(
-    '--training-state', dest='state_path', metavar='FILE', type=str, default=None,
-    help='the last training state will be read from and written to FILE in '
-         'numpy .npz format (if not given, starts from scratch and only saves '
-         'the best model)')
-argument_group.add_argument(
     '--dictionary-format', metavar='FORMAT', type=str, default='words',
     help='dictionary format, one of "words" (one word per line, default), '
          '"classes" (word and class ID per line), "srilm-classes" (class '
@@ -93,10 +88,6 @@ argument_group.add_argument(
 argument_group.add_argument(
     '--max-epochs', metavar='N', type=int, default=1000,
     help='perform at most N training epochs (default 1000)')
-argument_group.add_argument(
-    '--save-frequency', metavar='N', type=int, default=10,
-    help='save training state N times per training epoch; if less than one, '
-         'save the model only after training (default 10)')
 argument_group.add_argument(
     '--random-seed', metavar='N', type=int, default=None,
     help='seed to initialize the random state (default is to seed from a '
@@ -175,9 +166,9 @@ try:
 except subprocess.CalledProcessError:
     logging.warn("Git repository description is not available.")
 
-if (not args.state_path is None) and os.path.exists(args.state_path):
-    print("Reading previous state from %s." % args.state_path)
-    initial_state = numpy.load(args.state_path)
+if os.path.exists(args.model_path):
+    print("Reading initial state from %s." % args.model_path)
+    initial_state = numpy.load(args.model_path)
 else:
     initial_state = None
 
@@ -238,17 +229,16 @@ if not initial_state is None:
     print("Restoring training to previous state.")
     sys.stdout.flush()
     trainer.set_state(initial_state)
-trainer.set_state_saving(args.state_path, args.save_frequency)
-trainer.set_model_saving(args.model_path)
+trainer.set_model_path(args.model_path)
 trainer.set_logging(args.log_update_interval)
 
 print("Training neural network.")
 sys.stdout.flush()
 trainer.run()
 
-if trainer.network_state_min_cost is None:
+if trainer.min_cost_state is None:
     print("Validation set perplexity did not decrease during training.")
 else:
-    network.set_state(trainer.network_state_min_cost)
+    network.set_state(trainer.min_cost_state)
     validation_ppl = scorer.compute_perplexity(validation_iter)
     print("Best validation set perplexity:", validation_ppl)

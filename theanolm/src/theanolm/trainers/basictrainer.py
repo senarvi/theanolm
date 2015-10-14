@@ -66,17 +66,14 @@ class BasicTrainer(object):
         self.updates_per_epoch = len(self.training_iter)
 
         self.stopper = create_stopper(training_options, self)
-
         self.options = training_options
 
-        self.state_path = None
-        self.save_frequency = 0
+        # path where the model and training state will be saved
         self.model_path = None
+        # state of minimum cost found so far
+        self.min_cost_state = None
+        # number of mini-batch updates between log messages
         self.log_update_interval = 0
-
-        self.network_state_min_cost = None
-        self.optimizer_state_min_cost = None
-
         # current training epoch
         self.epoch_number = 1
         # number of mini-batch updates performed in this epoch
@@ -86,11 +83,7 @@ class BasicTrainer(object):
         # validation set cost history
         self._cost_history = []
 
-    def set_state_saving(self, path, frequency):
-        self.state_path = path
-        self.save_frequency = frequency
-
-    def set_model_saving(self, path):
+    def set_model_path(self, path):
         self.model_path = path
 
     def set_logging(self, interval):
@@ -123,9 +116,6 @@ class BasicTrainer(object):
                     perplexity = None
                 self._validate(perplexity)
 
-                if self._is_scheduled(self.save_frequency):
-                    self.save_training_state()
-
                 if not self.stopper.start_new_minibatch():
                     break
 
@@ -136,10 +126,7 @@ class BasicTrainer(object):
         validation_ppl = self.scorer.compute_perplexity(self.validation_iter)
         self._append_validation_cost(validation_ppl)
         if self._validations_since_min_cost() == 0:
-            self.network_state_min_cost = self.network.get_state()
-            self.save_model()
-
-        self.save_training_state()
+            self._set_min_cost_state()
 
     def log_update(self):
         """Logs information about the previous mini-batch update.
@@ -154,30 +141,9 @@ class BasicTrainer(object):
                      self.optimizer.update_cost,
                      self.optimizer.update_duration * 100)
 
-    def save_training_state(self):
-        """Saves current neural network and training state to disk.
-        """
-
-        path = self.state_path
-        if not (path is None):
-            state = self.network.get_state()
-            state.update(self.get_state())
-            numpy.savez(path, **state)
-            logging.info("Saved %d parameters to %s.", len(state), path)
-
-    def save_model(self):
-        """Saves the model parameters, found to provide the minimum validatation
-        set perplexity, to disk.
-        """
-
-        path = self.model_path
-        state = self.network_state_min_cost
-        if not (path is None or state is None):
-            numpy.savez(path, **state)
-            logging.info("Saved %d parameters to %s.", len(state), path)
-
     def get_state(self):
-        """Pulls parameter values from Theano shared variables.
+        """Pulls parameter values from Theano shared variables and returns a
+        dictionary of all the network and training state variables.
 
         For consistency, all the parameter values are returned as numpy types,
         since state read from a model file also contains numpy types.
@@ -186,7 +152,7 @@ class BasicTrainer(object):
         :returns: a dictionary of the parameter values
         """
 
-        result = OrderedDict()
+        result = self.network.get_state()
         result['epoch_number'] = numpy.int64(self.epoch_number)
         result['update_number'] = numpy.int64(self.update_number)
         result['cost_history'] = numpy.asarray(self._cost_history)
@@ -201,6 +167,8 @@ class BasicTrainer(object):
         :type state: dict of numpy types
         :param state: a dictionary of training parameters
         """
+
+        self.network.set_state(state)
 
         if not 'epoch_number' in state:
             raise IncompatibleStateError("Current epoch number is missing from "
@@ -232,6 +200,8 @@ class BasicTrainer(object):
 
         self.optimizer.set_state(state)
 
+        self.min_cost_state = state
+
     def decrease_learning_rate(self):
         """Called when the validation set cost stops decreasing.
         """
@@ -239,6 +209,24 @@ class BasicTrainer(object):
         self.optimizer.decrease_learning_rate()
         self._cost_history = []
         self.stopper.learning_rate_decreased()
+
+    def _set_min_cost_state(self, state=None):
+        """Saves neural network and training state to ``self.min_cost_state``
+        and writes to disk.
+
+        :type state: dict
+        :param state: if set to other than None, get the state from this
+                      dictionary, instead of the current state
+        """
+
+        if state == None:
+            state = self.get_state()
+        self.min_cost_state = state
+
+        path = self.model_path
+        if not path is None:
+            numpy.savez(path, **state)
+            logging.info("Saved %d parameters to %s.", len(state), path)
 
     def _is_scheduled(self, frequency, within=0):
         """Checks if an event is scheduled to be performed within given number
@@ -286,15 +274,18 @@ class BasicTrainer(object):
         validations_since_best = self._validations_since_min_cost()
         if validations_since_best == 0:
             # This is the minimum cost so far.
-            self.network_state_min_cost = self.network.get_state()
-            self.trainer_state_min_cost = self.get_state()
-            self.save_model()
+            self._set_min_cost_state()
         elif (self.options['wait_improvement'] >= 0) and \
              (validations_since_best > self.options['wait_improvement']):
             # Too many validations without improvement.
+
+            # If any validations have been done, the best state has been found
+            # and saved. If training has been started from previous state,
+            # min_cost_state has been set to the initial state.
+            assert not self.min_cost_state is None
+
             if self.options['recall_when_annealing']:
-                self.network.set_state(self.network_state_min_cost)
-                self.set_state(self.trainer_state_min_cost)
+                self.set_state(self.min_cost_state)
 # XXX       if cost >= self.epoch_start_ppl:
 # XXX           self.optimizer.reset()
 # XXX           self._cost_history = []

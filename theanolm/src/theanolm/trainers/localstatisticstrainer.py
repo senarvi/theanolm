@@ -31,8 +31,7 @@ class LocalStatisticsTrainer(BasicTrainer):
         self.samples_per_validation = 10
         self.local_perplexities = []
         self.stat_function = stat_function
-        self.network_state_validation = None
-        self.trainer_state_validation = None
+        self.validation_state = None
         self.validation_update_number = None
 
     def _validate(self, perplexity):
@@ -48,8 +47,7 @@ class LocalStatisticsTrainer(BasicTrainer):
 
         if not perplexity is None:
             # the actual validation point
-            self.network_state_validation = self.network.get_state()
-            self.trainer_state_validation = self.get_state()
+            self.validation_state = self.get_state()
             self.validation_update_number = self.update_number
             self.__add_sample(perplexity)
 
@@ -83,12 +81,14 @@ class LocalStatisticsTrainer(BasicTrainer):
                               perplexity)
             return
 
-        assert not self.network_state_validation is None
-        assert not self.trainer_state_validation is None
+        # Sampling is started samples_per_validation / 2 updates before the
+        # validation point, so now we have passed the validation point.
+        assert not self.validation_state is None
 
         stat = self.stat_function(self.local_perplexities)
         self._append_validation_cost(stat)
-        logging.debug("[%d] %d samples collected, validation center at %d, stat %.2f.",
+        logging.debug("[%d] %d samples collected, validation center at %d, "
+                      "stat %.2f.",
                       self.update_number,
                       len(self.local_perplexities),
                       self.validation_update_number,
@@ -98,17 +98,19 @@ class LocalStatisticsTrainer(BasicTrainer):
         validations_since_best = self._validations_since_min_cost()
         if validations_since_best == 0:
             # This is the minimum cost so far.
-            self.network_state_min_cost = self.network_state_validation
-            self.network_state_validation = None
-            self.trainer_state_min_cost = self.trainer_state_validation
-            self.trainer_state_validation = None
-            self.save_model()
+            self._set_min_cost_state(self.validation_state)
+            self.validation_state = None
         elif (self.options['wait_improvement'] >= 0) and \
              (validations_since_best > self.options['wait_improvement']):
             # Too many validations without improvement.
+
+            # If any validations have been done, the best state has been found
+            # and saved. If training has been started from previous state,
+            # min_cost_state has been set to the initial state.
+            assert not self.min_cost_state is None
+
             if self.options['recall_when_annealing']:
-                self.network.set_state(self.network_state_min_cost)
-                self.set_state(self.trainer_state_min_cost)
+                self.set_state(self.min_cost_state)
             self.decrease_learning_rate()
             if self.options['reset_when_annealing']:
                 self.optimizer.reset()

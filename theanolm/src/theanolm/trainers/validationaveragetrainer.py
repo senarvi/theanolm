@@ -12,8 +12,7 @@ class ValidationAverageTrainer(BasicTrainer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.network_state_previous = None
-        self.trainer_state_previous = None
+        self.previous_state = None
 
     def _validate(self, perplexity):
         """When ``perplexity`` is not None, appends it to cost history and
@@ -31,22 +30,26 @@ class ValidationAverageTrainer(BasicTrainer):
 
         validations_since_best = self._validations_since_min_cost()
         if validations_since_best == 0:
+            # At least three validations have been performed and this is the
+            # minimum cost so far.
+            assert not self.previous_state is None
+
             # The minimum cost is from the three previous validations.
             # Previous validation is in the middle of those validations.
-            self.network_state_min_cost = self.network_state_previous
-            self.trainer_state_min_cost = self.trainer_state_previous
-            self.save_model()
+            self._set_min_cost_state(self.previous_state)
         else:
-            self.network_state_previous = self.network.get_state()
-            self.trainer_state_previous = self.get_state()
+            self.previous_state = self.get_state()
             if (self.options['wait_improvement'] >= 0) and \
                (validations_since_best > self.options['wait_improvement']):
-                logging.debug("%d validations since the minimum perplexity was "
-                              "measured. Decreasing learning rate.",
-                              validations_since_best)
+                # Too many validations without improvement.
+
+                # If any validations have been done, the best state has been found
+                # and saved. If training has been started from previous state,
+                # min_cost_state has been set to the initial state.
+                assert not self.min_cost_state is None
+
                 if self.options['recall_when_annealing']:
-                    self.network.set_state(self.network_state_min_cost)
-                    self.set_state(self.trainer_state_min_cost)
+                    self.set_state(self.min_cost_state)
                 self.decrease_learning_rate()
                 if self.options['reset_when_annealing']:
                     self.optimizer.reset()
