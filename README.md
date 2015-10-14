@@ -26,7 +26,6 @@ model:
       validation-data.txt.gz \
       dictionary.classes \
       --dictionary-format srilm-classes \
-      --training-state training-state.npz \
       --hidden-layer-size 300 \
       --hidden-layer-type lstm \
       --batch-size 4 \
