@@ -3,6 +3,7 @@
 
 import sys
 import logging
+import mmap
 import numpy
 from theanolm import find_sentence_starts, ShufflingBatchIterator
 from theanolm.exceptions import IncompatibleStateError, NumberError
@@ -49,12 +50,16 @@ class BasicTrainer(object):
                                           self.network,
                                           profile)
 
+        training_mmap = mmap.mmap(training_file.fileno(),
+                                  0,
+                                  prot=mmap.PROT_READ)
+
         print("Finding sentence start positions in training data.")
         sys.stdout.flush()
-        sentence_starts = find_sentence_starts(training_file)
+        sentence_starts = find_sentence_starts(training_mmap)
 
         self.training_iter = ShufflingBatchIterator(
-            training_file,
+            training_mmap,
             dictionary,
             sentence_starts,
             batch_size=training_options['batch_size'],

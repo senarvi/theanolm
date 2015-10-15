@@ -3,6 +3,7 @@
 
 import unittest
 import os
+import mmap
 import theanolm
 
 class TestIterators(unittest.TestCase):
@@ -20,7 +21,10 @@ class TestIterators(unittest.TestCase):
         self.dictionary_file.close()
 
     def test_find_sentence_starts(self):
-        sentence_starts = theanolm.find_sentence_starts(self.sentences_file)
+        sentences_mmap = mmap.mmap(self.sentences_file.fileno(),
+                                   0,
+                                   access=mmap.ACCESS_READ)
+        sentence_starts = theanolm.find_sentence_starts(sentences_mmap)
         self.sentences_file.seek(sentence_starts[0])
         self.assertEqual(self.sentences_file.readline(), 'yksi kaksi\n')
         self.sentences_file.seek(sentence_starts[1])

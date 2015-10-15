@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import mmap
 import logging
 import numpy
 import theano
 
-def find_sentence_starts(path):
-    """Finds the positions inside a file, where the sentences (lines) start.
+def find_sentence_starts(data):
+    """Finds the positions inside a memory-mapped file, where the sentences
+    (lines) start.
 
-    :type path: str
-    :param path: path to the input file
+    TextIOWrapper disables tell() when readline() is called, so search for
+    sentence starts in memory-mapped data.
+
+    :type data: mmap.mmap
+    :param data: memory-mapped data of the input file
 
     :rtype: list of ints
     :returns: a list of file offsets pointing to the next character from a
@@ -19,9 +22,6 @@ def find_sentence_starts(path):
 
     result = [0]
 
-    # TextIOWrapper disables tell() when readline() is called, so we use mmap
-    # instead.
-    data = mmap.mmap(path.fileno(), 0, access=mmap.ACCESS_READ)
     pos = 0
     while True:
         pos = data.find(b'\n', pos)
@@ -43,8 +43,8 @@ class BatchIterator(object):
                  batch_size=1,
                  max_sequence_length=None):
         """
-        :type input_file: file object
-        :param input_file: input text file
+        :type input_file: file or mmap object
+        :param input_file: input text file or its memory-mapped data
 
         :type dictionary: Dictionary
         :param dictionary: dictionary that provides mapping between words and
@@ -88,8 +88,10 @@ class BatchIterator(object):
         sequences = []
         while True:
             line = self._readline()
-            if line == '':
+            if len(line) == 0:
                 break
+            if type(line) == bytes:
+                line = line.decode('utf-8')
             words = line.split()
             if not self.max_sequence_length is None and len(words) > self.max_sequence_length:
                 continue
@@ -121,8 +123,10 @@ class BatchIterator(object):
 
         while True:
             line = self.input_file.readline()
-            if line == '':
+            if len(line) == 0:
                 break
+            if type(line) == bytes:
+                line = line.decode('utf-8')
             if (not self.max_sequence_length is None) and \
                (len(line.split()) > self.max_sequence_length):
                 continue

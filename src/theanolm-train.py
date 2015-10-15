@@ -4,6 +4,7 @@
 import argparse
 import sys
 import os
+import mmap
 import subprocess
 import logging
 import numpy
@@ -207,7 +208,10 @@ print("Building text scorer.")
 sys.stdout.flush()
 scorer = theanolm.TextScorer(network, args.profile)
 
-validation_iter = theanolm.BatchIterator(args.validation_file, dictionary)
+validation_mmap = mmap.mmap(args.validation_file.fileno(),
+                            0,
+                            prot=mmap.PROT_READ)
+validation_iter = theanolm.BatchIterator(validation_mmap, dictionary)
 
 optimization_options = {
     'method': args.optimization_method,
