@@ -19,13 +19,13 @@ def create_trainer(training_options, *args, **kwargs):
         return LocalStatisticsTrainer(
             training_options,
             *args,
-            stat_function=lambda x: numpy.mean(numpy.asarray(x)),
+            statistic_function=lambda x: numpy.mean(numpy.asarray(x)),
             **kwargs)
     elif training_strategy == 'local-median':
         return LocalStatisticsTrainer(
             training_options,
             *args,
-            stat_function=lambda x: numpy.median(numpy.asarray(x)),
+            statistic_function=lambda x: numpy.median(numpy.asarray(x)),
             **kwargs)
     elif training_strategy == 'validation-average':
         return ValidationAverageTrainer(training_options, *args, **kwargs)
