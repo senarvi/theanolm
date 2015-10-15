@@ -4,6 +4,7 @@
 import theano
 import theano.tensor as tensor
 import numpy
+from theanolm.exceptions import NumberError
 
 class TextScorer(object):
     """Text Scoring Using a Neural Network Language Model
