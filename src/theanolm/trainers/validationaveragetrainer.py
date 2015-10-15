@@ -28,7 +28,7 @@ class ValidationAverageTrainer(BasicTrainer):
 
         self._append_validation_cost(perplexity)
 
-        validations_since_best = self._validations_since_min_cost()
+        validations_since_best = self.validations_since_min_cost()
         if validations_since_best == 0:
             # At least three validations have been performed and this is the
             # minimum cost so far.
@@ -39,8 +39,8 @@ class ValidationAverageTrainer(BasicTrainer):
             self._set_min_cost_state(self.previous_state)
         else:
             self.previous_state = self.get_state()
-            if (self.options['wait_improvement'] >= 0) and \
-               (validations_since_best > self.options['wait_improvement']):
+            if (self.options['annealing_patience'] >= 0) and \
+               (validations_since_best > self.options['annealing_patience']):
                 # Too many validations without improvement.
 
                 # If any validations have been done, the best state has been found
@@ -49,12 +49,12 @@ class ValidationAverageTrainer(BasicTrainer):
                 assert not self.min_cost_state is None
 
                 if self.options['recall_when_annealing']:
-                    self.set_state(self.min_cost_state)
+                    self.reset_state()
                 self.decrease_learning_rate()
                 if self.options['reset_when_annealing']:
                     self.optimizer.reset()
 
-    def _validations_since_min_cost(self):
+    def validations_since_min_cost(self):
         """Returns the number of times the validation set cost has been computed
         since the minimum cost was obtained.
 

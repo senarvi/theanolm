@@ -19,7 +19,7 @@ def create_trainer(training_options, *args, **kwargs):
         return LocalStatisticsTrainer(
             training_options,
             *args,
-            stat_function=lambda x: numpy.mean(numpy.asarray(x))
+            stat_function=lambda x: numpy.mean(numpy.asarray(x)),
             **kwargs)
     elif training_strategy == 'local-median':
         return LocalStatisticsTrainer(

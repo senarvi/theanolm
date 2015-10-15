@@ -95,17 +95,17 @@ class LocalStatisticsTrainer(BasicTrainer):
                       stat)
         self.local_perplexities = []
 
-        validations_since_best = self._validations_since_min_cost()
+        validations_since_best = self.validations_since_min_cost()
         if validations_since_best == 0:
             # This is the minimum cost so far. Take the state at the actual
             # validation point and replace the cost history with the current
             # cost history that also includes this latest cost.
-            self.validation_state['cost_history'] = \
+            self.validation_state['trainer.cost_history'] = \
                 numpy.asarray(self._cost_history)
             self._set_min_cost_state(self.validation_state)
             self.validation_state = None
-        elif (self.options['wait_improvement'] >= 0) and \
-             (validations_since_best > self.options['wait_improvement']):
+        elif (self.options['annealing_patience'] >= 0) and \
+             (validations_since_best > self.options['annealing_patience']):
             # Too many validations without improvement.
 
             # If any validations have been done, the best state has been found
@@ -114,7 +114,7 @@ class LocalStatisticsTrainer(BasicTrainer):
             assert not self.min_cost_state is None
 
             if self.options['recall_when_annealing']:
-                self.set_state(self.min_cost_state)
+                self.reset_state()
             self.decrease_learning_rate()
             if self.options['reset_when_annealing']:
                 self.optimizer.reset()
