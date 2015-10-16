@@ -111,6 +111,8 @@ class LocalStatisticsTrainer(BasicTrainer):
             self.decrease_learning_rate()
             if self.options['reset_when_annealing']:
                 self.optimizer.reset()
+        else:
+            logging.debug("%d validations since the minimum cost state.")
 
         self.local_perplexities = []
         self.validation_state = None

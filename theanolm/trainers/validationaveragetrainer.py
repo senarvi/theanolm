@@ -38,6 +38,7 @@ class ValidationAverageTrainer(BasicTrainer):
             # Previous validation is in the middle of those validations.
             self._set_min_cost_state(self.previous_state)
         else:
+            logging.debug("%d validations since the minimum cost state.")
             self.previous_state = self.get_state()
             if (self.options['annealing_patience'] >= 0) and \
                (validations_since_best > self.options['annealing_patience']):

@@ -100,6 +100,7 @@ class BasicTrainer(object):
             print("Validation set perplexity at the start of epoch {}: {}"
                   "".format(self.epoch_number,
                             self.epoch_start_ppl))
+            sys.stdout.flush()
 
             for word_ids, _, mask in self.training_iter:
                 self.update_number += 1
@@ -122,6 +123,8 @@ class BasicTrainer(object):
 
                 if not self.stopper.start_new_minibatch():
                     break
+
+            logging.debug("Epoch finished.")
 
             self.epoch_number += 1
             self.update_number = 0
@@ -216,6 +219,8 @@ class BasicTrainer(object):
         """Called when the validation set cost stops decreasing.
         """
 
+        logging.debug("Performance on validation set has ceased to improve.")
+
         self.stopper.improvement_ceased()
         self.optimizer.decrease_learning_rate()
         self._cost_history = []
@@ -230,8 +235,8 @@ class BasicTrainer(object):
         return len(self._cost_history)
 
     def has_improved(self):
-        """Tests whether validation set cost has decreased enough after the
-        most recent mini-batch update.
+        """Tests whether validation set cost after the most recent mini-batch
+        update was better than the previously smallest cost.
 
         TODO: Implement a test for statistical significance.
 
@@ -241,8 +246,10 @@ class BasicTrainer(object):
         """
 
         if len(self._cost_history) == 0:
-            raise RuntimeError("BasicTrainer.cost_has_improved() "
-                               "called with empty cost history.")
+            raise RuntimeError("BasicTrainer.has_improved() called with empty "
+                               "cost history.")
+        elif len(self._cost_history) == 1:
+            return False
         else:
             return self._cost_history[-1] < \
                    0.999 * min(self._cost_history[:-1])
@@ -293,7 +300,10 @@ class BasicTrainer(object):
         path = self.model_path
         if not path is None:
             numpy.savez(path, **state)
-            logging.info("Saved %d parameters to %s.", len(state), path)
+            logging.info("Minimum validation cost state. Saved %d parameters "
+                         "to %s.", len(state), path)
+        else:
+            logging.debug("Minimum validation cost state.")
 
     def _validate(self, perplexity):
         """When ``perplexity`` is not None, appends it to cost history and
@@ -327,6 +337,8 @@ class BasicTrainer(object):
             self.decrease_learning_rate()
             if self.options['reset_when_annealing']:
                 self.optimizer.reset()
+        else:
+            logging.debug("%d validations since the minimum cost state.")
 
     def _is_scheduled(self, frequency, within=0):
         """Checks if an event is scheduled to be performed within given number

@@ -76,7 +76,7 @@ class BatchIterator(object):
         :rtype: tuple of numpy matrices
         :returns: two matrices - one contains the word IDs of each sequence
                   (0 after the last word), and the other contains a mask that
-                  ís 1 after the last word
+                  is 1 after the last word
         """
 
         # If EOF was reached on the previous call, but a mini-batch was
@@ -92,7 +92,7 @@ class BatchIterator(object):
             if sequence is None:
                 break
             if len(sequence) < 2:
-                continue                
+                continue
             sequences.append(sequence)
             if len(sequences) >= self.batch_size:
                 return self._prepare_batch(sequences)
@@ -115,7 +115,7 @@ class BatchIterator(object):
         :returns: the number of mini-batches that the iterator creates
         """
 
-        self.input_file.seek(0)
+        self._reset(False)
         num_sequences = 0
 
         while True:
@@ -126,9 +126,17 @@ class BatchIterator(object):
                 continue                
             num_sequences += 1
 
+        self._reset(False)
         return (num_sequences + self.batch_size - 1) // self.batch_size
 
-    def _reset(self):
+    def _reset(self, shuffle=True):
+        """Resets the read pointer back to the beginning of the file.
+        
+        :type shuffle: bool
+        :param shuffle: also shuffles the input sentences, unless set to False
+                        (not supported by this super class)
+        """
+
         self.input_file.seek(0)
 
     def _read_sequence(self):
@@ -247,10 +255,17 @@ class ShufflingBatchIterator(BatchIterator):
         super().__init__(input_file, dictionary, batch_size, max_sequence_length)
         self.next_line = 0
 
-    def _reset(self):
+    def _reset(self, shuffle=True):
+        """Resets the read pointer back to the beginning of the file.
+        
+        :type shuffle: bool
+        :param shuffle: also shuffles the input sentences, unless set to False
+        """
+
         self.next_line = 0
-        logging.info("Shuffling the order of input lines.")
-        numpy.random.shuffle(self.line_starts)
+        if shuffle:
+            logging.info("Shuffling the order of input lines.")
+            numpy.random.shuffle(self.line_starts)
 
     def _readline(self):
         if self.next_line >= len(self.line_starts):
