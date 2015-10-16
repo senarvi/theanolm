@@ -127,10 +127,6 @@ class BasicTrainer(object):
             self.update_number = 0
 
         logging.info("Training finished.")
-        perplexity = self.scorer.compute_perplexity(self.validation_iter)
-        self._append_validation_cost(perplexity)
-        if self.validations_since_min_cost() == 0:
-            self._set_min_cost_state()
 
     def log_update(self):
         """Logs information about the previous mini-batch update.
