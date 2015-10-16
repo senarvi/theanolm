@@ -63,6 +63,7 @@ class BatchIterator(object):
         self.dictionary = dictionary
         self.batch_size = batch_size
         self.max_sequence_length = max_sequence_length
+        self.buffer = []
         self.end_of_file = False
         self.input_file.seek(0)
 
@@ -78,8 +79,8 @@ class BatchIterator(object):
                   ís 1 after the last word
         """
 
-        # If EOF was reach on previous call, but a mini-batch was returned,
-        # rewind the file pointer now and raise StopIteration.
+        # If EOF was reached on the previous call, but a mini-batch was
+        # returned, rewind the file pointer now and raise StopIteration.
         if self.end_of_file:
             self.end_of_file = False
             self._reset()
@@ -87,16 +88,12 @@ class BatchIterator(object):
 
         sequences = []
         while True:
-            line = self._readline()
-            if len(line) == 0:
+            sequence = self._read_sequence()
+            if sequence is None:
                 break
-            if type(line) == bytes:
-                line = line.decode('utf-8')
-            words = line.split()
-            if not self.max_sequence_length is None and len(words) > self.max_sequence_length:
-                continue
-            words.append('<sb>')
-            sequences.append(words)
+            if len(sequence) < 2:
+                continue                
+            sequences.append(sequence)
             if len(sequences) >= self.batch_size:
                 return self._prepare_batch(sequences)
 
@@ -122,14 +119,11 @@ class BatchIterator(object):
         num_sequences = 0
 
         while True:
-            line = self.input_file.readline()
-            if len(line) == 0:
+            sequence = self._read_sequence()
+            if sequence is None:
                 break
-            if type(line) == bytes:
-                line = line.decode('utf-8')
-            if (not self.max_sequence_length is None) and \
-               (len(line.split()) > self.max_sequence_length):
-                continue
+            if len(sequence) < 2:
+                continue                
             num_sequences += 1
 
         return (num_sequences + self.batch_size - 1) // self.batch_size
@@ -137,7 +131,42 @@ class BatchIterator(object):
     def _reset(self):
         self.input_file.seek(0)
 
+    def _read_sequence(self):
+        """Returns next word sequence.
+        
+        If buffer is not empty, returns a sequence from the buffer. Otherwise
+        reads a line to the buffer first.
+        
+        :rtype: list
+        :returns: a sequence words (may be empty), or None if no more data
+        """
+
+        if len(self.buffer) == 0:
+            line = self._readline()
+            if len(line) == 0:
+                # end of file
+                return None
+            if type(line) == bytes:
+                line = line.decode('utf-8')
+            line = line.rstrip()
+            if len(line) == 0:
+                # empty line
+                return []
+            self.buffer = line.split()
+            self.buffer.append('<sb>')
+
+        if self.max_sequence_length is None:
+            result = self.buffer
+            self.buffer = []
+        else:
+            result = self.buffer[:self.max_sequence_length]
+            self.buffer = self.buffer[self.max_sequence_length:]
+        return result
+
     def _readline(self):
+        """Read the next input line.
+        """
+
         return self.input_file.readline()
 
     def _prepare_batch(self, sequences):

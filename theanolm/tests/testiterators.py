@@ -37,24 +37,24 @@ class TestIterators(unittest.TestCase):
         self.assertEqual(self.sentences_file.readline(), 'kymmenen\n')
 
         self.sentences_file.seek(0)
-        iter = theanolm.ShufflingBatchIterator(self.sentences_file,
-                                               self.dictionary,
-                                               sentence_starts,
-                                               batch_size=2,
-                                               max_sequence_length=3)
-        self.assertEqual(len(iter), 3)
-        iter = theanolm.ShufflingBatchIterator(self.sentences_file,
-                                               self.dictionary,
-                                               sentence_starts,
-                                               batch_size=2,
-                                               max_sequence_length=2)
-        self.assertEqual(len(iter), 2)
-        iter = theanolm.ShufflingBatchIterator(self.sentences_file,
-                                               self.dictionary,
-                                               sentence_starts,
-                                               batch_size=2,
-                                               max_sequence_length=1)
-        self.assertEqual(len(iter), 1)
+        iterator = theanolm.ShufflingBatchIterator(self.sentences_file,
+                                                   self.dictionary,
+                                                   sentence_starts,
+                                                   batch_size=2,
+                                                   max_sequence_length=4)
+        self.assertEqual(len(iterator), 3)
+        iterator = theanolm.ShufflingBatchIterator(self.sentences_file,
+                                                   self.dictionary,
+                                                   sentence_starts,
+                                                   batch_size=2,
+                                                   max_sequence_length=3)
+        self.assertEqual(len(iterator), 3)
+        iterator = theanolm.ShufflingBatchIterator(self.sentences_file,
+                                                   self.dictionary,
+                                                   sentence_starts,
+                                                   batch_size=2,
+                                                   max_sequence_length=2)
+        self.assertEqual(len(iterator), 4)
 
 if __name__ == '__main__':
     unittest.main()
