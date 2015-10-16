@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import argparse
+import theanolm.commands.train as train
+import theanolm.commands.score as score
+import theanolm.commands.sample as sample
+import theanolm.commands.version as version
+
+def main():
+    parser = argparse.ArgumentParser(prog='theanolm')
+    subparsers = parser.add_subparsers(
+        title='commands',
+        help='selects the command to perform ("theanolm command --help" '
+             'displays help for the specific command)')
+
+    train_parser = subparsers.add_parser(
+        'train', help='train a model')
+    train.add_arguments(train_parser)
+    train_parser.set_defaults(command_function=train.train)
+
+    score_parser = subparsers.add_parser(
+        'score', help='score text or n-best lists using a model')
+    score.add_arguments(score_parser)
+    score_parser.set_defaults(command_function=score.score)
+
+    sample_parser = subparsers.add_parser(
+        'sample', help='generate text using a model')
+    sample.add_arguments(sample_parser)
+    sample_parser.set_defaults(command_function=sample.sample)
+
+    version_parser = subparsers.add_parser(
+        'version', help='display version number and exit')
+    version_parser.set_defaults(command_function=version.version)
+
+    args = parser.parse_args()
+    args.command_function(args)
+
+if __name__ == "__main__":
+    main()
