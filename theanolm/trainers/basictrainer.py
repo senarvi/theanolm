@@ -125,6 +125,16 @@ class BasicTrainer(object):
 
         logging.info("Training finished.")
 
+    def result(self):
+        """Returns the trained state as a dictionary of parameter values.
+
+        :rtype: dict of numpy types
+        :returns: a dictionary of trained parameter values (None before a
+                  validation has been performed)
+        """
+
+        return self._candidate_state
+
     def get_state(self):
         """Pulls parameter values from Theano shared variables and returns a
         dictionary of all the network and training state variables.
@@ -199,15 +209,6 @@ class BasicTrainer(object):
         self.optimizer.set_state(state)
         self.stopper.set_state(state)
 
-    def decrease_learning_rate(self):
-        """Called when the validation set cost stops decreasing.
-        """
-
-        logging.debug("Performance on validation set has ceased to improve.")
-
-        self.stopper.improvement_ceased()
-        self.optimizer.decrease_learning_rate()
-
     def num_validations(self):
         """Returns the number of validations performed.
 
@@ -245,6 +246,15 @@ class BasicTrainer(object):
             return None
 
         return self._cost_history[self._candidate_index]
+
+    def _decrease_learning_rate(self):
+        """Called when the validation set cost stops decreasing.
+        """
+
+        logging.debug("Performance on validation set has ceased to improve.")
+
+        self.stopper.improvement_ceased()
+        self.optimizer.decrease_learning_rate()
 
     def _has_improved(self):
         """Tests whether the previously computed validation set cost was
@@ -350,7 +360,7 @@ class BasicTrainer(object):
             assert not self._candidate_state is None
 
             self.reset_state()
-            self.decrease_learning_rate()
+            self._decrease_learning_rate()
             if self.options['reset_when_annealing']:
                 self.optimizer.reset()
 

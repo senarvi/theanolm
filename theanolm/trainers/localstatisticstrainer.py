@@ -109,7 +109,7 @@ class LocalStatisticsTrainer(BasicTrainer):
             assert not self._candidate_state is None
 
             self.reset_state()
-            self.decrease_learning_rate()
+            self._decrease_learning_rate()
             if self.options['reset_when_annealing']:
                 self.optimizer.reset()
 

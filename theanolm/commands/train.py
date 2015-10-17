@@ -237,10 +237,11 @@ def train(args):
     print("Training neural network.")
     sys.stdout.flush()
     trainer.run()
-    
-    if trainer.min_cost_state is None:
-        print("Validation set perplexity did not decrease during training.")
+
+    final_state = trainer.result()
+    if final_state is None:
+        print("The model has not been trained.")
     else:
-        network.set_state(trainer.min_cost_state)
-        validation_ppl = scorer.compute_perplexity(validation_iter)
-        print("Best validation set perplexity:", validation_ppl)
+        network.set_state(final_state)
+        perplexity = scorer.compute_perplexity(validation_iter)
+        print("Best validation set perplexity:", perplexity)
