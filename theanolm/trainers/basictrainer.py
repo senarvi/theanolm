@@ -285,8 +285,9 @@ class BasicTrainer(object):
         """
 
         str_costs = ["%.1f" % x for x in self._cost_history]
-        str_costs[self._candidate_index] = \
-            '[' + str_costs[self._candidate_index] + ']'
+        if not self._candidate_index is None:
+            str_costs[self._candidate_index] = \
+                '[' + str_costs[self._candidate_index] + ']'
         logging.debug("[%d] Validation set cost history: %s",
                       self.update_number,
                       ' '.join(str_costs[-20:]))
