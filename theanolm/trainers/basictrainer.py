@@ -202,9 +202,8 @@ class BasicTrainer(object):
         if self._cost_history is None:
             raise IncompatibleStateError("Validation set cost history is "
                                          "empty in the training state.")
-        self._log_validation()
-
         self._candidate_index = len(self._cost_history) - 1
+        self._log_validation()
 
         self.optimizer.set_state(state)
         self.stopper.set_state(state)
