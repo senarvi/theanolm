@@ -83,36 +83,33 @@ class LocalStatisticsTrainer(BasicTrainer):
                       perplexity)
 
         statistic = self.statistic_function(self.local_perplexities)
-        self._append_validation_cost(statistic)
+        self._cost_history.append(statistic)
         logging.debug("[%d] %d samples collected, statistic %.2f.",
                       self.update_number,
                       len(self.local_perplexities),
                       statistic)
+        self._log_validation()
 
-        validations_since_best = self.validations_since_min_cost()
-        if validations_since_best == 0:
-            # This is the minimum cost so far. Take the state at the actual
-            # validation point and replace the cost history with the current
-            # cost history that also includes this latest cost.
+        if self._has_improved():
+            # Take the state at the actual validation point and replace the cost
+            # history with the current cost history that also includes this
+            # latest statistic.
             self.validation_state['trainer.cost_history'] = \
                 numpy.asarray(self._cost_history)
-            self._set_min_cost_state(self.validation_state)
-        elif (self.options['annealing_patience'] >= 0) and \
-             (validations_since_best > self.options['annealing_patience']):
+            self._set_candidate_state(self.validation_state)
+        elif (self.options['patience'] >= 0) and \
+             (self.validations_since_candidate() > self.options['patience']):
             # Too many validations without improvement.
 
             # If any validations have been done, the best state has been found
             # and saved. If training has been started from previous state,
-            # min_cost_state has been set to the initial state.
-            assert not self.min_cost_state is None
+            # _candidate_state has been set to the initial state.
+            assert not self._candidate_state is None
 
-            if self.options['recall_when_annealing']:
-                self.reset_state()
+            self.reset_state()
             self.decrease_learning_rate()
             if self.options['reset_when_annealing']:
                 self.optimizer.reset()
-        else:
-            logging.debug("%d validations since the minimum cost state.")
 
         self.local_perplexities = []
         self.validation_state = None

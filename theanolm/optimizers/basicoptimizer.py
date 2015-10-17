@@ -160,7 +160,7 @@ class BasicOptimizer(object):
             old_value = self.params['optimizer.learning_rate'].get_value()
             new_value = old_value / 2
             self.params['optimizer.learning_rate'].set_value(new_value)
-            logging.info("Learning rate reduced from %g to %g." %
+            logging.info("Learning rate decreased from %g to %g." %
                 (old_value, new_value))
 
     def reset(self):

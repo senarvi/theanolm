@@ -15,7 +15,7 @@ class MedianValidationTrainer(BasicTrainer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.num_validations = 10
+        self.samples_per_validation = 10
         self.current_score = []
 
     def _validate(self, perplexity):
@@ -39,8 +39,8 @@ class MedianValidationTrainer(BasicTrainer):
             super()._validate(median)
 
         elif self._is_scheduled(self.options['validation_frequency'],
-                                self.num_validations - 1):
+                                self.samples_per_validation - 1):
             perplexity = self.scorer.compute_perplexity(self.validation_iter)
             self.current_score.append(perplexity)
-            if len(self.current_score) > self.num_validations:
+            if len(self.current_score) > self.samples_per_validation:
                 self.current_score.pop(0)

@@ -68,16 +68,11 @@ def add_arguments(parser):
         help='cross-validate for reducing learning rate N times per training '
              'epoch (default 100)')
     argument_group.add_argument(
-        '--annealing-patience', metavar='N', type=int, default=0,
+        '--patience', metavar='N', type=int, default=0,
         help='wait for N validations, before decreasing learning rate, if '
              'perplexity has not decreased; if less than zero, never decrease '
              'learning rate (default is 0, meaning that learning rate will be '
              'decreased immediately when perplexity stops decreasing)')
-    argument_group.add_argument(
-        '--recall-when-annealing', action="store_true",
-        help='restore the state of minimum validation cost when decreasing '
-             'learning rate (default is to continue with the current state, '
-             'which is better if learning rate is reduced hastily)')
     argument_group.add_argument(
         '--reset-when-annealing', action="store_true",
         help='reset the optimizer timestep when decreasing learning rate')
@@ -121,20 +116,14 @@ def add_arguments(parser):
     argument_group.add_argument(
         '--stopping-criterion', metavar='NAME', type=str, default='basic',
         help='selects a criterion for early-stopping, one of "basic" (fixed '
-             'number of epochs), "significance" (significance of improvement '
-             'with same learning rate), "learning-rate", "patience" (default '
-             '"basic")')
+             'number of epochs), "no-improvement" (no improvement with some '
+             'learning rate value), "learning-rate" (default "basic")')
     argument_group.add_argument(
         '--min-epochs', metavar='N', type=int, default=1,
         help='perform at least N training epochs (default 1)')
     argument_group.add_argument(
         '--max-epochs', metavar='N', type=int, default=100,
         help='perform at most N training epochs (default 100)')
-    argument_group.add_argument(
-        '--stopping-patience', metavar='N', type=int, default=0,
-        help='wait for N validations, before stopping, if perplexity has not '
-             'decreased (default is 0, meaning that training will stop '
-             'immediately when perplexity stops decreasing)')
     
     argument_group = parser.add_argument_group("logging and debugging")
     argument_group.add_argument(
@@ -226,13 +215,11 @@ def train(args):
         'batch_size': args.batch_size,
         'sequence_length': args.sequence_length,
         'validation_frequency': args.validation_frequency,
-        'annealing_patience': args.annealing_patience,
-        'recall_when_annealing': args.recall_when_annealing,
-        'reset_when_annealing': args.recall_when_annealing,
+        'patience': args.patience,
+        'reset_when_annealing': args.reset_when_annealing,
         'stopping_criterion': args.stopping_criterion,
         'max_epochs': args.max_epochs,
-        'min_epochs': args.min_epochs,
-        'stopping_patience': args.stopping_patience}
+        'min_epochs': args.min_epochs}
     
     print("Building neural network trainer.")
     sys.stdout.flush()

@@ -74,8 +74,11 @@ class BasicTrainer(object):
 
         # path where the model and training state will be saved
         self.model_path = None
-        # state of minimum cost found so far
-        self.min_cost_state = None
+        # current candidate for the minimum validation cost state
+        self._candidate_state = None
+        # index to the cost history that corresponds to the current candidate
+        # state
+        self._candidate_index = None
         # number of mini-batch updates between log messages
         self.log_update_interval = 0
         # current training epoch
@@ -95,13 +98,6 @@ class BasicTrainer(object):
 
     def run(self):
         while self.stopper.start_new_epoch():
-            self.epoch_start_ppl = \
-                self.scorer.compute_perplexity(self.validation_iter)
-            print("Validation set perplexity at the start of epoch {}: {}"
-                  "".format(self.epoch_number,
-                            self.epoch_start_ppl))
-            sys.stdout.flush()
-
             for word_ids, _, mask in self.training_iter:
                 self.update_number += 1
                 self.total_updates += 1
@@ -110,7 +106,7 @@ class BasicTrainer(object):
 
                 if (self.log_update_interval >= 1) and \
                    (self.total_updates % self.log_update_interval == 0):
-                    self.log_update()
+                    self._log_update()
 
                 if self._is_scheduled(self.options['validation_frequency']):
                     perplexity = self.scorer.compute_perplexity(self.validation_iter)
@@ -124,25 +120,10 @@ class BasicTrainer(object):
                 if not self.stopper.start_new_minibatch():
                     break
 
-            logging.debug("Epoch finished.")
-
             self.epoch_number += 1
             self.update_number = 0
 
         logging.info("Training finished.")
-
-    def log_update(self):
-        """Logs information about the previous mini-batch update.
-        """
-
-        logging.info("[%d] (%.2f %%) of epoch %d -- lr = %g, cost = %.2f, "
-                     "duration = %.2f ms",
-                     self.update_number,
-                     self.update_number / self.updates_per_epoch * 100,
-                     self.epoch_number,
-                     self.optimizer.get_learning_rate(),
-                     self.optimizer.update_cost,
-                     self.optimizer.update_duration * 100)
 
     def get_state(self):
         """Pulls parameter values from Theano shared variables and returns a
@@ -165,9 +146,13 @@ class BasicTrainer(object):
         return result
 
     def reset_state(self, state=None):
-        """Sets the values of Theano shared variables. If ``state`` is not
-        given, uses the state of minimum validation cost found so far. If
-        ``state`` is given, uses it and saves it as the minimum cost state.
+        """Resets the values of Theano shared variables to a state that gives a
+        minimum of the validation set cost. If ``state`` is not given, uses the
+        current candidate state. If ``state`` is given, uses it and saves it as
+        the new candidate state.
+
+        Sets candidate state index point to the last element in the loaded cost
+        history.
         
         Requires that ``state`` contains values for all the training parameters.
 
@@ -178,9 +163,9 @@ class BasicTrainer(object):
         """
 
         if state is None:
-            state = self.min_cost_state
+            state = self._candidate_state
         else:
-            self.min_cost_state = state
+            self._candidate_state = state
 
         self.network.set_state(state)
 
@@ -201,16 +186,15 @@ class BasicTrainer(object):
         if not 'trainer.cost_history' in state:
             raise IncompatibleStateError("Validation set cost history is "
                                          "missing from training state.")
-        saved_cost_history = state['trainer.cost_history'].tolist()
-        # If the error history was empty when the state was saved,
+        self._cost_history = state['trainer.cost_history'].tolist()
+        # If the cost history was empty when the state was saved,
         # ndarray.tolist() will return None.
-        if saved_cost_history is None:
-            self._cost_history = []
-        else:
-            self._cost_history = saved_cost_history
-        logging.debug("[%d] Validation set cost history since learning rate "
-                      "was decreased:", self.update_number)
-        logging.debug(str(numpy.asarray(self._cost_history)))
+        if self._cost_history is None:
+            raise IncompatibleStateError("Validation set cost history is "
+                                         "empty in the training state.")
+        self._log_validation()
+
+        self._candidate_index = len(self._cost_history) - 1
 
         self.optimizer.set_state(state)
         self.stopper.set_state(state)
@@ -223,10 +207,9 @@ class BasicTrainer(object):
 
         self.stopper.improvement_ceased()
         self.optimizer.decrease_learning_rate()
-        self._cost_history = []
 
     def num_validations(self):
-        """Returns the number of validations since learning rate was decreased.
+        """Returns the number of validations performed.
 
         :rtype: int
         :returns: size of cost history
@@ -234,76 +217,108 @@ class BasicTrainer(object):
 
         return len(self._cost_history)
 
-    def has_improved(self):
-        """Tests whether validation set cost after the most recent mini-batch
-        update was better than the previously smallest cost.
+    def validations_since_candidate(self):
+        """Returns the number of times the validation set cost has been computed
+        since the current candidate for optimal state was obtained.
+
+        :rtype: int
+        :returns: number of validations since the current candidate state (0
+                  means the current candidate is the last validation)
+        """
+
+        if len(self._cost_history) == 0:
+            raise RuntimeError("BasicTrainer.validations_since_candidate() "
+                               "called with empty cost history.")
+
+        return len(self._cost_history) - 1 - self._candidate_index
+
+    def candidate_cost(self):
+        """Returns the validation set cost given by the current candidate for
+        the minimum cost state.
+
+        :rtype: float
+        :returns: current candidate state cost, or None if the candidate state
+                  has not been set yet
+        """
+
+        if self._candidate_index is None:
+            return None
+
+        return self._cost_history[self._candidate_index]
+
+    def _has_improved(self):
+        """Tests whether the previously computed validation set cost was
+        significantly better than the cost given by the current candidate state.
 
         TODO: Implement a test for statistical significance.
 
         :rtype: bool
-        :returns: True if validation set cost has decreased enough, False
-                  otherwise
+        :returns: True if validation set cost decreased enough, or there was no
+                  previous candidate state; False otherwise
         """
 
         if len(self._cost_history) == 0:
-            raise RuntimeError("BasicTrainer.has_improved() called with empty "
+            raise RuntimeError("BasicTrainer._has_improved() called with empty "
                                "cost history.")
-        elif len(self._cost_history) == 1:
-            return False
-        else:
-            return self._cost_history[-1] < \
-                   0.999 * min(self._cost_history[:-1])
 
-    def validations_since_min_cost(self):
-        """Returns the number of times the validation set cost has been computed
-        since the minimum cost was obtained.
+        if self._candidate_index is None:
+            return True
 
-        :rtype: int
-        :returns: number of validations since the minimum cost (0 means the last
-                  validation is the best so far)
+        return self._cost_history[-1] < 0.999 * self.candidate_cost()
+
+    def _log_update(self):
+        """Logs information about the previous mini-batch update.
         """
 
-        if len(self._cost_history) == 0:
-            raise RuntimeError("BasicTrainer.validations_since_min_cost() "
-                               "called with empty cost history.")
-        else:
-            # Reverse the order of self._cost_history to find the last element
-            # with the minimum value (in case there are several elements with the
-            # same value.
-            return numpy.argmin(self._cost_history[::-1])
+        logging.info("[%d] (%.2f %%) of epoch %d -- lr = %g, cost = %.2f, "
+                     "duration = %.2f ms",
+                     self.update_number,
+                     self.update_number / self.updates_per_epoch * 100,
+                     self.epoch_number,
+                     self.optimizer.get_learning_rate(),
+                     self.optimizer.update_cost,
+                     self.optimizer.update_duration * 100)
 
-    def _append_validation_cost(self, validation_cost):
-        """Adds the validation set cost to the cost history.
-
-        :type validation_cost: float
-        :param validation_cost: the new validation set cost to be added to the history
+    def _log_validation(self):
+        """Prints the validation set cost history (or its tail), highlighting
+        the candidate for the minimum cost.
         """
 
-        self._cost_history.append(validation_cost)
-        logging.debug("[%d] Validation set cost history since learning rate was "
-                      "decreased:", self.update_number)
-        logging.debug(str(numpy.asarray(self._cost_history)))
+        str_costs = ["%.1f" % x for x in self._cost_history]
+        str_costs[self._candidate_index] = \
+            '[' + str_costs[self._candidate_index] + ']'
+        logging.debug("[%d] Validation set cost history: %s",
+                      self.update_number,
+                      ' '.join(str_costs[-20:]))
 
-    def _set_min_cost_state(self, state=None):
-        """Saves neural network and training state to ``self.min_cost_state``
-        and writes to disk.
+    def _set_candidate_state(self, state=None, index=None):
+        """Sets neural network and training state as the candidate for the
+        minimum validation cost state, and writes to disk.
 
         :type state: dict
-        :param state: if set to other than None, get the state from this
-                      dictionary, instead of the current state
+        :param state: if set to a dictionary, read the state from the dictionary
+                      items, instead of the current state
+
+        :type index: int
+        :param index: index to the cost history that points to the candidate
+                      state, or None for the last item of the cost history
         """
 
-        if state == None:
+        if state is None:
             state = self.get_state()
-        self.min_cost_state = state
+        if index is None:
+            index = len(self._cost_history) - 1
+
+        self._candidate_state = state
+        self._candidate_index = index
 
         path = self.model_path
         if not path is None:
             numpy.savez(path, **state)
-            logging.info("Minimum validation cost state. Saved %d parameters "
+            logging.info("New candidate for optimal state. Saved %d parameters "
                          "to %s.", len(state), path)
         else:
-            logging.debug("Minimum validation cost state.")
+            logging.debug("New candidate for optimal state.")
 
     def _validate(self, perplexity):
         """When ``perplexity`` is not None, appends it to cost history and
@@ -317,28 +332,25 @@ class BasicTrainer(object):
         if perplexity is None:
             return
 
-        self._append_validation_cost(perplexity)
+        self._cost_history.append(perplexity)
 
-        validations_since_best = self.validations_since_min_cost()
-        if validations_since_best == 0:
-            # This is the minimum cost so far.
-            self._set_min_cost_state()
-        elif (self.options['annealing_patience'] >= 0) and \
-             (validations_since_best > self.options['annealing_patience']):
+        if self._has_improved():
+            self._set_candidate_state()
+        elif (self.options['patience'] >= 0) and \
+             (self.validations_since_candidate() > self.options['patience']):
             # Too many validations without improvement.
 
             # If any validations have been done, the best state has been found
             # and saved. If training has been started from previous state,
-            # min_cost_state has been set to the initial state.
-            assert not self.min_cost_state is None
+            # _candidate_state has been set to the initial state.
+            assert not self._candidate_state is None
 
-            if self.options['recall_when_annealing']:
-                self.reset_state()
+            self.reset_state()
             self.decrease_learning_rate()
             if self.options['reset_when_annealing']:
                 self.optimizer.reset()
-        else:
-            logging.debug("%d validations since the minimum cost state.")
+
+        self._log_validation()
 
     def _is_scheduled(self, frequency, within=0):
         """Checks if an event is scheduled to be performed within given number

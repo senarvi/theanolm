@@ -3,9 +3,9 @@
 
 from theanolm.stoppers.basicstopper import BasicStopper
 
-class SignificanceStopper(BasicStopper):
-    """Stops training when the validation cost is not improved enough between
-    learning rate reductions.
+class NoImprovementStopper(BasicStopper):
+    """Stops training when a better candidate state is not found between
+    learning rate adjustments.
     """
 
     def __init__(self, training_options, *args, **kwargs):
@@ -19,17 +19,29 @@ class SignificanceStopper(BasicStopper):
         super().__init__(training_options, *args, **kwargs)
 
         self.min_epochs = training_options['min_epochs']
+        self._candidate_cost = None
         self._has_improved = True
 
     def improvement_ceased(self):
         """Called when the performance of the model ceases to improve
-        sufficiently on the validation set.
+        sufficiently on the validation set. Checks if there was any improvement
+        at all.
         """
 
-        # The function is not called before any validations have been performed.
-        assert self.trainer.num_validations() > 0
-        
-        self._has_improved = self.trainer.has_improved()
+        new_candidate_cost = self.trainer.candidate_cost()
+        if new_candidate_cost is None:
+            # No candidate state has been found.
+            self._has_improved = False
+            return
+
+        if self._candidate_cost is None:
+            # This is the first time the function is called.
+            self._has_improved = True
+            self._candidate_cost = new_candidate_cost
+            return
+
+        self._has_improved = new_candidate_cost < self._candidate_cost
+        self._candidate_cost = new_candidate_cost
 
     def start_new_minibatch(self):
         """Decides whether training should continue after the current
