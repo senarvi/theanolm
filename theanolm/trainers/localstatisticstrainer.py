@@ -88,7 +88,6 @@ class LocalStatisticsTrainer(BasicTrainer):
                       self.update_number,
                       len(self.local_perplexities),
                       statistic)
-        self._log_validation()
 
         if self._has_improved():
             # Take the state at the actual validation point and replace the cost
@@ -97,9 +96,12 @@ class LocalStatisticsTrainer(BasicTrainer):
             self.validation_state['trainer.cost_history'] = \
                 numpy.asarray(self._cost_history)
             self._set_candidate_state(self.validation_state)
-        elif (self.options['patience'] >= 0) and \
-             (self.validations_since_candidate() > self.options['patience']):
-            # Too many validations without improvement.
+
+        self._log_validation()
+
+        if (self.options['patience'] >= 0) and \
+           (self.validations_since_candidate() > self.options['patience']):
+            # Too many validations without finding a new candidate state.
 
             # If any validations have been done, the best state has been found
             # and saved. If training has been started from previous state,
@@ -110,6 +112,7 @@ class LocalStatisticsTrainer(BasicTrainer):
             self.decrease_learning_rate()
             if self.options['reset_when_annealing']:
                 self.optimizer.reset()
+
 
         self.local_perplexities = []
         self.validation_state = None

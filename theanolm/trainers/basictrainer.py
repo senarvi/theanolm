@@ -337,9 +337,12 @@ class BasicTrainer(object):
 
         if self._has_improved():
             self._set_candidate_state()
-        elif (self.options['patience'] >= 0) and \
-             (self.validations_since_candidate() > self.options['patience']):
-            # Too many validations without improvement.
+
+        self._log_validation()
+
+        if (self.options['patience'] >= 0) and \
+           (self.validations_since_candidate() > self.options['patience']):
+            # Too many validations without finding a new candidate state.
 
             # If any validations have been done, the best state has been found
             # and saved. If training has been started from previous state,
@@ -351,7 +354,6 @@ class BasicTrainer(object):
             if self.options['reset_when_annealing']:
                 self.optimizer.reset()
 
-        self._log_validation()
 
     def _is_scheduled(self, frequency, within=0):
         """Checks if an event is scheduled to be performed within given number
