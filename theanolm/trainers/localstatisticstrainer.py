@@ -87,7 +87,11 @@ class LocalStatisticsTrainer(BasicTrainer):
             # center of the sampling points, the trainer will collect again half
             # of the samples. Don't take that as a validation.
             logging.debug("[%d] Only %d samples collected. Ignoring this "
-                          "validation.")
+                          "validation.",
+                          self.update_number,
+                          len(self.local_perplexities))
+            self.local_perplexities = []
+            self.validation_state = None
             return
 
         statistic = self.statistic_function(self.local_perplexities)
