@@ -120,10 +120,28 @@ class BasicOptimizer(object):
                 logging.debug("%s <- array%s", name, str(new_value.shape))
 
     def get_learning_rate(self):
+        """Returns the current value of the learning rate.
+
+        :rtype: float
+        :returns: current learning rate, or 0 if not used by this optimization
+                  method
+        """
+
         if 'optimizer.learning_rate' in self.params:
             return self.params['optimizer.learning_rate'].get_value()
         else:
             return 0
+
+    def set_learning_rate(self, x):
+        """Sets a new value for the learning rate, if it is used by this
+        optimization method.
+
+        :type x: float
+        :param x: new value for learning rate
+        """
+
+        if 'optimizer.learning_rate' in self.params:
+            self.params['optimizer.learning_rate'].set_value(x)
 
     def update_minibatch(self, word_ids, mask):
         """Optimizes the neural network parameters using the given inputs and
@@ -151,17 +169,6 @@ class BasicOptimizer(object):
                               "numerical error.")
         self.model_update_function()
         self.update_duration = time.time() - update_start_time
-
-    def decrease_learning_rate(self):
-        """Called when the validation set cost stops decreasing.
-        """
-
-        if 'optimizer.learning_rate' in self.params:
-            old_value = self.params['optimizer.learning_rate'].get_value()
-            new_value = old_value / 2
-            self.params['optimizer.learning_rate'].set_value(new_value)
-            logging.info("Learning rate decreased from %g to %g." %
-                (old_value, new_value))
 
     def reset(self):
         """Resets the optimizer timestep. May be called after decreasing

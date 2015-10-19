@@ -257,8 +257,17 @@ class BasicTrainer(object):
 
         logging.debug("Performance on validation set has ceased to improve.")
 
+        # Current learning rate might be smaller than that stored in the state.
+        old_value = self.optimizer.get_learning_rate()
+        new_value = old_value / 2
+
+        self.reset_state()
         self.stopper.improvement_ceased()
-        self.optimizer.decrease_learning_rate()
+        self.optimizer.set_learning_rate(new_value)
+        logging.info("Learning rate decreased from %g to %g.",
+                     old_value, new_value)
+        if self.options['reset_when_annealing']:
+            self.optimizer.reset()
 
     def _has_improved(self):
         """Tests whether the previously computed validation set cost was
@@ -363,10 +372,7 @@ class BasicTrainer(object):
             # _candidate_state has been set to the initial state.
             assert not self._candidate_state is None
 
-            self.reset_state()
             self._decrease_learning_rate()
-            if self.options['reset_when_annealing']:
-                self.optimizer.reset()
 
 
     def _is_scheduled(self, frequency, within=0):

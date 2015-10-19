@@ -115,10 +115,7 @@ class LocalStatisticsTrainer(BasicTrainer):
             # _candidate_state has been set to the initial state.
             assert not self._candidate_state is None
 
-            self.reset_state()
             self._decrease_learning_rate()
-            if self.options['reset_when_annealing']:
-                self.optimizer.reset()
 
         self.local_perplexities = []
         self.validation_state = None
