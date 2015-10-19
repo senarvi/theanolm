@@ -255,6 +255,59 @@ class ShufflingBatchIterator(BatchIterator):
         super().__init__(input_file, dictionary, batch_size, max_sequence_length)
         self.next_line = 0
 
+    def get_state(self):
+        """Returns the iterator state as a dictionary.
+
+        Returns the offsets to the sentence starts (in the shuffled order), and
+        the index to the current sentence. Note that if the program is
+        restarted, the same training file has to be loaded, or the offsets will
+        be incorrect.
+
+        For consistency, all the parameter values are returned as numpy types,
+        since state read from a model file also contains numpy types. This also
+        ensures the cost history will be copied into the returned dictionary.
+
+        :rtype: dict of numpy types
+        :returns: a dictionary of the parameter values
+        """
+
+        result = self.network.get_state()
+        result['iterator.line_starts'] = numpy.array(self.line_starts)
+        result['iterator.next_line'] = numpy.int64(self.next_line)
+        return result
+
+    def set_state(self, state):
+        """Restores the iterator state.
+
+        Sets the offsets to the sentence starts (the order in which they are
+        iterated), and the index to the current sentence.
+        
+        Requires that ``state`` contains values for all the iterator parameters.
+
+        :type state: dict of numpy types
+        :param state: if a dictionary of training parameters is given, takes the
+                      new values from this dictionary, and assumes this is the
+                      state of minimum cost found so far
+        """
+
+        if not 'iterator.line_starts' in state:
+            raise IncompatibleStateError("Line starts / iteration order is "
+                                         "missing from training state.")
+        self.line_starts = state['iterator.line_starts'].tolist()
+        # If the list was empty when the state was saved, ndarray.tolist() will
+        # return None.
+        if self.line_starts is None:
+            raise IncompatibleStateError("Line starts / iteration order is "
+                                         "empty in the training state.")
+
+        if not 'iterator.next_line' in state:
+            raise IncompatibleStateError("Current iteration position is "
+                                         "missing from training state.")
+        self.next_line = state['iterator.next_line'].item()
+        logging.debug("Restored iterator to line %d of %d.",
+                     self.next_line,
+                     len(self.line_starts))
+
     def _reset(self, shuffle=True):
         """Resets the read pointer back to the beginning of the file.
         

@@ -68,6 +68,8 @@ class BasicTrainer(object):
         print("Computing the number of training updates per epoch.")
         sys.stdout.flush()
         self.updates_per_epoch = len(self.training_iter)
+        if self.updates_per_epoch < 1:
+            raise ValueError("Training data does not contain any sentences.")
 
         self.stopper = create_stopper(training_options, self)
         self.options = training_options
@@ -151,6 +153,7 @@ class BasicTrainer(object):
         result['trainer.epoch_number'] = numpy.int64(self.epoch_number)
         result['trainer.update_number'] = numpy.int64(self.update_number)
         result['trainer.cost_history'] = numpy.array(self._cost_history)
+        result.update(self.training_iter.get_state())
         result.update(self.optimizer.get_state())
         result.update(self.stopper.get_state())
         return result
@@ -164,7 +167,8 @@ class BasicTrainer(object):
         Sets candidate state index point to the last element in the loaded cost
         history.
         
-        Requires that ``state`` contains values for all the training parameters.
+        Requires that if ``state`` is set, it contains values for all the
+        training parameters.
 
         :type state: dict of numpy types
         :param state: if a dictionary of training parameters is given, takes the
@@ -205,6 +209,7 @@ class BasicTrainer(object):
         self._candidate_index = len(self._cost_history) - 1
         self._log_validation()
 
+        self.training_iter.set_state(state)
         self.optimizer.set_state(state)
         self.stopper.set_state(state)
 
