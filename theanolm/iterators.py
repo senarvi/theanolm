@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from collections import OrderedDict
 import logging
 import numpy
 import theano
@@ -271,7 +272,7 @@ class ShufflingBatchIterator(BatchIterator):
         :returns: a dictionary of the parameter values
         """
 
-        result = self.network.get_state()
+        result = OrderedDict()
         result['iterator.line_starts'] = numpy.array(self.line_starts)
         result['iterator.next_line'] = numpy.int64(self.next_line)
         return result
