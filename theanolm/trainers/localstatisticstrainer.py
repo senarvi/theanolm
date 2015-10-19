@@ -82,13 +82,16 @@ class LocalStatisticsTrainer(BasicTrainer):
                       self.update_number,
                       perplexity)
 
+        if len(self.local_perplexities) < self.samples_per_validation:
+            # After restoring a previous validation state, which is at the
+            # center of the sampling points, the trainer will collect again half
+            # of the samples. Don't take that as a validation.
+            logging.debug("[%d] Only %d samples collected. Ignoring this "
+                          "validation.")
+            return
+
         statistic = self.statistic_function(self.local_perplexities)
         self._cost_history.append(statistic)
-        logging.debug("[%d] %d samples collected, statistic %.2f.",
-                      self.update_number,
-                      len(self.local_perplexities),
-                      statistic)
-
         if self._has_improved():
             # Take the state at the actual validation point and replace the cost
             # history with the current cost history that also includes this
@@ -112,7 +115,6 @@ class LocalStatisticsTrainer(BasicTrainer):
             self._decrease_learning_rate()
             if self.options['reset_when_annealing']:
                 self.optimizer.reset()
-
 
         self.local_perplexities = []
         self.validation_state = None
