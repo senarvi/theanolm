@@ -27,8 +27,7 @@ def add_arguments(parser):
              'line) for early stopping')
     argument_group.add_argument(
         'dictionary_file', metavar='DICTIONARY', type=TextFileType('r'),
-        help='text or .gz file containing word list (one word per line) or '
-             'word to class ID mappings (word and ID per line)')
+        help='text or .gz file containing word list or class definitions')
     argument_group.add_argument(
         '--dictionary-format', metavar='FORMAT', type=str, default='words',
         help='dictionary format, one of "words" (one word per line, default), '

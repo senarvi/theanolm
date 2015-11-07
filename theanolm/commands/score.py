@@ -17,18 +17,11 @@ def add_arguments(parser):
              'format')
     argument_group.add_argument(
         'input_file', metavar='INPUT', type=TextFileType('r'),
-        help='text or .gz file containing text or n-best list to be scored '
-             '(one sentence per line)')
+        help='text or .gz file containing text to be scored (one sentence per '
+             'line)')
     argument_group.add_argument(
         'dictionary_file', metavar='DICTIONARY', type=TextFileType('r'),
-        help='text or .gz file containing word list (one word per line) or '
-             'word to class ID mappings (word and ID per line)')
-    argument_group.add_argument(
-        '--input-format', metavar='FORMAT', type=str, default='text',
-        help='input text format, one of "text" (one sentence per line, '
-             'default), "srilm-nbest" (n-best list containing "ascore lscore '
-             'nwords w1 w2 w3 ..." on each line), "id-nbest" (n-best list '
-             'containing "id ascore lscore nwords w1 w2 w3 ..." on each line)')
+        help='text or .gz file containing word list or class definitions')
     argument_group.add_argument(
         '--dictionary-format', metavar='FORMAT', type=str, default='words',
         help='dictionary format, one of "words" (one word per line, default), '
@@ -41,8 +34,13 @@ def add_arguments(parser):
     
     argument_group = parser.add_argument_group("scoring")
     argument_group.add_argument(
-        '--verbose', action='store_true',
-        help='print detailed per word probabilities')
+        '--output', metavar='DETAIL', type=str, default='text',
+        help='what to output, one of "perplexity", "utterance-scores", '
+             '"word-scores" (default "perplexity")')
+    argument_group.add_argument(
+        '--log-base', metavar='B', type=int, default=None,
+        help='convert output log probabilities to base B (default is the '
+             'natural logarithm)')
 
 def score(args):
     print("Reading model state from %s." % args.model_path)
@@ -66,18 +64,45 @@ def score(args):
     sys.stdout.flush()
     scorer = theanolm.TextScorer(network)
     
-    if args.input_format == 'text':
+    print("Scoring text.")
+    if args.output == 'perplexity':
         _score_text(args.input_file, dictionary, scorer, args.output_file,
-                    args.verbose)
-    elif args.input_format == 'srilm-nbest':
-        print("Rescoring n-best list.")
-        _rescore_nbest(args.input_file, dictionary, scorer, args.output_file)
-    elif args.input_format == 'id-nbest':
-        print("Rescoring n-best list.")
-        _rescore_nbest(args.input_file, dictionary, scorer, args.output_file,
-                      lscore_field=2, w1_field=4)
+                    args.log_base, False)
+    elif args.output == 'word-scores':
+        _score_text(args.input_file, dictionary, scorer, args.output_file,
+                    args.log_base, True)
+    elif args.output == 'utterance-scores':
+        _score_utterances(args.input_file, dictionary, scorer, args.output_file,
+                          args.log_base)
 
-def _score_text(input_file, dictionary, scorer, output_file, verbose):
+def _score_text(input_file, dictionary, scorer, output_file,
+                log_base=None, word_level=False):
+    """Reads text from ``input_file``, computes perplexity using
+    ``scorer``, and writes to ``output_file``.
+
+    :type input_file: file object
+    :param input_file: a file that contains the input sentences in SRILM n-best
+                       format
+
+    :type dictionary: Dictionary
+    :param dictionary: dictionary that provides mapping between words and word
+                       IDs
+
+    :type scorer: TextScorer
+    :param scorer: a text scorer for rescoring the input sentences
+
+    :type output_file: file object
+    :param output_file: a file where to write the output n-best list in SRILM
+                        format
+
+    :type log_base: int
+    :param log_base: if set to other than None, convert log probabilities to
+                     this base
+
+    :type word_level: bool
+    :param word_level: if set to True, also writes word-level statistics
+    """
+
     validation_iter = theanolm.BatchIterator(input_file, dictionary)
 
     total_logprob = 0
@@ -91,7 +116,7 @@ def _score_text(input_file, dictionary, scorer, output_file, verbose):
             total_logprob += seq_logprob
             num_words += seq_length
             num_sentences += 1
-            if not verbose:
+            if not word_level:
                 continue
             seq_word_ids = word_ids[:, seq_index]
             output_file.write("### Sentence {0}\n".format(num_sentences))
@@ -107,14 +132,41 @@ def _score_text(input_file, dictionary, scorer, output_file, verbose):
         cross_entropy = -total_logprob / num_words
         perplexity = numpy.exp(cross_entropy)
         output_file.write("Cross entropy (base e): {0}\n".format(cross_entropy))
+        if not log_base is None:
+            cross_entropy /= numpy.log(log_base)
+            output_file.write("Cross entropy (base {1}): {0}\n".format(
+                cross_entropy, log_base))
         output_file.write("Perplexity: {0}\n".format(perplexity))
 
-def _rescore_nbest(input_file, dictionary, scorer, output_file, lscore_field=1,
-                  w1_field=3):
+def _score_utterances(input_file, dictionary, scorer, output_file,
+                      log_base=None):
+    """Reads utterances from ``input_file``, computes LM scores using
+    ``scorer``, and writes one score per line to ``output_file``.
+
+    :type input_file: file object
+    :param input_file: a file that contains the input sentences in SRILM n-best
+                       format
+
+    :type dictionary: Dictionary
+    :param dictionary: dictionary that provides mapping between words and word
+                       IDs
+
+    :type scorer: TextScorer
+    :param scorer: a text scorer for rescoring the input sentences
+
+    :type output_file: file object
+    :param output_file: a file where to write the output n-best list in SRILM
+                        format
+
+    :type log_base: int
+    :param log_base: if set to other than None, convert log probabilities to
+                     this base
+    """
+
+    base_conversion = 1 if log_base is None else numpy.log(log_base)
+
     for line_num, line in enumerate(input_file):
-        fields = line.split()
-        
-        words = fields[w1_field:]
+        words = line.split()
         words.append('<sb>')
         
         word_ids = dictionary.words_to_ids(words)
@@ -124,9 +176,9 @@ def _rescore_nbest(input_file, dictionary, scorer, output_file, lscore_field=1,
         probs = numpy.array([[x] for x in probs]).astype(theano.config.floatX)
 
         lm_score = scorer.score_sentence(word_ids, probs)
-        fields[lscore_field] = str(lm_score)
-        output_file.write(' '.join(fields) + '\n')
+        lm_score /= base_conversion
+        output_file.write(str(lm_score) + '\n')
 
-        if line_num % 100 == 0:
+        if (line_num + 1) % 100 == 0:
             print("%d sentences rescored." % (line_num + 1))
         sys.stdout.flush()
