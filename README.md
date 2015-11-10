@@ -1,15 +1,20 @@
 # TheanoLM
 
+
 ## Introduction
 
-TheanoLM is a recurrent neural network language model implemented using the
-Python library Theano. Theano is a Python library that allows the user to
-customize and extend the neural network very conveniently, still generating
-highly efficient code that can utilize GPUs or multiple CPUs for parallel
-computation. TheanoLM already supports different network sizes and
-architectures, including long short-term memory and gated recurrent units. New
-optimization methods can be easiy implemented. Currently Stochastic Gradient
-Descent, RMSProp, ADADELTA, and Adam optimizers are implemented.
+TheanoLM is a recurrent neural network language modeling tool implemented using
+the Python library [Theano](http://www.deeplearning.net/software/theano/).
+Theano allows the user to customize and extend the neural network very
+conveniently, still generating highly efficient code that can utilize GPUs or
+multiple CPUs for parallel computation. TheanoLM already supports different
+network sizes and architectures, including long short-term memory and gated
+recurrent units. New gradient based optimization methods can be easily
+implemented. Currently Stochastic Gradient Descent, RMSProp, AdaGrad, ADADELTA,
+and Adam optimizers are implemented.
+
+TheanoLM is open source and licensed under the
+[Apache License, Version 2.0](LICENSE.txt).
 
 
 ## Installation
@@ -115,3 +120,9 @@ A neural network language model can also be used to generate text, using the
       dictionary.classes \
       --dictionary-format srilm-classes
       --num-sentences 10
+
+
+## Author
+
+Seppo Enarvi  
+http://users.marjaniemi.com/seppo/
