@@ -66,7 +66,8 @@ class BasicOptimizer(object):
 
         self._gradient_exprs = gradients
         self.gradient_update_function = \
-            theano.function([self.network.minibatch_input, self.network.minibatch_mask],
+            theano.function([self.network.minibatch_input,
+                             self.network.minibatch_mask],
                             cost,
                             updates=self._get_gradient_updates(),
                             profile=profile)
