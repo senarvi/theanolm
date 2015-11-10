@@ -10,9 +10,9 @@ from theanolm.optimizers.basicoptimizer import BasicOptimizer
 class AdamOptimizer(BasicOptimizer):
     """Adam Optimization Method
 
-    D.P. Kingma, J. Ba
+    D.P. Kingma, J. Ba (2015)
     Adam: A Method for Stochastic Optimization
-    The International Conference on Learning Representations (ICLR), San Diego, 2015
+    The International Conference on Learning Representations (ICLR), San Diego
     """
 
     def __init__(self, optimization_options, network, *args, **kwargs):
@@ -30,7 +30,8 @@ class AdamOptimizer(BasicOptimizer):
         # Learning rate / step size will change during the iterations, so we'll
         # make it a shared variable.
         if not 'learning_rate' in optimization_options:
-            raise ValueError("Learning rate is not given in optimization options.")
+            raise ValueError("Learning rate is not given in optimization "
+                             "options.")
         self.param_init_values['optimizer.learning_rate'] = \
             numpy.dtype(theano.config.floatX).type(
                 optimization_options['learning_rate'])
@@ -77,8 +78,12 @@ class AdamOptimizer(BasicOptimizer):
             gradient = self.params[name + '.gradient']
             m_gradient = self.params[name + '.mean_gradient']
             ms_gradient = self.params[name + '.mean_sqr_gradient']
-            m_gradient_new = (self._gamma_m * m_gradient) + ((1.0 - self._gamma_m) * gradient)
-            ms_gradient_new = (self._gamma_ms * ms_gradient) + ((1.0 - self._gamma_ms) * tensor.sqr(gradient))
+            m_gradient_new = \
+                (self._gamma_m * m_gradient) + \
+                ((1.0 - self._gamma_m) * gradient)
+            ms_gradient_new = \
+                (self._gamma_ms * ms_gradient) + \
+                ((1.0 - self._gamma_ms) * tensor.sqr(gradient))
             result.append((gradient, gradient_new))
             result.append((m_gradient, m_gradient_new))
             result.append((ms_gradient, ms_gradient_new))

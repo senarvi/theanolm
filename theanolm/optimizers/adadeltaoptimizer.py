@@ -8,9 +8,8 @@ from theanolm.optimizers.basicoptimizer import BasicOptimizer
 class AdadeltaOptimizer(BasicOptimizer):
     """Adadelta Optimization Method
 
-    Zeiler, M. D.
+    Zeiler, M. D. (2012)
     ADADELTA: An adaptive learning rate method
-    CoRR, 2012
     http://arxiv.org/abs/1212.5701
     """
 
@@ -53,7 +52,9 @@ class AdadeltaOptimizer(BasicOptimizer):
         for name, gradient_new in zip(self.network.params, self._gradient_exprs):
             gradient = self.params[name + '.gradient']
             ms_gradient = self.params[name + '.mean_sqr_gradient']
-            ms_gradient_new = (self._gamma * ms_gradient) + ((1.0 - self._gamma) * tensor.sqr(gradient_new))
+            ms_gradient_new = \
+                (self._gamma * ms_gradient) + \
+                ((1.0 - self._gamma) * tensor.sqr(gradient_new))
             result.append((gradient, gradient_new))
             result.append((ms_gradient, ms_gradient_new))
         return result

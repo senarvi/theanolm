@@ -9,8 +9,8 @@ from theanolm.optimizers.basicoptimizer import BasicOptimizer
 class RMSPropMomentumOptimizer(BasicOptimizer):
     """RMSProp variation of Momentum Optimization Method
     
-    RMSProp is currently an unpublished method. Usually people cite slide 29
-    of Lecture 6 of Geoff Hinton's Coursera class:
+    At the time of writing, RMSProp is an unpublished method. Usually people
+    cite slide 29 of Lecture 6 of Geoff Hinton's Coursera class:
     http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf 
     
     The idea is simply to maintain a running average of the squared gradient for
@@ -22,9 +22,8 @@ class RMSPropMomentumOptimizer(BasicOptimizer):
     RMSProp has been implemented over many optimization methods. This algorithm
     is from:
 
-    A. Graves
+    A. Graves (2013)
     Generating Sequences With Recurrent Neural Networks
-    Corr, 2013
     http://arxiv.org/abs/1308.0850
     """
 

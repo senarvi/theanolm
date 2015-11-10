@@ -9,8 +9,8 @@ from theanolm.optimizers.basicoptimizer import BasicOptimizer
 class RMSPropSGDOptimizer(BasicOptimizer):
     """RMSProp Variation of Stochastic Gradient Descent Optimization Method
     
-    RMSProp is currently an unpublished method. Usually people cite slide 29
-    of Lecture 6 of Geoff Hinton's Coursera class:
+    At the time of writing, RMSProp is an unpublished method. Usually people
+    cite slide 29 of Lecture 6 of Geoff Hinton's Coursera class:
     http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf 
     
     The idea is simply to maintain a running average of the squared gradient for
