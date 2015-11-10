@@ -145,7 +145,7 @@ def add_arguments(parser):
 
 def train(args):
     numpy.random.seed(args.random_seed)
-    
+
     log_file = args.log_file
     log_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(log_level, int):
@@ -155,25 +155,25 @@ def train(args):
         logging.basicConfig(stream=sys.stdout, format=log_format, level=log_level)
     else:
         logging.basicConfig(filename=log_file, format=log_format, level=log_level)
-    
+
     if args.debug:
         theano.config.compute_test_value = 'warn'
     else:
         theano.config.compute_test_value = 'off'
-    
+
     if os.path.exists(args.model_path):
         print("Reading initial state from %s." % args.model_path)
         initial_state = numpy.load(args.model_path)
     else:
         initial_state = None
-    
+
     print("Reading dictionary.")
     sys.stdout.flush()
     dictionary = theanolm.Dictionary(args.dictionary_file,
                                      args.dictionary_format)
     print("Number of words in vocabulary:", dictionary.num_words())
     print("Number of word classes:", dictionary.num_classes())
-    
+
     print("Building neural network.")
     sys.stdout.flush()
     architecture = theanolm.Network.Architecture(
@@ -187,18 +187,18 @@ def train(args):
         print("Restoring neural network to previous state.")
         sys.stdout.flush()
         network.set_state(initial_state)
-    
+
     print("Building text scorer.")
     sys.stdout.flush()
     scorer = theanolm.TextScorer(network, args.profile)
-    
+
     validation_mmap = mmap.mmap(args.validation_file.fileno(),
                                 0,
                                 prot=mmap.PROT_READ)
     validation_iter = theanolm.BatchIterator(validation_mmap,
                                              dictionary,
                                              batch_size=32)
-    
+
     optimization_options = {
         'method': args.optimization_method,
         'epsilon': args.numerical_stability_term,
@@ -208,7 +208,10 @@ def train(args):
         'momentum': args.momentum}
     if not args.gradient_normalization is None:
         optimization_options['max_gradient_norm'] = args.gradient_normalization
-    
+    logging.debug("Optimization options:")
+    for option_name, option_value in optimization_options.items():
+        logging.debug("%s: %s", option_name, str(option_value))
+
     training_options = {
         'strategy': args.training_strategy,
         'batch_size': args.batch_size,
@@ -219,7 +222,10 @@ def train(args):
         'stopping_criterion': args.stopping_criterion,
         'max_epochs': args.max_epochs,
         'min_epochs': args.min_epochs}
-    
+    logging.debug("Training options:")
+    for option_name, option_value in training_options.items():
+        logging.debug("%s: %s", option_name, str(option_value))
+
     print("Building neural network trainer.")
     sys.stdout.flush()
     trainer = create_trainer(training_options, optimization_options,
@@ -232,7 +238,7 @@ def train(args):
         trainer.reset_state(initial_state)
     trainer.set_model_path(args.model_path)
     trainer.set_logging(args.log_update_interval)
-    
+
     print("Training neural network.")
     sys.stdout.flush()
     trainer.run()
