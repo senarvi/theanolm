@@ -42,7 +42,8 @@ class RMSPropMomentumOptimizer(BasicOptimizer):
         # Learning rate / step size will change during the iterations, so we'll
         # make it a shared variable.
         if not 'learning_rate' in optimization_options:
-            raise ValueError("Learning rate is not given in optimization options.")
+            raise ValueError("Learning rate is not given in optimization "
+                             "options.")
         self.param_init_values['optimizer.learning_rate'] = \
             numpy.dtype(theano.config.floatX).type(
                 optimization_options['learning_rate'])
@@ -79,12 +80,17 @@ class RMSPropMomentumOptimizer(BasicOptimizer):
 
     def _get_gradient_updates(self):
         result = []
-        for name, gradient_new in zip(self.network.params, self._gradient_exprs):
+        for name, gradient_new in zip(self.network.params,
+                                      self._gradient_exprs):
             gradient = self.params[name + '.gradient']
             m_gradient = self.params[name + '.mean_gradient']
             ms_gradient = self.params[name + '.mean_sqr_gradient']
-            m_gradient_new = (self._gamma * m_gradient) + ((1.0 - self._gamma) * gradient_new)
-            ms_gradient_new = (self._gamma * ms_gradient) + ((1.0 - self._gamma) * tensor.sqr(gradient_new))
+            m_gradient_new = \
+                (self._gamma * m_gradient) + \
+                ((1.0 - self._gamma) * gradient_new)
+            ms_gradient_new = \
+                (self._gamma * ms_gradient) + \
+                ((1.0 - self._gamma) * tensor.sqr(gradient_new))
             result.append((gradient, gradient_new))
             result.append((m_gradient, m_gradient_new))
             result.append((ms_gradient, ms_gradient_new))
@@ -103,8 +109,10 @@ class RMSPropMomentumOptimizer(BasicOptimizer):
             # I've seen this used when RMSProp is implemented with a momentum
             # method.
 #            rms_gradient = tensor.sqrt(ms_gradient + self._epsilon)
-            rms_gradient = tensor.sqrt(ms_gradient - tensor.sqr(m_gradient) + self._epsilon)
-            velocity_new = (self._momentum * velocity) - (alpha * gradient / rms_gradient)
+            rms_gradient = tensor.sqrt(ms_gradient - tensor.sqr(m_gradient) + \
+                                       self._epsilon)
+            velocity_new = (self._momentum * velocity) - \
+                           (alpha * gradient / rms_gradient)
             param_new = param + velocity_new
             result.append((velocity, velocity_new))
             result.append((param, param_new))

@@ -24,13 +24,15 @@ class SGDOptimizer(BasicOptimizer):
         # Learning rate / step size will change during the iterations, so we'll
         # make it a shared variable.
         if not 'learning_rate' in optimization_options:
-            raise ValueError("Learning rate is not given in optimization options.")
+            raise ValueError("Learning rate is not given in optimization "
+                             "options.")
         self.param_init_values['optimizer.learning_rate'] = \
             numpy.dtype(theano.config.floatX).type(
                 optimization_options['learning_rate'])
 
         for name, param in network.params.items():
-            self.param_init_values[name + '.gradient'] = numpy.zeros_like(param.get_value())
+            self.param_init_values[name + '.gradient'] = \
+                numpy.zeros_like(param.get_value())
 
         self._create_params()
 
@@ -38,7 +40,8 @@ class SGDOptimizer(BasicOptimizer):
 
     def _get_gradient_updates(self):
         result = []
-        for name, gradient_new in zip(self.network.params, self._gradient_exprs):
+        for name, gradient_new in zip(self.network.params,
+                                      self._gradient_exprs):
             gradient = self.params[name + '.gradient']
             result.append((gradient, gradient_new))
         return result

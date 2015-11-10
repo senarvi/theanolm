@@ -35,7 +35,8 @@ class NesterovOptimizer(BasicOptimizer):
         # Learning rate / step size will change during the iterations, so we'll
         # make it a shared variable.
         if not 'learning_rate' in optimization_options:
-            raise ValueError("Learning rate is not given in optimization options.")
+            raise ValueError("Learning rate is not given in optimization "
+                             "options.")
         self.param_init_values['optimizer.learning_rate'] = \
             numpy.dtype(theano.config.floatX).type(
                 optimization_options['learning_rate'])
@@ -57,7 +58,8 @@ class NesterovOptimizer(BasicOptimizer):
 
     def _get_gradient_updates(self):
         result = []
-        for name, gradient_new in zip(self.network.params, self._gradient_exprs):
+        for name, gradient_new in zip(self.network.params,
+                                      self._gradient_exprs):
             gradient = self.params[name + '.gradient']
             result.append((gradient, gradient_new))
         return result
@@ -69,9 +71,9 @@ class NesterovOptimizer(BasicOptimizer):
         for name, param in self.network.params.items():
             gradient = self.params[name + '.gradient']
             velocity = self.params[name + '.velocity']
-            standard_update = -alpha * gradient
-            velocity_new = (self._momentum * velocity) + standard_update
-            param_new = param + (self._momentum * velocity_new) + standard_update
+            std_update = -alpha * gradient
+            velocity_new = (self._momentum * velocity) + std_update
+            param_new = param + (self._momentum * velocity_new) + std_update
             result.append((velocity, velocity_new))
             result.append((param, param_new))
         return result
