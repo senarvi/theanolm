@@ -8,7 +8,7 @@ from theanolm.optimizers.basicoptimizer import BasicOptimizer
 class AdadeltaOptimizer(BasicOptimizer):
     """Adadelta Optimization Method
 
-    Zeiler, M. D. (2012)
+    M. D. Zeiler (2012)
     ADADELTA: An adaptive learning rate method
     http://arxiv.org/abs/1212.5701
     """
