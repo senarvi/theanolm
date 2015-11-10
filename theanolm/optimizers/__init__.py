@@ -1,6 +1,6 @@
 from theanolm.optimizers.sgdoptimizer import SGDOptimizer
 from theanolm.optimizers.nesterovoptimizer import NesterovOptimizer
-from theanolm.optimizers.adadeltaoptimizer import AdaGradOptimizer
+from theanolm.optimizers.adagradoptimizer import AdaGradOptimizer
 from theanolm.optimizers.adadeltaoptimizer import AdadeltaOptimizer
 from theanolm.optimizers.rmspropsgdoptimizer import RMSPropSGDOptimizer
 from theanolm.optimizers.rmspropmomentumoptimizer import RMSPropMomentumOptimizer
