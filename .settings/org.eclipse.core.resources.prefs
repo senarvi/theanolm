@@ -12,6 +12,7 @@ encoding//theanolm/layers/projectionlayer.py=utf-8
 encoding//theanolm/matrixfunctions.py=utf-8
 encoding//theanolm/network.py=utf-8
 encoding//theanolm/optimizers/adadeltaoptimizer.py=utf-8
+encoding//theanolm/optimizers/adagradoptimizer.py=utf-8
 encoding//theanolm/optimizers/adamoptimizer.py=utf-8
 encoding//theanolm/optimizers/basicoptimizer.py=utf-8
 encoding//theanolm/optimizers/nesterovoptimizer.py=utf-8
