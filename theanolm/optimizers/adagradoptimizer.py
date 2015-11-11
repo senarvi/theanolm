@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy
+import theano
 import theano.tensor as tensor
 from theanolm.optimizers.basicoptimizer import BasicOptimizer
 

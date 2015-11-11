@@ -209,7 +209,7 @@ def train(args):
         'momentum': args.momentum}
     if not args.gradient_normalization is None:
         optimization_options['max_gradient_norm'] = args.gradient_normalization
-    logging.debug("Optimization options:")
+    logging.debug("OPTIMIZATION OPTIONS")
     for option_name, option_value in optimization_options.items():
         logging.debug("%s: %s", option_name, str(option_value))
 
@@ -223,7 +223,7 @@ def train(args):
         'stopping_criterion': args.stopping_criterion,
         'max_epochs': args.max_epochs,
         'min_epochs': args.min_epochs}
-    logging.debug("Training options:")
+    logging.debug("TRAINING OPTIONS")
     for option_name, option_value in training_options.items():
         logging.debug("%s: %s", option_name, str(option_value))
 

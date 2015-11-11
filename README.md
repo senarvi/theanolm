@@ -1,15 +1,20 @@
 # TheanoLM
 
+
 ## Introduction
 
-TheanoLM is a recurrent neural network language model implemented using the
-Python library Theano. Theano is a Python library that allows the user to
-customize and extend the neural network very conveniently, still generating
-highly efficient code that can utilize GPUs or multiple CPUs for parallel
-computation. TheanoLM already supports different network sizes and
-architectures, including long short-term memory and gated recurrent units. New
-optimization methods can be easiy implemented. Currently Stochastic Gradient
-Descent, RMSProp, ADADELTA, and Adam optimizers are implemented.
+TheanoLM is a recurrent neural network language modeling tool implemented using
+the Python library [Theano](http://www.deeplearning.net/software/theano/).
+Theano allows the user to customize and extend the neural network very
+conveniently, still generating highly efficient code that can utilize GPUs or
+multiple CPUs for parallel computation. TheanoLM already supports different
+network sizes and architectures, including long short-term memory and gated
+recurrent units. New gradient based optimization methods can be easily
+implemented. Currently Stochastic Gradient Descent, RMSProp, AdaGrad, ADADELTA,
+and Adam optimizers are implemented.
+
+TheanoLM is open source and licensed under the
+[Apache License, Version 2.0](LICENSE.txt).
 
 
 ## Installation
@@ -18,7 +23,7 @@ To run the program, you need to first install Theano. The Python package
 theanolm has to be found from a directory on your `$PYTHONPATH`, and the scripts
 from bin directory have to be found from a directory on your `$PATH`. The
 easiest way to try the program is to clone the Git repository to, say,
-`$HOME/git/theanolm`, add that directories to `$PYTHONPATH` and the `bin`
+`$HOME/git/theanolm`, add that directory to `$PYTHONPATH` and the `bin`
 subdirectory to `$PATH`:
 
     mkdir -p "$HOME/git"
@@ -27,15 +32,21 @@ subdirectory to `$PATH`:
     export PYTHONPATH="$PYTHONPATH:$HOME/git/theanolm"
     export PATH="$PATH:$HOME/git/theanolm/bin"
 
-Theano can automatically utilize GPUs in the numeric computations. This is
-enabled by the `device=gpu` switch in `$THEANO_FLAGS` environment variable.
+
+### Using a GPU
+
+Theano can automatically utilize GPUs for numeric computation. First you need to
+have CUDA installed. A GPU device can be selected using `$THEANO_FLAGS`
+environment variable, or in `.theanorc` configuration file. For details about
+configuring Theano, see
+[Theano manual](http://deeplearning.net/software/theano/library/config.html).
 Currently Theano supports only 32-bit floating point precision, when using a
-GPU, thus you need to specify:
+GPU. The simplest way to get started is to set `$THEANO_FLAGS` as follows:
 
     export THEANO_FLAGS=floatX=float32,device=gpu
 
 
-## Commands
+## Invocation
 
 `theanolm` command recognizes several subcommands:
 
@@ -52,7 +63,7 @@ displayed with the `--help` argument, e.g.
     theanolm train --help
 
 
-## Training
+### Training
 
 A model can be trained using words or word classes. For larger model and data
 sizes word classes are generally necessary to keep the computational cost of
@@ -93,7 +104,7 @@ the training starts, TheanoLM will automatically continue training from the
 previous state.
 
 
-## Scoring a text file
+### Scoring a text file
 
 After training, the model state can be loaded and used to compute a perplexity
 score for a text file, using the `theanolm score` command:
@@ -105,7 +116,7 @@ score for a text file, using the `theanolm score` command:
       --dictionary-format srilm-classes
 
 
-## Generating text using a model
+### Generating text using a model
 
 A neural network language model can also be used to generate text, using the
 `theanolm sample` command:
@@ -115,3 +126,9 @@ A neural network language model can also be used to generate text, using the
       dictionary.classes \
       --dictionary-format srilm-classes
       --num-sentences 10
+
+
+## Author
+
+Seppo Enarvi  
+http://users.marjaniemi.com/seppo/
