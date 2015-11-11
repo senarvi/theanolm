@@ -6,7 +6,14 @@ import theano.tensor as tensor
 from theanolm.optimizers.basicoptimizer import BasicOptimizer
 
 class AdadeltaOptimizer(BasicOptimizer):
-    """Adadelta Optimization Method
+    """ADADELTA Optimization Method
+
+    ADADELTA optimization method has been derived from AdaGrad. AdaGrad
+    accumulates the sum of squared gradients over all time, which is used to
+    scale the learning rate smaller and smaller. ADADELTA uses an exponentially
+    decaying average of the squared gradients. Learning rate is not used at all,
+    although some implementations scale the parameter updates by a learning
+    rate.
 
     M. D. Zeiler (2012)
     ADADELTA: An adaptive learning rate method
@@ -74,6 +81,8 @@ class AdadeltaOptimizer(BasicOptimizer):
             velocity = -(rms_velocity / rms_gradient) * gradient
             ms_velocity_new = (self._gamma * ms_velocity) + \
                               ((1.0 - self._gamma) * tensor.sqr(velocity))
+            # Some implementations add a learning rate here, i.e.
+            # param + alpha * velocity.
             param_new = param + velocity
             result.append((ms_velocity, ms_velocity_new))
             result.append((param, param_new))
