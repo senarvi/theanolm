@@ -13,9 +13,6 @@ recurrent units. New gradient based optimization methods can be easily
 implemented. Currently Stochastic Gradient Descent, RMSProp, AdaGrad, ADADELTA,
 and Adam optimizers are implemented.
 
-TheanoLM is open source and licensed under the
-[Apache License, Version 2.0](LICENSE.txt).
-
 
 ## Installation
 
@@ -46,7 +43,7 @@ GPU. The simplest way to get started is to set `$THEANO_FLAGS` as follows:
     export THEANO_FLAGS=floatX=float32,device=gpu
 
 
-## Invocation
+## Usage
 
 `theanolm` command recognizes several subcommands:
 
@@ -63,7 +60,7 @@ displayed with the `--help` argument, e.g.
     theanolm train --help
 
 
-### Training
+### Training a language model
 
 A model can be trained using words or word classes. For larger model and data
 sizes word classes are generally necessary to keep the computational cost of
@@ -128,7 +125,47 @@ A neural network language model can also be used to generate text, using the
       --num-sentences 10
 
 
-## Author
+## About the project
+
+TheanoLM is open source and licensed under the
+[Apache License, Version 2.0](LICENSE.txt).
+
+
+### Contributing
+
+You're welcome to contribute.
+
+1. Fork the repository on GitHub.
+2. Clone the forked repository into a local directory: `git clone my-repository-url'
+3. Create a new branch: `git checkout -b my-new-feature`
+4. Commit your changes: `git commit -a`
+5. Push to the branch: `git push origin my-new-feature`
+6. Submit a pull request on GitHub.
+
+
+### Structure of the source code
+
+`theanolm.commands` package contains the main scripts for launching the
+subcommands.
+
+`theanolm.network.Network` class stores the neural network architecture and
+state. The architecture is built from layers that are implemented in
+`theanolm.layers` package. Each layer implements functions for constructing the
+symbolic layer structure, which may be different for mini-batch training and
+text sampling.
+
+`theanolm.trainers` package contains classes that perform the training
+iterations. They are responsible for cross-validation and learning rate
+adjustment. They use one of the optimizers found in `theanolm.optimizers`
+package to perform the actual parameter update.
+
+`theanolm.textscorer.TextScorer` class is used to score text, both for
+cross-validation during training and by the score command for evaluating text.
+`theanolm.textsampler.TextSampler` class is used by the sample command for
+generating text.
+
+
+### Author
 
 Seppo Enarvi  
 http://users.marjaniemi.com/seppo/
