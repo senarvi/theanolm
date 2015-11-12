@@ -32,8 +32,8 @@ subdirectory to `$PATH`:
 
 ### Using a GPU
 
-Theano can automatically utilize GPUs for numeric computation. First you need to
-have CUDA installed. A GPU device can be selected using `$THEANO_FLAGS`
+Theano can automatically utilize NVIDIA GPUs for numeric computation. First you
+need to have CUDA installed. A GPU device can be selected using `$THEANO_FLAGS`
 environment variable, or in `.theanorc` configuration file. For details about
 configuring Theano, see
 [Theano manual](http://deeplearning.net/software/theano/library/config.html).

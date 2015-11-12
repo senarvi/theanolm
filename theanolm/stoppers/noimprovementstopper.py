@@ -6,6 +6,11 @@ from theanolm.stoppers.basicstopper import BasicStopper
 class NoImprovementStopper(BasicStopper):
     """Stops training when a better candidate state is not found between
     learning rate adjustments.
+
+    Always waits that the entire training set has been passed at least
+    min_epochs times, before stopping. Notice that the training might never
+    stop, if min_epochs is never reached, when the performance won't improve and
+    training is always returned to a point before that.
     """
 
     def __init__(self, training_options, *args, **kwargs):
