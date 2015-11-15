@@ -62,6 +62,8 @@ displayed with the `--help` argument, e.g.
 
 ### Training a language model
 
+#### Dictionary
+
 A model can be trained using words or word classes. For larger model and data
 sizes word classes are generally necessary to keep the computational cost of
 training and evaluating models reasonable.
@@ -79,6 +81,29 @@ srilm-classes` argument is given to `theanolm train` command. The program also
 accepts simple `classes` format without class membership probabilities, but it
 is not currently able to learn the class membership probabilities from the
 training data.
+
+#### Optimization
+
+The objective of the implemented optimization methods is to maximize the
+likelihood of the training sentences. The cost function is the sum of the
+negative log probabilities of the training words, given the preceding input
+words, divided by the number of words.
+
+The training data file should contain one sentence per line. Training words are
+processed in sequences that by default correspond to sentences. Maximum sequence
+length may be given with the `--sequence-length` parameter, which limits the
+time span for which the network can learn dependencies.
+
+All the implemented optimization methods are based on Gradient Descent, meaning
+that the neural network parameters are updated by taking steps proportional to
+the negative of the gradient of the cost function. The true gradient is
+approximated by subgradients on subsets of the training data called
+“mini-batches”. The number of sequences included in one mini-batch can be set
+with the `--batch-size` parameter; usually values between 4 and 32 are used.
+Larger mini-batches are more efficient to compute on a GPU and may result in a
+smoother convergence.
+
+#### Command line
 
 Below is an example of how you can train a language model, assuming you have
 already created the word classes in `dictionary.classes`:
