@@ -87,21 +87,31 @@ training data.
 The objective of the implemented optimization methods is to maximize the
 likelihood of the training sentences. The cost function is the sum of the
 negative log probabilities of the training words, given the preceding input
-words, divided by the number of words.
+words.
 
 The training data file should contain one sentence per line. Training words are
 processed in sequences that by default correspond to sentences. Maximum sequence
-length may be given with the `--sequence-length` parameter, which limits the
-time span for which the network can learn dependencies.
+length may be given with the `--sequence-length` argument, which limits the time
+span for which the network can learn dependencies.
 
 All the implemented optimization methods are based on Gradient Descent, meaning
 that the neural network parameters are updated by taking steps proportional to
 the negative of the gradient of the cost function. The true gradient is
 approximated by subgradients on subsets of the training data called
-“mini-batches”. The number of sequences included in one mini-batch can be set
-with the `--batch-size` parameter; usually values between 4 and 32 are used.
-Larger mini-batches are more efficient to compute on a GPU and may result in a
-smoother convergence.
+“mini-batches”.
+
+The size of the step taken when updating neural network parameters is controlled
+by “learning rate”. The initial value can be set using the `--learning-rate`
+argument. The average per-word gradient will be multiplied by this factor. In
+practice the gradient is scaled by the number of words by dividing the cost
+function by the number of words in the mini-batch.
+
+The number of sequences included in one mini-batch can be set with the
+`--batch-size` argument. Larger mini-batches are more efficient to compute on a
+GPU, and result in more reliable gradient estimates. However, when a larger
+batch size is selected, the learning rate may have to be reduced to keep the
+optimization stable. This makes a too large batch size inefficient. Usually
+values between 4 and 32 are used.
 
 #### Command line
 
@@ -117,7 +127,7 @@ already created the word classes in `dictionary.classes`:
       --hidden-layer-size 300 \
       --hidden-layer-type lstm \
       --batch-size 16 \
-      --learning-rate 0.001
+      --learning-rate 0.02
 
 During training, TheanoLM will save `model.npz` every time a minimum of the
 validation set cost is found. The file contains model parameters and values of
