@@ -293,8 +293,8 @@ class BasicTrainer(object):
         """Logs information about the previous mini-batch update.
         """
 
-        logging.info("[%d] (%.2f %%) of epoch %d -- lr = %g, cost = %.2f, "
-                     "duration = %.2f ms",
+        logging.info("[%d] (%.1f %%) of epoch %d -- lr = %.1g, cost = %.2f, "
+                     "duration = %.1f ms",
                      self.update_number,
                      self.update_number / self.updates_per_epoch * 100,
                      self.epoch_number,
