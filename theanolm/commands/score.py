@@ -165,11 +165,16 @@ def _score_utterances(input_file, dictionary, scorer, output_file,
 
     base_conversion = 1 if log_base is None else numpy.log(log_base)
 
+    num_words = 0
+    num_unks = 0
     for line_num, line in enumerate(input_file):
-        words = line.split()
-        words.append('<sb>')
-        
+        words = ['<s>']
+        words.extend(line.split())
+        words.append('</s>')
+
         word_ids = dictionary.words_to_ids(words)
+        num_words += len(word_ids)
+        num_unks += word_ids.count(dictionary.unk_id)
         word_ids = numpy.array([[x] for x in word_ids]).astype('int64')
         
         probs = dictionary.words_to_probs(words)
@@ -179,6 +184,12 @@ def _score_utterances(input_file, dictionary, scorer, output_file,
         lm_score /= base_conversion
         output_file.write(str(lm_score) + '\n')
 
-        if (line_num + 1) % 100 == 0:
-            print("%d sentences rescored." % (line_num + 1))
+        if (line_num + 1) % 1000 == 0:
+            print("%d sentences rescored.".format(line_num + 1))
         sys.stdout.flush()
+
+    if num_words == 0:
+        print("The input file contains no words.")
+    else:
+        print("%d words read, including %d (%.1f %%) out-of-vocabulary "
+              "words".format(num_words, num_unks, num_unks / num_words))

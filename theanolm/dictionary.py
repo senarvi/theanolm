@@ -107,17 +107,20 @@ class Dictionary(object):
 	                     "classes", or "srilm-classes"
         """
 
-        # The word classes with consecutive indices. The first two classes are
-        # the sentence break and the unknown word token.
-        self._word_classes = [Dictionary.WordClass('<sb>', 1.0),
+        # The word classes with consecutive indices. The first three classes are
+        # the start-of-sentence, end-of-sentence, and unknown word tokens.
+        self._word_classes = [Dictionary.WordClass('<s>', 1.0),
+                              Dictionary.WordClass('</s>', 1.0),
                               Dictionary.WordClass('<UNK>', 1.0)]
         # Mapping from the IDs in the file to our word classes.
         file_id_to_class = dict()
         # Mapping from word strings to word classes.
-        self._word_to_class = {'<sb>': self._word_classes[0],
-                               '<UNK>': self._word_classes[1]}
-        self.sb_id = 0
-        self.unk_id = 1
+        self._word_to_class = {'<s>': self._word_classes[0],
+                               '</s>': self._word_classes[1],
+                               '<UNK>': self._word_classes[2]}
+        self.sos_id = 0
+        self.eos_id = 1
+        self.unk_id = 2
 
         for line in input_file:
             line = line.strip()

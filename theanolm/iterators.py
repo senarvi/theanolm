@@ -142,10 +142,13 @@ class BatchIterator(object):
 
     def _read_sequence(self):
         """Returns next word sequence.
-        
+
+        If an empty line is encountered, returns an empty list (instead of an
+        empty sentence '<s> </s>').
+
         If buffer is not empty, returns a sequence from the buffer. Otherwise
         reads a line to the buffer first.
-        
+
         :rtype: list
         :returns: a sequence words (may be empty), or None if no more data
         """
@@ -161,8 +164,9 @@ class BatchIterator(object):
             if len(line) == 0:
                 # empty line
                 return []
-            self.buffer = line.split()
-            self.buffer.append('<sb>')
+            self.buffer = ['<s>']
+            self.buffer.extend(line.split())
+            self.buffer.append('</s>')
 
         if self.max_sequence_length is None:
             result = self.buffer
