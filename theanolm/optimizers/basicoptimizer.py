@@ -124,14 +124,14 @@ class BasicOptimizer(object):
         """Returns the current value of the learning rate.
 
         :rtype: float
-        :returns: current learning rate, or 0 if not used by this optimization
+        :returns: current learning rate, or 1.0 if not used by this optimization
                   method
         """
 
         if 'optimizer.learning_rate' in self.params:
             return self.params['optimizer.learning_rate'].get_value()
         else:
-            return 0
+            return 1.0
 
     def set_learning_rate(self, x):
         """Sets a new value for the learning rate, if it is used by this

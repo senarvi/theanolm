@@ -264,7 +264,10 @@ class BasicTrainer(object):
         self.reset_state()
         self.stopper.improvement_ceased()
         self.optimizer.set_learning_rate(new_value)
-        logging.info("Learning rate decreased from %g to %g.",
+
+        # The learning rate might not change if the optimizer doesn't need it.
+        new_value = self.optimizer.get_learning_rate()
+        logging.info("Learning rate updated from %g to %g.",
                      old_value, new_value)
         if self.options['reset_when_annealing']:
             self.optimizer.reset()
