@@ -60,8 +60,8 @@ def add_arguments(parser):
         '--sequence-length', metavar='N', type=int, default=100,
         help='ignore sentences longer than N words (default 100)')
     argument_group.add_argument(
-        '--batch-size', metavar='N', type=int, default=32,
-        help='each mini-batch will contain N sentences (default 32)')
+        '--batch-size', metavar='N', type=int, default=16,
+        help='each mini-batch will contain N sentences (default 16)')
     argument_group.add_argument(
         '--validation-frequency', metavar='N', type=int, default='100',
         help='cross-validate for reducing learning rate N times per training '
@@ -82,13 +82,13 @@ def add_arguments(parser):
     
     argument_group = parser.add_argument_group("optimization")
     argument_group.add_argument(
-        '--optimization-method', metavar='NAME', type=str, default='adam',
+        '--optimization-method', metavar='NAME', type=str, default='sgd',
         help='optimization method, one of "sgd", "nesterov", "adagrad", '
              '"adadelta", "rmsprop-sgd", "rmsprop-momentum", "adam" '
-             '(default "adam")')
+             '(default "sgd")')
     argument_group.add_argument(
-        '--learning-rate', metavar='ALPHA', type=float, default=0.001,
-        help='initial learning rate (default 0.001)')
+        '--learning-rate', metavar='ALPHA', type=float, default=0.1,
+        help='initial learning rate (default 0.1)')
     argument_group.add_argument(
         '--momentum', metavar='BETA', type=float, default=0.9,
         help='momentum coefficient for momentum optimization methods (default '

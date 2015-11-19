@@ -104,19 +104,24 @@ The size of the step taken when updating neural network parameters is controlled
 by “learning rate”. The initial value can be set using the `--learning-rate`
 argument. The average per-word gradient will be multiplied by this factor. In
 practice the gradient is scaled by the number of words by dividing the cost
-function by the number of words in the mini-batch.
+function by the number of words in the mini-batch. In most of the cases,
+something between 0.01 and 1.0 works well, while Adam seems to require a smaller
+value than the other optimization methods.
 
 The number of sequences included in one mini-batch can be set with the
 `--batch-size` argument. Larger mini-batches are more efficient to compute on a
 GPU, and result in more reliable gradient estimates. However, when a larger
 batch size is selected, the learning rate may have to be reduced to keep the
-optimization stable. This makes a too large batch size inefficient. Usually
-values between 4 and 32 are used.
+optimization stable. This makes a too large batch size inefficient. Usually a
+value between 4 and 32 is used.
 
 #### Command line
 
-Below is an example of how you can train a language model, assuming you have
-already created the word classes in `dictionary.classes`:
+Train command takes four positional arguments: output model path, training data
+path, validation data path, and dictionary path. The model will be saved in
+NumPy .npz format. The input files can be either plain text or compressed with
+gzip. Below is an example of how to train a language model, assuming you have
+the word classes in SRILM format in `dictionary.classes`:
 
     theanolm train \
       model.npz \
@@ -126,14 +131,16 @@ already created the word classes in `dictionary.classes`:
       --dictionary-format srilm-classes \
       --hidden-layer-size 300 \
       --hidden-layer-type lstm \
+      --optimization-method adam \
       --batch-size 16 \
-      --learning-rate 0.02
+      --learning-rate 0.01
 
 During training, TheanoLM will save `model.npz` every time a minimum of the
-validation set cost is found. The file contains model parameters and values of
-training hyperparameters in numpy .npz format. If the file exists already when
-the training starts, TheanoLM will automatically continue training from the
-previous state.
+validation set cost is found. The file contains the current values of the model
+parameters and the training hyperparameters. If the file exists already when the
+training starts, and the saved model is compatible with the specified command
+line arguments, TheanoLM will automatically continue training from the previous
+state.
 
 
 ### Scoring a text file
