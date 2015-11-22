@@ -106,19 +106,20 @@ def _score_text(input_file, dictionary, scorer, output_file,
     validation_iter = theanolm.BatchIterator(input_file, dictionary)
 
     total_logprob = 0
-    num_words = 0
     num_sentences = 0
+    num_words = 0
+    num_probs = 0
     for word_ids, membership_probs, mask in validation_iter:
         logprobs = scorer.score_batch(word_ids, membership_probs, mask)
         for seq_index, seq_logprobs in enumerate(logprobs):
             seq_logprob = sum(seq_logprobs)
-            seq_length = len(seq_logprobs)
+            num_probs += len(seq_logprobs)
             total_logprob += seq_logprob
-            num_words += seq_length
+            seq_word_ids = word_ids[:, seq_index]
+            num_words += len(seq_word_ids)
             num_sentences += 1
             if not word_level:
                 continue
-            seq_word_ids = word_ids[:, seq_index]
             seq_class_names = dictionary.ids_to_names(seq_word_ids)
             output_file.write("# Sentence {0}\n".format(num_sentences))
             for word_index, word_logprob in enumerate(seq_logprobs):
@@ -132,12 +133,13 @@ def _score_text(input_file, dictionary, scorer, output_file,
                     ', '.join(history),
                     seq_logprobs[word_index]))
             output_file.write("Sentence perplexity: {0}\n\n".format(
-                numpy.exp(-seq_logprob / seq_length)))
+                numpy.exp(-seq_logprob / len(seq_logprobs))))
 
-    output_file.write("Number of words: {0}\n".format(num_words))
     output_file.write("Number of sentences: {0}\n".format(num_sentences))
+    output_file.write("Number of words: {0}\n".format(num_words))
+    output_file.write("Number of predicted probabilities: {0}\n".format(num_probs))
     if num_words > 0:
-        cross_entropy = -total_logprob / num_words
+        cross_entropy = -total_logprob / num_probs
         perplexity = numpy.exp(cross_entropy)
         output_file.write("Cross entropy (base e): {0}\n".format(cross_entropy))
         if not log_base is None:

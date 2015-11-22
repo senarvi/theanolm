@@ -41,8 +41,9 @@ class BasicOptimizer(object):
 
         # Calculate log probability of each word.
         logprobs = tensor.log(self.network.prediction_probs)
-        # Set the log probability to 0 after sequence ends.
-        logprobs = logprobs * self.network.minibatch_mask
+        # Set the log probability to 0, if the next input word (the one
+        # predicted) is masked out.
+        logprobs = logprobs * self.network.minibatch_mask[1:]
         # Calculate the negative log probability normalized by the number of
         # training examples in the mini-batch. By taking a mean instead of a
         # sum, the gradients will also be normalized by the number of words.
