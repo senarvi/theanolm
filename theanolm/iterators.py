@@ -143,8 +143,10 @@ class BatchIterator(object):
     def _read_sequence(self):
         """Returns next word sequence.
 
-        If an empty line is encountered, returns an empty list (instead of an
-        empty sentence '<s> </s>').
+        Start-of-sentence and end-of-sentece tags ('<s>' and '</s>') will be
+        inserted at the beginning and the end of the sequence, if they're
+        missing. If an empty line is encountered, returns an empty list (instead
+        of an empty sentence '<s> </s>').
 
         If buffer is not empty, returns a sequence from the buffer. Otherwise
         reads a line to the buffer first.
@@ -164,9 +166,11 @@ class BatchIterator(object):
             if len(line) == 0:
                 # empty line
                 return []
-            self.buffer = ['<s>']
-            self.buffer.extend(line.split())
-            self.buffer.append('</s>')
+            self.buffer = line.split()
+            if self.buffer[0] != '<s>':
+                self.buffer.insert(0, '<s>')
+            if self.buffer[-1] != '</s>':
+                self.buffer.append('</s>')
 
         if self.max_sequence_length is None:
             result = self.buffer

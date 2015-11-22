@@ -84,6 +84,24 @@ class Dictionary(object):
             assert len(indices) == 1
             return words[indices[0]]
 
+        def name(self):
+            """If the class contains only one word, returns the word. Otherwise
+            returns CLASS-12345, where 12345 is the internal class ID.
+
+            :type word_ids: list of ints
+            :param word_ids: a list of word IDs
+
+            :rtype: list of strings
+            :returns: the given word IDs translated into words
+            """
+
+            if len(self._probs) == 1:
+                return next(iter(self._probs))
+            elif self.id is None:
+                return 'CLASS'
+            else:
+                return 'CLASS-{0:05d}'.format(self.id)
+
     def __init__(self, input_file, input_format):
         """Creates word classes.
 
@@ -178,7 +196,7 @@ class Dictionary(object):
         return len(self._word_classes)
 
     def words_to_ids(self, words):
-        """Translates words into word (class) IDs.
+        """Translates words into word / class IDs.
 
         :type words: list of strings
         :param words: a list of words
@@ -193,7 +211,7 @@ class Dictionary(object):
                 for word in words]
 
     def ids_to_words(self, word_ids):
-        """Translates word (class) IDs into words. If classes are used, samples
+        """Translates word / class IDs into words. If classes are used, samples
         a word from the membership probability distribution.
 
         :type word_ids: list of ints
@@ -204,6 +222,21 @@ class Dictionary(object):
         """
 
         return [self._word_classes[word_id].sample()
+                for word_id in word_ids]
+
+    def ids_to_names(self, word_ids):
+        """Translates word / class IDs into word / class names. If a class
+        contains only one word, class name will be the word. Otherwise class
+        name will be CLASS-12345, where 12345 is the internal class ID.
+
+        :type word_ids: list of ints
+        :param word_ids: a list of word IDs
+
+        :rtype: list of strings
+        :returns: class names of the given word IDs
+        """
+
+        return [self._word_classes[word_id].name()
                 for word_id in word_ids]
 
     def words_to_probs(self, words):

@@ -69,11 +69,14 @@ class ProjectionLayer(object):
                                            self.word_projection_dim],
                                           ndim=3)
 
-        # Shift the projections matrix one time step down, setting the first
-        # time step to zero projection vectors. Thus the correct output for a
-        # time step can be read from the same row of the input matrix.
-        zero_matrix = tensor.zeros_like(projections)
-        self.minibatch_output = tensor.set_subtensor(zero_matrix[1:], projections[:-1])
+# XXX
+#        # Shift the projections matrix one time step down, setting the first
+#        # time step to zero projection vectors. Thus the correct output for a
+#        # time step can be read from the same row of the input matrix.
+#        zero_matrix = tensor.zeros_like(projections)
+#        self.minibatch_output = tensor.set_subtensor(zero_matrix[1:], projections[:-1])
+        self.minibatch_output = projections
+# XXX
 
     def create_onestep_structure(self, model_params, layer_input):
         """Creates projection layer structure for one-step processing.

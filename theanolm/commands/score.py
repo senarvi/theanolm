@@ -119,10 +119,18 @@ def _score_text(input_file, dictionary, scorer, output_file,
             if not word_level:
                 continue
             seq_word_ids = word_ids[:, seq_index]
-            output_file.write("### Sentence {0}\n".format(num_sentences))
-            seq_details = [str(word_id) + ":" + str(logprob)
-                for word_id, logprob in zip(seq_word_ids, seq_logprobs)]
-            output_file.write(" ".join(seq_details) + "\n")
+            seq_class_names = dictionary.ids_to_names(seq_word_ids)
+            output_file.write("# Sentence {0}\n".format(num_sentences))
+            for word_index, word_logprob in enumerate(seq_logprobs):
+                if word_index - 2 > 0:
+                    history = seq_class_names[word_index:word_index - 3:-1]
+                    history.append('...')
+                else:
+                    history = seq_class_names[word_index::-1]
+                output_file.write("log(p({0} | {1})) = {2}\n".format(
+                    seq_class_names[word_index + 1],
+                    ', '.join(history),
+                    seq_logprobs[word_index]))
             output_file.write("Sentence perplexity: {0}\n\n".format(
                 numpy.exp(-seq_logprob / seq_length)))
 
@@ -168,19 +176,19 @@ def _score_utterances(input_file, dictionary, scorer, output_file,
     num_words = 0
     num_unks = 0
     for line_num, line in enumerate(input_file):
-        words = ['<s>']
-        words.extend(line.split())
-        words.append('</s>')
+        words = line.split()
+        if words[0] != '<s>':
+            words.insert(0, '<s>')
+        if words[-1] != '</s>':
+            words.append('</s>')
 
         word_ids = dictionary.words_to_ids(words)
         num_words += len(word_ids)
         num_unks += word_ids.count(dictionary.unk_id)
-        word_ids = numpy.array([[x] for x in word_ids]).astype('int64')
-        
-        probs = dictionary.words_to_probs(words)
-        probs = numpy.array([[x] for x in probs]).astype(theano.config.floatX)
 
-        lm_score = scorer.score_sentence(word_ids, probs)
+        probs = dictionary.words_to_probs(words)
+
+        lm_score = scorer.score_sequence(word_ids, probs)
         lm_score /= base_conversion
         output_file.write(str(lm_score) + '\n')
 
@@ -191,5 +199,6 @@ def _score_utterances(input_file, dictionary, scorer, output_file,
     if num_words == 0:
         print("The input file contains no words.")
     else:
-        print("%d words read, including %d (%.1f %%) out-of-vocabulary "
+        print("%d words processed, including start-of-sentence and "
+              "end-of-sentence tags, and %d (%.1f %%) out-of-vocabulary "
               "words".format(num_words, num_unks, num_unks / num_words))
