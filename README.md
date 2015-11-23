@@ -104,8 +104,8 @@ The size of the step taken when updating neural network parameters is controlled
 by “learning rate”. The initial value can be set using the `--learning-rate`
 argument. The average per-word gradient will be multiplied by this factor. In
 practice the gradient is scaled by the number of words by dividing the cost
-function by the number of words in the mini-batch. In most of the cases,
-something between 0.001 and 1.0 works well, depending on the optimization
+function by the number of training examples in the mini-batch. In most of the
+cases, something between 0.001 and 1.0 works well, depending on the optimization
 method. For example, Adam seems to require a lower value than the other methods.
 
 The number of sequences included in one mini-batch can be set with the
