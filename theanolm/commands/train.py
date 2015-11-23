@@ -9,7 +9,7 @@ import numpy
 import theano
 import theanolm
 from theanolm.trainers import create_trainer
-from filetypes import TextFileType
+from theanolm.filetypes import TextFileType
 
 def add_arguments(parser):
     argument_group = parser.add_argument_group("files")
