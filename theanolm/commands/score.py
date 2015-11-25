@@ -205,6 +205,6 @@ def _score_utterances(input_file, dictionary, scorer, output_file,
     if num_words == 0:
         print("The input file contains no words.")
     else:
-        print("%d words processed, including start-of-sentence and "
-              "end-of-sentence tags, and %d (%.1f %%) out-of-vocabulary "
+        print("{0} words processed, including start-of-sentence and "
+              "end-of-sentence tags, and {1} ({2:.1f} %) out-of-vocabulary "
               "words".format(num_words, num_unks, num_unks / num_words))
