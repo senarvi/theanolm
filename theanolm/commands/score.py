@@ -8,6 +8,10 @@ import numpy
 import theano
 import theanolm
 from theanolm.filetypes import TextFileType
+<<<<<<< HEAD
+=======
+from theanolm.iterators import utterance_from_line
+>>>>>>> github/develop
 
 def add_arguments(parser):
     argument_group = parser.add_argument_group("files")
@@ -29,8 +33,7 @@ def add_arguments(parser):
              'name, membership probability, and word per line)')
     argument_group.add_argument(
         '--output-file', metavar='OUTPUT', type=TextFileType('w'), default='-',
-        help='where to write the score or rescored n-best list (default '
-             'stdout)')
+        help='where to write the statistics (default stdout)')
     
     argument_group = parser.add_argument_group("scoring")
     argument_group.add_argument(
@@ -107,33 +110,43 @@ def _score_text(input_file, dictionary, scorer, output_file,
     base_conversion = 1 if log_base is None else numpy.log(log_base)
 
     total_logprob = 0
-    num_words = 0
     num_sentences = 0
+    num_words = 0
+    num_probs = 0
     for word_ids, membership_probs, mask in validation_iter:
         logprobs = scorer.score_batch(word_ids, membership_probs, mask)
         for seq_index, seq_logprobs in enumerate(logprobs):
             seq_logprob = sum(seq_logprobs)
-            seq_length = len(seq_logprobs)
+            num_probs += len(seq_logprobs)
             total_logprob += seq_logprob
-            num_words += seq_length
+            seq_word_ids = word_ids[:, seq_index]
+            num_words += len(seq_word_ids)
             num_sentences += 1
             if not word_level:
                 continue
 
-            seq_word_ids = word_ids[:, seq_index]
             seq_logprobs = [x / base_conversion for x in seq_logprobs]
             seq_logprob /= base_conversion
-            seq_details = [str(word_id) + ":" + str(logprob)
-                for word_id, logprob in zip(seq_word_ids, seq_logprobs)]
+            seq_class_names = dictionary.ids_to_names(seq_word_ids)
             output_file.write("# Sentence {0}\n".format(num_sentences))
-            output_file.write(" ".join(seq_details) + "\n")
+            for word_index, word_logprob in enumerate(seq_logprobs):
+                if word_index - 2 > 0:
+                    history = seq_class_names[word_index:word_index - 3:-1]
+                    history.append('...')
+                else:
+                    history = seq_class_names[word_index::-1]
+                output_file.write("log(p({0} | {1})) = {2}\n".format(
+                    seq_class_names[word_index + 1],
+                    ', '.join(history),
+                    seq_logprobs[word_index]))
             output_file.write("Sentence perplexity: {0}\n\n".format(
-                numpy.exp(-seq_logprob / seq_length)))
+                numpy.exp(-seq_logprob / len(seq_logprobs))))
 
-    output_file.write("Number of words: {0}\n".format(num_words))
     output_file.write("Number of sentences: {0}\n".format(num_sentences))
+    output_file.write("Number of words: {0}\n".format(num_words))
+    output_file.write("Number of predicted probabilities: {0}\n".format(num_probs))
     if num_words > 0:
-        cross_entropy = -total_logprob / num_words
+        cross_entropy = -total_logprob / num_probs
         perplexity = numpy.exp(cross_entropy)
         output_file.write("Cross entropy (base e): {0}\n".format(cross_entropy))
         if not log_base is None:
@@ -146,6 +159,11 @@ def _score_utterances(input_file, dictionary, scorer, output_file,
                       log_base=None):
     """Reads utterances from ``input_file``, computes LM scores using
     ``scorer``, and writes one score per line to ``output_file``.
+
+    Start-of-sentence and end-of-sentece tags (``<s>`` and ``</s>``) will be
+    inserted at the beginning and the end of each utterance, if they're missing.
+    Empty lines will be ignored, instead of interpreting them as the empty
+    sentence ``<s> </s>``.
 
     :type input_file: file object
     :param input_file: a file that contains the input sentences in SRILM n-best
@@ -169,20 +187,30 @@ def _score_utterances(input_file, dictionary, scorer, output_file,
 
     base_conversion = 1 if log_base is None else numpy.log(log_base)
 
+    num_words = 0
+    num_unks = 0
     for line_num, line in enumerate(input_file):
-        words = line.split()
-        words.append('<sb>')
-        
-        word_ids = dictionary.words_to_ids(words)
-        word_ids = numpy.array([[x] for x in word_ids]).astype('int64')
-        
-        probs = dictionary.words_to_probs(words)
-        probs = numpy.array([[x] for x in probs]).astype(theano.config.floatX)
+        words = utterance_from_line(line)
+        if len(words) == 0:
+            continue
 
-        lm_score = scorer.score_sentence(word_ids, probs)
+        word_ids = dictionary.words_to_ids(words)
+        num_words += len(word_ids)
+        num_unks += word_ids.count(dictionary.unk_id)
+
+        probs = dictionary.words_to_probs(words)
+
+        lm_score = scorer.score_sequence(word_ids, probs)
         lm_score /= base_conversion
         output_file.write(str(lm_score) + '\n')
 
-        if (line_num + 1) % 100 == 0:
-            print("%d sentences rescored." % (line_num + 1))
+        if (line_num + 1) % 1000 == 0:
+            print("{0} sentences scored.".format(line_num + 1))
         sys.stdout.flush()
+
+    if num_words == 0:
+        print("The input file contains no words.")
+    else:
+        print("{0} words processed, including start-of-sentence and "
+              "end-of-sentence tags, and {1} ({2:.1f} %) out-of-vocabulary "
+              "words".format(num_words, num_unks, num_unks / num_words))

@@ -221,9 +221,10 @@ class Network(object):
     def _create_minibatch_structure(self):
         """Creates the network structure for mini-batch processing.
 
-        Sets self.minibatch_output to a symbolic matrix, the same shape as
-        self.minibatch_input, containing the output word probabilities, and
-        self.minibatch_costs containing the negative log probabilities.
+        Creates the symbolic matrix self.minibatch_output, which describes the
+        output probability of the next input word at each time step and
+        sequence. The shape will be the same as that of self.minibatch_input,
+        except that it will contain one less time step.
         """
 
         # minibatch_input describes the input matrix containing
@@ -234,7 +235,9 @@ class Network(object):
             max_value=self.dictionary.num_classes())
 
         # mask is used to mask out the rest of the input matrix, when a sequence
-        # is shorter than the maximum sequence length.
+        # is shorter than the maximum sequence length. Theano does not support
+        # boolean masks. Integer advanced indexing would be supported in 0.6rc4
+        # and NumPy 1.8.
         self.minibatch_mask = \
             tensor.matrix('minibatch_mask', dtype=theano.config.floatX)
         self.minibatch_mask.tag.test_value = test_value(
@@ -263,20 +266,24 @@ class Network(object):
 
         self.minibatch_output = self.output_layer.minibatch_output
 
-        # Projection layer delays the output by one time step, so that the input
-        # at each time step is what the output (predicted word) should be. Input
-        # word IDs + the index times vocabulary size can be used to index a
-        # flattened output matrix to read the probabilities of the correct
-        # outputs.
-        input_flat = self.minibatch_input.flatten()
-        correct_output_indices = \
-            tensor.arange(input_flat.shape[0]) * self.dictionary.num_classes() \
-            + input_flat
-        correct_output_probs = \
-            self.minibatch_output.flatten()[correct_output_indices]
-        correct_output_probs = correct_output_probs.reshape(
-            [self.minibatch_input.shape[0], self.minibatch_input.shape[1]])
-        self.prediction_probs = correct_output_probs
+        # The input at the next time step is what the output (predicted word)
+        # should be.
+        word_ids = self.minibatch_input[1:].flatten()
+        output_probs = self.minibatch_output[:-1].flatten()
+
+        # An index to a flattened input matrix times the vocabulary size can be
+        # used to index the same location in the output matrix. The word ID is
+        # added to index the probability of that word.
+        target_indices = \
+            tensor.arange(word_ids.shape[0]) * self.dictionary.num_classes() \
+            + word_ids
+        target_probs = output_probs[target_indices]
+
+        # Reshape to a matrix. Now we have one less time step.
+        num_time_steps = self.minibatch_input.shape[0] - 1
+        num_sequences = self.minibatch_input.shape[1]
+        self.prediction_probs = target_probs.reshape(
+            [num_time_steps, num_sequences])
 
     def _create_onestep_structure(self):
         """Creates the network structure for one-step processing.
