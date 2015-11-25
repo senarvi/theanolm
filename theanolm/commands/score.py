@@ -8,10 +8,7 @@ import numpy
 import theano
 import theanolm
 from theanolm.filetypes import TextFileType
-<<<<<<< HEAD
-=======
 from theanolm.iterators import utterance_from_line
->>>>>>> github/develop
 
 def add_arguments(parser):
     argument_group = parser.add_argument_group("files")
