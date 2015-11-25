@@ -7,7 +7,8 @@ import subprocess
 import numpy
 import theano
 import theanolm
-from filetypes import TextFileType
+from theanolm.filetypes import TextFileType
+from theanolm.iterators import utterance_from_line
 
 def add_arguments(parser):
     argument_group = parser.add_argument_group("files")
@@ -29,8 +30,7 @@ def add_arguments(parser):
              'name, membership probability, and word per line)')
     argument_group.add_argument(
         '--output-file', metavar='OUTPUT', type=TextFileType('w'), default='-',
-        help='where to write the score or rescored n-best list (default '
-             'stdout)')
+        help='where to write the statistics (default stdout)')
     
     argument_group = parser.add_argument_group("scoring")
     argument_group.add_argument(
@@ -157,6 +157,11 @@ def _score_utterances(input_file, dictionary, scorer, output_file,
     """Reads utterances from ``input_file``, computes LM scores using
     ``scorer``, and writes one score per line to ``output_file``.
 
+    Start-of-sentence and end-of-sentece tags (``<s>`` and ``</s>``) will be
+    inserted at the beginning and the end of each utterance, if they're missing.
+    Empty lines will be ignored, instead of interpreting them as the empty
+    sentence ``<s> </s>``.
+
     :type input_file: file object
     :param input_file: a file that contains the input sentences in SRILM n-best
                        format
@@ -182,11 +187,9 @@ def _score_utterances(input_file, dictionary, scorer, output_file,
     num_words = 0
     num_unks = 0
     for line_num, line in enumerate(input_file):
-        words = line.split()
-        if words[0] != '<s>':
-            words.insert(0, '<s>')
-        if words[-1] != '</s>':
-            words.append('</s>')
+        words = utterance_from_line(line)
+        if len(words) == 0:
+            continue
 
         word_ids = dictionary.words_to_ids(words)
         num_words += len(word_ids)
@@ -199,7 +202,7 @@ def _score_utterances(input_file, dictionary, scorer, output_file,
         output_file.write(str(lm_score) + '\n')
 
         if (line_num + 1) % 1000 == 0:
-            print("%d sentences rescored.".format(line_num + 1))
+            print("{0} sentences scored.".format(line_num + 1))
         sys.stdout.flush()
 
     if num_words == 0:

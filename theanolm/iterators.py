@@ -34,6 +34,33 @@ def find_sentence_starts(data):
 
     return result
 
+def utterance_from_line(line):
+    """Converts a line of text, read from an input file, into a list of words.
+
+    Start-of-sentence and end-of-sentece tags (``<s>`` and ``</s>``) will be
+    inserted at the beginning and the end of the list, if they're missing. If
+    the line is empty, returns an empty list (instead of an empty sentence
+    ``['<s>', '</s>']``).
+
+    :type line: str or bytes
+    :param line: a line of text (read from an input file)
+    """
+
+    if type(line) == bytes:
+        line = line.decode('utf-8')
+    line = line.rstrip()
+    if len(line) == 0:
+        # empty line
+        return []
+
+    result = line.split()
+    if result[0] != '<s>':
+        result.insert(0, '<s>')
+    if result[-1] != '</s>':
+        result.append('</s>')
+
+    return result
+
 class BatchIterator(object):
     """ Iterator for Reading Mini-Batches
     """
@@ -143,16 +170,16 @@ class BatchIterator(object):
     def _read_sequence(self):
         """Returns next word sequence.
 
-        Start-of-sentence and end-of-sentece tags ('<s>' and '</s>') will be
+        Start-of-sentence and end-of-sentece tags (``<s>`` and ``</s>``) will be
         inserted at the beginning and the end of the sequence, if they're
         missing. If an empty line is encountered, returns an empty list (instead
-        of an empty sentence '<s> </s>').
+        of an empty sentence ``['<s>', '</s>']``).
 
         If buffer is not empty, returns a sequence from the buffer. Otherwise
         reads a line to the buffer first.
 
         :rtype: list
-        :returns: a sequence words (may be empty), or None if no more data
+        :returns: a sequence of words (may be empty), or None if no more data
         """
 
         if len(self.buffer) == 0:
@@ -160,17 +187,7 @@ class BatchIterator(object):
             if len(line) == 0:
                 # end of file
                 return None
-            if type(line) == bytes:
-                line = line.decode('utf-8')
-            line = line.rstrip()
-            if len(line) == 0:
-                # empty line
-                return []
-            self.buffer = line.split()
-            if self.buffer[0] != '<s>':
-                self.buffer.insert(0, '<s>')
-            if self.buffer[-1] != '</s>':
-                self.buffer.append('</s>')
+            self.buffer = utterance_from_line(line)
 
         if self.max_sequence_length is None:
             result = self.buffer
