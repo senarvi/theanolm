@@ -104,6 +104,7 @@ def _score_text(input_file, dictionary, scorer, output_file,
     """
 
     validation_iter = theanolm.BatchIterator(input_file, dictionary)
+    base_conversion = 1 if log_base is None else numpy.log(log_base)
 
     total_logprob = 0
     num_sentences = 0
@@ -120,6 +121,9 @@ def _score_text(input_file, dictionary, scorer, output_file,
             num_sentences += 1
             if not word_level:
                 continue
+
+            seq_logprobs = [x / base_conversion for x in seq_logprobs]
+            seq_logprob /= base_conversion
             seq_class_names = dictionary.ids_to_names(seq_word_ids)
             output_file.write("# Sentence {0}\n".format(num_sentences))
             for word_index, word_logprob in enumerate(seq_logprobs):
@@ -143,7 +147,7 @@ def _score_text(input_file, dictionary, scorer, output_file,
         perplexity = numpy.exp(cross_entropy)
         output_file.write("Cross entropy (base e): {0}\n".format(cross_entropy))
         if not log_base is None:
-            cross_entropy /= numpy.log(log_base)
+            cross_entropy /= base_conversion
             output_file.write("Cross entropy (base {1}): {0}\n".format(
                 cross_entropy, log_base))
         output_file.write("Perplexity: {0}\n".format(perplexity))
