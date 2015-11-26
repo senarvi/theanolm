@@ -71,9 +71,10 @@ class TextSampler(object):
         :returns: list of the generated words
         """
 
-        # -1 indicates the first word of a sequence. We are only generating one
-        # sequence at a time.
-        word_ids = -1 * numpy.ones(shape=(1,)).astype('int64')
+        # We are only generating one sequence at a time.
+        result = [self.dictionary.sos_id]
+        previous_step_output = \
+            self.dictionary.sos_id * numpy.ones(shape=(1,)).astype('int64')
 
         # Construct a list of hidden layer state variables and initialize them
         # to zeros. GRU has only one state that is passed through the time
@@ -83,13 +84,13 @@ class TextSampler(object):
             numpy.zeros(shape=hidden_state_shape).astype(theano.config.floatX)
             for _ in range(self.network.hidden_layer.num_state_variables)]
 
-        result = []
         for _ in range(max_length):
-            step_result = self.step_function(word_ids, *hidden_layer_state)
-            word_ids = step_result[0]
+            step_result = self.step_function(previous_step_output,
+                                             *hidden_layer_state)
+            previous_step_output = step_result[0]
             hidden_layer_state = step_result[1:]
-            word_id = word_ids[0]
+            word_id = previous_step_output[0]
             result.append(word_id)
-            if word_id == 0:
+            if word_id == self.dictionary.eos_id:
                 break
         return self.dictionary.ids_to_words(result)
