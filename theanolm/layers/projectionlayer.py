@@ -68,15 +68,7 @@ class ProjectionLayer(object):
                                            num_sequences,
                                            self.word_projection_dim],
                                           ndim=3)
-
-# XXX
-#        # Shift the projections matrix one time step down, setting the first
-#        # time step to zero projection vectors. Thus the correct output for a
-#        # time step can be read from the same row of the input matrix.
-#        zero_matrix = tensor.zeros_like(projections)
-#        self.minibatch_output = tensor.set_subtensor(zero_matrix[1:], projections[:-1])
-        self.minibatch_output = projections
-# XXX
+        self.output = projections
 
     def create_onestep_structure(self, model_params, layer_input):
         """Creates projection layer structure for one-step processing.
@@ -98,15 +90,4 @@ class ProjectionLayer(object):
                   projections
         """
 
-        # Get the output dimensionality from the transformation matrix.
-        word_projection_dim = model_params['proj.W'].shape[1]
-
-        # The generation starts with input value -1, which will be translated
-        # into zero word projection vector.
-        initial_value = numpy.dtype(theano.config.floatX).type(0.0)
-        initial_projection = \
-            tensor.alloc(initial_value, 1, word_projection_dim)
-        self.onestep_output = tensor.switch(
-            layer_input[:, None] < 0,
-            initial_projection,
-            model_params['proj.W'][layer_input])
+        self.output = model_params['proj.W'][layer_input]

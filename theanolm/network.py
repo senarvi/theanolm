@@ -249,13 +249,13 @@ class Network(object):
             self.minibatch_input)
         self.hidden_layer.create_minibatch_structure(
             self.params,
-            self.projection_layer.minibatch_output,
+            self.projection_layer.output,
             mask=self.minibatch_mask)
         if self.architecture.skip_layer_size > 0:
             self.skip_layer.create_structure(
                 self.params,
                 self.hidden_layer.minibatch_output,
-                self.projection_layer.minibatch_output)
+                self.projection_layer.output)
             self.output_layer.create_minibatch_structure(
                 self.params,
                 self.skip_layer.output)
@@ -312,7 +312,7 @@ class Network(object):
             self.onestep_input)
         self.hidden_layer.create_onestep_structure(
             self.params,
-            self.projection_layer.onestep_output,
+            self.projection_layer.output,
             self.onestep_state)
         # The last state output from the hidden layer is the hidden state to be
         # passed on the the next layer.
@@ -321,7 +321,7 @@ class Network(object):
             self.skip_layer.create_structure(
                 self.params,
                 hidden_state_output,
-                self.projection_layer.onestep_output)
+                self.projection_layer.output)
             self.output_layer.create_onestep_structure(
                 self.params,
                 self.skip_layer.output)
