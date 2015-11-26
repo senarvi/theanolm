@@ -36,12 +36,13 @@ class ProjectionLayer(object):
         self.param_init_values['proj.W'] = \
                 orthogonal_weight(in_size, out_size, scale=0.01)
 
-    def create_minibatch_structure(self, model_params, layer_input):
-        """Creates projection layer structure for mini-batch processing.
+    def create_structure(self, model_params, layer_input):
+        """Creates projection layer structure.
 
-        Creates the layer structure for 2-dimensional input: the first
-        dimension is the time step (index of word in a sequence) and the
-        second dimension are the sequences
+        The input is always 2-dimensional: the first dimension is the time step
+        (index of word in a sequence) and the second dimension are the
+        sequences. When generating text, there's just one sequence and one time
+        step in the input.
 
         :type model_params: dict
         :param model_params: shared Theano variables
@@ -56,6 +57,7 @@ class ProjectionLayer(object):
                   and the third dimension is the word projection
         """
 
+        print("ProjectionLayer.create_structure: layer_input.ndim =", layer_input.ndim)
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
 
@@ -69,25 +71,3 @@ class ProjectionLayer(object):
                                            self.word_projection_dim],
                                           ndim=3)
         self.output = projections
-
-    def create_onestep_structure(self, model_params, layer_input):
-        """Creates projection layer structure for one-step processing.
-
-        Creates the layer structure for 1-dimensional input. Simply
-        indexes the word projection matrix with each word ID.
-
-        :type model_params: dict
-        :param model_params: shared Theano variables
-
-        :type layer_input: theano.tensor.var.TensorVariable
-        :param layer_input: symbolic vector that describes the word IDs
-                            at the input at this time step (in theory
-                            many sequences could be processed in
-                            parallel).
-
-        :rtype: theano.tensor.var.TensorVariable
-        :returns: symbolic 2-dimensional matrix that describes the word
-                  projections
-        """
-
-        self.output = model_params['proj.W'][layer_input]

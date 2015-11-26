@@ -34,17 +34,17 @@ class OutputLayer(object):
         self.param_init_values['output.b'] = \
                 numpy.zeros((out_size,)).astype(theano.config.floatX)
 
-    def create_minibatch_structure(self, model_params, layer_input):
-        """ Creates output layer structure for mini-batch processing.
+    def create_structure(self, model_params, layer_input):
+        """ Creates output layer structure.
 
-        In mini-batch training the input is 3-dimensional: the first dimension
-        is the time step, the second dimension are the sequences, and the third
-        dimension is the word projection. Before taking the softmax and
-        returning the probabilities, the first two dimensions are combined.
+        The input is always 3-dimensional: the first dimension is the time step,
+        the second dimension are the sequences, and the third dimension is the
+        word projection. When generating text, there's just one sequence and one
+        time step in the input.
 
-        Sets self.minibatch_output to a symbolic 3-dimensional matrix that
-        describes the output of this layer, i.e. the probability of every
-        vocabulary word for each input.
+        Sets self.output to a symbolic 3-dimensional matrix that describes the
+        output of this layer, i.e. the probability of every vocabulary word for
+        each input.
 
         :type model_params: dict
         :param model_params: shared Theano variables
@@ -56,35 +56,13 @@ class OutputLayer(object):
 
         preact = tensor.dot(layer_input, model_params['output.W']) \
                 + model_params['output.b']
-        
+
         num_time_steps = preact.shape[0]
         num_sequences = preact.shape[1]
-        word_projection_dim = preact.shape[2]
+        num_classes = preact.shape[2]
+        # Combine the first two dimensions so that softmax is taken
+        # independently for each location over the output classes.
         preact = preact.reshape([num_time_steps * num_sequences,
-                                 word_projection_dim])
-        
-        self.minibatch_output = tensor.nnet.softmax(preact)
+                                 num_classes])
 
-    def create_onestep_structure(self, model_params, layer_input):
-        """ Creates output layer structure for one-step processing.
-
-        This function is used for creating a text generator. The input is
-        2-dimensional: the first dimension is the sequence and the second is
-        the word projection.
-
-        Sets self.onestep_output to a symbolic 3-dimensional matrix that
-        describes the output of this layer, i.e. the probability of every
-        vocabulary word for each input.
-
-        :type model_params: dict
-        :param model_params: shared Theano variables
-
-        :type layer_input: theano.tensor.var.TensorVariable
-        :param layer_input: symbolic matrix that describes the output of the
-        previous layer
-        """
-
-        preact = tensor.dot(layer_input, model_params['output.W']) \
-                + model_params['output.b']
-
-        self.onestep_output = tensor.nnet.softmax(preact)
+        self.output = tensor.nnet.softmax(preact)

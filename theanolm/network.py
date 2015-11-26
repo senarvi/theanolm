@@ -244,27 +244,27 @@ class Network(object):
             size=(100, 16),
             max_value=1.0)
 
-        self.projection_layer.create_minibatch_structure(
+        self.projection_layer.create_structure(
             self.params,
             self.minibatch_input)
-        self.hidden_layer.create_minibatch_structure(
+        self.hidden_layer.create_structure(
             self.params,
             self.projection_layer.output,
             mask=self.minibatch_mask)
         if self.architecture.skip_layer_size > 0:
             self.skip_layer.create_structure(
                 self.params,
-                self.hidden_layer.minibatch_output,
+                self.hidden_layer.output,
                 self.projection_layer.output)
-            self.output_layer.create_minibatch_structure(
+            self.output_layer.create_structure(
                 self.params,
                 self.skip_layer.output)
         else:
-            self.output_layer.create_minibatch_structure(
+            self.output_layer.create_structure(
                 self.params,
-                self.hidden_layer.minibatch_output)
+                self.hidden_layer.output)
 
-        self.minibatch_output = self.output_layer.minibatch_output
+        self.minibatch_output = self.output_layer.output
 
         # The input at the next time step is what the output (predicted word)
         # should be.
@@ -289,48 +289,51 @@ class Network(object):
         """Creates the network structure for one-step processing.
         """
 
-        # onestep_input describes the input vector containing as many word IDs
-        # as there are sequences (only one for the text sampler).
-        self.onestep_input = tensor.vector('onestep_input', dtype='int64')
+        # onestep_input describes the input matrix containing only one word ID.
+        self.onestep_input = tensor.matrix('onestep_input', dtype='int64')
         self.onestep_input.tag.test_value = test_value(
-            size=16,
+            size=(1, 1),
             max_value=self.dictionary.num_classes())
 
         # onestep_state describes the state outputs of the previous time step
-        # of the hidden layer. GRU has one state output, LSTM has two.
+        # of the hidden layer. GRU has one state output, LSTM has two. These are
+        # also in the structure of a mini-batch (3-dimensional array) to keep
+        # the layer functions general.
         self.onestep_state = \
-            [tensor.matrix('onestep_state_' + str(i),
-                           dtype=theano.config.floatX)
+            [tensor.tensor3('onestep_state_' + str(i),
+                            dtype=theano.config.floatX)
              for i in range(self.hidden_layer.num_state_variables)]
         for state_variable in self.onestep_state:
             state_variable.tag.test_value = test_value(
-                size=(1, self.architecture.hidden_layer_size),
+                size=(1, 1, self.architecture.hidden_layer_size),
                 max_value=1.0)
 
-        self.projection_layer.create_onestep_structure(
+        # Create a mask for the case where we have only one word ID.
+        mask_value = numpy.dtype(theano.config.floatX).type(1.0)
+        dummy_mask = tensor.alloc(mask_value, 1, 1)
+
+        self.projection_layer.create_structure(
             self.params,
             self.onestep_input)
-        self.hidden_layer.create_onestep_structure(
+        self.hidden_layer.create_structure(
             self.params,
             self.projection_layer.output,
-            self.onestep_state)
-        # The last state output from the hidden layer is the hidden state to be
-        # passed on the the next layer.
-        hidden_state_output = self.hidden_layer.onestep_outputs[-1]
+            mask=dummy_mask,
+            state_inputs=self.onestep_state)
         if self.architecture.skip_layer_size > 0:
             self.skip_layer.create_structure(
                 self.params,
-                hidden_state_output,
+                self.hidden_layer.output,
                 self.projection_layer.output)
-            self.output_layer.create_onestep_structure(
+            self.output_layer.create_structure(
                 self.params,
                 self.skip_layer.output)
         else:
-            self.output_layer.create_onestep_structure(
+            self.output_layer.create_structure(
                 self.params,
-                hidden_state_output)
+                self.hidden_layer.output)
 
-        self.onestep_output = self.output_layer.onestep_output
+        self.onestep_output = self.output_layer.output
 
     def get_state(self):
         """Pulls parameter values from Theano shared variables.
