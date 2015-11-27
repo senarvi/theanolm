@@ -57,7 +57,6 @@ class ProjectionLayer(object):
                   and the third dimension is the word projection
         """
 
-        print("ProjectionLayer.create_structure: layer_input.ndim =", layer_input.ndim)
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
 

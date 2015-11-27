@@ -177,11 +177,6 @@ class Network(object):
                 self.architecture.word_projection_dim,
                 self.architecture.hidden_layer_size,
                 profile)
-        elif self.architecture.hidden_layer_type == 'ss-lstm':
-            self.hidden_layer = SSLSTMLayer(
-                self.architecture.word_projection_dim,
-                self.architecture.hidden_layer_size,
-                profile)
         elif self.architecture.hidden_layer_type == 'gru':
             self.hidden_layer = GRULayer(
                 self.architecture.word_projection_dim,

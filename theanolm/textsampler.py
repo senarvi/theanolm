@@ -46,8 +46,11 @@ class TextSampler(object):
         inputs = [self.network.onestep_input]
         inputs.extend(self.network.onestep_state)
 
-        word_probs = self.network.onestep_output
+        # multinomial() is only implemented with dimension < 2, but the matrix
+        # contains only one time step anyway.
+        word_probs = self.network.onestep_output[0]
         word_ids = random.multinomial(pvals=word_probs).argmax(1)
+        word_ids = word_ids.reshape([1, word_ids.shape[0]])
         outputs = [word_ids]
         outputs.extend(self.network.hidden_layer.state_outputs)
 
@@ -94,11 +97,7 @@ class TextSampler(object):
             step_output = step_result[0]
             hidden_layer_state = step_result[1:]
             # The word ID from the single time step from the single sequence.
-            # XXX Output layer reshapes the output!
-            #word_id = step_output[0][0]
-            word_id = step_output[0]
-            step_output = word_id * numpy.ones(shape=(1,1)).astype('int64')
-            # XXX
+            word_id = step_output[0,0]
             result.append(word_id)
             if word_id == self.dictionary.eos_id:
                 break

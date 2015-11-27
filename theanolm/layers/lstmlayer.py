@@ -63,7 +63,8 @@ class LSTMLayer(object):
         self.param_init_values['lstm.b_candidate'] = \
                 numpy.zeros((out_size,)).astype(theano.config.floatX)
 
-    def create_structure(self, model_params, layer_input, mask, state_inputs=None):
+    def create_structure(self, model_params, layer_input, mask,
+                         state_inputs=None):
         """Creates LSTM layer structure.
 
         The input is always 3-dimensional: the first dimension is the time step,
@@ -76,10 +77,10 @@ class LSTMLayer(object):
         of the first and second dimension is 1, and the state outputs from the
         previous time step are provided in ``state_inputs``.
 
-        Sets ``self.output`` to a symbolic 2-dimensional matrix that describes
-        the output of this layer. If ``state_inputs`` is given, sets also
-        ``self.state_output`` to a list of symbolic 2-dimensional matrices that
-        describe all the state outputs: cell state C_(t) and hidden state h_(t).
+        Sets ``self.state_outputs`` to a list of symbolic 3-dimensional matrices
+        that describe the state outputs: cell state C_(t) and hidden state
+        h_(t). ``self.output`` will be set to the hidden state output, which is
+        the actual output of this layer.
 
         :type model_params: dict
         :param model_params: shared Theano variables
@@ -148,7 +149,6 @@ class LSTMLayer(object):
                 U_candidate)
 
         self.output = self.state_outputs[1]
-        print("output dim =", self.output.ndim)
 
     def _create_time_step(self, mask, x_preact_gates, x_preact_candidate, C_in,
                           h_in, U_gates, U_candidate):

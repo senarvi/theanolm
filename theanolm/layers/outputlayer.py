@@ -57,12 +57,14 @@ class OutputLayer(object):
         preact = tensor.dot(layer_input, model_params['output.W']) \
                 + model_params['output.b']
 
+        # Combine the first two dimensions so that softmax is taken
+        # independently for each location, over the output classes.
         num_time_steps = preact.shape[0]
         num_sequences = preact.shape[1]
         num_classes = preact.shape[2]
-        # Combine the first two dimensions so that softmax is taken
-        # independently for each location over the output classes.
         preact = preact.reshape([num_time_steps * num_sequences,
                                  num_classes])
-
         self.output = tensor.nnet.softmax(preact)
+        self.output = self.output.reshape([num_time_steps,
+                                           num_sequences,
+                                           num_classes])
