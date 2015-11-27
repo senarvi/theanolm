@@ -59,4 +59,17 @@ class NoImprovementStopper(BasicStopper):
         if self.trainer.epoch_number <= self.min_epochs:
             return True
 
-        return self._has_improved
+        if self._has_improved
+            return True
+
+        # Might be that improvement ceased earlier, but we have waited for the
+        # minimum number of epochs to pass. During that time, we may have made
+        # improvement.
+        new_candidate_cost = self.trainer.candidate_cost()
+        if not new_candidate_cost is None:
+            if (self._candidate_cost is None) or \
+               (new_candidate_cost < self._candidate_cost):
+                self._has_improved = True
+                return True
+
+        return False
