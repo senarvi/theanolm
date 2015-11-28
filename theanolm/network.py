@@ -20,8 +20,7 @@ class Network(object):
         """Neural Network Architecture
         """
 
-        def __init__(self, word_projection_dim, hidden_layer_type,
-                     hidden_layer_size, skip_layer_size):
+        def __init__(self, layers):
             """Constructs a description of the specified network architecture.
 
             :type word_projection_dim: int
@@ -38,10 +37,7 @@ class Network(object):
                                     for no skip-layer
             """
 
-            self.word_projection_dim = word_projection_dim
-            self.hidden_layer_type = hidden_layer_type
-            self.hidden_layer_size = hidden_layer_size
-            self.skip_layer_size = skip_layer_size
+            self.layers = layers
 
         @classmethod
         def from_state(classname, state):
@@ -52,15 +48,56 @@ class Network(object):
             :param state: a dictionary of the architecture parameters
             """
 
-            classname._check_parameter_in_state('arch.word_projection_dim', state)
-            classname._check_parameter_in_state('arch.hidden_layer_type', state)
-            classname._check_parameter_in_state('arch.hidden_layer_size', state)
-            classname._check_parameter_in_state('arch.skip_layer_size', state)
-            return classname(
-                state['arch.word_projection_dim'].item(),
-                state['arch.hidden_layer_type'].item(),
-                state['arch.hidden_layer_size'].item(),
-                state['arch.skip_layer_size'].item())
+            if not 'arch.layers' in state:
+                raise IncompatibleStateError(
+                    "Parameter 'arch.layers' is missing from neural network state.")
+            # A workaround to be able to save arbitrary data in a .npz file.
+            dict_ndarray = state['arch.layers'][()]
+            layer_descriptions = dict_ndarray['data']
+            return classname(layer_descriptions)
+
+        @classmethod
+        def from_description(classname, description_file):
+            """Reads a description of the network architecture from a text file.
+
+            :type description_file: file or file-like object
+            :param description_file: text file containing the description
+            """
+
+            layer_descriptions = []
+
+            for line in description_file:
+                layer_description = dict()
+
+                fields = line.split()
+                if fields[0] != 'layer':
+                    continue
+                for field in fields[1:]:
+                    variable, value = field.split('=')
+                    if variable == 'type':
+                        layer_description['type'] = value
+                    elif variable == 'name':
+                        layer_description['name'] = value
+                    elif variable == 'input':
+                        if 'inputs' in layer_description:
+                            layer_description['inputs'].append(value)
+                        else:
+                            layer_description['inputs'] = [value]
+                    elif variable == 'output':
+                        layer_description['output'] = value
+
+                if not 'type' in layer_description:
+                    raise InputError("'type' is not given in a layer description.")
+                if not 'name' in layer_description:
+                    raise InputError("'name' is not given in a layer description.")
+                if not 'inputs' in layer_description:
+                    raise InputError("'input' is not given in a layer description.")
+                if not 'output' in layer_description:
+                    raise InputError("'output' is not given in a layer description.")
+
+                layer_descriptions.append(layer_description)
+
+            return classname(layer_descriptions)
 
         def __str__(self):
             """Returns a string representation of the architecture for printing
@@ -70,15 +107,11 @@ class Network(object):
             :returns: a string describing the architecture
             """
 
-            result = "Word projection dimensionality: "
-            result += str(self.word_projection_dim)
-            result += "\nHidden layer type: "
-            result += str(self.hidden_layer_type)
-            result += "\nHidden layer size: "
-            result += str(self.hidden_layer_size)
-            result += "\nSkip layer size: "
-            result += str(self.skip_layer_size)
-            return(result)
+            return ' '.join([ \
+                layer_description['name'] + ":" + \
+                layer_description['type'] + ":" + \
+                str(layer_description['output']) \
+                for layer_description in self.layers ])
 
         def get_state(self):
             """Returns a dictionary of parameters that should be saved along
@@ -92,10 +125,7 @@ class Network(object):
             """
 
             result = OrderedDict()
-            result['arch.word_projection_dim'] = numpy.int64(self.word_projection_dim)
-            result['arch.hidden_layer_type'] = numpy.str_(self.hidden_layer_type)
-            result['arch.hidden_layer_size'] = numpy.int64(self.hidden_layer_size)
-            result['arch.skip_layer_size'] = numpy.int64(self.skip_layer_size)
+            result['arch.layers'] = { 'data': self.layers }
             return result
 
         def check_state(self, state):
@@ -107,49 +137,19 @@ class Network(object):
             :param state: dictionary of neural network parameters
             """
 
-            self._check_parameter_value(
-                'arch.word_projection_dim', state, self.word_projection_dim)
-            self._check_parameter_value(
-                'arch.hidden_layer_type', state, self.hidden_layer_type)
-            self._check_parameter_value(
-                'arch.hidden_layer_size', state, self.hidden_layer_size)
-            self._check_parameter_value(
-                'arch.skip_layer_size', state, self.skip_layer_size)
-
-        def _check_parameter_value(self, name, state, current_value):
-            """Checks that the parameter value stored in a state matches the
-            current value, and raises an ``IncompatibleStateError`` if not.
-
-            :type name: str
-            :param name: the parameter key in the state
-
-            :type state: dict
-            :param state: dictionary of neural network parameters
-            """
-
-            Network.Architecture._check_parameter_in_state(name, state)
-            if state[name] != current_value:
-                raise IncompatibleStateError(
-                    "Neural network state has {0}={1}, while this architecture "
-                    "has {0}={2}.".format(name, state[name], current_value))
-
-        @staticmethod
-        def _check_parameter_in_state(name, state):
-            """Checks that the parameter value is stored in a state, and raises
-            an ``IncompatibleStateError`` if not.
-
-            :type name: str
-            :param name: the parameter key in the state
-
-            :type state: dict
-            :param state: dictionary of neural network parameters
-            """
-
-            if not name in state:
-                raise IncompatibleStateError(
-                    "Parameter {0} is missing from neural network state."
-                    "".format(name))
-
+            for layer1, layer2 in zip(self.layers, state['arch.layers']['data']):
+                if layer1['type'] != layer2['type']:
+                    raise IncompatibleStateError(
+                        "Neural network state has {0}={1}, while this architecture "
+                        "has {0}={2}.".format('type', layer2['type'], layer1['type']))
+                if layer1['name'] != layer2['name']:
+                    raise IncompatibleStateError(
+                        "Neural network state has {0}={1}, while this architecture "
+                        "has {0}={2}.".format('name', layer2['name'], layer1['name']))
+                if layer1['output'] != layer2['output']:
+                    raise IncompatibleStateError(
+                        "Neural network state has {0}={1}, while this architecture "
+                        "has {0}={2}.".format('output', layer2['output'], layer1['output']))
 
     def __init__(self, dictionary, architecture, profile=False):
         """Initializes the neural network parameters for all layers, and
@@ -169,51 +169,38 @@ class Network(object):
         self.architecture = architecture
 
         # Create the layers.
-        self.projection_layer = ProjectionLayer(
-            dictionary.num_classes(),
-            self.architecture.word_projection_dim)
-        if self.architecture.hidden_layer_type == 'lstm':
-            self.hidden_layer = LSTMLayer(
-                self.architecture.word_projection_dim,
-                self.architecture.hidden_layer_size,
-                profile)
-        elif self.architecture.hidden_layer_type == 'gru':
-            self.hidden_layer = GRULayer(
-                self.architecture.word_projection_dim,
-                self.architecture.hidden_layer_size,
-                profile)
-        else:
-            raise ValueError("Invalid hidden layer type: " + \
-                             self.architecture.hidden_layer_type)
-        if self.architecture.skip_layer_size > 0:
-            self.skip_layer = SkipLayer(
-                self.architecture.hidden_layer_size,
-                self.architecture.word_projection_dim,
-                self.architecture.skip_layer_size)
-            self.output_layer = OutputLayer(
-                self.architecture.skip_layer_size,
-                dictionary.num_classes())
-        else:
-            self.output_layer = OutputLayer(
-                self.architecture.hidden_layer_size,
-                dictionary.num_classes())
+        self.network_input = NetworkInput(dictionary.num_classes())
+        self.output_layer = None
+        self.layers = OrderedDict()
+        self.layers['X'] = self.network_input
+        for layer_description in architecture.layers:
+            layer_type = layer_description['type']
+            layer_name = layer_description['name']
+            inputs = [ self.layers[x] for x in layer_description['inputs'] ]
+            if layer_description['output'] == 'Y':
+                output_size = dictionary.num_classes()
+            else:
+                output_size = int(layer_description['output'])
+            self.layers[layer_name] = create_layer(layer_type,
+                                                   layer_name,
+                                                   inputs,
+                                                   output_size,
+                                                   profile)
+            if layer_description['output'] == 'Y':
+                self.output_layer = self.layers[layer_name]
 
         # Create initial parameter values.
         self.param_init_values = OrderedDict()
-        self.param_init_values.update(self.projection_layer.param_init_values)
-        self.param_init_values.update(self.hidden_layer.param_init_values)
-        if self.architecture.skip_layer_size > 0:
-            self.param_init_values.update(self.skip_layer.param_init_values)
-        self.param_init_values.update(self.output_layer.param_init_values)
+        for layer in self.layers.values():
+            self.param_init_values.update(layer.param_init_values)
 
         # Create Theano shared variables.
         self.params = {name: theano.shared(value, name)
                        for name, value in self.param_init_values.items()}
+        for layer in self.layers.values():
+            layer.set_params(self.params)
 
-        self._create_minibatch_structure()
-        self._create_onestep_structure()
-
-    def _create_minibatch_structure(self):
+    def create_minibatch_structure(self):
         """Creates the network structure for mini-batch processing.
 
         Creates the symbolic matrix self.minibatch_output, which describes the
@@ -221,13 +208,6 @@ class Network(object):
         sequence. The shape will be the same as that of self.minibatch_input,
         except that it will contain one less time step.
         """
-
-        # minibatch_input describes the input matrix containing
-        # [ number of time steps * number of sequences ] word IDs.
-        self.minibatch_input = tensor.matrix('minibatch_input', dtype='int64')
-        self.minibatch_input.tag.test_value = test_value(
-            size=(100, 16),
-            max_value=self.dictionary.num_classes())
 
         # mask is used to mask out the rest of the input matrix, when a sequence
         # is shorter than the maximum sequence length. Theano does not support
@@ -239,26 +219,13 @@ class Network(object):
             size=(100, 16),
             max_value=1.0)
 
-        self.projection_layer.create_structure(
-            self.params,
-            self.minibatch_input)
-        self.hidden_layer.create_structure(
-            self.params,
-            self.projection_layer.output,
-            mask=self.minibatch_mask)
-        if self.architecture.skip_layer_size > 0:
-            self.skip_layer.create_structure(
-                self.params,
-                self.hidden_layer.output,
-                self.projection_layer.output)
-            self.output_layer.create_structure(
-                self.params,
-                self.skip_layer.output)
-        else:
-            self.output_layer.create_structure(
-                self.params,
-                self.hidden_layer.output)
+        for layer in self.layers.values():
+            if layer.is_recurrent:
+                layer.create_structure(mask=self.minibatch_mask)
+            else:
+                layer.create_structure()
 
+        self.minibatch_input = self.network_input.output
         self.minibatch_output = self.output_layer.output
 
         # The input at the next time step is what the output (predicted word)
@@ -280,15 +247,9 @@ class Network(object):
         self.prediction_probs = target_probs.reshape(
             [num_time_steps, num_sequences])
 
-    def _create_onestep_structure(self):
+    def create_onestep_structure(self):
         """Creates the network structure for one-step processing.
         """
-
-        # onestep_input describes the input matrix containing only one word ID.
-        self.onestep_input = tensor.matrix('onestep_input', dtype='int64')
-        self.onestep_input.tag.test_value = test_value(
-            size=(1, 1),
-            max_value=self.dictionary.num_classes())
 
         # onestep_state describes the state outputs of the previous time step
         # of the hidden layer. GRU has one state output, LSTM has two. These are
@@ -307,27 +268,14 @@ class Network(object):
         mask_value = numpy.dtype(theano.config.floatX).type(1.0)
         dummy_mask = tensor.alloc(mask_value, 1, 1)
 
-        self.projection_layer.create_structure(
-            self.params,
-            self.onestep_input)
-        self.hidden_layer.create_structure(
-            self.params,
-            self.projection_layer.output,
-            mask=dummy_mask,
-            state_inputs=self.onestep_state)
-        if self.architecture.skip_layer_size > 0:
-            self.skip_layer.create_structure(
-                self.params,
-                self.hidden_layer.output,
-                self.projection_layer.output)
-            self.output_layer.create_structure(
-                self.params,
-                self.skip_layer.output)
-        else:
-            self.output_layer.create_structure(
-                self.params,
-                self.hidden_layer.output)
+        for layer in self.layers.values():
+            if layer.is_recurrent:
+                layer.create_structure(mask=dummy_mask,
+                                       state_inputs=self.onestep_state)
+            else:
+                layer.create_structure()
 
+        self.onestep_input = self.network_input.output
         self.onestep_output = self.output_layer.output
 
     def get_state(self):

@@ -5,67 +5,55 @@ from collections import OrderedDict
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.matrixfunctions import orthogonal_weight, get_submatrix
+from theanolm.matrixfunctions import get_submatrix
+from theanolm.layers.basiclayer import BasicLayer
 
-class LSTMLayer(object):
+class LSTMLayer(BasicLayer):
     """Long Short-Term Memory Layer for Neural Network Language Model
     """
 
-    def __init__(self, in_size, out_size, profile=False):
-        """Initializes the parameters for an LSTM layer of a recurrent neural
-        network.
+    def __init__(self, layer_name, input_layers, output_size, profile):
+        """Initializes the parameters for this layer.
 
-        :type in_size: int
-        :param in_size: number of input connections
+        :type layer_name: str
+        :param layer_name: name of the layer, used for prefixing parameter names
 
-        :type out_size: int
-        :param out_size: number of output connections
+        :type input_layer: list of BasicLayers
+        :param input_layer: list of layers providing input to this layer
+
+        :type output_size: int
+        :param output_size: number of output connections
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
         """
 
+        super().__init__(layer_name, input_layers, output_size, is_recurrent=True)
         self._profile = profile
 
         # The number of state variables to be passed between time steps.
         self.num_state_variables = 2
 
         # Initialize the parameters.
-        self.param_init_values = OrderedDict()
-
+        input_size = self.input_layers[0].output_size
         num_gates = 3
 
         # concatenation of the input weights for each gate
-        self.param_init_values['lstm.W_gates'] = \
-            numpy.concatenate([orthogonal_weight(in_size, out_size, scale=0.01)
-                               for _ in range(num_gates)],
-                              axis=1)
-
+        self._init_orthogonal_weight('gates.W', input_size, output_size, scale=0.01, count=num_gates)
         # concatenation of the previous step output weights for each gate
-        self.param_init_values['lstm.U_gates'] = \
-            numpy.concatenate([orthogonal_weight(out_size, out_size)
-                               for _ in range(num_gates)],
-                              axis=1)
-
+        self._init_orthogonal_weight('gates.U', output_size, output_size, count=num_gates)
         # concatenation of the biases for each gate
-        self.param_init_values['lstm.b_gates'] = \
-                numpy.zeros((num_gates * out_size,)).astype(theano.config.floatX)
+        self._init_zero_bias('gates.b', num_gates * output_size)
 
         # input weight for the candidate state
-        self.param_init_values['lstm.W_candidate'] = \
-                orthogonal_weight(in_size, out_size, scale=0.01)
-
+        self._init_orthogonal_weight('candidate.W', input_size, output_size, scale=0.01)
         # previous step output weight for the candidate state
-        self.param_init_values['lstm.U_candidate'] = \
-                orthogonal_weight(out_size, out_size)
-
+        self._init_orthogonal_weight('candidate.U', output_size, output_size)
         # bias for the candidate state
-        self.param_init_values['lstm.b_candidate'] = \
-                numpy.zeros((out_size,)).astype(theano.config.floatX)
+        self._init_zero_bias('candidate.b', output_size)
 
-    def create_structure(self, model_params, layer_input, mask,
-                         state_inputs=None):
-        """Creates LSTM layer structure.
+    def create_structure(self, mask, state_inputs=None):
+        """Creates the symbolic graph of this layer.
 
         The input is always 3-dimensional: the first dimension is the time step,
         the second dimension are the sequences, and the third dimension is the
@@ -82,13 +70,8 @@ class LSTMLayer(object):
         h_(t). ``self.output`` will be set to the hidden state output, which is
         the actual output of this layer.
 
-        :type model_params: dict
-        :param model_params: shared Theano variables
-
-        :type layer_input: theano.tensor.var.TensorVariable
-        :param layer_input: x_(t), symbolic 3-dimensional matrix that describes
-                            the output of the previous layer (word projections
-                            of the sequences)
+        Assumes that the shared variables have been passed using
+        ``set_params()``.
 
         :type mask: theano.tensor.var.TensorVariable
         :param mask: symbolic 2-dimensional matrix that masks out time steps in
@@ -100,22 +83,19 @@ class LSTMLayer(object):
                             - cell state C_(t-1) and hidden state h_(t-1)
         """
 
-        num_time_steps = layer_input.shape[0]
-        num_sequences = layer_input.shape[1]
-        self.layer_size = model_params['lstm.U_candidate'].shape[1]
+        input_matrix = self.input_layers[0].output
+        num_time_steps = input_matrix.shape[0]
+        num_sequences = input_matrix.shape[1]
+        self.layer_size = self._get_param('candidate.U').shape[1]
 
         # Compute the gate pre-activations, which don't depend on the time step.
-        x_preact_gates = \
-                tensor.dot(layer_input, model_params['lstm.W_gates']) \
-                + model_params['lstm.b_gates']
-        x_preact_candidate = \
-                tensor.dot(layer_input, model_params['lstm.W_candidate']) \
-                + model_params['lstm.b_candidate']
+        x_preact_gates = self._tensor_preact(input_matrix, 'gates')
+        x_preact_candidate = self._tensor_preact(input_matrix, 'candidate')
 
-        # The weights and biases for the previous step output. These have to be
-        # applied inside the loop.
-        U_gates = model_params['lstm.U_gates']
-        U_candidate = model_params['lstm.U_candidate']
+        # The weights for the previous step output. These have to be applied
+        # inside the loop.
+        U_gates = self._get_param('gates.U')
+        U_candidate = self._get_param('candidate.U')
 
         if state_inputs is None:
             sequences = [mask, x_preact_gates, x_preact_candidate]

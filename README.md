@@ -82,6 +82,30 @@ accepts simple `classes` format without class membership probabilities, but it
 is not currently able to learn the class membership probabilities from the
 training data.
 
+#### Network structure description
+
+The network structure is specified in a text file that contains a list of layer
+descriptions. Each line starts with the word `layer` and contains all of the
+following fields:
+
+- `type` selects the layer class. Currently `projection`, `tanh`, `lstm`, `gru`,
+  and `softmax` are implemented.
+- `name` is used to identify the layer whose output is connected to the input of
+  another layer. The name is also used to identify the layers when saving the
+  model parameters to disk.
+- `input` specifies the layer whose output will be the input of this layer. Some
+  layers types allow multiple inputs. There is one special value, `X`, which
+  means the input will be the network input.
+- `output` gives the number of output connections, except in the last layer,
+  where the special value `Y` should be given.
+
+Description of a typical LSTM neural network language model could look like
+this:
+
+    layer type=projection name=projection_layer input=X output=100
+    layer type=lstm name=hidden_layer input=projection_layer output=300
+    layer type=softmax name=output_layer input=hidden_layer output=Y
+
 #### Optimization
 
 The objective of the implemented optimization methods is to maximize the

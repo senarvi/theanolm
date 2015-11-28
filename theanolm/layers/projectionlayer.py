@@ -5,68 +5,59 @@ from collections import OrderedDict
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.matrixfunctions import orthogonal_weight
+from theanolm.layers.basiclayer import BasicLayer
 
-class InputError(Exception):
-    """Exception raised for errors in the input.
-    """
-    pass
-
-class ProjectionLayer(object):
+class ProjectionLayer(BasicLayer):
     """Projection Layer for Neural Network Language Model
     """
 
-    def __init__(self, in_size, out_size):
-        """Initializes the parameters for the first layer of a neural network
-        language model, which creates the word embeddings.
+    def __init__(self, layer_name, input_layers, output_size, profile):
+        """Initializes the parameters for this layer.
 
-        :type in_size: int
-        :param in_size: dimensionality of the input vectors, i.e. vocabulary
-                        size
+        :type layer_name: str
+        :param layer_name: name of the layer, used for prefixing parameter names
 
-        :type out_size: int
-        :param out_size: dimensionality of the word projections
+        :type input_layer: list of BasicLayers
+        :param input_layer: list of layers providing input to this layer
+
+        :type output_size: int
+        :param output_size: number of output connections
+
+        :type profile: bool
+        :param profile: if set to True, creates a Theano profile object
         """
 
-        self.word_projection_dim = out_size
+        super().__init__(layer_name, input_layers, output_size)
+        self._profile = profile
 
         # Initialize the parameters.
-        self.param_init_values = OrderedDict()
+        input_size = self.input_layers[0].output_size
+        self._init_orthogonal_weight('W', input_size, output_size, scale=0.01)
 
-        self.param_init_values['proj.W'] = \
-                orthogonal_weight(in_size, out_size, scale=0.01)
-
-    def create_structure(self, model_params, layer_input):
-        """Creates projection layer structure.
+    def create_structure(self):
+        """Creates the symbolic graph of this layer.
 
         The input is always 2-dimensional: the first dimension is the time step
         (index of word in a sequence) and the second dimension are the
         sequences. When generating text, there's just one sequence and one time
         step in the input.
 
-        :type model_params: dict
-        :param model_params: shared Theano variables
-
-        :type layer_input: theano.tensor.var.TensorVariable
-        :param layer_input: symbolic 2-dimensional matrix that describes
-                            the input
-
-        :rtype: theano.tensor.var.TensorVariable
-        :returns: symbolic 3-dimensional matrix - the first dimension is
-                  the time step, the second dimension are the sequences,
-                  and the third dimension is the word projection
+        Sets self.output to a symbolic matrix that describes the output of this
+        layer. Assumes that the shared variables have been passed using
+        ``set_params()``.
         """
 
-        num_time_steps = layer_input.shape[0]
-        num_sequences = layer_input.shape[1]
+        input_matrix = self.input_layers[0].output
+        num_time_steps = input_matrix.shape[0]
+        num_sequences = input_matrix.shape[1]
 
         # Indexing the word_projection matrix with a word ID returns the
-        # word_projection_dim dimensional projection. Note that indexing the
+        # self.output_size dimensional projection. Note that indexing the
         # matrix with a vector of all the word IDs gives a concatenation of
         # those projections.
-        projections = model_params['proj.W'][layer_input.flatten()]
+        projections = self._get_param('W')[input_matrix.flatten()]
         projections = projections.reshape([num_time_steps,
                                            num_sequences,
-                                           self.word_projection_dim],
+                                           self.output_size],
                                           ndim=3)
         self.output = projections
