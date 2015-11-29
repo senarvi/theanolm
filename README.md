@@ -89,7 +89,8 @@ descriptions. Each line starts with the word `layer` and contains all of the
 following fields:
 
 - `type` selects the layer class. Currently `projection`, `tanh`, `lstm`, `gru`,
-  and `softmax` are implemented.
+  and `softmax` are implemented. Currently only one recurrent layer can be used
+  per network.
 - `name` is used to identify the layer whose output is connected to the input of
   another layer. The name is also used to identify the layers when saving the
   model parameters to disk.

@@ -12,39 +12,25 @@ class GRULayer(object):
     """Gated Recurrent Unit Layer for Neural Network Language Model
     """
 
-    def __init__(self, layer_name, input_layers, output_size, profile):
-        """Initializes the parameters for this layer.
-
-        :type layer_name: str
-        :param layer_name: name of the layer, used for prefixing parameter names
-
-        :type input_layer: list of BasicLayers
-        :param input_layer: list of layers providing input to this layer
-
-        :type output_size: int
-        :param output_size: number of output connections
-
-        :type profile: bool
-        :param profile: if set to True, creates a Theano profile object
+    def __init__(self, *args, **kwargs):
+        """Initializes the parameters used by this layer.
         """
 
-        super().__init__(layer_name, input_layers, output_size, is_recurrent=True)
-        self._profile = profile
+        super().__init__(*args, is_recurrent=True, **kwargs)
 
         # The number of state variables to be passed between time steps.
         self.num_state_variables = 1
 
         # Initialize the parameters.
         input_size = self.input_layers[0].output_size
+        output_size = self.output_size
         num_gates = 2
-
         # concatenation of the input weights for each gate
         self._init_orthogonal_weight('gates.W', input_size, output_size, scale=0.01, count=num_gates)
         # concatenation of the previous step output weights for each gate
         self._init_orthogonal_weight('gates.U', output_size, output_size, count=num_gates)
         # concatenation of the biases for each gate
         self._init_zero_bias('gates.b', num_gates * output_size)
-
         # input weight for the candidate state
         self._init_orthogonal_weight('candidate.W', input_size, output_size, scale=0.01)
         # previous step output weight for the candidate state

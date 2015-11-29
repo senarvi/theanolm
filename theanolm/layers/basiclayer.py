@@ -12,14 +12,34 @@ class BasicLayer(object):
     """Superclass for Neural Network Layers
     """
 
-    def __init__(self, layer_name, input_layers, output_size, is_recurrent=False):
+    def __init__(self, layer_name, input_layers, output_size, profile=False,
+                 is_recurrent=False):
         """Saves some attributes that are common to all layers.
+
+        :type layer_name: str
+        :param layer_name: name of the layer, used for prefixing parameter names
+
+        :type input_layer: list of BasicLayers
+        :param input_layer: list of layers providing input to this layer
+
+        :type output_size: int
+        :param output_size: number of output connections
+
+        :type profile: bool
+        :param profile: if set to True, creates a Theano profile object
+
+        :type is_recurrent: bool
+        :param is_recurrent: should be set to True for recurrent layers, causing
+                             the hidden state from the previous time step to be
+                             passed to create_structure() when creating text
+                             sampler architecture
         """
 
         self.name = layer_name
         self.input_layers = input_layers
         self.output_size = output_size
         self.is_recurrent = is_recurrent
+        self._profile = profile
 
         logging.debug("- %s name=%s inputs=[%s] size=%d",
             self.__class__.__name__,

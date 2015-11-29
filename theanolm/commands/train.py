@@ -150,6 +150,8 @@ def train(args):
         theano.config.compute_test_value = 'warn'
     else:
         theano.config.compute_test_value = 'off'
+    theano.config.profile = args.profile
+    theano.config.profile_memory = args.profile
 
     if os.path.exists(args.model_path):
         print("Reading initial state from %s." % args.model_path)
@@ -168,7 +170,6 @@ def train(args):
     sys.stdout.flush()
     architecture = \
         theanolm.Network.Architecture.from_description(args.architecture)
-    print(architecture)
     network = theanolm.Network(dictionary, architecture, args.profile)
     network.create_minibatch_structure()
     if not initial_state is None:

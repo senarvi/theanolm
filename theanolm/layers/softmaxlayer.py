@@ -14,26 +14,14 @@ class SoftmaxLayer(BasicLayer):
     probabilities.
     """
 
-    def __init__(self, layer_name, input_layers, output_size, profile):
-        """Initializes the parameters for this layer.
-
-        :type layer_name: str
-        :param layer_name: name of the layer, used for prefixing parameter names
-
-        :type input_layer: list of BasicLayers
-        :param input_layer: list of layers providing input to this layer
-
-        :type output_size: int
-        :param output_size: number of output connections
-
-        :type profile: bool
-        :param profile: if set to True, creates a Theano profile object
+    def __init__(self, *args, **kwargs):
+        """Initializes the parameters used by this layer.
         """
 
-        super().__init__(layer_name, input_layers, output_size)
-        self._profile = profile
+        super().__init__(*args, **kwargs)
 
         # Create the parameters. Weight matrix and bias for each input.
+        output_size = self.output_size
         for input_index, input_layer in enumerate(self.input_layers):
             input_size = input_layer.output_size
             param_name = 'input' + str(input_index) + '.W'

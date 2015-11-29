@@ -15,7 +15,8 @@ class NetworkInput(BasicLayer):
     """
 
     def __init__(self, output_size):
-        """Initializes neural network input.
+        """Creates a neural network input with a given vocabulary size, which
+        specifies the input size of the first layer.
 
         :type output_size: int
         :param output_size: number of output connections

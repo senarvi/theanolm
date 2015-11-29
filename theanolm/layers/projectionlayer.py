@@ -11,27 +11,15 @@ class ProjectionLayer(BasicLayer):
     """Projection Layer for Neural Network Language Model
     """
 
-    def __init__(self, layer_name, input_layers, output_size, profile):
-        """Initializes the parameters for this layer.
-
-        :type layer_name: str
-        :param layer_name: name of the layer, used for prefixing parameter names
-
-        :type input_layer: list of BasicLayers
-        :param input_layer: list of layers providing input to this layer
-
-        :type output_size: int
-        :param output_size: number of output connections
-
-        :type profile: bool
-        :param profile: if set to True, creates a Theano profile object
+    def __init__(self, *args, **kwargs):
+        """Initializes the parameters used by this layer.
         """
 
-        super().__init__(layer_name, input_layers, output_size)
-        self._profile = profile
+        super().__init__(*args, **kwargs)
 
         # Initialize the parameters.
         input_size = self.input_layers[0].output_size
+        output_size = self.output_size
         self._init_orthogonal_weight('W', input_size, output_size, scale=0.01)
 
     def create_structure(self):

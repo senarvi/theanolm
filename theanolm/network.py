@@ -17,24 +17,14 @@ class Network(object):
     """
 
     class Architecture(object):
-        """Neural Network Architecture
+        """Neural Network Architecture Description
         """
 
         def __init__(self, layers):
-            """Constructs a description of the specified network architecture.
+            """Constructs a description of the neural network architecture.
 
-            :type word_projection_dim: int
-            :param word_projection_dim: dimensionality of the word projections
-
-            :type hidden_layer_type: str
-            :param hidden_layer_type: type of the units used in the hidden layer
-
-            :type hidden_layer_size: int
-            :param hidden_layer_size: number of outputs in the hidden layer
-
-            :type skip_layer_size: int
-            :param skip_layer_size: number of outputs in the skip-layer, or 0
-                                    for no skip-layer
+            :type layers: list of dict
+            :param layers: options for each layer as a list of dictionaries
             """
 
             self.layers = layers
@@ -53,8 +43,8 @@ class Network(object):
                     "Parameter 'arch.layers' is missing from neural network state.")
             # A workaround to be able to save arbitrary data in a .npz file.
             dict_ndarray = state['arch.layers'][()]
-            layer_descriptions = dict_ndarray['data']
-            return classname(layer_descriptions)
+            layers = dict_ndarray['data']
+            return classname(layers)
 
         @classmethod
         def from_description(classname, description_file):
@@ -64,7 +54,7 @@ class Network(object):
             :param description_file: text file containing the description
             """
 
-            layer_descriptions = []
+            layers = []
 
             for line in description_file:
                 layer_description = dict()
@@ -95,23 +85,9 @@ class Network(object):
                 if not 'output' in layer_description:
                     raise InputError("'output' is not given in a layer description.")
 
-                layer_descriptions.append(layer_description)
+                layers.append(layer_description)
 
-            return classname(layer_descriptions)
-
-        def __str__(self):
-            """Returns a string representation of the architecture for printing
-            to the user.
-
-            :rtype: str
-            :returns: a string describing the architecture
-            """
-
-            return ' '.join([ \
-                layer_description['name'] + ":" + \
-                layer_description['type'] + ":" + \
-                str(layer_description['output']) \
-                for layer_description in self.layers ])
+            return classname(layers)
 
         def get_state(self):
             """Returns a dictionary of parameters that should be saved along
@@ -137,7 +113,9 @@ class Network(object):
             :param state: dictionary of neural network parameters
             """
 
-            for layer1, layer2 in zip(self.layers, state['arch.layers']['data']):
+            dict_ndarray = state['arch.layers'][()]
+            state_layers = dict_ndarray['data']
+            for layer1, layer2 in zip(self.layers, state_layers):
                 if layer1['type'] != layer2['type']:
                     raise IncompatibleStateError(
                         "Neural network state has {0}={1}, while this architecture "
@@ -169,6 +147,7 @@ class Network(object):
         self.architecture = architecture
 
         # Create the layers.
+        logging.debug("Creating layers.")
         self.network_input = NetworkInput(dictionary.num_classes())
         self.output_layer = None
         self.layers = OrderedDict()
