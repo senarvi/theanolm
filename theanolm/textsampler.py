@@ -46,10 +46,13 @@ class TextSampler(object):
         inputs = [self.network.onestep_input]
         inputs.extend(self.network.onestep_state)
 
-        word_probs = self.network.onestep_output
+        # multinomial() is only implemented with dimension < 2, but the matrix
+        # contains only one time step anyway.
+        word_probs = self.network.onestep_output[0]
         word_ids = random.multinomial(pvals=word_probs).argmax(1)
+        word_ids = word_ids.reshape([1, word_ids.shape[0]])
         outputs = [word_ids]
-        outputs.extend(self.network.hidden_layer.onestep_outputs)
+        outputs.extend(self.network.hidden_layer.state_outputs)
 
         self.step_function = theano.function(
             inputs, outputs, name='text_sampler')
@@ -71,25 +74,30 @@ class TextSampler(object):
         :returns: list of the generated words
         """
 
-        # We are only generating one sequence at a time.
+        # We are only generating one sequence at a time. The input is passed as
+        # a 2-dimensional matrix with only one element, since in mini-batch mode
+        # the matrix contains multiple sequences and time steps.
         result = [self.dictionary.sos_id]
-        previous_step_output = \
-            self.dictionary.sos_id * numpy.ones(shape=(1,)).astype('int64')
+        step_output = \
+            self.dictionary.sos_id * numpy.ones(shape=(1,1)).astype('int64')
 
         # Construct a list of hidden layer state variables and initialize them
         # to zeros. GRU has only one state that is passed through the time
-        # steps, LSTM has two.
-        hidden_state_shape = (1, self.network.architecture.hidden_layer_size)
+        # steps, LSTM has two. The state vector is also specific to sequence and
+        # time step, but in this case we have only one sequence and time step.
+        hidden_state_shape = (1, 1, self.network.architecture.hidden_layer_size)
         hidden_layer_state = [
             numpy.zeros(shape=hidden_state_shape).astype(theano.config.floatX)
             for _ in range(self.network.hidden_layer.num_state_variables)]
 
         for _ in range(max_length):
-            step_result = self.step_function(previous_step_output,
+            # The input is the output from the previous step.
+            step_result = self.step_function(step_output,
                                              *hidden_layer_state)
-            previous_step_output = step_result[0]
+            step_output = step_result[0]
             hidden_layer_state = step_result[1:]
-            word_id = previous_step_output[0]
+            # The word ID from the single time step from the single sequence.
+            word_id = step_output[0,0]
             result.append(word_id)
             if word_id == self.dictionary.eos_id:
                 break

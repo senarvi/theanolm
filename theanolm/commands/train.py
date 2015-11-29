@@ -34,21 +34,10 @@ def add_arguments(parser):
              '"classes" (word and class ID per line), "srilm-classes" (class '
              'name, membership probability, and word per line)')
     
-    argument_group = parser.add_argument_group("network structure")
+    argument_group = parser.add_argument_group("network architecture")
     argument_group.add_argument(
-        '--word-projection-dim', metavar='N', type=int, default=100,
-        help='word projections will be N-dimensional (default 100)')
-    argument_group.add_argument(
-        '--hidden-layer-size', metavar='N', type=int, default=1000,
-        help='hidden layer will contain N outputs (default 1000)')
-    argument_group.add_argument(
-        '--hidden-layer-type', metavar='NAME', type=str, default='lstm',
-        help='hidden layer unit type, "lstm" or "gru" (default "lstm")')
-    argument_group.add_argument(
-        '--skip-layer-size', metavar='N', type=int, default=0,
-        help='if N is greater than zero, include a layer between hidden and '
-             'output layers, with N outputs, and direct connections from input '
-             'layer (default is to not create such layer)')
+        '--architecture', metavar='DESC', type=TextFileType('r'),
+        help='path to neural network architecture description')
     
     argument_group = parser.add_argument_group("training process")
     argument_group.add_argument(
@@ -161,6 +150,8 @@ def train(args):
         theano.config.compute_test_value = 'warn'
     else:
         theano.config.compute_test_value = 'off'
+    theano.config.profile = args.profile
+    theano.config.profile_memory = args.profile
 
     if os.path.exists(args.model_path):
         print("Reading initial state from %s." % args.model_path)
@@ -177,13 +168,10 @@ def train(args):
 
     print("Building neural network.")
     sys.stdout.flush()
-    architecture = theanolm.Network.Architecture(
-        args.word_projection_dim,
-        args.hidden_layer_type,
-        args.hidden_layer_size,
-        args.skip_layer_size)
-    print(architecture)
+    architecture = \
+        theanolm.Network.Architecture.from_description(args.architecture)
     network = theanolm.Network(dictionary, architecture, args.profile)
+    network.create_minibatch_structure()
     if not initial_state is None:
         print("Restoring neural network to previous state.")
         sys.stdout.flush()

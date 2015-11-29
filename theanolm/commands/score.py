@@ -55,8 +55,8 @@ def score(args):
     print("Building neural network.")
     sys.stdout.flush()
     architecture = theanolm.Network.Architecture.from_state(state)
-    print(architecture)
     network = theanolm.Network(dictionary, architecture)
+    network.create_minibatch_structure()
     print("Restoring neural network state.")
     network.set_state(state)
     

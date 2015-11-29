@@ -5,177 +5,111 @@ from collections import OrderedDict
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.matrixfunctions import orthogonal_weight, get_submatrix
+from theanolm.matrixfunctions import get_submatrix
+from theanolm.layers.basiclayer import BasicLayer
 
 class GRULayer(object):
     """Gated Recurrent Unit Layer for Neural Network Language Model
     """
 
-    def __init__(self, in_size, out_size, profile):
-        """Initializes the parameters for a GRU layer of a recurrent neural
-        network.
-
-        :type in_size: int
-        :param in_size: number of input connections
-
-        :type out_size: int
-        :param out_size: number of output connections
-
-        :type profile: bool
-        :param profile: if set to True, creates a Theano profile object
+    def __init__(self, *args, **kwargs):
+        """Initializes the parameters used by this layer.
         """
 
-        self._profile = profile
+        super().__init__(*args, is_recurrent=True, **kwargs)
 
         # The number of state variables to be passed between time steps.
         self.num_state_variables = 1
 
         # Initialize the parameters.
-        self.param_init_values = OrderedDict()
-
+        input_size = self.input_layers[0].output_size
+        output_size = self.output_size
         num_gates = 2
-
         # concatenation of the input weights for each gate
-        self.param_init_values['gru.W_gates'] = \
-                numpy.concatenate([orthogonal_weight(in_size, out_size, scale=0.01) for _ in range(num_gates)],
-                                  axis=1)
-
+        self._init_orthogonal_weight('gates.W', input_size, output_size, scale=0.01, count=num_gates)
         # concatenation of the previous step output weights for each gate
-        self.param_init_values['gru.U_gates'] = \
-                numpy.concatenate([orthogonal_weight(out_size, out_size) for _ in range(num_gates)],
-                                  axis=1)
-
+        self._init_orthogonal_weight('gates.U', output_size, output_size, count=num_gates)
         # concatenation of the biases for each gate
-        self.param_init_values['gru.b_gates'] = \
-                numpy.zeros((num_gates * out_size,)).astype(theano.config.floatX)
-
+        self._init_zero_bias('gates.b', num_gates * output_size)
         # input weight for the candidate state
-        self.param_init_values['gru.W_candidate'] = \
-                orthogonal_weight(in_size, out_size, scale=0.01)
-
+        self._init_orthogonal_weight('candidate.W', input_size, output_size, scale=0.01)
         # previous step output weight for the candidate state
-        self.param_init_values['gru.U_candidate'] = \
-                orthogonal_weight(out_size, out_size)
-
+        self._init_orthogonal_weight('candidate.U', output_size, output_size)
         # bias for the candidate state
-        self.param_init_values['gru.b_candidate'] = \
-                numpy.zeros((out_size,)).astype(theano.config.floatX)
+        self._init_zero_bias('candidate.b', output_size)
 
-    def create_minibatch_structure(self, model_params, layer_input, mask):
-        """Creates GRU layer structure for mini-batch processing.
+    def create_structure(self, mask, state_inputs=None):
+        """Creates GRU layer structure.
 
-        In mini-batch training the input is 3-dimensional: the first
-        dimension is the time step, the second dimension are the sequences,
-        and the third dimension is the word projection.
+        The input is always 3-dimensional: the first dimension is the time step,
+        the second dimension are the sequences, and the third dimension is the
+        layer input. If ``state_inputs`` is ``None``, the function creates the
+        normal recursive structure.
 
-        Sets self.minimatch_output to a symbolic 2-dimensional matrix that
-        describes the hidden state output of the time steps.
+        The function can also be used to create a structure for generating text,
+        one word at a time. Then the input is still 3-dimensional, but the size
+        of the first and second dimension is 1, and the state outputs from the
+        previous time step are provided in ``state_inputs``.
 
-        :type model_params: dict
-        :param model_params: shared Theano variables
-
-        :type layer_input: theano.tensor.var.TensorVariable
-        :param layer_input: x_(t), symbolic 3-dimensional matrix that describes
-                            the output of the previous layer (word projections
-                            of the sequences)
+        Sets ``self.state_outputs`` to a list of symbolic 3-dimensional matrices
+        that describe the state outputs. There's just one state in a GRU layer,
+        h_(t). ``self.output`` will be set to the same hidden state output,
+        which is also the actual output of this layer.
 
         :type mask: theano.tensor.var.TensorVariable
         :param mask: symbolic 2-dimensional matrix that masks out time steps in
                      layer_input after sequence end
-        """
 
-        if layer_input.ndim != 3:
-            raise ValueError("GRULayer.create_minibatch_structure() requires 3-dimensional input.")
-
-        num_time_steps = layer_input.shape[0]
-        num_sequences = layer_input.shape[1]
-        self.layer_size = model_params['gru.U_candidate'].shape[1]
-
-        # Compute the gate pre-activations, which don't depend on the time step.
-        x_preact_gates = \
-                tensor.dot(layer_input, model_params['gru.W_gates']) \
-                + model_params['gru.b_gates']
-        x_preact_candidate = \
-                tensor.dot(layer_input, model_params['gru.W_candidate']) \
-                + model_params['gru.b_candidate']
-
-        # The weights and biases for the previous step output. These have to be
-        # applied inside the loop.
-        U_gates = model_params['gru.U_gates']
-        U_candidate = model_params['gru.U_candidate']
-
-        sequences = [mask, x_preact_gates, x_preact_candidate]
-        non_sequences = [U_gates, U_candidate]
-        initial_value = numpy.dtype(theano.config.floatX).type(0.0)
-        initial_hidden_state = tensor.unbroadcast(
-            tensor.alloc(initial_value, num_sequences, self.layer_size), 0)
-
-        outputs, _ = theano.scan(
-            self._create_time_step,
-            sequences=sequences,
-            outputs_info=[initial_hidden_state],
-            non_sequences=non_sequences,
-            name='hidden_layer_steps',
-            n_steps=num_time_steps,
-            profile=self._profile,
-            strict=True)
-
-        self.minibatch_output = outputs
-
-    def create_onestep_structure(self, model_params, layer_input, state_input):
-        """Creates GRU layer structure for one-step processing.
-
-        This function is used for creating a text generator. The input is
-        2-dimensional: the first dimension is the sequence and the second is
-        the word projection.
-
-        Sets self.onestep_outputs to a list of symbolic 2-dimensional matrices
-        that describe the state outputs of the time steps. There's only one
-        state in a GRU layer, h_(t).
-
-        :type model_params: dict
-        :param model_params: shared Theano variables
-
-        :type layer_input: theano.tensor.var.TensorVariable
-        :param layer_input: x_(t), symbolic 2-dimensional matrix that
-                            describes the output of the previous layer (word
-                            projections of the sequences)
-
-        :type state_input: list of theano.tensor.var.TensorVariables
-        :param state_input: a list of symbolic 2-dimensional matrices that
+        :type state_inputs: list of theano.tensor.var.TensorVariables
+        :param state_inputs: a list of symbolic 3-dimensional matrices that
                             describe the state outputs of the previous time step
                             - only one state in a GRU layer, h_(t-1)
         """
 
-        num_sequences = layer_input.shape[0]
-        self.layer_size = model_params['gru.U_candidate'].shape[1]
-
-        mask_value = numpy.dtype(theano.config.floatX).type(1.0)
-        mask = tensor.alloc(mask_value, num_sequences, 1)
+        input_matrix = self.input_layers[0].output
+        num_time_steps = input_matrix.shape[0]
+        num_sequences = input_matrix.shape[1]
+        self.layer_size = self._get_param('candidate.U').shape[1]
 
         # Compute the gate pre-activations, which don't depend on the time step.
-        x_preact_gates = \
-                tensor.dot(layer_input, model_params['gru.W_gates']) \
-                + model_params['gru.b_gates']
-        x_preact_candidate = \
-                tensor.dot(layer_input, model_params['gru.W_candidate']) \
-                + model_params['gru.b_candidate']
+        x_preact_gates = self._tensor_preact(input_matrix, 'gates')
+        x_preact_candidate = self._tensor_preact(input_matrix, 'candidate')
 
-        hidden_state_input = state_input[0]
+        # The weights for the previous step output. These have to be applied
+        # inside the loop.
+        U_gates = self._get_param('gates.U')
+        U_candidate = self._get_param('candidate.U')
 
-        # The weights and biases for the previous step output. These will
-        # be applied inside _create_time_step().
-        U_gates = model_params['gru.U_gates']
-        U_candidate = model_params['gru.U_candidate']
+        if state_inputs is None:
+            sequences = [mask, x_preact_gates, x_preact_candidate]
+            non_sequences = [U_gates, U_candidate]
+            initial_value = numpy.dtype(theano.config.floatX).type(0.0)
+            initial_hidden_state = tensor.unbroadcast(
+                tensor.alloc(initial_value, num_sequences, self.layer_size), 0)
+    
+            hidden_state_output, _ = theano.scan(
+                self._create_time_step,
+                sequences=sequences,
+                outputs_info=[initial_hidden_state],
+                non_sequences=non_sequences,
+                name='hidden_layer_steps',
+                n_steps=num_time_steps,
+                profile=self._profile,
+                strict=True)
+            self.state_outputs = [hidden_state_output]
+        else:
+            hidden_state_input = state_inputs[0]
+    
+            hidden_state_output = self._create_time_step(
+                mask,
+                x_preact_gates,
+                x_preact_candidate,
+                hidden_state_input,
+                U_gates,
+                U_candidate)
+            self.state_outputs = [hidden_state_output]
 
-        outputs = self._create_time_step(
-            mask,
-            x_preact_gates,
-            x_preact_candidate,
-            hidden_state_input,
-            U_gates,
-            U_candidate)
-        self.onestep_outputs = [outputs]
+        self.output = self.state_outputs[0]
 
     def _create_time_step(self, mask, x_preact_gates, x_preact_candidate, h_in, U_gates,
                           U_candidate):
