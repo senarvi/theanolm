@@ -106,7 +106,17 @@ argument. The average per-word gradient will be multiplied by this factor. In
 practice the gradient is scaled by the number of words by dividing the cost
 function by the number of training examples in the mini-batch. In most of the
 cases, something between 0.001 and 1.0 works well, depending on the optimization
-method. For example, Adam seems to require a lower value than the other methods.
+method. The table below suggests some values where to start.
+
+| Optimization Method           | --optimization-method | --learning-rate |
+| ----------------------------- | --------------------- | --------------- |
+| Stochastic Gradient Descent   | sgd                   | 1.0             |
+| Nesterov Momentum             | nesterov              | 0.1             |
+| AdaGrad                       | adagrad               | 0.1             |
+| ADADELTA                      | adadelta              | 1.0             |
+| SGD with RMSProp              | rmsprop-sgd           | 0.01            |
+| Momentum with RMSProp         | rmsprop-momentum      | 0.001           |
+| Adam                          | adam                  | 0.001           |
 
 The number of sequences included in one mini-batch can be set with the
 `--batch-size` argument. Larger mini-batches are more efficient to compute on a
@@ -148,26 +158,26 @@ line arguments, TheanoLM will automatically continue training from the previous
 state.
 
 
-### Scoring a text file
+### Scoring a text corpus
 
 Score command takes three positional arguments: input model path, evaluation
-data path, and dictionary path. Evaluation data is processed identically to the
+data path, and dictionary path. Evaluation data is processed identically to
 training and validation data, i.e. explicit start-of-sentence and
-end-of-sentence tags are not necessary in the beginning and end of each
-utterance, except when one wants to compute the probability of the empty
-sentence `<s> </s>`.
+end-of-sentence tags are not needed in the beginning and end of each utterance,
+except when one wants to compute the probability of the empty sentence
+`<s> </s>`.
 
 The level of detail can be controlled by the `--output` parameter. The value can
 be one of:
 
-- `perplexity` -- Compute perplexity and other statistics of the entire corpus.
-- `word-scores` -- Display log probability scores of each word, in addition to
+- `perplexity` – Compute perplexity and other statistics of the entire corpus.
+- `word-scores` – Display log probability scores of each word, in addition to
   sentence and corpus perplexities.
-- `utterances-scores` -- Write just the log probability score of each utterance,
+- `utterances-scores` – Write just the log probability score of each utterance,
   one per line. This can be used for rescoring n-best lists.
 
-Below is an example of how to compute the perplexity of a model on evaluation
-data:
+The example below shows how one can compute the perplexity of a model on
+evaluation data:
 
     theanolm score \
       model.npz \
@@ -177,7 +187,7 @@ data:
       --output perplexity
 
 
-### Generating text using a model
+### Generating text
 
 A neural network language model can also be used to generate text, using the
 `theanolm sample` command:
