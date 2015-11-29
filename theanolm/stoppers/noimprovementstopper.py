@@ -59,7 +59,7 @@ class NoImprovementStopper(BasicStopper):
         if self.trainer.epoch_number <= self.min_epochs:
             return True
 
-        if self._has_improved
+        if self._has_improved:
             return True
 
         # Might be that improvement ceased earlier, but we have waited for the
