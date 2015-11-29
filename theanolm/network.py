@@ -6,7 +6,7 @@ import logging
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.exceptions import IncompatibleStateError
+from theanolm.exceptions import IncompatibleStateError, InputError
 from theanolm.layers import *
 from theanolm.matrixfunctions import test_value
 
@@ -60,8 +60,11 @@ class Network(object):
                 layer_description = dict()
 
                 fields = line.split()
-                if fields[0] != 'layer':
+                if not fields:
                     continue
+                if fields[0] != 'layer':
+                    raise InputError("Unknown network element: {}.".format(
+                        fields[0]))
                 for field in fields[1:]:
                     variable, value = field.split('=')
                     if variable == 'type':
@@ -167,6 +170,9 @@ class Network(object):
                                                    profile)
             if layer_description['output'] == 'Y':
                 self.output_layer = self.layers[layer_name]
+        if self.output_layer is None:
+            raise InputError("None of the layers in architecture description "
+                             "have 'output=Y'.")
 
         # Create initial parameter values.
         self.param_init_values = OrderedDict()
