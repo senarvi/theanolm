@@ -41,9 +41,12 @@ class Network(object):
             if not 'arch.layers' in state:
                 raise IncompatibleStateError(
                     "Parameter 'arch.layers' is missing from neural network state.")
-            # A workaround to be able to save arbitrary data in a .npz file.
-            dict_ndarray = state['arch.layers'][()]
-            layers = dict_ndarray['data']
+            # An ugly workaround to be able to save arbitrary data in a .npz file.
+            try:
+                dummy_dict = state['arch.layers'][()]
+            except KeyError:
+                dummy_dict = state['arch.layers']
+            layers = dummy_dict['data']
             return classname(layers)
 
         @classmethod
