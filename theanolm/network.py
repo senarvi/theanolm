@@ -119,8 +119,15 @@ class Network(object):
             :param state: dictionary of neural network parameters
             """
 
-            dict_ndarray = state['arch.layers'][()]
-            state_layers = dict_ndarray['data']
+            if not 'arch.layers' in state:
+                raise IncompatibleStateError(
+                    "Parameter 'arch.layers' is missing from neural network state.")
+            # An ugly workaround to be able to save arbitrary data in a .npz file.
+            try:
+                dummy_dict = state['arch.layers'][()]
+            except KeyError:
+                dummy_dict = state['arch.layers']
+            state_layers = dummy_dict['data']
             for layer1, layer2 in zip(self.layers, state_layers):
                 if layer1['type'] != layer2['type']:
                     raise IncompatibleStateError(
