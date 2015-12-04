@@ -73,7 +73,7 @@ def add_arguments(parser):
     argument_group.add_argument(
         '--optimization-method', metavar='NAME', type=str, default='sgd',
         help='optimization method, one of "sgd", "nesterov", "adagrad", '
-             '"adadelta", "rmsprop-sgd", "rmsprop-momentum", "adam" '
+             '"adadelta", "rmsprop-sgd", "rmsprop-nesterov", "adam" '
              '(default "sgd")')
     argument_group.add_argument(
         '--learning-rate', metavar='ALPHA', type=float, default=0.1,

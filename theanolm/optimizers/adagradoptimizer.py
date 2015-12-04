@@ -51,13 +51,6 @@ class AdaGradOptimizer(BasicOptimizer):
             self.param_init_values[name + '.sum_sqr_gradient'] = \
                 numpy.zeros_like(param.get_value())
 
-        self._create_params()
-
-        # numerical stability / smoothing term to prevent divide-by-zero
-        if not 'epsilon' in optimization_options:
-            raise ValueError("Epsilon is not given in optimization options.")
-        self._epsilon = optimization_options['epsilon']
-
         super().__init__(optimization_options, network, *args, **kwargs)
 
     def _get_gradient_updates(self):
@@ -74,11 +67,16 @@ class AdaGradOptimizer(BasicOptimizer):
     def _get_model_updates(self):
         alpha = self.params['optimizer.learning_rate']
 
-        result = []
+        updates = dict()
         for name, param in self.network.params.items():
             gradient = self.params[name + '.gradient']
             ss_gradient = self.params[name + '.sum_sqr_gradient']
             rss_gradient = tensor.sqrt(ss_gradient + self._epsilon)
-            param_new = param - (alpha * gradient / rss_gradient)
-            result.append((param, param_new))
+            updates[name] = -gradient / rss_gradient
+        self._normalize(updates)
+
+        result = []
+        for name, param in self.network.params.items():
+            update = updates[name]
+            result.append((param, param + alpha * update))
         return result

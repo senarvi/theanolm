@@ -34,8 +34,6 @@ class SGDOptimizer(BasicOptimizer):
             self.param_init_values[name + '.gradient'] = \
                 numpy.zeros_like(param.get_value())
 
-        self._create_params()
-
         super().__init__(optimization_options, network, *args, **kwargs)
 
     def _get_gradient_updates(self):
@@ -49,8 +47,14 @@ class SGDOptimizer(BasicOptimizer):
     def _get_model_updates(self):
         alpha = self.params['optimizer.learning_rate']
 
-        result = []
+        updates = dict()
         for name, param in self.network.params.items():
             gradient = self.params[name + '.gradient']
-            result.append((param, param - alpha * gradient))
+            updates[name] = -gradient
+        self._normalize(updates)
+
+        result = []
+        for name, param in self.network.params.items():
+            update = updates[name]
+            result.append((param, param + alpha * update))
         return result

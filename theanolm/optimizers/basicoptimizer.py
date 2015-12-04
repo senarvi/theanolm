@@ -39,33 +39,36 @@ class BasicOptimizer(object):
 
         self.network = network
 
-        # Calculate log probability of each word.
+        # Create Theano shared variables from the initial parameter values.
+        self.params = {name: theano.shared(value, name)
+                       for name, value in self.param_init_values.items()}
+
+        # numerical stability / smoothing term to prevent divide-by-zero
+        if not 'epsilon' in optimization_options:
+            raise ValueError("Epsilon is not given in optimization options.")
+        self._epsilon = optimization_options['epsilon']
+
+        # maximum norm for parameter updates
+        if 'max_gradient_norm' in optimization_options:
+            self._max_gradient_norm = optimization_options['max_gradient_norm']
+        else:
+            self._max_gradient_norm = None
+
+        # Derive the symbolic expression for log probability of each word.
         logprobs = tensor.log(self.network.prediction_probs)
         # Set the log probability to 0, if the next input word (the one
         # predicted) is masked out.
         logprobs = logprobs * self.network.minibatch_mask[1:]
-        # Calculate the negative log probability normalized by the number of
+        # Cost is the negative log probability normalized by the number of
         # training examples in the mini-batch, so that the gradients will also
         # be normalized by the number of training examples.
         cost = -logprobs.sum() / self.network.minibatch_mask[1:].sum()
 
-        # Compute the symbolic expression for updating the gradient with regard
+        # Derive the symbolic expression for updating the gradient with regard
         # to each parameter.
-        gradients = tensor.grad(cost, wrt=list(self.network.params.values()))
+        self._gradient_exprs = \
+            tensor.grad(cost, wrt=list(self.network.params.values()))
 
-        # Normalize the norm of the gradients to given maximum value.
-        if 'max_gradient_norm' in optimization_options:
-            max_norm = optimization_options['max_gradient_norm']
-            epsilon = optimization_options['epsilon']
-            squares = [tensor.sqr(gradient) for gradient in gradients]
-            sums = [tensor.sum(square) for square in squares]
-            total_sum = sum(sums)  # sum over parameter variables
-            norm = tensor.sqrt(total_sum)
-            target_norm = tensor.clip(norm, 0.0, max_norm)
-            gradients = [gradient * target_norm / (epsilon + norm)
-                         for gradient in gradients]
-
-        self._gradient_exprs = gradients
         self.gradient_update_function = \
             theano.function([self.network.minibatch_input,
                              self.network.minibatch_mask],
@@ -78,13 +81,6 @@ class BasicOptimizer(object):
                             [],
                             updates=self._get_model_updates(),
                             profile=profile)
-
-    def _create_params(self):
-        """Creates Theano shared variables from the initial parameter values.
-        """
-
-        self.params = {name: theano.shared(value, name)
-                       for name, value in self.param_init_values.items()}
 
     def get_state(self):
         """Pulls parameter values from Theano shared variables.
@@ -178,3 +174,28 @@ class BasicOptimizer(object):
         """
 
         pass
+
+    def _normalize(self, updates):
+        """Normalizes the norm of a parameter update to given maximum value.
+
+        :type updates: dict of str to theano.tensor.var.TensorVariable
+        :param updates: dictionary of symbolic variables that describe the
+                        negative gradient of each parameter, after any
+                        optimization method specific adaptation
+
+        :rtype: dict of str to theano.tensor.var.TensorVariable
+        :returns: dictionary of symbolic variables that describe ``updates``
+                  after normalization has been applied
+        """
+
+        max_norm = self._max_gradient_norm
+        if max_norm is None:
+            return
+
+        squares = [tensor.sqr(update) for update in updates.values()]
+        sums = [tensor.sum(square) for square in squares]
+        total_sum = sum(sums)  # sum over parameter variables
+        norm = tensor.sqrt(total_sum)
+        target_norm = tensor.clip(norm, 0.0, max_norm)
+        for name, update in updates.items():
+            updates[name] = update * target_norm / (self._epsilon + norm)

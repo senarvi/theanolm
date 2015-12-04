@@ -47,8 +47,6 @@ class NesterovOptimizer(BasicOptimizer):
             self.param_init_values[name + '.velocity'] = \
                 numpy.zeros_like(param.get_value())
 
-        self._create_params()
-
         # momentum
         if not 'momentum' in optimization_options:
             raise ValueError("Momentum is not given in optimization options.")
@@ -67,13 +65,18 @@ class NesterovOptimizer(BasicOptimizer):
     def _get_model_updates(self):
         alpha = self.params['optimizer.learning_rate']
         
-        result = []
+        updates = dict()
         for name, param in self.network.params.items():
             gradient = self.params[name + '.gradient']
+            updates[name] = -gradient
+        self._normalize(updates)
+
+        result = []
+        for name, param in self.network.params.items():
+            update = updates[name]
             velocity = self.params[name + '.velocity']
-            std_update = -alpha * gradient
-            velocity_new = (self._momentum * velocity) + std_update
-            param_new = param + (self._momentum * velocity_new) + std_update
+            velocity_new = self._momentum * velocity + alpha * update
+            param_new = param + self._momentum * velocity_new + alpha * update
             result.append((velocity, velocity_new))
             result.append((param, param_new))
         return result

@@ -44,21 +44,16 @@ class RMSPropSGDOptimizer(BasicOptimizer):
         for name, param in network.params.items():
             self.param_init_values[name + '.gradient'] = \
                 numpy.zeros_like(param.get_value())
+            # Initialize mean squared gradient to ones, otherwise the first
+            # update will be divided by close to zero.
             self.param_init_values[name + '.mean_sqr_gradient'] = \
-                numpy.zeros_like(param.get_value())
-
-        self._create_params()
+                numpy.ones_like(param.get_value())
 
         # geometric rate for averaging gradients
         if not 'gradient_decay_rate' in optimization_options:
             raise ValueError("Gradient decay rate is not given in training "
                              "options.")
         self._gamma = optimization_options['gradient_decay_rate']
-
-        # numerical stability / smoothing term to prevent divide-by-zero
-        if not 'epsilon' in optimization_options:
-            raise ValueError("Epsilon is not given in optimization options.")
-        self._epsilon = optimization_options['epsilon']
 
         super().__init__(optimization_options, network, *args, **kwargs)
 
@@ -69,8 +64,8 @@ class RMSPropSGDOptimizer(BasicOptimizer):
             gradient = self.params[name + '.gradient']
             ms_gradient = self.params[name + '.mean_sqr_gradient']
             ms_gradient_new = \
-                (self._gamma * ms_gradient) + \
-                ((1.0 - self._gamma) * tensor.sqr(gradient_new))
+                self._gamma * ms_gradient + \
+                (1.0 - self._gamma) * tensor.sqr(gradient_new)
             result.append((gradient, gradient_new))
             result.append((ms_gradient, ms_gradient_new))
         return result
@@ -78,11 +73,16 @@ class RMSPropSGDOptimizer(BasicOptimizer):
     def _get_model_updates(self):
         alpha = self.params['optimizer.learning_rate']
 
-        result = []
+        updates = dict()
         for name, param in self.network.params.items():
             gradient = self.params[name + '.gradient']
             ms_gradient = self.params[name + '.mean_sqr_gradient']
             rms_gradient = tensor.sqrt(ms_gradient + self._epsilon)
-            param_new = param - (alpha * gradient / rms_gradient)
-            result.append((param, param_new))
+            updates[name] = -gradient / rms_gradient
+        self._normalize(updates)
+
+        result = []
+        for name, param in self.network.params.items():
+            update = updates[name]
+            result.append((param, param + alpha * update))
         return result

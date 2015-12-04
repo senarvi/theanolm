@@ -46,7 +46,6 @@ class AdamOptimizer(BasicOptimizer):
                 numpy.zeros_like(param.get_value())
             self.param_init_values[name + '.mean_sqr_gradient'] = \
                 numpy.zeros_like(param.get_value())
-        self._create_params()
 
         # geometric rate for averaging gradients
         if not 'gradient_decay_rate' in optimization_options:
@@ -59,11 +58,6 @@ class AdamOptimizer(BasicOptimizer):
             raise ValueError("Squared gradient decay rate is not given in "
                              "optimization options.")
         self._gamma_ms = optimization_options['sqr_gradient_decay_rate']
-
-        # numerical stability / smoothing term to prevent divide-by-zero
-        if not 'epsilon' in optimization_options:
-            raise ValueError("Epsilon is not given in optimization options.")
-        self._epsilon = optimization_options['epsilon']
 
         # momentum
         if not 'momentum' in optimization_options:
@@ -80,11 +74,11 @@ class AdamOptimizer(BasicOptimizer):
             m_gradient = self.params[name + '.mean_gradient']
             ms_gradient = self.params[name + '.mean_sqr_gradient']
             m_gradient_new = \
-                (self._gamma_m * m_gradient) + \
-                ((1.0 - self._gamma_m) * gradient)
+                self._gamma_m * m_gradient + \
+                (1.0 - self._gamma_m) * gradient
             ms_gradient_new = \
-                (self._gamma_ms * ms_gradient) + \
-                ((1.0 - self._gamma_ms) * tensor.sqr(gradient))
+                self._gamma_ms * ms_gradient + \
+                (1.0 - self._gamma_ms) * tensor.sqr(gradient)
             result.append((gradient, gradient_new))
             result.append((m_gradient, m_gradient_new))
             result.append((ms_gradient, ms_gradient_new))
@@ -97,13 +91,18 @@ class AdamOptimizer(BasicOptimizer):
         alpha *= tensor.sqrt(1.0 - (self._gamma_ms ** timestep_new))
         alpha /= 1.0 - (self._gamma_m ** timestep_new)
 
-        result = []
+        updates = dict()
         for name, param in self.network.params.items():
             m_gradient = self.params[name + '.mean_gradient']
             ms_gradient = self.params[name + '.mean_sqr_gradient']
             rms_gradient = tensor.sqrt(ms_gradient) + self._epsilon
-            param_new = param - (alpha * m_gradient / rms_gradient)
-            result.append((param, param_new))
+            updates[name] = -m_gradient / rms_gradient
+        self._normalize(updates)
+
+        result = []
+        for name, param in self.network.params.items():
+            update = updates[name]
+            result.append((param, param + alpha * update))
         result.append((timestep, timestep_new))
         return result
 
