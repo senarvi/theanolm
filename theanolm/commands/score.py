@@ -133,8 +133,10 @@ def _score_text(input_file, dictionary, scorer, output_file,
             seq_class_names = dictionary.ids_to_names(seq_word_ids)
             output_file.write("# Sentence {0}\n".format(num_sentences))
 
+            # In case some word IDs are ignored, seq_word_ids may contain more
+            # items than seq_logprobs.
             logprob_index = 0
-            for word_index, word_id in enumerate(seq_word_ids):
+            for word_index, word_id in enumerate(seq_word_ids[1:]):
                 if word_index - 2 > 0:
                     history = seq_class_names[word_index:word_index - 3:-1]
                     history.append('...')
@@ -144,7 +146,7 @@ def _score_text(input_file, dictionary, scorer, output_file,
                 predicted = seq_class_names[word_index + 1]
 
                 if word_id in scorer.classes_to_ignore:
-                    output_file.write("log(p({0} | {1})) ignored\n".format(
+                    output_file.write("p({0} | {1}) is not predicted\n".format(
                         predicted, history))
                 else:
                     logprob = seq_logprobs[logprob_index]
