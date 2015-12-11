@@ -217,7 +217,7 @@ class Network(object):
         self.minibatch_mask = tensor.matrix('minibatch_mask', dtype='int8')
         self.minibatch_mask.tag.test_value = test_value(
             size=(100, 16),
-            max_value=2)
+            max_value=True)
 
         for layer in self.layers.values():
             if layer.is_recurrent:
