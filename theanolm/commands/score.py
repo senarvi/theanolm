@@ -41,6 +41,9 @@ def add_arguments(parser):
         '--log-base', metavar='B', type=int, default=None,
         help='convert output log probabilities to base B (default is the '
              'natural logarithm)')
+    argument_group.add_argument(
+        '--ignore-unk', action="store_true",
+        help="don't include the probability of unknown words")
 
 def score(args):
     print("Reading model state from %s." % args.model_path)
@@ -62,8 +65,11 @@ def score(args):
     
     print("Building text scorer.")
     sys.stdout.flush()
-    scorer = theanolm.TextScorer(network)
-    
+    classes_to_ignore = []
+    if args.ignore_unk:
+        classes_to_ignore.append(dictionary.unk_id)
+    scorer = theanolm.TextScorer(network, classes_to_ignore)
+
     print("Scoring text.")
     if args.output == 'perplexity':
         _score_text(args.input_file, dictionary, scorer, args.output_file,
@@ -188,7 +194,7 @@ def _score_utterances(input_file, dictionary, scorer, output_file,
     num_unks = 0
     for line_num, line in enumerate(input_file):
         words = utterance_from_line(line)
-        if len(words) == 0:
+        if not words:
             continue
 
         word_ids = dictionary.words_to_ids(words)

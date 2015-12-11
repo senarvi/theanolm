@@ -87,10 +87,10 @@ class LSTMLayer(BasicLayer):
             sequences = [mask, x_preact_gates, x_preact_candidate]
             non_sequences = [U_gates, U_candidate]
             initial_value = numpy.dtype(theano.config.floatX).type(0.0)
-            initial_cell_state = tensor.unbroadcast(
-                tensor.alloc(initial_value, num_sequences, self.layer_size), 0)
-            initial_hidden_state = tensor.unbroadcast(
-                tensor.alloc(initial_value, num_sequences, self.layer_size), 0)
+            initial_cell_state = \
+                tensor.alloc(initial_value, num_sequences, self.layer_size)
+            initial_hidden_state = \
+                tensor.alloc(initial_value, num_sequences, self.layer_size)
 
             self.state_outputs, _ = theano.scan(
                 self._create_time_step,
@@ -177,7 +177,9 @@ class LSTMLayer(BasicLayer):
         h_out = o * tensor.tanh(C_out)
 
         # Apply the mask.
-        C_out = mask[:, None] * C_out + (1.0 - mask)[:, None] * C_in
-        h_out = mask[:, None] * h_out + (1.0 - mask)[:, None] * h_in
+# XXX        C_out = mask[:,None] * C_out + (1.0 - mask)[:,None] * C_in
+# XXX        h_out = mask[:,None] * h_out + (1.0 - mask)[:,None] * h_in
+        C_out = tensor.switch(mask[:,None], C_out, C_in)
+        h_out = tensor.switch(mask[:,None], h_out, h_in)
 
         return C_out, h_out

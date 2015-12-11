@@ -10,7 +10,7 @@ class TextScorer(object):
     """Text Scoring Using a Neural Network Language Model
     """
 
-    def __init__(self, network, profile=False):
+    def __init__(self, network, classes_to_ignore, profile=False):
         """Creates a Theano function self.score_function that computes the
         log probabilities predicted by the neural network for the words in a
         mini-batch.
@@ -23,6 +23,10 @@ class TextScorer(object):
         :type network: Network
         :param network: the neural network object
 
+        :type classes_to_ignore: list of ints
+        :param classes_to_ignore: list of class IDs that will be ignored when
+                                  computing the cost
+
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
         """
@@ -32,7 +36,11 @@ class TextScorer(object):
         # The logprobs are valid only for timesteps that have a valid target
         # output, i.e. the next word is not masked out. We assume that the first
         # time step is never masked out.
-        logprobs = logprobs * network.minibatch_mask[1:]
+# XXX        logprobs = logprobs * network.minibatch_mask[1:]
+        mask = network.minibatch_mask[1:]
+        for class_id in classes_to_ignore:
+            mask *= tensor.neq(network.minibatch_input[1:], class_id)
+        logprobs *= mask
         self.score_function = theano.function(inputs, logprobs, profile=profile)
 
     def score_batch(self, word_ids, membership_probs, mask):
@@ -66,11 +74,9 @@ class TextScorer(object):
         for seq_index in range(logprobs.shape[1]):
             seq_logprobs = logprobs[:,seq_index]
             seq_mask = mask[1:,seq_index]
-            seq_logprobs = [lp for lp, m in zip(seq_logprobs, seq_mask)
-                            if m >= 0.5]
-            # XXX
-            # seq_logprobs = seq_logprobs[(seq_mask >= 0.5).nonzero()]
-            # XXX
+# XXX            seq_logprobs = [lp for lp, m in zip(seq_logprobs, seq_mask)
+# XXX                            if m >= 0.5]
+            seq_logprobs = seq_logprobs[seq_mask == 1]
             if numpy.isnan(sum(seq_logprobs)):
                 raise NumberError("Sequence logprob has NaN value.")
             result.append(seq_logprobs)
@@ -124,7 +130,8 @@ class TextScorer(object):
         word_ids = numpy.array([[x] for x in word_ids]).astype('int64')
         membership_probs = numpy.array([[x] for x in membership_probs]).astype(
             theano.config.floatX)
-        mask = numpy.ones_like(membership_probs)
+# XXX        mask = numpy.ones_like(membership_probs)
+        mask = numpy.ones(word_ids.shape, numpy.int8)
 
         logprob = self.score_function(word_ids, mask).sum()
         # Add the logprob of class membership of each word.

@@ -100,6 +100,9 @@ def add_arguments(parser):
         help='scale down the gradients if necessary to make sure their norm '
              '(normalized by mini-batch size) will not exceed THRESHOLD (no '
              'scaling by default)')
+    argument_group.add_argument(
+        '--ignore-unk', action="store_true",
+        help="don't include the probability of unknown words in the cost")
     
     argument_group = parser.add_argument_group("early stopping")
     argument_group.add_argument(
@@ -179,7 +182,10 @@ def train(args):
 
     print("Building text scorer.")
     sys.stdout.flush()
-    scorer = theanolm.TextScorer(network, args.profile)
+    classes_to_ignore = []
+    if args.ignore_unk:
+        classes_to_ignore.append(dictionary.unk_id)
+    scorer = theanolm.TextScorer(network, classes_to_ignore, args.profile)
 
     validation_mmap = mmap.mmap(args.validation_file.fileno(),
                                 0,
@@ -194,12 +200,17 @@ def train(args):
         'gradient_decay_rate': args.gradient_decay_rate,
         'sqr_gradient_decay_rate': args.sqr_gradient_decay_rate,
         'learning_rate': args.learning_rate,
-        'momentum': args.momentum}
+        'momentum': args.momentum,
+        'classes_to_ignore': classes_to_ignore}
     if not args.gradient_normalization is None:
         optimization_options['max_gradient_norm'] = args.gradient_normalization
     logging.debug("OPTIMIZATION OPTIONS")
     for option_name, option_value in optimization_options.items():
-        logging.debug("%s: %s", option_name, str(option_value))
+        if type(option_value) is list:
+            value_str = ', '.join(str(x) for x in option_value)
+            logging.debug("%s: [%s]", option_name, value_str)
+        else:
+            logging.debug("%s: %s", option_name, str(option_value))
 
     training_options = {
         'strategy': args.training_strategy,

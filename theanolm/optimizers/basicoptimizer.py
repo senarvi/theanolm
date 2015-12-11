@@ -54,15 +54,26 @@ class BasicOptimizer(object):
         else:
             self._max_gradient_norm = None
 
+        # class IDs to ignore when computing the cost
+        if 'classes_to_ignore' in optimization_options:
+            classes_to_ignore = optimization_options['classes_to_ignore']
+        else:
+            classes_to_ignore = []
+
         # Derive the symbolic expression for log probability of each word.
         logprobs = tensor.log(self.network.prediction_probs)
         # Set the log probability to 0, if the next input word (the one
         # predicted) is masked out.
-        logprobs = logprobs * self.network.minibatch_mask[1:]
+# XXX        logprobs = logprobs * self.network.minibatch_mask[1:]
+        mask = self.network.minibatch_mask[1:]
+        for class_id in classes_to_ignore:
+            mask *= tensor.neq(self.network.minibatch_input[1:], class_id)
+        logprobs *= mask
         # Cost is the negative log probability normalized by the number of
         # training examples in the mini-batch, so that the gradients will also
         # be normalized by the number of training examples.
-        cost = -logprobs.sum() / self.network.minibatch_mask[1:].sum()
+# XXX        cost = -logprobs.sum() / self.network.minibatch_mask[1:].sum()
+        cost = -logprobs.sum() / mask.sum()
 
         # Derive the symbolic expression for updating the gradient with regard
         # to each parameter.

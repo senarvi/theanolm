@@ -168,6 +168,7 @@ class GRULayer(object):
         h_out = (1.0 - u) * h_in + u * h_candidate
 
         # Apply the mask.
-        h_out = mask[:, None] * h_out + (1.0 - mask)[:, None] * h_in
+# XXX        h_out = mask[:,None] * h_out + (1.0 - mask)[:,None] * h_in
+        h_out = tensor.switch(mask[:,None], h_out, h_in)
 
         return h_out

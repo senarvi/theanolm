@@ -205,14 +205,19 @@ class Network(object):
         """
 
         # mask is used to mask out the rest of the input matrix, when a sequence
-        # is shorter than the maximum sequence length. Theano does not support
-        # boolean masks. Integer advanced indexing would be supported in 0.6rc4
-        # and NumPy 1.8.
-        self.minibatch_mask = \
-            tensor.matrix('minibatch_mask', dtype=theano.config.floatX)
+        # is shorter than the maximum sequence length. Tensor variables do not
+        # support assignment using integer advanced indexing, so masking is
+        # performed by multiplication. We'll keep the mask as floats too to
+        # prevent unnecessary type conversion.
+# XXX        self.minibatch_mask = \
+# XXX            tensor.matrix('minibatch_mask', dtype=theano.config.floatX)
+# XXX        self.minibatch_mask.tag.test_value = test_value(
+# XXX            size=(100, 16),
+# XXX            max_value=1.0)
+        self.minibatch_mask = tensor.matrix('minibatch_mask', dtype='int8')
         self.minibatch_mask.tag.test_value = test_value(
             size=(100, 16),
-            max_value=1.0)
+            max_value=2)
 
         for layer in self.layers.values():
             if layer.is_recurrent:
@@ -260,8 +265,9 @@ class Network(object):
                 max_value=1.0)
 
         # Create a mask for the case where we have only one word ID.
-        mask_value = numpy.dtype(theano.config.floatX).type(1.0)
-        dummy_mask = tensor.alloc(mask_value, 1, 1)
+# XXX        mask_value = numpy.dtype(theano.config.floatX).type(1.0)
+# XXX        dummy_mask = tensor.alloc(mask_value, 1, 1)
+        dummy_mask = tensor.alloc(numpy.int8(1), 1, 1)
 
         for layer in self.layers.values():
             if layer.is_recurrent:
@@ -344,13 +350,16 @@ class Network(object):
         sequence_lengths = [len(s) for s in sequences]
         batch_length = numpy.max(sequence_lengths) + 1
 
-        word_ids = numpy.zeros((batch_length, num_sequences)).astype('int64')
+# XXX        word_ids = numpy.zeros((batch_length, num_sequences)).astype('int64')
+        word_ids = numpy.zeros((batch_length, num_sequences), numpy.int64)
         probs = numpy.zeros((batch_length, num_sequences))
         probs = probs.astype(theano.config.floatX)
-        mask = numpy.zeros((batch_length, num_sequences))
-        mask = mask.astype(theano.config.floatX)
+# XXX        mask = numpy.zeros((batch_length, num_sequences))
+# XXX        mask = mask.astype(theano.config.floatX)
+        mask = numpy.zeros((batch_length, num_sequences), numpy.int8)
         for i, sequence in enumerate(sequences):
             word_ids[:sequence_lengths[i], i] = sequence
-            mask[:sequence_lengths[i] + 1, i] = 1.0
+# XXX            mask[:sequence_lengths[i] + 1, i] = 1.0
+            mask[:sequence_lengths[i] + 1, i] = 1
 
         return word_ids, mask

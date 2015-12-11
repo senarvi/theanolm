@@ -231,7 +231,7 @@ class BasicTrainer(object):
                   means the current candidate is the last validation)
         """
 
-        if len(self._cost_history) == 0:
+        if not self._cost_history:
             raise RuntimeError("BasicTrainer.validations_since_candidate() "
                                "called with empty cost history.")
 
@@ -283,7 +283,7 @@ class BasicTrainer(object):
                   previous candidate state; False otherwise
         """
 
-        if len(self._cost_history) == 0:
+        if not self._cost_history:
             raise RuntimeError("BasicTrainer._has_improved() called with empty "
                                "cost history.")
 

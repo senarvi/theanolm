@@ -128,7 +128,7 @@ class BatchIterator(object):
         # When end of file is reached, if no lines were read, rewind to first
         # line and raise StopIteration. If lines were read, return them and
         # raise StopIteration the next time this method is called.
-        if len(sequences) == 0:
+        if not sequences:
             self._reset()
             raise StopIteration
         else:
@@ -182,7 +182,7 @@ class BatchIterator(object):
         :returns: a sequence of words (may be empty), or None if no more data
         """
 
-        if len(self.buffer) == 0:
+        if not self.buffer:
             line = self._readline()
             if len(line) == 0:
                 # end of file
@@ -234,15 +234,18 @@ class BatchIterator(object):
         num_sequences = len(sequences)
         batch_length = numpy.max([len(s) for s in sequences])
 
-        word_ids = numpy.zeros((batch_length, num_sequences)).astype('int64')
+# XXX        word_ids = numpy.zeros((batch_length, num_sequences)).astype('int64')
+        word_ids = numpy.zeros((batch_length, num_sequences), numpy.int64)
         probs = numpy.zeros((batch_length, num_sequences)).astype(theano.config.floatX)
-        mask = numpy.zeros((batch_length, num_sequences)).astype(theano.config.floatX)
+# XXX        mask = numpy.zeros((batch_length, num_sequences)).astype(theano.config.floatX)
+        mask = numpy.zeros((batch_length, num_sequences), numpy.int8)
 
         for i, sequence in enumerate(sequences):
             length = len(sequence)
             word_ids[:length, i] = self.dictionary.words_to_ids(sequence)
             probs[:length, i] = self.dictionary.words_to_probs(sequence)
-            mask[:length, i] = 1.0
+# XXX            mask[:length, i] = 1.0
+            mask[:length, i] = 1
 
         return word_ids, probs, mask
 

@@ -51,6 +51,9 @@ def test_value(size, max_value):
     """ Creates a matrix of random numbers that can be used as a test value for
     a parameter to enable debugging Theano errors.
 
+    The type of ``max_value`` defines the type of the returned array. For
+    integers, the range does not include the maximum value.
+
     :type size: int or tuple of ints
     :param size: dimensions of the matrix
 
