@@ -10,7 +10,7 @@ class TextScorer(object):
     """Text Scoring Using a Neural Network Language Model
     """
 
-    def __init__(self, network, classes_to_ignore, profile=False):
+    def __init__(self, network, classes_to_ignore=[], profile=False):
         """Creates a Theano function self.score_function that computes the
         log probabilities predicted by the neural network for the words in a
         mini-batch.
@@ -31,16 +31,14 @@ class TextScorer(object):
         :param profile: if set to True, creates a Theano profile object
         """
 
+        self.classes_to_ignore = classes_to_ignore
+
         inputs = [network.minibatch_input, network.minibatch_mask]
         logprobs = tensor.log(network.prediction_probs)
         # The logprobs are valid only for timesteps that have a valid target
         # output, i.e. the next word is not masked out. We assume that the first
         # time step is never masked out.
 # XXX        logprobs = logprobs * network.minibatch_mask[1:]
-        mask = network.minibatch_mask[1:]
-        for class_id in classes_to_ignore:
-            mask *= tensor.neq(network.minibatch_input[1:], class_id)
-        logprobs *= mask
         self.score_function = theano.function(inputs, logprobs, profile=profile)
 
     def score_batch(self, word_ids, membership_probs, mask):
@@ -71,6 +69,10 @@ class TextScorer(object):
         # Add logprobs from class membership of each word in each sequence. We
         # don't compute any probability at the last time step.
         logprobs += numpy.log(membership_probs[:-1])
+        # Ignore logprobs predicting past the end or one of the words to be
+        # ignored.
+        for word_id in self.classes_to_ignore:
+            mask[word_ids == word_id] = 0
         for seq_index in range(logprobs.shape[1]):
             seq_logprobs = logprobs[:,seq_index]
             seq_mask = mask[1:,seq_index]
@@ -105,7 +107,8 @@ class TextScorer(object):
         num_words = 0
 
         for word_ids, membership_probs, mask in batch_iter:
-            logprobs = self.score_batch(word_ids, membership_probs, mask)
+            logprobs = self.score_batch(word_ids, membership_probs, mask,
+                                        self.classes_to_ignore)
             for seq_logprobs in logprobs:
                 total_logprob += sum(seq_logprobs)
                 num_words += len(seq_logprobs)
@@ -131,11 +134,19 @@ class TextScorer(object):
         membership_probs = numpy.array([[x] for x in membership_probs]).astype(
             theano.config.floatX)
 # XXX        mask = numpy.ones_like(membership_probs)
+        # Mask used by the network is all ones.
         mask = numpy.ones(word_ids.shape, numpy.int8)
 
-        logprob = self.score_function(word_ids, mask).sum()
-        # Add the logprob of class membership of each word.
-        logprob += numpy.log(membership_probs[:-1]).sum()
+        logprobs = self.score_function(word_ids, mask)
+        # Add logprobs from class membership of each word. We don't compute any
+        # probability at the last time step.
+        logprobs += numpy.log(membership_probs[:-1])
+        # Zero out logprobs predicting a word to be ignored.
+        for word_id in self.classes_to_ignore:
+            mask[word_ids == word_id] = 0
+        logprobs *= mask[1:]
+        logprob = logprobs.sum()
+
         if numpy.isnan(logprob):
             raise NumberError("Sentence logprob has NaN value.")
         return logprob

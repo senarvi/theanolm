@@ -132,16 +132,26 @@ def _score_text(input_file, dictionary, scorer, output_file,
             seq_logprob /= base_conversion
             seq_class_names = dictionary.ids_to_names(seq_word_ids)
             output_file.write("# Sentence {0}\n".format(num_sentences))
-            for word_index, word_logprob in enumerate(seq_logprobs):
+
+            logprob_index = 0
+            for word_index, word_id in enumerate(seq_word_ids):
                 if word_index - 2 > 0:
                     history = seq_class_names[word_index:word_index - 3:-1]
                     history.append('...')
                 else:
                     history = seq_class_names[word_index::-1]
-                output_file.write("log(p({0} | {1})) = {2}\n".format(
-                    seq_class_names[word_index + 1],
-                    ', '.join(history),
-                    seq_logprobs[word_index]))
+                history = ', '.join(history)
+                predicted = seq_class_names[word_index + 1]
+
+                if word_id in scorer.classes_to_ignore:
+                    output_file.write("log(p({0} | {1})) ignored\n".format(
+                        predicted, history))
+                else:
+                    logprob = seq_logprobs[logprob_index]
+                    logprob_index += 1
+                    output_file.write("log(p({0} | {1})) = {2}\n".format(
+                        predicted, history, logprob))
+
             output_file.write("Sentence perplexity: {0}\n\n".format(
                 numpy.exp(-seq_logprob / len(seq_logprobs))))
 
