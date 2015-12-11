@@ -35,10 +35,6 @@ class TextScorer(object):
 
         inputs = [network.minibatch_input, network.minibatch_mask]
         logprobs = tensor.log(network.prediction_probs)
-        # The logprobs are valid only for timesteps that have a valid target
-        # output, i.e. the next word is not masked out. We assume that the first
-        # time step is never masked out.
-# XXX        logprobs = logprobs * network.minibatch_mask[1:]
         self.score_function = theano.function(inputs, logprobs, profile=profile)
 
     def score_batch(self, word_ids, membership_probs, mask):
@@ -69,15 +65,13 @@ class TextScorer(object):
         # Add logprobs from the class membership of the predicted word at each
         # time step of each sequence.
         logprobs += numpy.log(membership_probs[1:])
-        # Ignore logprobs predicting past the end or one of the words to be
-        # ignored.
+        # Ignore logprobs predicting a word that is past the sequence end or one
+        # of the words to be ignored.
         for word_id in self.classes_to_ignore:
             mask[word_ids == word_id] = 0
         for seq_index in range(logprobs.shape[1]):
             seq_logprobs = logprobs[:,seq_index]
             seq_mask = mask[1:,seq_index]
-# XXX            seq_logprobs = [lp for lp, m in zip(seq_logprobs, seq_mask)
-# XXX                            if m >= 0.5]
             seq_logprobs = seq_logprobs[seq_mask == 1]
             if numpy.isnan(sum(seq_logprobs)):
                 raise NumberError("Sequence logprob has NaN value.")
@@ -129,10 +123,9 @@ class TextScorer(object):
 
         # Create 2-dimensional matrices representing the transposes of the
         # vectors.
-        word_ids = numpy.array([[x] for x in word_ids]).astype('int64')
+        word_ids = numpy.array([[x] for x in word_ids], numpy.int64)
         membership_probs = numpy.array([[x] for x in membership_probs]).astype(
             theano.config.floatX)
-# XXX        mask = numpy.ones_like(membership_probs)
         # Mask used by the network is all ones.
         mask = numpy.ones(word_ids.shape, numpy.int8)
 

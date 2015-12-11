@@ -177,8 +177,6 @@ class LSTMLayer(BasicLayer):
         h_out = o * tensor.tanh(C_out)
 
         # Apply the mask.
-# XXX        C_out = mask[:,None] * C_out + (1.0 - mask)[:,None] * C_in
-# XXX        h_out = mask[:,None] * h_out + (1.0 - mask)[:,None] * h_in
         C_out = tensor.switch(mask[:,None], C_out, C_in)
         h_out = tensor.switch(mask[:,None], h_out, h_in)
 

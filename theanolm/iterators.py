@@ -102,9 +102,7 @@ class BatchIterator(object):
         """Returns the next mini-batch read from the file.
 
         :rtype: tuple of numpy matrices
-        :returns: two matrices - one contains the word IDs of each sequence
-                  (0 after the last word), and the other contains a mask that
-                  is 1 after the last word
+        :returns: the word ID, class membership probability, and mask matrix
         """
 
         # If EOF was reached on the previous call, but a mini-batch was
@@ -234,17 +232,14 @@ class BatchIterator(object):
         num_sequences = len(sequences)
         batch_length = numpy.max([len(s) for s in sequences])
 
-# XXX        word_ids = numpy.zeros((batch_length, num_sequences)).astype('int64')
         word_ids = numpy.zeros((batch_length, num_sequences), numpy.int64)
         probs = numpy.zeros((batch_length, num_sequences)).astype(theano.config.floatX)
-# XXX        mask = numpy.zeros((batch_length, num_sequences)).astype(theano.config.floatX)
         mask = numpy.zeros((batch_length, num_sequences), numpy.int8)
 
         for i, sequence in enumerate(sequences):
             length = len(sequence)
             word_ids[:length, i] = self.dictionary.words_to_ids(sequence)
             probs[:length, i] = self.dictionary.words_to_probs(sequence)
-# XXX            mask[:length, i] = 1.0
             mask[:length, i] = 1
 
         return word_ids, probs, mask

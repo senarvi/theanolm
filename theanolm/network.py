@@ -205,15 +205,8 @@ class Network(object):
         """
 
         # mask is used to mask out the rest of the input matrix, when a sequence
-        # is shorter than the maximum sequence length. Tensor variables do not
-        # support assignment using integer advanced indexing, so masking is
-        # performed by multiplication. We'll keep the mask as floats too to
-        # prevent unnecessary type conversion.
-# XXX        self.minibatch_mask = \
-# XXX            tensor.matrix('minibatch_mask', dtype=theano.config.floatX)
-# XXX        self.minibatch_mask.tag.test_value = test_value(
-# XXX            size=(100, 16),
-# XXX            max_value=1.0)
+        # is shorter than the maximum sequence length. The mask is kept as int8
+        # data type, which is how Tensor stores booleans.
         self.minibatch_mask = tensor.matrix('minibatch_mask', dtype='int8')
         self.minibatch_mask.tag.test_value = test_value(
             size=(100, 16),
@@ -265,8 +258,6 @@ class Network(object):
                 max_value=1.0)
 
         # Create a mask for the case where we have only one word ID.
-# XXX        mask_value = numpy.dtype(theano.config.floatX).type(1.0)
-# XXX        dummy_mask = tensor.alloc(mask_value, 1, 1)
         dummy_mask = tensor.alloc(numpy.int8(1), 1, 1)
 
         for layer in self.layers.values():
@@ -321,45 +312,3 @@ class Network(object):
             raise IncompatibleStateError(
                 "Attempting to restore state of a network that is incompatible "
                 "with this architecture. " + str(error))
-
-    def sequences_to_minibatch(self, sequences):
-        """Transposes a list of sequences and Prepares a mini-batch for input to the neural network by transposing
-        a matrix of word ID sequences and creating a mask matrix.
-
-        The first dimensions of the returned matrix word_ids will be the time
-        step, i.e. the index to a word in a sequence. In other words, the first
-        row will contain the first word ID of each sequence, the second row the
-        second word ID of each sequence, and so on. The rest of the matrix will
-        be filled with zeros.
-
-        The other returned matrix, mask, is the same size as word_ids, and will
-        contain zeros where word_ids contains word IDs, and ones elsewhere
-        (after sequence end).
-
-        :type sequences: list of lists
-        :param sequences: list of sequences, each of which is a list of word
-                          IDs
-
-        :rtype: tuple of numpy matrices
-        :returns: two matrices - one contains the word IDs of each sequence
-                  (0 after the last word), and the other contains a mask that
-                  ís 1 after the last word
-        """
-
-        num_sequences = len(sequences)
-        sequence_lengths = [len(s) for s in sequences]
-        batch_length = numpy.max(sequence_lengths) + 1
-
-# XXX        word_ids = numpy.zeros((batch_length, num_sequences)).astype('int64')
-        word_ids = numpy.zeros((batch_length, num_sequences), numpy.int64)
-        probs = numpy.zeros((batch_length, num_sequences))
-        probs = probs.astype(theano.config.floatX)
-# XXX        mask = numpy.zeros((batch_length, num_sequences))
-# XXX        mask = mask.astype(theano.config.floatX)
-        mask = numpy.zeros((batch_length, num_sequences), numpy.int8)
-        for i, sequence in enumerate(sequences):
-            word_ids[:sequence_lengths[i], i] = sequence
-# XXX            mask[:sequence_lengths[i] + 1, i] = 1.0
-            mask[:sequence_lengths[i] + 1, i] = 1
-
-        return word_ids, mask

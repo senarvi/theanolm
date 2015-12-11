@@ -153,6 +153,7 @@ def _score_text(input_file, dictionary, scorer, output_file,
                     logprob_index += 1
                     output_file.write("log(p({0} | {1})) = {2}\n".format(
                         predicted, history, logprob))
+            assert logprob_index == len(seq_logprobs)
 
             output_file.write("Sentence perplexity: {0}\n\n".format(
                 numpy.exp(-seq_logprob / len(seq_logprobs))))

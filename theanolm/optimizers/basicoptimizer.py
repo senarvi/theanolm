@@ -63,8 +63,7 @@ class BasicOptimizer(object):
         # Derive the symbolic expression for log probability of each word.
         logprobs = tensor.log(self.network.prediction_probs)
         # Set the log probability to 0, if the next input word (the one
-        # predicted) is masked out.
-# XXX        logprobs = logprobs * self.network.minibatch_mask[1:]
+        # predicted) is masked out or to be ignored.
         mask = self.network.minibatch_mask[1:]
         for class_id in classes_to_ignore:
             mask *= tensor.neq(self.network.minibatch_input[1:], class_id)
@@ -72,7 +71,6 @@ class BasicOptimizer(object):
         # Cost is the negative log probability normalized by the number of
         # training examples in the mini-batch, so that the gradients will also
         # be normalized by the number of training examples.
-# XXX        cost = -logprobs.sum() / self.network.minibatch_mask[1:].sum()
         cost = -logprobs.sum() / mask.sum()
 
         # Derive the symbolic expression for updating the gradient with regard
