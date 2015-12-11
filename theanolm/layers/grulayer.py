@@ -71,7 +71,8 @@ class GRULayer(object):
         num_sequences = input_matrix.shape[1]
         self.layer_size = self._get_param('candidate.U').shape[1]
 
-        # Compute the gate pre-activations, which don't depend on the time step.
+        # Compute the gate pre-activations, which don't depend on the state
+        # input from the previous time step.
         x_preact_gates = self._tensor_preact(input_matrix, 'gates')
         x_preact_candidate = self._tensor_preact(input_matrix, 'candidate')
 
@@ -86,7 +87,7 @@ class GRULayer(object):
             initial_value = numpy.dtype(theano.config.floatX).type(0.0)
             initial_hidden_state = tensor.unbroadcast(
                 tensor.alloc(initial_value, num_sequences, self.layer_size), 0)
-    
+
             hidden_state_output, _ = theano.scan(
                 self._create_time_step,
                 sequences=sequences,
@@ -116,6 +117,12 @@ class GRULayer(object):
         """The GRU step function for theano.scan(). Creates the structure of one
         time step.
 
+        The inputs ``mask``, ``x_preact_gates``, and ``x_preact_candidate``
+        contain only one time step, but possibly multiple sequences. There may,
+        or may not be the first dimension of size 1 - it won't affect the
+        computations, because broadcasting works by aligning the last
+        dimensions.
+
         The required affine transformations have already been applied to the
         input prior to creating the loop. The transformed inputs and the mask
         that will be passed to the step function are vectors when processing a
@@ -123,7 +130,8 @@ class GRULayer(object):
         sequence.
 
         :type mask: theano.tensor.var.TensorVariable
-        :param mask: masks out time steps after sequence end
+        :param mask: a symbolic vector that masks out sequences that are past
+                     the last word
 
         :type x_preact_gates: theano.tensor.var.TensorVariable
         :param x_preact_gates: concatenation of the input x_(t) pre-activations
@@ -167,7 +175,8 @@ class GRULayer(object):
         h_candidate = tensor.tanh(preact_candidate)
         h_out = (1.0 - u) * h_in + u * h_candidate
 
-        # Apply the mask.
+        # Apply the mask. None creates a new axis with size 1, causing the mask
+        # to be broadcast to all the outputs.
         h_out = tensor.switch(mask[:,None], h_out, h_in)
 
         return h_out

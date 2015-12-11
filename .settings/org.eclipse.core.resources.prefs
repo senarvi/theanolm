@@ -7,7 +7,6 @@ encoding//theanolm/dictionary.py=utf-8
 encoding//theanolm/exceptions.py=utf-8
 encoding//theanolm/filetypes.py=utf-8
 encoding//theanolm/iterators.py=utf-8
-encoding//theanolm/layerdefinition.py=utf-8
 encoding//theanolm/layers/grulayer.py=utf-8
 encoding//theanolm/layers/lstmlayer.py=utf-8
 encoding//theanolm/layers/projectionlayer.py=utf-8

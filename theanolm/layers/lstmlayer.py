@@ -74,7 +74,8 @@ class LSTMLayer(BasicLayer):
         num_sequences = input_matrix.shape[1]
         self.layer_size = self._get_param('candidate.U').shape[1]
 
-        # Compute the gate pre-activations, which don't depend on the time step.
+        # Compute the gate pre-activations, which don't depend on the state
+        # input from the previous time step.
         x_preact_gates = self._tensor_preact(input_matrix, 'gates')
         x_preact_candidate = self._tensor_preact(input_matrix, 'candidate')
 
@@ -121,6 +122,12 @@ class LSTMLayer(BasicLayer):
         """The LSTM step function for theano.scan(). Creates the structure of
         one time step.
 
+        The inputs ``mask``, ``x_preact_gates``, and ``x_preact_candidate``
+        contain only one time step, but possibly multiple sequences. There may,
+        or may not be the first dimension of size 1 - it won't affect the
+        computations, because broadcasting works by aligning the last
+        dimensions.
+
         The required affine transformations have already been applied to the
         input prior to creating the loop. The transformed inputs and the mask
         that will be passed to the step function are vectors when processing a
@@ -128,7 +135,8 @@ class LSTMLayer(BasicLayer):
         sequence.
 
         :type mask: theano.tensor.var.TensorVariable
-        :param mask: masks out time steps after sequence end
+        :param mask: a symbolic vector that masks out sequences that are past
+                     the last word
 
         :type x_preact_gates: theano.tensor.var.TensorVariable
         :param x_preact_gates: concatenation of the input x_(t) pre-activations
@@ -176,7 +184,8 @@ class LSTMLayer(BasicLayer):
         C_out = f * C_in + i * C_candidate
         h_out = o * tensor.tanh(C_out)
 
-        # Apply the mask.
+        # Apply the mask. None creates a new axis with size 1, causing the mask
+        # to be broadcast to all the outputs.
         C_out = tensor.switch(mask[:,None], C_out, C_in)
         h_out = tensor.switch(mask[:,None], h_out, h_in)
 
