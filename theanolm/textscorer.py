@@ -107,8 +107,7 @@ class TextScorer(object):
         num_words = 0
 
         for word_ids, membership_probs, mask in batch_iter:
-            logprobs = self.score_batch(word_ids, membership_probs, mask,
-                                        self.classes_to_ignore)
+            logprobs = self.score_batch(word_ids, membership_probs, mask)
             for seq_logprobs in logprobs:
                 total_logprob += sum(seq_logprobs)
                 num_words += len(seq_logprobs)
