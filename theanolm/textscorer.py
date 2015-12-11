@@ -66,9 +66,9 @@ class TextScorer(object):
 
         # A matrix of neural network logprobs of each word in each sequence.
         logprobs = self.score_function(word_ids, mask)
-        # Add logprobs from class membership of each word in each sequence. We
-        # don't compute any probability at the last time step.
-        logprobs += numpy.log(membership_probs[:-1])
+        # Add logprobs from the class membership of the predicted word at each
+        # time step of each sequence.
+        logprobs += numpy.log(membership_probs[1:])
         # Ignore logprobs predicting past the end or one of the words to be
         # ignored.
         for word_id in self.classes_to_ignore:
@@ -137,9 +137,9 @@ class TextScorer(object):
         mask = numpy.ones(word_ids.shape, numpy.int8)
 
         logprobs = self.score_function(word_ids, mask)
-        # Add logprobs from class membership of each word. We don't compute any
-        # probability at the last time step.
-        logprobs += numpy.log(membership_probs[:-1])
+        # Add logprobs from the class membership of the predicted word at each
+        # time step of each sequence.
+        logprobs += numpy.log(membership_probs[1:])
         # Zero out logprobs predicting a word to be ignored.
         for word_id in self.classes_to_ignore:
             mask[word_ids == word_id] = 0
