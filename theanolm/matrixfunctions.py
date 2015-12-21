@@ -77,7 +77,7 @@ def test_value(size, max_value):
         raise InvalidValueError("test_value() expects int, float, or bool "
                                 "maximum value.")
 
-def get_submatrix(matrices, index, size):
+def get_submatrix(matrices, index, size, end_index=None):
     """Returns a submatrix of a concatenation of 2 or 3 dimensional
     matrices.
 
@@ -90,10 +90,16 @@ def get_submatrix(matrices, index, size):
 
     :type size: theano.tensor.var.TensorVariable
     :param size: size of the last dimension of one submatrix
+
+    :type end_index: int
+    :param end_index: if set to other than None, returns a concatenation of all
+                      the submatrices from ``index`` to ``end_index``
     """
 
+    if end_index is None:
+        end_index = index
     start = index * size
-    end = (index + 1) * size
+    end = (end_index + 1) * size
     if matrices.ndim == 3:
         return matrices[:, :, start:end]
     elif matrices.ndim == 2:

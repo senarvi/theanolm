@@ -56,7 +56,7 @@ class BasicLayer(object):
         return self._params[self.name + '.' + param_name]
 
     def _init_random_weight(self, param_name, input_size, output_size, scale=None, count=1):
-        """ Generates a weight matrix from “standard normal” distribution.
+        """Generates a weight matrix from “standard normal” distribution.
 
         :type input_size: int
         :param input_size: size of the input dimension of the weight
@@ -77,7 +77,7 @@ class BasicLayer(object):
                               axis=1)
 
     def _init_orthogonal_weight(self, param_name, input_size, output_size, scale=None, count=1):
-        """ Generates a weight matrix from “standard normal” distribution. If
+        """Generates a weight matrix from “standard normal” distribution. If
         in_size matches out_size, generates an orthogonal matrix.
 
         :type input_size: int
@@ -96,9 +96,38 @@ class BasicLayer(object):
                                for _ in range(count)],
                               axis=1)
 
-    def _init_zero_bias(self, param_name, size):
+    def _init_bias(self, param_name, size, value=None):
+        """Initializes a bias vector with given value.
+
+        If ``value`` is not given, initializes the vector with zero value. If
+        ``value``is a list, creates a concatenation of as many vectors as there
+        are elements in the list.
+
+        :type param_name: str
+        :param param_name: name for the parameter within the layer object; the
+                           actual name of the Theano shared variable will be
+                           ``<layer name>.<parameter name>``.
+
+        :type size: int
+        :param size: number of elements in the vector (or in one subvector, in
+                     case ``value`` is a list)
+
+        :type value: float or list of floats
+        :param value: the value to initialize the elements to, or a list of
+                      values to create a concatenation of vectors
+        """
+
+        values = value if isinstance(value, list) else [value]
+        subvectors = []
+        for subvector_value in values:
+            if subvector_value is None:
+                subvector = numpy.zeros(size).astype(theano.config.floatX)
+            else:
+                subvector = numpy.empty(size).astype(theano.config.floatX)
+                subvector.fill(subvector_value)
+            subvectors.append(subvector)
         self.param_init_values[self.name + '.' + param_name] = \
-            numpy.zeros((size,)).astype(theano.config.floatX)
+            numpy.concatenate(subvectors)
 
     def _tensor_preact(self, input_matrix, param_name):
         weight = self._params[self.name + '.' + param_name + '.W']

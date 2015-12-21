@@ -27,7 +27,7 @@ class SoftmaxLayer(BasicLayer):
             param_name = 'input' + str(input_index) + '.W'
             self._init_random_weight(param_name, input_size, output_size, scale=0.01)
             param_name = 'input' + str(input_index) + '.b'
-            self._init_zero_bias(param_name, output_size)
+            self._init_bias(param_name, output_size)
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.
