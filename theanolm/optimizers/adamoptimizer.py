@@ -10,7 +10,7 @@ from theanolm.optimizers.basicoptimizer import BasicOptimizer
 class AdamOptimizer(BasicOptimizer):
     """Adam Optimization Method
 
-    D.P. Kingma, J. Ba (2015)
+    D. P. Kingma, J. Ba (2015)
     Adam: A Method for Stochastic Optimization
     The International Conference on Learning Representations (ICLR), San Diego
     """

@@ -3,7 +3,6 @@
 
 import numpy
 import theano
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 class TextSampler(object):
     """Neural network language model sampler
@@ -32,30 +31,25 @@ class TextSampler(object):
         self.network = network
         self.dictionary = dictionary
 
-        M1 = 2147483647
-        M2 = 2147462579
-        random_seed = [
-            numpy.random.randint(0, M1),
-            numpy.random.randint(0, M1),
-            numpy.random.randint(1, M1),
-            numpy.random.randint(0, M2),
-            numpy.random.randint(0, M2),
-            numpy.random.randint(1, M2)]
-        random = RandomStreams(random_seed)
-
-        inputs = [self.network.onestep_input]
-        inputs.extend(self.network.onestep_state)
+        inputs = [self.network.input]
+        inputs.extend(self.network.recurrent_state_input)
 
         # multinomial() is only implemented with dimension < 2, but the matrix
         # contains only one time step anyway.
-        word_probs = self.network.onestep_output[0]
-        word_ids = random.multinomial(pvals=word_probs).argmax(1)
+        word_probs = self.network.output[0]
+        word_ids = self.network.random.multinomial(pvals=word_probs).argmax(1)
         word_ids = word_ids.reshape([1, word_ids.shape[0]])
         outputs = [word_ids]
-        outputs.extend(self.network.hidden_layer.state_outputs)
+        outputs.extend(self.network.recurrent_state_output)
 
+        # Ignore unused input, because is_training is only used by dropout
+        # layer.
         self.step_function = theano.function(
-            inputs, outputs, name='text_sampler')
+            inputs,
+            outputs,
+            givens=[(self.network.is_training, numpy.int8(0))],
+            name='text_sampler',
+            on_unused_input='ignore')
 
     def generate(self, max_length=30):
         """ Generates a text sequence.
@@ -81,21 +75,22 @@ class TextSampler(object):
         step_output = \
             self.dictionary.sos_id * numpy.ones(shape=(1,1)).astype('int64')
 
-        # Construct a list of hidden layer state variables and initialize them
-        # to zeros. GRU has only one state that is passed through the time
-        # steps, LSTM has two. The state vector is also specific to sequence and
-        # time step, but in this case we have only one sequence and time step.
-        hidden_state_shape = (1, 1, self.network.architecture.hidden_layer_size)
-        hidden_layer_state = [
-            numpy.zeros(shape=hidden_state_shape).astype(theano.config.floatX)
-            for _ in range(self.network.hidden_layer.num_state_variables)]
+        # Construct a list of recurrent state variables that will be passed
+        # through time steps, and initialize them to zeros. The state vector is
+        # specific to sequence and time step, but in this case we have only one
+        # sequence and time step.
+        recurrent_state = []
+        for size in self.network.recurrent_state_size:
+            shape = (1, 1, size)
+            value = numpy.zeros(shape).astype(theano.config.floatX)
+            recurrent_state.append(value)
 
         for _ in range(max_length):
             # The input is the output from the previous step.
             step_result = self.step_function(step_output,
-                                             *hidden_layer_state)
+                                             *recurrent_state)
             step_output = step_result[0]
-            hidden_layer_state = step_result[1:]
+            recurrent_state = step_result[1:]
             # The word ID from the single time step from the single sequence.
             word_id = step_output[0,0]
             result.append(word_id)

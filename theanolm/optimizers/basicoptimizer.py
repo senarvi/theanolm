@@ -64,9 +64,9 @@ class BasicOptimizer(object):
         logprobs = tensor.log(self.network.prediction_probs)
         # Set the log probability to 0, if the next input word (the one
         # predicted) is masked out or to be ignored.
-        mask = self.network.minibatch_mask[1:]
+        mask = self.network.mask[1:]
         for class_id in classes_to_ignore:
-            mask *= tensor.neq(self.network.minibatch_input[1:], class_id)
+            mask *= tensor.neq(self.network.input[1:], class_id)
         logprobs *= mask
         # Cost is the negative log probability normalized by the number of
         # training examples in the mini-batch, so that the gradients will also
@@ -78,18 +78,23 @@ class BasicOptimizer(object):
         self._gradient_exprs = \
             tensor.grad(cost, wrt=list(self.network.params.values()))
 
-        self.gradient_update_function = \
-            theano.function([self.network.minibatch_input,
-                             self.network.minibatch_mask],
-                            cost,
-                            updates=self._get_gradient_updates(),
-                            profile=profile)
+        # Ignore unused input, because is_training is only used by dropout
+        # layer.
+        self.gradient_update_function = theano.function(
+            [self.network.input, self.network.mask],
+            cost,
+            givens=[(self.network.is_training, numpy.int8(1))],
+            updates=self._get_gradient_updates(),
+            name='gradient_updater',
+            on_unused_input='ignore',
+            profile=profile)
 
-        self.model_update_function = \
-            theano.function([],
-                            [],
-                            updates=self._get_model_updates(),
-                            profile=profile)
+        self.model_update_function = theano.function(
+            [],
+            [],
+            updates=self._get_model_updates(),
+            name='model_updater',
+            profile=profile)
 
     def get_state(self):
         """Pulls parameter values from Theano shared variables.

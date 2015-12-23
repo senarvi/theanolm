@@ -10,6 +10,11 @@ from theanolm.layers.basiclayer import BasicLayer
 
 class GRULayer(BasicLayer):
     """Gated Recurrent Unit Layer for Neural Network Language Model
+
+    K. Cho et al. (2014)
+    Learning Phrase Representations Using RNN Encoder-Decoder for Statistical
+    Machine Translation
+    Proc. 2014 Conference on Empiricial Methods in Natural Language Processing
     """
 
     def __init__(self, *args, **kwargs):
@@ -19,14 +24,15 @@ class GRULayer(BasicLayer):
         single parallel matrix operation. The same thing for bias vectors.
         """
 
-        super().__init__(*args, is_recurrent=True, **kwargs)
+        super().__init__(*args, **kwargs)
 
-        # The number of state variables to be passed between time steps.
-        self.num_state_variables = 1
-
-        # Initialize the parameters.
         input_size = self.input_layers[0].output_size
         output_size = self.output_size
+
+        # The number of state variables to be passed between time steps.
+        self.hidden_state_index = self.network.add_recurrent_state(output_size)
+
+        # Initialize the parameters.
         num_gates = 2
         # layer input weights for each gate and the candidate state
         self._init_orthogonal_weight('layer_input.W', input_size, output_size,
@@ -37,35 +43,25 @@ class GRULayer(BasicLayer):
         # biases for each gate and the candidate state
         self._init_bias('layer_input.b', output_size, [None] * (num_gates + 1))
 
-    def create_structure(self, mask, state_inputs=None):
+    def create_structure(self):
         """Creates the symbolic graph of this layer.
 
         The input is always 3-dimensional: the first dimension is the time step,
         the second dimension are the sequences, and the third dimension is the
-        layer input. If ``state_inputs`` is ``None``, the function creates the
-        normal recursive structure.
+        layer input. If ``self.network.batch_processing`` is ``True``, the
+        function creates the normal mini-batch structure.
 
         The function can also be used to create a structure for generating text,
         one word at a time. Then the input is still 3-dimensional, but the size
         of the first and second dimension is 1, and the state outputs from the
-        previous time step are provided in ``state_inputs``.
+        previous time step are read from ``self.network.recurrent_state``.
 
-        Sets ``self.state_outputs`` to a list of symbolic 3-dimensional matrices
-        that describe the state outputs. There's just one state in a GRU layer,
-        h_(t). ``self.output`` will be set to the same hidden state output,
-        which is also the actual output of this layer.
+        Saves the recurrent state in the Network object. There's just one state
+        in a GRU layer, h_(t). ``self.output`` will be set to the same hidden
+        state output, which is also the actual output of this layer.
 
         Assumes that the shared variables have been passed using
         ``set_params()``.
-
-        :type mask: theano.tensor.var.TensorVariable
-        :param mask: symbolic 2-dimensional matrix that masks out time steps in
-                     layer_input after sequence end
-
-        :type state_inputs: list of theano.tensor.var.TensorVariables
-        :param state_inputs: a list of symbolic 3-dimensional matrices that
-                            describe the state outputs of the previous time step
-                            - only one state in a GRU layer, h_(t-1)
         """
 
         input_matrix = self.input_layers[0].output
@@ -80,8 +76,8 @@ class GRULayer(BasicLayer):
         # inside the loop.
         hidden_state_weights = self._get_param('step_input.W')
 
-        if state_inputs is None:
-            sequences = [mask, layer_input_preact]
+        if self.network.batch_processing:
+            sequences = [self.network.mask, layer_input_preact]
             non_sequences = [hidden_state_weights]
             initial_value = numpy.dtype(theano.config.floatX).type(0.0)
             initial_hidden_state = \
@@ -96,18 +92,20 @@ class GRULayer(BasicLayer):
                 n_steps=num_time_steps,
                 profile=self._profile,
                 strict=True)
-            self.state_outputs = [hidden_state_output]
+            self.network.recurrent_state_output[self.hidden_state_index] = \
+                hidden_state_output
         else:
-            hidden_state_input = state_inputs[0]
+            hidden_state_input = self.network.recurrent_state[0]
     
             hidden_state_output = self._create_time_step(
-                mask,
+                self.network.mask,
                 layer_input_preact,
                 hidden_state_input,
                 hidden_state_weights)
-            self.state_outputs = [hidden_state_output]
+            self.network.recurrent_state_output[self.hidden_state_index] = \
+                hidden_state_output
 
-        self.output = self.state_outputs[0]
+        self.output = hidden_state_output
 
     def _create_time_step(self, mask, x_preact, h_in, h_weights):
         """The GRU step function for theano.scan(). Creates the structure of one

@@ -33,9 +33,17 @@ class TextScorer(object):
 
         self.classes_to_ignore = classes_to_ignore
 
-        inputs = [network.minibatch_input, network.minibatch_mask]
+        inputs = [network.input, network.mask]
         logprobs = tensor.log(network.prediction_probs)
-        self.score_function = theano.function(inputs, logprobs, profile=profile)
+        # Ignore unused input, because is_training is only used by dropout
+        # layer.
+        self.score_function = theano.function(
+            inputs,
+            logprobs,
+            givens=[(network.is_training, numpy.int8(0))],
+            name='text_scorer',
+            on_unused_input='ignore',
+            profile=profile)
 
     def score_batch(self, word_ids, membership_probs, mask):
         """Computes the log probabilities predicted by the neural network for

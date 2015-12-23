@@ -10,6 +10,11 @@ from theanolm.layers.basiclayer import BasicLayer
 
 class LSTMLayer(BasicLayer):
     """Long Short-Term Memory Layer for Neural Network Language Model
+
+    A. Graves, J. Schmidhuber (2005)
+    Framewise phoneme classification with bidirectional LSTM and other neural
+    network architectures
+    Neural Networks, 18(5–6), 602–610
     """
 
     def __init__(self, *args, **kwargs):
@@ -23,14 +28,16 @@ class LSTMLayer(BasicLayer):
         forgetting information).
         """
 
-        super().__init__(*args, is_recurrent=True, **kwargs)
+        super().__init__(*args, **kwargs)
 
-        # The number of state variables to be passed between time steps.
-        self.num_state_variables = 2
-
-        # Initialize the parameters.
         input_size = self.input_layers[0].output_size
         output_size = self.output_size
+
+        # The number of state variables to be passed between time steps.
+        self.cell_state_index = self.network.add_recurrent_state(output_size)
+        self.hidden_state_index = self.network.add_recurrent_state(output_size)
+
+        # Initialize the parameters.
         num_gates = 3
         # layer input weights for each gate and the candidate state
         self._init_orthogonal_weight('layer_input.W', input_size, output_size,
@@ -41,35 +48,25 @@ class LSTMLayer(BasicLayer):
         # biases for each gate and the candidate state
         self._init_bias('layer_input.b', output_size, [-1.0, 1.0, -1.0, 0.0])
 
-    def create_structure(self, mask, state_inputs=None):
+    def create_structure(self):
         """Creates the symbolic graph of this layer.
 
         The input is always 3-dimensional: the first dimension is the time step,
         the second dimension are the sequences, and the third dimension is the
-        layer input. If ``state_inputs`` is ``None``, the function creates the
-        normal recursive structure.
+        layer input. If ``self.network.batch_processing`` is ``True``, the
+        function creates the normal mini-batch structure.
 
         The function can also be used to create a structure for generating text,
         one word at a time. Then the input is still 3-dimensional, but the size
         of the first and second dimension is 1, and the state outputs from the
-        previous time step are provided in ``state_inputs``.
+        previous time step are read from ``self.network.recurrent_state``.
 
-        Sets ``self.state_outputs`` to a list of symbolic 3-dimensional matrices
-        that describe the state outputs: cell state C_(t) and hidden state
-        h_(t). ``self.output`` will be set to the hidden state output, which is
-        the actual output of this layer.
+        Saves the recurrent state in the Network object: cell state C_(t) and
+        hidden state h_(t). ``self.output`` will be set to the hidden state
+        output, which is the actual output of this layer.
 
         Assumes that the shared variables have been passed using
         ``set_params()``.
-
-        :type mask: theano.tensor.var.TensorVariable
-        :param mask: symbolic 2-dimensional matrix that masks out time steps in
-                     layer_input after sequence end
-
-        :type state_inputs: list of theano.tensor.var.TensorVariables
-        :param state_inputs: a list of symbolic 3-dimensional matrices that
-                            describe the state outputs of the previous time step
-                            - cell state C_(t-1) and hidden state h_(t-1)
         """
 
         input_matrix = self.input_layers[0].output
@@ -84,8 +81,8 @@ class LSTMLayer(BasicLayer):
         # inside the loop.
         hidden_state_weights = self._get_param('step_input.W')
 
-        if state_inputs is None:
-            sequences = [mask, layer_input_preact]
+        if self.network.batch_processing:
+            sequences = [self.network.mask, layer_input_preact]
             non_sequences = [hidden_state_weights]
             initial_value = numpy.dtype(theano.config.floatX).type(0.0)
             initial_cell_state = \
@@ -93,7 +90,7 @@ class LSTMLayer(BasicLayer):
             initial_hidden_state = \
                 tensor.alloc(initial_value, num_sequences, self.output_size)
 
-            self.state_outputs, _ = theano.scan(
+            state_outputs, _ = theano.scan(
                 self._create_time_step,
                 sequences=sequences,
                 outputs_info=[initial_cell_state, initial_hidden_state],
@@ -102,18 +99,26 @@ class LSTMLayer(BasicLayer):
                 n_steps=num_time_steps,
                 profile=self._profile,
                 strict=True)
+            self.network.recurrent_state_output[self.cell_state_index] = \
+                state_outputs[0]
+            self.network.recurrent_state_output[self.hidden_state_index] = \
+                state_outputs[1]
         else:
-            cell_state_input = state_inputs[0]
-            hidden_state_input = state_inputs[1]
+            cell_state_input = self.network.recurrent_state[0]
+            hidden_state_input = self.network.recurrent_state[1]
 
-            self.state_outputs = self._create_time_step(
-                mask,
+            state_outputs = self._create_time_step(
+                self.network.mask,
                 layer_input_preact,
                 cell_state_input,
                 hidden_state_input,
                 hidden_state_weights)
+            self.network.recurrent_state_output[self.cell_state_index] = \
+                state_outputs[0]
+            self.network.recurrent_state_output[self.hidden_state_index] = \
+                state_outputs[1]
 
-        self.output = self.state_outputs[1]
+        self.output = state_outputs[1]
 
     def _create_time_step(self, mask, x_preact, C_in, h_in, h_weights):
         """The LSTM step function for theano.scan(). Creates the structure of

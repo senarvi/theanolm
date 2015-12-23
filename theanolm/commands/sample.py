@@ -67,8 +67,7 @@ def sample(args):
     print("Building neural network.")
     sys.stdout.flush()
     architecture = theanolm.Network.Architecture.from_state(state)
-    network = theanolm.Network(dictionary, architecture)
-    network.create_onestep_structure()
+    network = theanolm.Network(dictionary, architecture, batch_processing=False)
     print("Restoring neural network state.")
     network.set_state(state)
     

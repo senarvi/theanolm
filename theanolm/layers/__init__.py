@@ -4,6 +4,7 @@ from theanolm.layers.tanhlayer import TanhLayer
 from theanolm.layers.grulayer import GRULayer
 from theanolm.layers.lstmlayer import LSTMLayer
 from theanolm.layers.softmaxlayer import SoftmaxLayer
+from theanolm.layers.dropoutlayer import DropoutLayer
 
 def create_layer(layer_type, *args, **kwargs):
     """Constructs one of the Layer classes based on a layer definition.
@@ -22,5 +23,7 @@ def create_layer(layer_type, *args, **kwargs):
         return GRULayer(*args, **kwargs)
     elif layer_type == 'softmax':
         return SoftmaxLayer(*args, **kwargs)
+    elif layer_type == 'dropout':
+        return DropoutLayer(*args, **kwargs)
     else:
         raise ValueError("Invalid layer type requested: " + layer_type)

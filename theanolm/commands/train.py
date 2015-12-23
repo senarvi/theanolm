@@ -173,8 +173,8 @@ def train(args):
     sys.stdout.flush()
     architecture = \
         theanolm.Network.Architecture.from_description(args.architecture)
-    network = theanolm.Network(dictionary, architecture, args.profile)
-    network.create_minibatch_structure()
+    network = theanolm.Network(dictionary, architecture, batch_processing=True,
+                               profile=args.profile)
     if not initial_state is None:
         print("Restoring neural network to previous state.")
         sys.stdout.flush()
