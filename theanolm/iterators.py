@@ -265,7 +265,7 @@ class ShufflingBatchIterator(BatchIterator):
         :param dictionary: dictionary that provides mapping between words and
                            word IDs
 
-        :type line_starts: numpy.ndarray
+        :type line_starts: list of ints
         :param line_starts: a list of start positions of the input sentences;
                             the sentences will be read in the order they appear
                             in this list
@@ -279,30 +279,32 @@ class ShufflingBatchIterator(BatchIterator):
                                     this
         """
 
-        self.line_starts = line_starts
+        self.line_starts = numpy.asarray(line_starts, dtype='int64')
         super().__init__(input_file, dictionary, batch_size, max_sequence_length)
         self.next_line = 0
 
-    def get_state(self):
+    def get_state(self, state):
         """Returns the iterator state as a dictionary.
 
-        Returns the offsets to the sentence starts (in the shuffled order), and
-        the index to the current sentence. Note that if the program is
-        restarted, the same training file has to be loaded, or the offsets will
-        be incorrect.
+        Sets ``iterator/line_starts`` to the sentence starts (in the shuffled
+        order), and ``iterator/next_line`` the index to the current sentence.
+        Note that if the program is restarted, the same training file has to be
+        loaded, or the offsets will be incorrect. If there already is a
+        ``iterator/line_starts`` in the state, it will be replaced, so it has to
+        have the same number of elements.
 
-        For consistency, all the parameter values are returned as numpy types,
-        since state read from a model file also contains numpy types. This also
-        ensures the cost history will be copied into the returned dictionary.
-
-        :rtype: dict of numpy types
-        :returns: a dictionary of the parameter values
+        :type state: h5py.File
+        :param state: HDF5 file for storing the iterator state
         """
 
-        result = OrderedDict()
-        result['iterator.line_starts'] = numpy.array(self.line_starts)
-        result['iterator.next_line'] = numpy.int64(self.next_line)
-        return result
+        h5_iterator = state.require_group('iterator')
+
+        if 'line_starts' in h5_iterator:
+            h5_iterator['line_starts'][:] = self.line_starts
+        else:
+            h5_iterator.create_dataset('line_starts', data=self.line_starts)
+
+        h5_iterator.attrs['next_line'] = self.next_line
 
     def set_state(self, state):
         """Restores the iterator state.
@@ -312,29 +314,29 @@ class ShufflingBatchIterator(BatchIterator):
         
         Requires that ``state`` contains values for all the iterator parameters.
 
-        :type state: dict of numpy types
-        :param state: if a dictionary of training parameters is given, takes the
-                      new values from this dictionary, and assumes this is the
-                      state of minimum cost found so far
+        :type state: h5py.File
+        :param state: HDF5 file that contains the iterator state
         """
 
-        if not 'iterator.line_starts' in state:
+        if not 'iterator' in state:
+            raise IncompatibleStateError("Iterator state is missing.")
+        h5_iterator = state['iterator']
+
+        if not 'line_starts' in h5_iterator:
             raise IncompatibleStateError("Line starts / iteration order is "
                                          "missing from training state.")
-        self.line_starts = state['iterator.line_starts'].tolist()
-        # If the list was empty when the state was saved, ndarray.tolist() will
-        # return None.
-        if self.line_starts is None:
+        self.line_starts = h5_iterator['line_starts'].value
+        if self.line_starts.size == 0:
             raise IncompatibleStateError("Line starts / iteration order is "
                                          "empty in the training state.")
 
-        if not 'iterator.next_line' in state:
+        if not 'next_line' in h5_iterator.attrs:
             raise IncompatibleStateError("Current iteration position is "
                                          "missing from training state.")
-        self.next_line = state['iterator.next_line'].item()
+        self.next_line = int(h5_iterator.attrs['next_line'])
         logging.debug("Restored iterator to line %d of %d.",
                      self.next_line,
-                     len(self.line_starts))
+                     self.line_starts.size)
 
     def _reset(self, shuffle=True):
         """Resets the read pointer back to the beginning of the file.
@@ -349,7 +351,7 @@ class ShufflingBatchIterator(BatchIterator):
             numpy.random.shuffle(self.line_starts)
 
     def _readline(self):
-        if self.next_line >= len(self.line_starts):
+        if self.next_line >= self.line_starts.size:
             return ''
         else:
             self.input_file.seek(self.line_starts[self.next_line])

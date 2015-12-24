@@ -50,7 +50,7 @@ class BasicLayer(object):
         self._params = params
 
     def _get_param(self, param_name):
-        return self._params[self.name + '.' + param_name]
+        return self._params[self.name + '/' + param_name]
 
     def _init_random_weight(self, param_name, input_size, output_size, scale=None, count=1):
         """Generates a weight matrix from “standard normal” distribution.
@@ -68,7 +68,7 @@ class BasicLayer(object):
         :returns: the generated weight matrix
         """
 
-        self.param_init_values[self.name + '.' + param_name] = \
+        self.param_init_values[self.name + '/' + param_name] = \
             numpy.concatenate([random_weight(input_size, output_size, scale=0.01)
                                for _ in range(count)],
                               axis=1)
@@ -88,7 +88,7 @@ class BasicLayer(object):
                       unless an orthogonal matrix is created
         """
 
-        self.param_init_values[self.name + '.' + param_name] = \
+        self.param_init_values[self.name + '/' + param_name] = \
             numpy.concatenate([orthogonal_weight(input_size, output_size, scale=0.01)
                                for _ in range(count)],
                               axis=1)
@@ -123,10 +123,10 @@ class BasicLayer(object):
                 subvector = numpy.empty(size).astype(theano.config.floatX)
                 subvector.fill(subvector_value)
             subvectors.append(subvector)
-        self.param_init_values[self.name + '.' + param_name] = \
+        self.param_init_values[self.name + '/' + param_name] = \
             numpy.concatenate(subvectors)
 
     def _tensor_preact(self, input_matrix, param_name):
-        weight = self._params[self.name + '.' + param_name + '.W']
-        bias = self._params[self.name + '.' + param_name + '.b']
+        weight = self._params[self.name + '/' + param_name + '/W']
+        bias = self._params[self.name + '/' + param_name + '/b']
         return tensor.dot(input_matrix, weight) + bias

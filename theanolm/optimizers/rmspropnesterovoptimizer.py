@@ -48,18 +48,18 @@ class RMSPropNesterovOptimizer(BasicOptimizer):
         if not 'learning_rate' in optimization_options:
             raise ValueError("Learning rate is not given in optimization "
                              "options.")
-        self.param_init_values['optimizer.learning_rate'] = \
+        self.param_init_values['optimizer/learning_rate'] = \
             numpy.dtype(theano.config.floatX).type(
                 optimization_options['learning_rate'])
 
         for name, param in network.params.items():
-            self.param_init_values[name + '.gradient'] = \
+            self.param_init_values[name + '_gradient'] = \
                 numpy.zeros_like(param.get_value())
             # Initialize mean squared gradient to ones, otherwise the first
             # update will be divided by close to zero.
-            self.param_init_values[name + '.mean_sqr_gradient'] = \
+            self.param_init_values[name + '_mean_sqr_gradient'] = \
                 numpy.ones_like(param.get_value())
-            self.param_init_values[name + '.velocity'] = \
+            self.param_init_values[name + '_velocity'] = \
                 numpy.zeros_like(param.get_value())
 
         # geometric rate for averaging gradients
@@ -79,8 +79,8 @@ class RMSPropNesterovOptimizer(BasicOptimizer):
         result = []
         for name, gradient_new in zip(self.network.params,
                                       self._gradient_exprs):
-            gradient = self.params[name + '.gradient']
-            ms_gradient = self.params[name + '.mean_sqr_gradient']
+            gradient = self.params[name + '_gradient']
+            ms_gradient = self.params[name + '_mean_sqr_gradient']
             ms_gradient_new = \
                 self._gamma * ms_gradient + \
                 (1.0 - self._gamma) * tensor.sqr(gradient_new)
@@ -89,12 +89,12 @@ class RMSPropNesterovOptimizer(BasicOptimizer):
         return result
 
     def _get_model_updates(self):
-        alpha = self.params['optimizer.learning_rate']
+        alpha = self.params['optimizer/learning_rate']
 
         updates = dict()
         for name, param in self.network.params.items():
-            gradient = self.params[name + '.gradient']
-            ms_gradient = self.params[name + '.mean_sqr_gradient']
+            gradient = self.params[name + '_gradient']
+            ms_gradient = self.params[name + '_mean_sqr_gradient']
             rms_gradient = tensor.sqrt(ms_gradient + self._epsilon)
             updates[name] = -gradient / rms_gradient
         self._normalize(updates)
@@ -102,7 +102,7 @@ class RMSPropNesterovOptimizer(BasicOptimizer):
         result = []
         for name, param in self.network.params.items():
             update = updates[name]
-            velocity = self.params[name + '.velocity']
+            velocity = self.params[name + '_velocity']
             velocity_new = self._momentum * velocity + alpha * update
             param_new = param + self._momentum * velocity_new + alpha * update
             result.append((velocity, velocity_new))

@@ -6,6 +6,7 @@ import os
 import mmap
 import logging
 import numpy
+import h5py
 import theano
 import theanolm
 from theanolm.trainers import create_trainer
@@ -156,12 +157,6 @@ def train(args):
     theano.config.profile = args.profile
     theano.config.profile_memory = args.profile
 
-    if os.path.exists(args.model_path):
-        print("Reading initial state from %s." % args.model_path)
-        initial_state = numpy.load(args.model_path)
-    else:
-        initial_state = None
-
     print("Reading dictionary.")
     sys.stdout.flush()
     dictionary = theanolm.Dictionary(args.dictionary_file,
@@ -175,10 +170,6 @@ def train(args):
         theanolm.Network.Architecture.from_description(args.architecture)
     network = theanolm.Network(dictionary, architecture, batch_processing=True,
                                profile=args.profile)
-    if not initial_state is None:
-        print("Restoring neural network to previous state.")
-        sys.stdout.flush()
-        network.set_state(initial_state)
 
     print("Building text scorer.")
     sys.stdout.flush()
@@ -226,27 +217,23 @@ def train(args):
     for option_name, option_value in training_options.items():
         logging.debug("%s: %s", option_name, str(option_value))
 
-    print("Building neural network trainer.")
-    sys.stdout.flush()
-    trainer = create_trainer(training_options, optimization_options,
-        network, dictionary, scorer,
-        args.training_file, validation_iter,
-        args.profile)
-    if not initial_state is None:
-        print("Restoring training to previous state.")
+    with h5py.File(args.model_path, 'a', driver='core') as state:
+        print("Building neural network trainer.")
         sys.stdout.flush()
-        trainer.reset_state(initial_state)
-    trainer.set_model_path(args.model_path)
-    trainer.set_logging(args.log_update_interval)
+        trainer = create_trainer(
+            training_options, optimization_options,
+            network, dictionary, scorer,
+            args.training_file, validation_iter,
+            state, args.profile)
+        trainer.set_logging(args.log_update_interval)
 
-    print("Training neural network.")
-    sys.stdout.flush()
-    trainer.run()
+        print("Training neural network.")
+        sys.stdout.flush()
+        trainer.run()
 
-    final_state = trainer.result()
-    if final_state is None:
-        print("The model has not been trained.")
-    else:
-        network.set_state(final_state)
-        perplexity = scorer.compute_perplexity(validation_iter)
-        print("Best validation set perplexity:", perplexity)
+        if not state.keys():
+            print("The model has not been trained.")
+        else:
+            network.set_state(state)
+            perplexity = scorer.compute_perplexity(validation_iter)
+            print("Best validation set perplexity:", perplexity)

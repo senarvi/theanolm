@@ -40,16 +40,16 @@ class AdadeltaOptimizer(BasicOptimizer):
         if not 'learning_rate' in optimization_options:
             raise ValueError("Learning rate is not given in optimization "
                              "options.")
-        self.param_init_values['optimizer.learning_rate'] = \
+        self.param_init_values['optimizer/learning_rate'] = \
             numpy.dtype(theano.config.floatX).type(
                 optimization_options['learning_rate'])
 
         for name, param in network.params.items():
-            self.param_init_values[name + '.gradient'] = \
+            self.param_init_values[name + '_gradient'] = \
                 numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '.mean_sqr_gradient'] = \
+            self.param_init_values[name + '_mean_sqr_gradient'] = \
                 numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '.mean_sqr_velocity'] = \
+            self.param_init_values[name + '_mean_sqr_velocity'] = \
                 numpy.zeros_like(param.get_value())
 
         # geometric rate for averaging gradients
@@ -64,8 +64,8 @@ class AdadeltaOptimizer(BasicOptimizer):
         result = []
         for name, gradient_new in zip(self.network.params,
                                       self._gradient_exprs):
-            gradient = self.params[name + '.gradient']
-            ms_gradient = self.params[name + '.mean_sqr_gradient']
+            gradient = self.params[name + '_gradient']
+            ms_gradient = self.params[name + '_mean_sqr_gradient']
             ms_gradient_new = \
                 self._gamma * ms_gradient + \
                 (1.0 - self._gamma) * tensor.sqr(gradient_new)
@@ -74,13 +74,13 @@ class AdadeltaOptimizer(BasicOptimizer):
         return result
 
     def _get_model_updates(self):
-        alpha = self.params['optimizer.learning_rate']
+        alpha = self.params['optimizer/learning_rate']
 
         updates = dict()
         for name, param in self.network.params.items():
-            gradient = self.params[name + '.gradient']
-            ms_gradient = self.params[name + '.mean_sqr_gradient']
-            ms_velocity = self.params[name + '.mean_sqr_velocity']
+            gradient = self.params[name + '_gradient']
+            ms_gradient = self.params[name + '_mean_sqr_gradient']
+            ms_velocity = self.params[name + '_mean_sqr_velocity']
             # rms_velocity quantity lags behind rms_gradient by 1 time step,
             # due to the recurrence relationship for velocity.
             rms_gradient = tensor.sqrt(ms_gradient + self._epsilon)
@@ -92,7 +92,7 @@ class AdadeltaOptimizer(BasicOptimizer):
         result = []
         for name, param in self.network.params.items():
             update = updates[name]
-            ms_velocity = self.params[name + '.mean_sqr_velocity']
+            ms_velocity = self.params[name + '_mean_sqr_velocity']
             ms_velocity_new = self._gamma * ms_velocity + \
                               (1.0 - self._gamma) * tensor.sqr(update)
             param_new = param + alpha * update

@@ -35,19 +35,30 @@ class Network(object):
             """Constructs a description of the network architecture stored in a
             state.
 
-            :type state: dict of numpy types
-            :param state: a dictionary of the architecture parameters
+            :type state: hdf5.File
+            :param state: HDF5 file that contains the architecture parameters
             """
 
-            if not 'arch.layers' in state:
+            layers = []
+
+            if not 'arch/layers' in state:
                 raise IncompatibleStateError(
-                    "Parameter 'arch.layers' is missing from neural network state.")
-            # An ugly workaround to be able to save arbitrary data in a .npz file.
-            try:
-                dummy_dict = state['arch.layers'][()]
-            except KeyError:
-                dummy_dict = state['arch.layers']
-            layers = dummy_dict['data']
+                    "Parameter 'arch/layers' is missing from neural network state.")
+            h5_layers = state['arch/layers']
+
+            for layer_id in sorted(h5_layers.keys()):
+                layer = dict()
+                h5_layer = h5_layers[layer_id]
+                for variable in h5_layer.attrs:
+                    layer[variable] = h5_layer.attrs[variable]
+                for variable in h5_layer:
+                    values = []
+                    h5_values = h5_layer[variable]
+                    for value_id in sorted(h5_values.attrs.keys()):
+                        values.append(h5_values.attrs[value_id])
+                    layer[variable] = values
+                layers.append(layer)
+
             return classname(layers)
 
         @classmethod
@@ -100,52 +111,59 @@ class Network(object):
 
             return classname(layers)
 
-        def get_state(self):
-            """Returns a dictionary of parameters that should be saved along
-            with the network state.
+        def get_state(self, state):
+            """Saves the architecture parameters in a HDF5 file.
 
-            For consistency, all the parameter values are returned as numpy
-            types, since state read from a model file also contains numpy types.
+            The variable values will be saved as attributes of HDF5 groups. A
+            group will be created for each level of the hierarchy.
 
-            :rtype: dict of numpy types
-            :returns: a dictionary of the architecture parameters
+            :type state: h5py.File
+            :param state: HDF5 file for storing the architecture parameters
             """
 
-            result = OrderedDict()
-            result['arch.layers'] = { 'data': self.layers }
-            return result
+            h5_layers = state.require_group('arch/layers')
+            for layer_id, layer in enumerate(self.layers):
+                h5_layer = h5_layers.require_group(str(layer_id))
+                for variable, values in layer.items():
+                    if isinstance(values, list):
+                        h5_values = h5_layer.require_group(variable)
+                        for value_id, value in enumerate(values):
+                            h5_values.attrs[str(value_id)] = value
+                    else:
+                        h5_layer.attrs[variable] = values
 
         def check_state(self, state):
             """Checks that the architecture stored in a state matches this
             network architecture, and raises an ``IncompatibleStateError``
             if not.
 
-            :type state: dict of numpy types
-            :param state: dictionary of neural network parameters
+            :type state: h5py.File
+            :param state: HDF5 file that contains the architecture parameters
             """
 
-            if not 'arch.layers' in state:
+            if not 'arch/layers' in state:
                 raise IncompatibleStateError(
-                    "Parameter 'arch.layers' is missing from neural network state.")
-            # An ugly workaround to be able to save arbitrary data in a .npz file.
-            try:
-                dummy_dict = state['arch.layers'][()]
-            except KeyError:
-                dummy_dict = state['arch.layers']
-            state_layers = dummy_dict['data']
-            for layer1, layer2 in zip(self.layers, state_layers):
-                if layer1['type'] != layer2['type']:
-                    raise IncompatibleStateError(
-                        "Neural network state has {0}={1}, while this architecture "
-                        "has {0}={2}.".format('type', layer2['type'], layer1['type']))
-                if layer1['name'] != layer2['name']:
-                    raise IncompatibleStateError(
-                        "Neural network state has {0}={1}, while this architecture "
-                        "has {0}={2}.".format('name', layer2['name'], layer1['name']))
-                if layer1['output'] != layer2['output']:
-                    raise IncompatibleStateError(
-                        "Neural network state has {0}={1}, while this architecture "
-                        "has {0}={2}.".format('output', layer2['output'], layer1['output']))
+                    "Parameter 'arch/layers' is missing from neural network state.")
+            h5_layers = state['arch/layers']
+            for layer_id, layer in enumerate(self.layers):
+                h5_layer = h5_layers[str(layer_id)]
+                for variable, values in layer.items():
+                    if isinstance(values, list):
+                        h5_values = h5_layer[variable]
+                        for value_id, value in enumerate(values):
+                            h5_value = h5_values.attrs[str(value_id)]
+                            if value != h5_value:
+                                raise IncompatibleStateError(
+                                    "Neural network state has {0}={1}, while "
+                                    "this architecture has {0}={2}.".format(
+                                        variable, value, h5_value))
+                    else:
+                        h5_value = h5_layer.attrs[variable]
+                        if values != h5_value:
+                            raise IncompatibleStateError(
+                                "Neural network state has {0}={1}, while "
+                                "this architecture has {0}={2}.".format(
+                                    variable, value, h5_value))
 
     def __init__(self, dictionary, architecture, batch_processing=True, profile=False):
         """Initializes the neural network parameters for all layers, and
@@ -297,21 +315,23 @@ class Network(object):
         self.input = self.network_input.output
         self.output = self.output_layer.output
 
-    def get_state(self):
+    def get_state(self, state):
         """Pulls parameter values from Theano shared variables.
 
-        For consistency, all the parameter values are returned as numpy
-        types, since state read from a model file also contains numpy types.
+        If there already is a parameter in the state, it will be replaced, so it
+        has to have the same number of elements.
 
-        :rtype: dict of numpy types
-        :returns: a dictionary of the parameter values and network architecture
+        :type state: h5py.File
+        :param state: HDF5 file for storing the neural network parameters
         """
 
-        result = OrderedDict()
         for name, param in self.params.items():
-            result[name] = param.get_value()
-        result.update(self.architecture.get_state())
-        return result
+            if name in state:
+                state[name][:] = param.get_value()
+            else:
+                state.create_dataset(name, data=param.get_value())
+
+        self.architecture.get_state(state)
 
     def set_state(self, state):
         """Sets the values of Theano shared variables.
@@ -319,15 +339,15 @@ class Network(object):
         Requires that ``state`` contains values for all the neural network
         parameters.
 
-        :type state: dict of numpy types
-        :param state: a dictionary of neural network parameters
+        :type state: h5py.File
+        :param state: HDF5 file that contains the neural network parameters
         """
 
         for name, param in self.params.items():
             if not name in state:
                 raise IncompatibleStateError(
                     "Parameter %s is missing from neural network state." % name)
-            new_value = state[name]
+            new_value = state[name].value
             param.set_value(new_value)
             if len(new_value.shape) == 0:
                 logging.debug("%s <- %s", name, str(new_value))

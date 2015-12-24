@@ -5,6 +5,7 @@ import sys
 import os
 import subprocess
 import numpy
+import h5py
 import theano
 import theanolm
 from theanolm.filetypes import TextFileType
@@ -46,22 +47,20 @@ def add_arguments(parser):
         help="don't include the probability of unknown words")
 
 def score(args):
-    print("Reading model state from %s." % args.model_path)
-    state = numpy.load(args.model_path)
-    
     print("Reading dictionary.")
     sys.stdout.flush()
     dictionary = theanolm.Dictionary(args.dictionary_file, args.dictionary_format)
     print("Number of words in vocabulary:", dictionary.num_words())
     print("Number of word classes:", dictionary.num_classes())
-    
+
     print("Building neural network.")
     sys.stdout.flush()
-    architecture = theanolm.Network.Architecture.from_state(state)
-    network = theanolm.Network(dictionary, architecture, batch_processing=True)
-    print("Restoring neural network state.")
-    network.set_state(state)
-    
+    with h5py.File(args.model_path, 'r') as state:
+        architecture = theanolm.Network.Architecture.from_state(state)
+        network = theanolm.Network(dictionary, architecture, batch_processing=True)
+        print("Restoring neural network state.")
+        network.set_state(state)
+
     print("Building text scorer.")
     sys.stdout.flush()
     classes_to_ignore = []

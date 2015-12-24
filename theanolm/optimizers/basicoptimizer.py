@@ -96,35 +96,37 @@ class BasicOptimizer(object):
             name='model_updater',
             profile=profile)
 
-    def get_state(self):
+    def get_state(self, state):
         """Pulls parameter values from Theano shared variables.
 
-        For consistency, all the parameter values are returned as numpy types,
-        since state read from a model file also contains numpy types.
+        If there already is a parameter in the state, it will be replaced, so it
+        has to have the same number of elements.
 
-        :rtype: dict of numpy types
-        :returns: a dictionary of the parameter values
+        :type state: h5py.File
+        :param state: HDF5 file for storing the optimization parameters
         """
 
-        result = OrderedDict()
         for name, param in self.params.items():
-            result[name] = param.get_value()
-        return result
+            if name in state:
+                state[name][:] = param.get_value()
+            else:
+                state.create_dataset(name, data=param.get_value())
 
     def set_state(self, state):
         """Sets the values of Theano shared variables.
         
-        Requires that ``state`` contains values for all the training parameters.
+        Requires that ``state`` contains values for all the optimization
+        parameters.
 
-        :type state: dict of numpy types
-        :param state: a dictionary of training parameters
+        :type state: h5py.File
+        :param state: HDF5 file that contains the optimization parameters
         """
 
         for name, param in self.params.items():
             if not name in state:
                 raise IncompatibleStateError("Parameter %s is missing from "
                                              "training state." % name)
-            new_value = state[name]
+            new_value = state[name].value
             param.set_value(new_value)
             if len(new_value.shape) == 0:
                 logging.debug("%s <- %s", name, str(new_value))
@@ -139,8 +141,8 @@ class BasicOptimizer(object):
                   method
         """
 
-        if 'optimizer.learning_rate' in self.params:
-            return self.params['optimizer.learning_rate'].get_value()
+        if 'optimizer/learning_rate' in self.params:
+            return self.params['optimizer/learning_rate'].get_value()
         else:
             return 1.0
 
@@ -152,8 +154,8 @@ class BasicOptimizer(object):
         :param x: new value for learning rate
         """
 
-        if 'optimizer.learning_rate' in self.params:
-            self.params['optimizer.learning_rate'].set_value(x)
+        if 'optimizer/learning_rate' in self.params:
+            self.params['optimizer/learning_rate'].set_value(x)
 
     def update_minibatch(self, word_ids, mask):
         """Optimizes the neural network parameters using the given inputs and

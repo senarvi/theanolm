@@ -35,13 +35,13 @@ class GRULayer(BasicLayer):
         # Initialize the parameters.
         num_gates = 2
         # layer input weights for each gate and the candidate state
-        self._init_orthogonal_weight('layer_input.W', input_size, output_size,
+        self._init_orthogonal_weight('layer_input/W', input_size, output_size,
                                      scale=0.01, count=num_gates+1)
         # hidden state input weights for each gate and the candidate state
-        self._init_orthogonal_weight('step_input.W', output_size, output_size,
+        self._init_orthogonal_weight('step_input/W', output_size, output_size,
                                      count=num_gates+1)
         # biases for each gate and the candidate state
-        self._init_bias('layer_input.b', output_size, [None] * (num_gates + 1))
+        self._init_bias('layer_input/b', output_size, [None] * (num_gates + 1))
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.
@@ -74,7 +74,7 @@ class GRULayer(BasicLayer):
 
         # Weights of the hidden state input of each time step have to be applied
         # inside the loop.
-        hidden_state_weights = self._get_param('step_input.W')
+        hidden_state_weights = self._get_param('step_input/W')
 
         if self.network.batch_processing:
             sequences = [self.network.mask, layer_input_preact]

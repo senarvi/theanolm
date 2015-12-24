@@ -41,14 +41,14 @@ class AdaGradOptimizer(BasicOptimizer):
         if not 'learning_rate' in optimization_options:
             raise ValueError("Learning rate is not given in optimization "
                              "options.")
-        self.param_init_values['optimizer.learning_rate'] = \
+        self.param_init_values['optimizer/learning_rate'] = \
             numpy.dtype(theano.config.floatX).type(
                 optimization_options['learning_rate'])
 
         for name, param in network.params.items():
-            self.param_init_values[name + '.gradient'] = \
+            self.param_init_values[name + '_gradient'] = \
                 numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '.sum_sqr_gradient'] = \
+            self.param_init_values[name + '_sum_sqr_gradient'] = \
                 numpy.zeros_like(param.get_value())
 
         super().__init__(optimization_options, network, *args, **kwargs)
@@ -57,20 +57,20 @@ class AdaGradOptimizer(BasicOptimizer):
         result = []
         for name, gradient_new in zip(self.network.params,
                                       self._gradient_exprs):
-            gradient = self.params[name + '.gradient']
-            ss_gradient = self.params[name + '.sum_sqr_gradient']
+            gradient = self.params[name + '_gradient']
+            ss_gradient = self.params[name + '_sum_sqr_gradient']
             ss_gradient_new = ss_gradient + tensor.sqr(gradient_new)
             result.append((gradient, gradient_new))
             result.append((ss_gradient, ss_gradient_new))
         return result
 
     def _get_model_updates(self):
-        alpha = self.params['optimizer.learning_rate']
+        alpha = self.params['optimizer/learning_rate']
 
         updates = dict()
         for name, param in self.network.params.items():
-            gradient = self.params[name + '.gradient']
-            ss_gradient = self.params[name + '.sum_sqr_gradient']
+            gradient = self.params[name + '_gradient']
+            ss_gradient = self.params[name + '_sum_sqr_gradient']
             rss_gradient = tensor.sqrt(ss_gradient + self._epsilon)
             updates[name] = -gradient / rss_gradient
         self._normalize(updates)

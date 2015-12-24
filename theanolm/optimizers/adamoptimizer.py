@@ -32,19 +32,19 @@ class AdamOptimizer(BasicOptimizer):
         if not 'learning_rate' in optimization_options:
             raise ValueError("Learning rate is not given in optimization "
                              "options.")
-        self.param_init_values['optimizer.learning_rate'] = \
+        self.param_init_values['optimizer/learning_rate'] = \
             numpy.dtype(theano.config.floatX).type(
                 optimization_options['learning_rate'])
 
-        self.param_init_values['optimizer.timestep'] = \
+        self.param_init_values['optimizer/timestep'] = \
             numpy.dtype(theano.config.floatX).type(0.0)
 
         for name, param in network.params.items():
-            self.param_init_values[name + '.gradient'] = \
+            self.param_init_values[name + '_gradient'] = \
                 numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '.mean_gradient'] = \
+            self.param_init_values[name + '_mean_gradient'] = \
                 numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '.mean_sqr_gradient'] = \
+            self.param_init_values[name + '_mean_sqr_gradient'] = \
                 numpy.zeros_like(param.get_value())
 
         # geometric rate for averaging gradients
@@ -70,9 +70,9 @@ class AdamOptimizer(BasicOptimizer):
         result = []
         for name, gradient_new in zip(self.network.params,
                                       self._gradient_exprs):
-            gradient = self.params[name + '.gradient']
-            m_gradient = self.params[name + '.mean_gradient']
-            ms_gradient = self.params[name + '.mean_sqr_gradient']
+            gradient = self.params[name + '_gradient']
+            m_gradient = self.params[name + '_mean_gradient']
+            ms_gradient = self.params[name + '_mean_sqr_gradient']
             m_gradient_new = \
                 self._gamma_m * m_gradient + \
                 (1.0 - self._gamma_m) * gradient
@@ -85,16 +85,16 @@ class AdamOptimizer(BasicOptimizer):
         return result
 
     def _get_model_updates(self):
-        timestep = self.params['optimizer.timestep']
+        timestep = self.params['optimizer/timestep']
         timestep_new = timestep + 1.0
-        alpha = self.params['optimizer.learning_rate']
+        alpha = self.params['optimizer/learning_rate']
         alpha *= tensor.sqrt(1.0 - (self._gamma_ms ** timestep_new))
         alpha /= 1.0 - (self._gamma_m ** timestep_new)
 
         updates = dict()
         for name, param in self.network.params.items():
-            m_gradient = self.params[name + '.mean_gradient']
-            ms_gradient = self.params[name + '.mean_sqr_gradient']
+            m_gradient = self.params[name + '_mean_gradient']
+            ms_gradient = self.params[name + '_mean_sqr_gradient']
             rms_gradient = tensor.sqrt(ms_gradient) + self._epsilon
             updates[name] = -m_gradient / rms_gradient
         self._normalize(updates)
@@ -112,5 +112,5 @@ class AdamOptimizer(BasicOptimizer):
         """
 
         logging.info("Resetting optimizer timestep to zero.")
-        self.params['optimizer.timestep'].set_value(
+        self.params['optimizer/timestep'].set_value(
             numpy.dtype(theano.config.floatX).type(0.0))
