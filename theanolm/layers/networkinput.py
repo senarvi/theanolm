@@ -25,7 +25,10 @@ class NetworkInput(BasicLayer):
         :param network: the network object creating this layer
         """
 
-        super().__init__('__input__', [], output_size, network)
+        layer_options = { 'name': '__input__',
+                          'input_layers': [],
+                          'output_size': output_size }
+        super().__init__(layer_options, network)
 
     def create_structure(self):
         """Creates the symbolic matrix that describes the network input.

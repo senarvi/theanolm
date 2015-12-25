@@ -12,18 +12,11 @@ class BasicLayer(object):
     """Superclass for Neural Network Layers
     """
 
-    def __init__(self, layer_name, input_layers, output_size, network,
-                 profile=False):
+    def __init__(self, layer_options, network, profile=False):
         """Saves some attributes that are common to all layers.
 
-        :type layer_name: str
-        :param layer_name: name of the layer, used for prefixing parameter names
-
-        :type input_layer: list of BasicLayers
-        :param input_layer: list of layers providing input to this layer
-
-        :type output_size: int
-        :param output_size: number of output connections
+        :type layer_options: dict
+        :param layer_options: dictionary of layer options
 
         :type network: Network
         :param network: the network object creating this layer
@@ -32,18 +25,23 @@ class BasicLayer(object):
         :param profile: if set to True, creates a Theano profile object
         """
 
-        self.name = layer_name
-        self.input_layers = input_layers
-        self.output_size = output_size
-        self.network = network
-        self._profile = profile
+        self.name = layer_options['name']
+        self.input_layers = layer_options['input_layers']
+
+        if 'output_size' in layer_options:
+            self.output_size = layer_options['output_size']
+        else:
+            self.output_size = \
+                sum([ x.output_size for x in self.input_layers ])
 
         logging.debug("- %s name=%s inputs=[%s] size=%d",
             self.__class__.__name__,
-            layer_name,
-            ', '.join([x.name for x in input_layers]),
+            self.name,
+            ', '.join([x.name for x in self.input_layers]),
             self.output_size)
 
+        self.network = network
+        self._profile = profile
         self.param_init_values = OrderedDict()
 
     def set_params(self, params):

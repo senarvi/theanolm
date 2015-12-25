@@ -6,24 +6,25 @@ from theanolm.layers.lstmlayer import LSTMLayer
 from theanolm.layers.softmaxlayer import SoftmaxLayer
 from theanolm.layers.dropoutlayer import DropoutLayer
 
-def create_layer(layer_type, *args, **kwargs):
+def create_layer(layer_options, *args, **kwargs):
     """Constructs one of the Layer classes based on a layer definition.
 
     :type layer_type: str
     :param layer_type: a text string describing the layer type
     """
 
+    layer_type = layer_options['type']
     if layer_type == 'projection':
-        return ProjectionLayer(*args, **kwargs)
+        return ProjectionLayer(layer_options, *args, **kwargs)
     elif layer_type == 'tanh':
-        return TanhLayer(*args, **kwargs)
+        return TanhLayer(layer_options, *args, **kwargs)
     elif layer_type == 'lstm':
-        return LSTMLayer(*args, **kwargs)
+        return LSTMLayer(layer_options, *args, **kwargs)
     elif layer_type == 'gru':
-        return GRULayer(*args, **kwargs)
+        return GRULayer(layer_options, *args, **kwargs)
     elif layer_type == 'softmax':
-        return SoftmaxLayer(*args, **kwargs)
+        return SoftmaxLayer(layer_options, *args, **kwargs)
     elif layer_type == 'dropout':
-        return DropoutLayer(*args, **kwargs)
+        return DropoutLayer(layer_options, *args, **kwargs)
     else:
         raise ValueError("Invalid layer type requested: " + layer_type)

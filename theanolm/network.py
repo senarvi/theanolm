@@ -85,17 +85,13 @@ class Network(object):
                         fields[0]))
                 for field in fields[1:]:
                     variable, value = field.split('=')
-                    if variable == 'type':
-                        layer_description['type'] = value
-                    elif variable == 'name':
-                        layer_description['name'] = value
-                    elif variable == 'input':
+                    if variable == 'input':
                         if 'inputs' in layer_description:
                             layer_description['inputs'].append(value)
                         else:
                             layer_description['inputs'] = [value]
-                    elif variable == 'output':
-                        layer_description['output'] = value
+                    else:
+                        layer_description[variable] = value
 
                 if not 'type' in layer_description:
                     raise InputError("'type' is not given in a layer description.")
@@ -103,9 +99,6 @@ class Network(object):
                     raise InputError("'name' is not given in a layer description.")
                 if not 'inputs' in layer_description:
                     raise InputError("'input' is not given in a layer description.")
-                # Output size is not required. By default it is the same as input size.
-                if not 'output' in layer_description:
-                    layer_description['output'] = '-'
 
                 layers.append(layer_description)
 
@@ -211,23 +204,24 @@ class Network(object):
         self.layers = OrderedDict()
         self.layers['X'] = self.network_input
         for layer_description in architecture.layers:
-            layer_type = layer_description['type']
-            layer_name = layer_description['name']
-            inputs = [ self.layers[x] for x in layer_description['inputs'] ]
-            if layer_description['output'] == 'Y':
-                output_size = dictionary.num_classes()
-            elif layer_description['output'] == '-':
-                output_size = sum([ x.output_size for x in inputs ])
-            else:
-                output_size = int(layer_description['output'])
-            self.layers[layer_name] = create_layer(layer_type,
-                                                   layer_name,
-                                                   inputs,
-                                                   output_size,
-                                                   self,
-                                                   profile=profile)
-            if layer_description['output'] == 'Y':
-                self.output_layer = self.layers[layer_name]
+            layer_options = dict()
+            for variable, value in layer_description.items():
+                if variable == 'inputs':
+                    layer_options['input_layers'] = \
+                        [ self.layers[x] for x in value ]
+                elif variable == 'output':
+                    if value == 'Y':
+                        value = dictionary.num_classes()
+                    else:
+                        value = int(value)
+                    layer_options['output_size'] = value
+                else:
+                    layer_options[variable] = value
+            layer = create_layer(layer_options, self, profile=profile)
+            self.layers[layer.name] = layer
+            if 'output' in layer_description and \
+               layer_description['output'] == 'Y':
+                self.output_layer = layer
         if self.output_layer is None:
             raise InputError("None of the layers in architecture description "
                              "have 'output=Y'.")
