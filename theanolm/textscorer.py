@@ -35,8 +35,8 @@ class TextScorer(object):
 
         inputs = [network.input, network.mask]
         logprobs = tensor.log(network.prediction_probs)
-        # Ignore unused input, because is_training is only used by dropout
-        # layer.
+        # Ignore unused input variables, because is_training is only used by
+        # dropout layer.
         self.score_function = theano.function(
             inputs,
             logprobs,
@@ -141,7 +141,8 @@ class TextScorer(object):
         # Add logprobs from the class membership of the predicted word at each
         # time step of each sequence.
         logprobs += numpy.log(membership_probs[1:])
-        # Zero out logprobs predicting a word to be ignored.
+        # Zero out logprobs predicting a word to be ignored. Numpy preserves the
+        # data type when multiplying by an int8.
         for word_id in self.classes_to_ignore:
             mask[word_ids == word_id] = 0
         logprobs *= mask[1:]

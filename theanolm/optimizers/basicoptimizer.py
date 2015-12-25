@@ -63,15 +63,17 @@ class BasicOptimizer(object):
         # Derive the symbolic expression for log probability of each word.
         logprobs = tensor.log(self.network.prediction_probs)
         # Set the log probability to 0, if the next input word (the one
-        # predicted) is masked out or to be ignored.
+        # predicted) is masked out or to be ignored. The mask has to be cast to
+        # floatX, otherwise the result will be float64 and pulled out from the
+        # GPU earlier than necessary.
         mask = self.network.mask[1:]
         for class_id in classes_to_ignore:
             mask *= tensor.neq(self.network.input[1:], class_id)
-        logprobs *= mask
+        logprobs *= tensor.cast(mask, theano.config.floatX)
         # Cost is the negative log probability normalized by the number of
         # training examples in the mini-batch, so that the gradients will also
         # be normalized by the number of training examples.
-        cost = -logprobs.sum() / mask.sum()
+        cost = -logprobs.sum() / tensor.cast(mask.sum(), theano.config.floatX)
 
         # Derive the symbolic expression for updating the gradient with regard
         # to each parameter.
