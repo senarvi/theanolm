@@ -91,6 +91,8 @@ class TextSampler(object):
                                              *recurrent_state)
             step_output = step_result[0]
             recurrent_state = step_result[1:]
+            assert len(recurrent_state) == \
+                   len(self.network.recurrent_state_size)
             # The word ID from the single time step from the single sequence.
             word_id = step_output[0,0]
             result.append(word_id)

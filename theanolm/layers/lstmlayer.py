@@ -46,7 +46,10 @@ class LSTMLayer(BasicLayer):
         self._init_orthogonal_weight('step_input/W', output_size, output_size,
                                      count=num_gates+1)
         # biases for each gate and the candidate state
-        self._init_bias('layer_input/b', output_size, [-1.0, 1.0, -1.0, 0.0])
+        # XXX
+        self._init_bias('layer_input/b', output_size, [None] * (num_gates + 1))
+#        self._init_bias('layer_input/b', output_size, [-1.0, 1.0, -1.0, 0.0])
+        # XXX
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.
@@ -59,7 +62,7 @@ class LSTMLayer(BasicLayer):
         The function can also be used to create a structure for generating text,
         one word at a time. Then the input is still 3-dimensional, but the size
         of the first and second dimension is 1, and the state outputs from the
-        previous time step are read from ``self.network.recurrent_state``.
+        previous time step are read from ``self.network.recurrent_state_input``.
 
         Saves the recurrent state in the Network object: cell state C_(t) and
         hidden state h_(t). ``self.output`` will be set to the hidden state
@@ -104,8 +107,10 @@ class LSTMLayer(BasicLayer):
             self.network.recurrent_state_output[self.hidden_state_index] = \
                 state_outputs[1]
         else:
-            cell_state_input = self.network.recurrent_state[0]
-            hidden_state_input = self.network.recurrent_state[1]
+            cell_state_input = \
+                self.network.recurrent_state_input[self.cell_state_index]
+            hidden_state_input = \
+                self.network.recurrent_state_input[self.hidden_state_index]
 
             state_outputs = self._create_time_step(
                 self.network.mask,

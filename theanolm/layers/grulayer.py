@@ -54,7 +54,7 @@ class GRULayer(BasicLayer):
         The function can also be used to create a structure for generating text,
         one word at a time. Then the input is still 3-dimensional, but the size
         of the first and second dimension is 1, and the state outputs from the
-        previous time step are read from ``self.network.recurrent_state``.
+        previous time step are read from ``self.network.recurrent_state_input``.
 
         Saves the recurrent state in the Network object. There's just one state
         in a GRU layer, h_(t). ``self.output`` will be set to the same hidden
@@ -95,7 +95,8 @@ class GRULayer(BasicLayer):
             self.network.recurrent_state_output[self.hidden_state_index] = \
                 hidden_state_output
         else:
-            hidden_state_input = self.network.recurrent_state[0]
+            hidden_state_input = \
+                self.network.recurrent_state_input[self.hidden_state_index]
     
             hidden_state_output = self._create_time_step(
                 self.network.mask,
