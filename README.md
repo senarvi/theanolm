@@ -85,27 +85,33 @@ training data.
 #### Network structure description
 
 The network structure is specified in a text file that contains a list of layer
-descriptions. Each line starts with the word `layer` and contains all of the
+descriptions. Each line starts with the word `layer` and may contain the
 following fields:
 
 - `type` selects the layer class. Currently `projection`, `tanh`, `lstm`, `gru`,
-  and `softmax` are implemented. Currently only one recurrent layer can be used
-  per network.
-- `name` is used to identify the layer whose output is connected to the input of
-  another layer. The name is also used to identify the layers when saving the
-  model parameters to disk.
+  `dropout`, and `softmax` are implemented. The dropout layer does not contain
+  any neurons, but only sets some activations randomly to zero at train time.
+  Has to be specified for all layers.
+- `name` is used to identify the layer. Names are used in the `input` field to
+  specify where each layer gets its input. The name is also used to identify the
+  layers when saving the model parameters to disk. Has to be specified for all
+  layers.
 - `input` specifies the layer whose output will be the input of this layer. Some
   layers types allow multiple inputs. There is one special value, `X`, which
   means the input will be the network input.
-- `output` gives the number of output connections, except in the last layer,
-  where the special value `Y` should be given.
+- `size` gives the number of output connections. If not given, defaults to the
+  number of input connections. Will be automatically set to the size of the
+  vocabulary in the output layer.
+- `network_output` has to be set to `true` in exactly one layer, indicating that
+  the output of the layer will be the output of the network.
+- `dropout_rate` may be set in the dropout layer.
 
 Description of a typical LSTM neural network language model could look like
 this:
 
-    layer type=projection name=projection_layer input=X output=100
-    layer type=lstm name=hidden_layer input=projection_layer output=300
-    layer type=softmax name=output_layer input=hidden_layer output=Y
+    layer type=projection name=projection_layer input=X size=100
+    layer type=lstm name=hidden_layer input=projection_layer size=300
+    layer type=softmax name=output_layer input=hidden_layer network_output=true
 
 #### Optimization
 
