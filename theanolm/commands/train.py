@@ -92,9 +92,9 @@ def add_arguments(parser):
              '(default 0.999)')
     argument_group.add_argument(
         '--numerical-stability-term', metavar='EPSILON', type=float,
-        default=1e-7,
+        default=1e-6,
         help='a value that is used to prevent instability when dividing by '
-             'very small numbers (default 1e-7)')
+             'very small numbers (default 1e-6)')
     argument_group.add_argument(
         '--gradient-normalization', metavar='THRESHOLD', type=float,
         default=None,
