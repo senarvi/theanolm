@@ -28,8 +28,8 @@ class BasicLayer(object):
         self.name = layer_options['name']
         self.input_layers = layer_options['input_layers']
 
-        if 'output_size' in layer_options:
-            self.output_size = layer_options['output_size']
+        if 'size' in layer_options:
+            self.output_size = layer_options['size']
         else:
             self.output_size = \
                 sum([ x.output_size for x in self.input_layers ])

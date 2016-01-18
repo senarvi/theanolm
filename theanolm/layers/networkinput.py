@@ -27,7 +27,7 @@ class NetworkInput(BasicLayer):
 
         layer_options = { 'name': '__input__',
                           'input_layers': [],
-                          'output_size': output_size }
+                          'size': output_size }
         super().__init__(layer_options, network)
 
     def create_structure(self):
@@ -38,7 +38,7 @@ class NetworkInput(BasicLayer):
         text, the matrix will contain only one element.
         """
 
-        self.output = tensor.matrix('network.input', dtype='int64')
+        self.output = tensor.matrix('network/input', dtype='int64')
         self.output.tag.test_value = test_value(
             size=(100, 16),
             max_value=self.output_size)
