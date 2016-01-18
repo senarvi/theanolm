@@ -6,8 +6,8 @@ import theano
 import theano.tensor as tensor
 from theanolm.optimizers.basicoptimizer import BasicOptimizer
 
-class RMSPropMomentumOptimizer(BasicOptimizer):
-    """RMSProp variation of Momentum Optimization Method
+class RMSPropNesterovOptimizer(BasicOptimizer):
+    """RMSProp Variation of Nesterov Momentum Optimization Method
     
     At the time of writing, RMSProp is an unpublished method. Usually people
     cite slide 29 of Lecture 6 of Geoff Hinton's Coursera class:
@@ -19,12 +19,16 @@ class RMSPropMomentumOptimizer(BasicOptimizer):
     is of constant magnitude, and larger steps whenever the local scale of the
     gradient starts to increase.
 
-    RMSProp has been implemented over many optimization methods. This algorithm
-    is from:
+    RMSProp has been implemented over many optimization methods. This
+    implementation is based on the Nesterov Momentum method. We use an
+    alternative formulation that requires the gradient to be computed only at
+    the current parameter values, described here:
+    https://github.com/lisa-lab/pylearn2/pull/136#issuecomment-10381617
+    except that we divide the gradient by the RMS gradient:
 
-    A. Graves (2013)
-    Generating Sequences With Recurrent Neural Networks
-    http://arxiv.org/abs/1308.0850
+    rmsprop_{t-1} = -lr * gradient(params_{t-1}) / rms_gradient(params_{t-1})
+    v_{t} = mu * v_{t-1} + rmsprop_{t-1}
+    params_{t} = params_{t-1} + mu * v_{t} + rmsprop_{t-1}
     """
 
     def __init__(self, optimization_options, network, *args, **kwargs):
@@ -44,32 +48,25 @@ class RMSPropMomentumOptimizer(BasicOptimizer):
         if not 'learning_rate' in optimization_options:
             raise ValueError("Learning rate is not given in optimization "
                              "options.")
-        self.param_init_values['optimizer.learning_rate'] = \
+        self.param_init_values['optimizer/learning_rate'] = \
             numpy.dtype(theano.config.floatX).type(
                 optimization_options['learning_rate'])
 
         for name, param in network.params.items():
-            self.param_init_values[name + '.gradient'] = \
+            self.param_init_values[name + '_gradient'] = \
                 numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '.mean_gradient'] = \
+            # Initialize mean squared gradient to ones, otherwise the first
+            # update will be divided by close to zero.
+            self.param_init_values[name + '_mean_sqr_gradient'] = \
+                numpy.ones_like(param.get_value())
+            self.param_init_values[name + '_velocity'] = \
                 numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '.mean_sqr_gradient'] = \
-                numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '.velocity'] = \
-                numpy.zeros_like(param.get_value())
-
-        self._create_params()
 
         # geometric rate for averaging gradients
         if not 'gradient_decay_rate' in optimization_options:
             raise ValueError("Gradient decay rate is not given in training "
                              "options.")
         self._gamma = optimization_options['gradient_decay_rate']
-
-        # numerical stability / smoothing term to prevent divide-by-zero
-        if not 'epsilon' in optimization_options:
-            raise ValueError("Epsilon is not given in optimization options.")
-        self._epsilon = optimization_options['epsilon']
 
         # momentum
         if not 'momentum' in optimization_options:
@@ -82,38 +79,32 @@ class RMSPropMomentumOptimizer(BasicOptimizer):
         result = []
         for name, gradient_new in zip(self.network.params,
                                       self._gradient_exprs):
-            gradient = self.params[name + '.gradient']
-            m_gradient = self.params[name + '.mean_gradient']
-            ms_gradient = self.params[name + '.mean_sqr_gradient']
-            m_gradient_new = \
-                (self._gamma * m_gradient) + \
-                ((1.0 - self._gamma) * gradient_new)
+            gradient = self.params[name + '_gradient']
+            ms_gradient = self.params[name + '_mean_sqr_gradient']
             ms_gradient_new = \
-                (self._gamma * ms_gradient) + \
-                ((1.0 - self._gamma) * tensor.sqr(gradient_new))
+                self._gamma * ms_gradient + \
+                (1.0 - self._gamma) * tensor.sqr(gradient_new)
             result.append((gradient, gradient_new))
-            result.append((m_gradient, m_gradient_new))
             result.append((ms_gradient, ms_gradient_new))
         return result
 
     def _get_model_updates(self):
-        alpha = self.params['optimizer.learning_rate']
+        alpha = self.params['optimizer/learning_rate']
+
+        updates = dict()
+        for name, param in self.network.params.items():
+            gradient = self.params[name + '_gradient']
+            ms_gradient = self.params[name + '_mean_sqr_gradient']
+            rms_gradient = tensor.sqrt(ms_gradient + self._epsilon)
+            updates[name] = -gradient / rms_gradient
+        self._normalize(updates)
 
         result = []
         for name, param in self.network.params.items():
-            gradient = self.params[name + '.gradient']
-            m_gradient = self.params[name + '.mean_gradient']
-            ms_gradient = self.params[name + '.mean_sqr_gradient']
-            velocity = self.params[name + '.velocity']
-            # I don't know why the square of average gradient is subtracted, but
-            # I've seen this used when RMSProp is implemented with a momentum
-            # method.
-#            rms_gradient = tensor.sqrt(ms_gradient + self._epsilon)
-            rms_gradient = tensor.sqrt(ms_gradient - tensor.sqr(m_gradient) + \
-                                       self._epsilon)
-            velocity_new = (self._momentum * velocity) - \
-                           (alpha * gradient / rms_gradient)
-            param_new = param + velocity_new
+            update = updates[name]
+            velocity = self.params[name + '_velocity']
+            velocity_new = self._momentum * velocity + alpha * update
+            param_new = param + self._momentum * velocity_new + alpha * update
             result.append((velocity, velocity_new))
             result.append((param, param_new))
         return result

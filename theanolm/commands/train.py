@@ -6,6 +6,7 @@ import os
 import mmap
 import logging
 import numpy
+import h5py
 import theano
 import theanolm
 from theanolm.trainers import create_trainer
@@ -73,7 +74,7 @@ def add_arguments(parser):
     argument_group.add_argument(
         '--optimization-method', metavar='NAME', type=str, default='sgd',
         help='optimization method, one of "sgd", "nesterov", "adagrad", '
-             '"adadelta", "rmsprop-sgd", "rmsprop-momentum", "adam" '
+             '"adadelta", "rmsprop-sgd", "rmsprop-nesterov", "adam" '
              '(default "sgd")')
     argument_group.add_argument(
         '--learning-rate', metavar='ALPHA', type=float, default=0.1,
@@ -100,6 +101,9 @@ def add_arguments(parser):
         help='scale down the gradients if necessary to make sure their norm '
              '(normalized by mini-batch size) will not exceed THRESHOLD (no '
              'scaling by default)')
+    argument_group.add_argument(
+        '--ignore-unk', action="store_true",
+        help="don't include the probability of unknown words in the cost")
     
     argument_group = parser.add_argument_group("early stopping")
     argument_group.add_argument(
@@ -153,12 +157,6 @@ def train(args):
     theano.config.profile = args.profile
     theano.config.profile_memory = args.profile
 
-    if os.path.exists(args.model_path):
-        print("Reading initial state from %s." % args.model_path)
-        initial_state = numpy.load(args.model_path)
-    else:
-        initial_state = None
-
     print("Reading dictionary.")
     sys.stdout.flush()
     dictionary = theanolm.Dictionary(args.dictionary_file,
@@ -170,16 +168,15 @@ def train(args):
     sys.stdout.flush()
     architecture = \
         theanolm.Network.Architecture.from_description(args.architecture)
-    network = theanolm.Network(dictionary, architecture, args.profile)
-    network.create_minibatch_structure()
-    if not initial_state is None:
-        print("Restoring neural network to previous state.")
-        sys.stdout.flush()
-        network.set_state(initial_state)
+    network = theanolm.Network(dictionary, architecture, batch_processing=True,
+                               profile=args.profile)
 
     print("Building text scorer.")
     sys.stdout.flush()
-    scorer = theanolm.TextScorer(network, args.profile)
+    classes_to_ignore = []
+    if args.ignore_unk:
+        classes_to_ignore.append(dictionary.unk_id)
+    scorer = theanolm.TextScorer(network, classes_to_ignore, args.profile)
 
     validation_mmap = mmap.mmap(args.validation_file.fileno(),
                                 0,
@@ -194,12 +191,17 @@ def train(args):
         'gradient_decay_rate': args.gradient_decay_rate,
         'sqr_gradient_decay_rate': args.sqr_gradient_decay_rate,
         'learning_rate': args.learning_rate,
-        'momentum': args.momentum}
+        'momentum': args.momentum,
+        'classes_to_ignore': classes_to_ignore}
     if not args.gradient_normalization is None:
         optimization_options['max_gradient_norm'] = args.gradient_normalization
     logging.debug("OPTIMIZATION OPTIONS")
     for option_name, option_value in optimization_options.items():
-        logging.debug("%s: %s", option_name, str(option_value))
+        if type(option_value) is list:
+            value_str = ', '.join(str(x) for x in option_value)
+            logging.debug("%s: [%s]", option_name, value_str)
+        else:
+            logging.debug("%s: %s", option_name, str(option_value))
 
     training_options = {
         'strategy': args.training_strategy,
@@ -215,27 +217,23 @@ def train(args):
     for option_name, option_value in training_options.items():
         logging.debug("%s: %s", option_name, str(option_value))
 
-    print("Building neural network trainer.")
-    sys.stdout.flush()
-    trainer = create_trainer(training_options, optimization_options,
-        network, dictionary, scorer,
-        args.training_file, validation_iter,
-        args.profile)
-    if not initial_state is None:
-        print("Restoring training to previous state.")
+    with h5py.File(args.model_path, 'a', driver='core') as state:
+        print("Building neural network trainer.")
         sys.stdout.flush()
-        trainer.reset_state(initial_state)
-    trainer.set_model_path(args.model_path)
-    trainer.set_logging(args.log_update_interval)
+        trainer = create_trainer(
+            training_options, optimization_options,
+            network, dictionary, scorer,
+            args.training_file, validation_iter,
+            state, args.profile)
+        trainer.set_logging(args.log_update_interval)
 
-    print("Training neural network.")
-    sys.stdout.flush()
-    trainer.run()
+        print("Training neural network.")
+        sys.stdout.flush()
+        trainer.run()
 
-    final_state = trainer.result()
-    if final_state is None:
-        print("The model has not been trained.")
-    else:
-        network.set_state(final_state)
-        perplexity = scorer.compute_perplexity(validation_iter)
-        print("Best validation set perplexity:", perplexity)
+        if not state.keys():
+            print("The model has not been trained.")
+        else:
+            network.set_state(state)
+            perplexity = scorer.compute_perplexity(validation_iter)
+            print("Best validation set perplexity:", perplexity)

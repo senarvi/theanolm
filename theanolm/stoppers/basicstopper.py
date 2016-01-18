@@ -56,27 +56,3 @@ class BasicStopper(object):
         """
 
         return True
-    
-    def get_state(self):
-        """Returns the state of the stopping criterion.
-
-        For consistency, all the parameter values are returned as numpy types,
-        since state read from a model file also contains numpy types.
-
-        :rtype: dict of numpy types
-        :returns: a dictionary of the parameter values
-        """
-
-        result = OrderedDict()
-        return result
-
-    def set_state(self, state):
-        """Sets the state of the stopping criterion.
-        
-        Requires that ``state`` contains values for all the state variables.
-
-        :type state: dict of numpy types
-        :param state: a dictionary of parameter values
-        """
-
-        pass

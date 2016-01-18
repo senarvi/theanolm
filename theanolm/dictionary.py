@@ -143,7 +143,7 @@ class Dictionary(object):
         for line in input_file:
             line = line.strip()
             fields = line.split()
-            if len(fields) == 0:
+            if not fields:
                 continue
             if input_format == 'words' and len(fields) == 1:
                 word = fields[0]

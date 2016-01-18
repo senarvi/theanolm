@@ -39,82 +39,96 @@ class BasicOptimizer(object):
 
         self.network = network
 
-        # Calculate log probability of each word.
-        logprobs = tensor.log(self.network.prediction_probs)
-        # Set the log probability to 0, if the next input word (the one
-        # predicted) is masked out.
-        logprobs = logprobs * self.network.minibatch_mask[1:]
-        # Calculate the negative log probability normalized by the number of
-        # training examples in the mini-batch, so that the gradients will also
-        # be normalized by the number of training examples.
-        cost = -logprobs.sum() / self.network.minibatch_mask[1:].sum()
-
-        # Compute the symbolic expression for updating the gradient with regard
-        # to each parameter.
-        gradients = tensor.grad(cost, wrt=list(self.network.params.values()))
-
-        # Normalize the norm of the gradients to given maximum value.
-        if 'max_gradient_norm' in optimization_options:
-            max_norm = optimization_options['max_gradient_norm']
-            epsilon = optimization_options['epsilon']
-            squares = [tensor.sqr(gradient) for gradient in gradients]
-            sums = [tensor.sum(square) for square in squares]
-            total_sum = sum(sums)  # sum over parameter variables
-            norm = tensor.sqrt(total_sum)
-            target_norm = tensor.clip(norm, 0.0, max_norm)
-            gradients = [gradient * target_norm / (epsilon + norm)
-                         for gradient in gradients]
-
-        self._gradient_exprs = gradients
-        self.gradient_update_function = \
-            theano.function([self.network.minibatch_input,
-                             self.network.minibatch_mask],
-                            cost,
-                            updates=self._get_gradient_updates(),
-                            profile=profile)
-
-        self.model_update_function = \
-            theano.function([],
-                            [],
-                            updates=self._get_model_updates(),
-                            profile=profile)
-
-    def _create_params(self):
-        """Creates Theano shared variables from the initial parameter values.
-        """
-
+        # Create Theano shared variables from the initial parameter values.
         self.params = {name: theano.shared(value, name)
                        for name, value in self.param_init_values.items()}
 
-    def get_state(self):
+        # numerical stability / smoothing term to prevent divide-by-zero
+        if not 'epsilon' in optimization_options:
+            raise ValueError("Epsilon is not given in optimization options.")
+        self._epsilon = optimization_options['epsilon']
+
+        # maximum norm for parameter updates
+        if 'max_gradient_norm' in optimization_options:
+            self._max_gradient_norm = optimization_options['max_gradient_norm']
+        else:
+            self._max_gradient_norm = None
+
+        # class IDs to ignore when computing the cost
+        if 'classes_to_ignore' in optimization_options:
+            classes_to_ignore = optimization_options['classes_to_ignore']
+        else:
+            classes_to_ignore = []
+
+        # Derive the symbolic expression for log probability of each word.
+        logprobs = tensor.log(self.network.prediction_probs)
+        # Set the log probability to 0, if the next input word (the one
+        # predicted) is masked out or to be ignored. The mask has to be cast to
+        # floatX, otherwise the result will be float64 and pulled out from the
+        # GPU earlier than necessary.
+        mask = self.network.mask[1:]
+        for class_id in classes_to_ignore:
+            mask *= tensor.neq(self.network.input[1:], class_id)
+        logprobs *= tensor.cast(mask, theano.config.floatX)
+        # Cost is the negative log probability normalized by the number of
+        # training examples in the mini-batch, so that the gradients will also
+        # be normalized by the number of training examples.
+        cost = -logprobs.sum() / tensor.cast(mask.sum(), theano.config.floatX)
+
+        # Derive the symbolic expression for updating the gradient with regard
+        # to each parameter.
+        self._gradient_exprs = \
+            tensor.grad(cost, wrt=list(self.network.params.values()))
+
+        # Ignore unused input, because is_training is only used by dropout
+        # layer.
+        self.gradient_update_function = theano.function(
+            [self.network.input, self.network.mask],
+            cost,
+            givens=[(self.network.is_training, numpy.int8(1))],
+            updates=self._get_gradient_updates(),
+            name='gradient_updater',
+            on_unused_input='ignore',
+            profile=profile)
+
+        self.model_update_function = theano.function(
+            [],
+            [],
+            updates=self._get_model_updates(),
+            name='model_updater',
+            profile=profile)
+
+    def get_state(self, state):
         """Pulls parameter values from Theano shared variables.
 
-        For consistency, all the parameter values are returned as numpy types,
-        since state read from a model file also contains numpy types.
+        If there already is a parameter in the state, it will be replaced, so it
+        has to have the same number of elements.
 
-        :rtype: dict of numpy types
-        :returns: a dictionary of the parameter values
+        :type state: h5py.File
+        :param state: HDF5 file for storing the optimization parameters
         """
 
-        result = OrderedDict()
         for name, param in self.params.items():
-            result[name] = param.get_value()
-        return result
+            if name in state:
+                state[name][:] = param.get_value()
+            else:
+                state.create_dataset(name, data=param.get_value())
 
     def set_state(self, state):
         """Sets the values of Theano shared variables.
         
-        Requires that ``state`` contains values for all the training parameters.
+        Requires that ``state`` contains values for all the optimization
+        parameters.
 
-        :type state: dict of numpy types
-        :param state: a dictionary of training parameters
+        :type state: h5py.File
+        :param state: HDF5 file that contains the optimization parameters
         """
 
         for name, param in self.params.items():
             if not name in state:
                 raise IncompatibleStateError("Parameter %s is missing from "
                                              "training state." % name)
-            new_value = state[name]
+            new_value = state[name].value
             param.set_value(new_value)
             if len(new_value.shape) == 0:
                 logging.debug("%s <- %s", name, str(new_value))
@@ -129,8 +143,8 @@ class BasicOptimizer(object):
                   method
         """
 
-        if 'optimizer.learning_rate' in self.params:
-            return self.params['optimizer.learning_rate'].get_value()
+        if 'optimizer/learning_rate' in self.params:
+            return self.params['optimizer/learning_rate'].get_value()
         else:
             return 1.0
 
@@ -142,8 +156,8 @@ class BasicOptimizer(object):
         :param x: new value for learning rate
         """
 
-        if 'optimizer.learning_rate' in self.params:
-            self.params['optimizer.learning_rate'].set_value(x)
+        if 'optimizer/learning_rate' in self.params:
+            self.params['optimizer/learning_rate'].set_value(x)
 
     def update_minibatch(self, word_ids, mask):
         """Optimizes the neural network parameters using the given inputs and
@@ -178,3 +192,28 @@ class BasicOptimizer(object):
         """
 
         pass
+
+    def _normalize(self, updates):
+        """Normalizes the norm of a parameter update to given maximum value.
+
+        :type updates: dict of str to theano.tensor.var.TensorVariable
+        :param updates: dictionary of symbolic variables that describe the
+                        negative gradient of each parameter, after any
+                        optimization method specific adaptation
+
+        :rtype: dict of str to theano.tensor.var.TensorVariable
+        :returns: dictionary of symbolic variables that describe ``updates``
+                  after normalization has been applied
+        """
+
+        max_norm = self._max_gradient_norm
+        if max_norm is None:
+            return
+
+        squares = [tensor.sqr(update) for update in updates.values()]
+        sums = [tensor.sum(square) for square in squares]
+        total_sum = sum(sums)  # sum over parameter variables
+        norm = tensor.sqrt(total_sum)
+        target_norm = tensor.clip(norm, 0.0, max_norm)
+        for name, update in updates.items():
+            updates[name] = update * target_norm / (self._epsilon + norm)

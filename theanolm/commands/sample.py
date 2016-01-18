@@ -5,6 +5,7 @@ import sys
 import os
 import subprocess
 import numpy
+import h5py
 import theano
 import theanolm
 from theanolm.filetypes import TextFileType
@@ -43,39 +44,37 @@ def add_arguments(parser):
 
 def sample(args):
     numpy.random.seed(args.random_seed)
-    
+
     if args.debug:
         theano.config.compute_test_value = 'warn'
     else:
         theano.config.compute_test_value = 'off'
-    
+
     try:
         script_path = os.path.dirname(os.path.realpath(__file__))
         git_description = subprocess.check_output(['git', 'describe'], cwd=script_path)
         print("TheanoLM", git_description.decode('utf-8'))
     except subprocess.CalledProcessError:
         pass
-    
-    state = numpy.load(args.model_path)
-    
+
     print("Reading dictionary.")
     sys.stdout.flush()
     dictionary = theanolm.Dictionary(args.dictionary_file, args.dictionary_format)
     print("Number of words in vocabulary:", dictionary.num_words())
     print("Number of word classes:", dictionary.num_classes())
-    
+
     print("Building neural network.")
     sys.stdout.flush()
-    architecture = theanolm.Network.Architecture.from_state(state)
-    network = theanolm.Network(dictionary, architecture)
-    network.create_onestep_structure()
-    print("Restoring neural network state.")
-    network.set_state(state)
-    
+    with h5py.File(args.model_path, 'r') as state:
+        architecture = theanolm.Network.Architecture.from_state(state)
+        network = theanolm.Network(dictionary, architecture, batch_processing=False)
+        print("Restoring neural network state.")
+        network.set_state(state)
+
     print("Building text sampler.")
     sys.stdout.flush()
     sampler = theanolm.TextSampler(network, dictionary)
-    
+
     for i in range(args.num_sentences):
         words = sampler.generate()
         args.output_file.write('{}: {}\n'.format(

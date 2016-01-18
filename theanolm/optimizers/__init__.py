@@ -3,7 +3,7 @@ from theanolm.optimizers.nesterovoptimizer import NesterovOptimizer
 from theanolm.optimizers.adagradoptimizer import AdaGradOptimizer
 from theanolm.optimizers.adadeltaoptimizer import AdadeltaOptimizer
 from theanolm.optimizers.rmspropsgdoptimizer import RMSPropSGDOptimizer
-from theanolm.optimizers.rmspropmomentumoptimizer import RMSPropMomentumOptimizer
+from theanolm.optimizers.rmspropnesterovoptimizer import RMSPropNesterovOptimizer
 from theanolm.optimizers.adamoptimizer import AdamOptimizer
 
 def create_optimizer(optimization_options, *args, **kwargs):
@@ -31,8 +31,8 @@ def create_optimizer(optimization_options, *args, **kwargs):
         return AdadeltaOptimizer(optimization_options, *args, **kwargs)
     elif optimization_method == 'rmsprop-sgd':
         return RMSPropSGDOptimizer(optimization_options, *args, **kwargs)
-    elif optimization_method == 'rmsprop-momentum':
-        return RMSPropMomentumOptimizer(optimization_options, *args, **kwargs)
+    elif optimization_method == 'rmsprop-nesterov':
+        return RMSPropNesterovOptimizer(optimization_options, *args, **kwargs)
     elif optimization_method == 'adam':
         return AdamOptimizer(optimization_options, *args, **kwargs)
     else:

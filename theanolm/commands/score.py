@@ -5,6 +5,7 @@ import sys
 import os
 import subprocess
 import numpy
+import h5py
 import theano
 import theanolm
 from theanolm.filetypes import TextFileType
@@ -41,29 +42,32 @@ def add_arguments(parser):
         '--log-base', metavar='B', type=int, default=None,
         help='convert output log probabilities to base B (default is the '
              'natural logarithm)')
+    argument_group.add_argument(
+        '--ignore-unk', action="store_true",
+        help="don't include the probability of unknown words")
 
 def score(args):
-    print("Reading model state from %s." % args.model_path)
-    state = numpy.load(args.model_path)
-    
     print("Reading dictionary.")
     sys.stdout.flush()
     dictionary = theanolm.Dictionary(args.dictionary_file, args.dictionary_format)
     print("Number of words in vocabulary:", dictionary.num_words())
     print("Number of word classes:", dictionary.num_classes())
-    
+
     print("Building neural network.")
     sys.stdout.flush()
-    architecture = theanolm.Network.Architecture.from_state(state)
-    network = theanolm.Network(dictionary, architecture)
-    network.create_minibatch_structure()
-    print("Restoring neural network state.")
-    network.set_state(state)
-    
+    with h5py.File(args.model_path, 'r') as state:
+        architecture = theanolm.Network.Architecture.from_state(state)
+        network = theanolm.Network(dictionary, architecture, batch_processing=True)
+        print("Restoring neural network state.")
+        network.set_state(state)
+
     print("Building text scorer.")
     sys.stdout.flush()
-    scorer = theanolm.TextScorer(network)
-    
+    classes_to_ignore = []
+    if args.ignore_unk:
+        classes_to_ignore.append(dictionary.unk_id)
+    scorer = theanolm.TextScorer(network, classes_to_ignore)
+
     print("Scoring text.")
     if args.output == 'perplexity':
         _score_text(args.input_file, dictionary, scorer, args.output_file,
@@ -126,16 +130,29 @@ def _score_text(input_file, dictionary, scorer, output_file,
             seq_logprob /= base_conversion
             seq_class_names = dictionary.ids_to_names(seq_word_ids)
             output_file.write("# Sentence {0}\n".format(num_sentences))
-            for word_index, word_logprob in enumerate(seq_logprobs):
+
+            # In case some word IDs are ignored, seq_word_ids may contain more
+            # items than seq_logprobs.
+            logprob_index = 0
+            for word_index, word_id in enumerate(seq_word_ids[1:]):
                 if word_index - 2 > 0:
                     history = seq_class_names[word_index:word_index - 3:-1]
                     history.append('...')
                 else:
                     history = seq_class_names[word_index::-1]
-                output_file.write("log(p({0} | {1})) = {2}\n".format(
-                    seq_class_names[word_index + 1],
-                    ', '.join(history),
-                    seq_logprobs[word_index]))
+                history = ', '.join(history)
+                predicted = seq_class_names[word_index + 1]
+
+                if word_id in scorer.classes_to_ignore:
+                    output_file.write("p({0} | {1}) is not predicted\n".format(
+                        predicted, history))
+                else:
+                    logprob = seq_logprobs[logprob_index]
+                    logprob_index += 1
+                    output_file.write("log(p({0} | {1})) = {2}\n".format(
+                        predicted, history, logprob))
+            assert logprob_index == len(seq_logprobs)
+
             output_file.write("Sentence perplexity: {0}\n\n".format(
                 numpy.exp(-seq_logprob / len(seq_logprobs))))
 
@@ -188,7 +205,7 @@ def _score_utterances(input_file, dictionary, scorer, output_file,
     num_unks = 0
     for line_num, line in enumerate(input_file):
         words = utterance_from_line(line)
-        if len(words) == 0:
+        if not words:
             continue
 
         word_ids = dictionary.words_to_ids(words)

@@ -19,7 +19,6 @@ encoding//theanolm/optimizers/adagradoptimizer.py=utf-8
 encoding//theanolm/optimizers/adamoptimizer.py=utf-8
 encoding//theanolm/optimizers/basicoptimizer.py=utf-8
 encoding//theanolm/optimizers/nesterovoptimizer.py=utf-8
-encoding//theanolm/optimizers/rmspropmomentumoptimizer.py=utf-8
 encoding//theanolm/optimizers/rmspropsgdoptimizer.py=utf-8
 encoding//theanolm/optimizers/sgdoptimizer.py=utf-8
 encoding//theanolm/stoppers/basicstopper.py=utf-8

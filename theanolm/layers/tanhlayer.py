@@ -24,10 +24,10 @@ class TanhLayer(BasicLayer):
         output_size = self.output_size
         for input_index, input_layer in enumerate(self.input_layers):
             input_size = input_layer.output_size
-            param_name = 'input' + str(input_index) + '.W'
+            param_name = 'input' + str(input_index) + '/W'
             self._init_random_weight(param_name, input_size, output_size, scale=0.01)
-            param_name = 'input' + str(input_index) + '.b'
-            self._init_zero_bias(param_name, output_size)
+            param_name = 'input' + str(input_index) + '/b'
+            self._init_bias(param_name, output_size)
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.

@@ -14,15 +14,21 @@ class NetworkInput(BasicLayer):
     A dummy layer that provides the input for the first layer.
     """
 
-    def __init__(self, output_size):
+    def __init__(self, output_size, network):
         """Creates a neural network input with a given vocabulary size, which
         specifies the input size of the first layer.
 
         :type output_size: int
         :param output_size: number of output connections
+
+        :type network: Network
+        :param network: the network object creating this layer
         """
 
-        super().__init__('__input__', [], output_size)
+        layer_options = { 'name': '__input__',
+                          'input_layers': [],
+                          'output_size': output_size }
+        super().__init__(layer_options, network)
 
     def create_structure(self):
         """Creates the symbolic matrix that describes the network input.
@@ -32,7 +38,7 @@ class NetworkInput(BasicLayer):
         text, the matrix will contain only one element.
         """
 
-        self.output = tensor.matrix('network_input', dtype='int64')
+        self.output = tensor.matrix('network.input', dtype='int64')
         self.output.tag.test_value = test_value(
             size=(100, 16),
             max_value=self.output_size)

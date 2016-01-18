@@ -3,6 +3,7 @@
 
 import logging
 import numpy
+import h5py
 from theanolm.trainers.basictrainer import BasicTrainer
 
 class LocalStatisticsTrainer(BasicTrainer):
@@ -72,7 +73,9 @@ class LocalStatisticsTrainer(BasicTrainer):
             logging.debug("[%d] Center of validation, perplexity %.2f.",
                           self.update_number,
                           perplexity)
-            self.validation_state = self.get_state()
+            self.validation_state = h5py.File(
+                name='validation-state', driver='core', backing_store=False)
+            self.get_state(self.validation_state)
 
         # The rest of the function will be executed only at the final sampling
         # point.
@@ -91,17 +94,19 @@ class LocalStatisticsTrainer(BasicTrainer):
                           self.update_number,
                           len(self.local_perplexities))
             self.local_perplexities = []
+            self.validation_state.close()
             self.validation_state = None
             return
 
         statistic = self.statistic_function(self.local_perplexities)
-        self._cost_history.append(statistic)
+        self._cost_history = numpy.append(self._cost_history, statistic)
         if self._has_improved():
             # Take the state at the actual validation point and replace the cost
             # history with the current cost history that also includes this
             # latest statistic.
-            self.validation_state['trainer.cost_history'] = \
-                numpy.asarray(self._cost_history)
+            h5_cost_history = self.validation_state['trainer/cost_history']
+            h5_cost_history.resize(self._cost_history.shape)
+            h5_cost_history[:] = self._cost_history
             self._set_candidate_state(self.validation_state)
 
         self._log_validation()
@@ -118,4 +123,5 @@ class LocalStatisticsTrainer(BasicTrainer):
             self._decrease_learning_rate()
 
         self.local_perplexities = []
+        self.validation_state.close()
         self.validation_state = None
