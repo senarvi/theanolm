@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from collections import OrderedDict
+from distutils.util import strtobool
 import logging
 import numpy
 import theano
@@ -60,7 +61,10 @@ class Network(object):
             layers = []
 
             for line in description_file:
-                layer_description = dict()
+                layer_description = {
+                    'network_input': False,
+                    'network_output': False
+                }
 
                 fields = line.split()
                 if not fields:
@@ -70,26 +74,25 @@ class Network(object):
                         fields[0]))
                 for field in fields[1:]:
                     variable, value = field.split('=')
-                    if variable == 'type':
-                        layer_description['type'] = value
-                    elif variable == 'name':
-                        layer_description['name'] = value
+                    if variable in ('type', 'name'):
+                        layer_description[variable] = value
+                    elif variable in ('size'):
+                        layer_description[variable] = int(value)
+                    elif variable in ('network_input', 'network_output'):
+                        layer_description[variable] = bool(strtobool(value))
                     elif variable == 'input':
                         if 'inputs' in layer_description:
                             layer_description['inputs'].append(value)
                         else:
                             layer_description['inputs'] = [value]
-                    elif variable == 'output':
-                        layer_description['output'] = value
+                    else:
+                        raise InputError("Unknown layer parameter: {}.".format(
+                            variable))
 
                 if not 'type' in layer_description:
                     raise InputError("'type' is not given in a layer description.")
                 if not 'name' in layer_description:
                     raise InputError("'name' is not given in a layer description.")
-                if not 'inputs' in layer_description:
-                    raise InputError("'input' is not given in a layer description.")
-                if not 'output' in layer_description:
-                    raise InputError("'output' is not given in a layer description.")
 
                 layers.append(layer_description)
 
