@@ -22,7 +22,7 @@ class Network(object):
         """Neural Network Architecture Description
         """
 
-        def __init__(self, network, layers):
+        def __init__(self, layers):
             """Constructs a description of the neural network architecture.
 
             :type layers: list of dict
