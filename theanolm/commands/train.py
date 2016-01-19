@@ -19,17 +19,17 @@ def add_arguments(parser):
         help='path where the best model state will be saved in numpy .npz '
              'format')
     argument_group.add_argument(
-        'training_files', metavar='TRAINING-SET', type=TextFileType('r'),
-        nargs='+',
-        help='text or .gz file containing training data (one sentence per '
-             'line)')
-    argument_group.add_argument(
         'validation_file', metavar='VALIDATION-SET', type=TextFileType('r'),
         help='text or .gz file containing validation data (one sentence per '
              'line) for early stopping')
     argument_group.add_argument(
         'dictionary_file', metavar='DICTIONARY', type=TextFileType('r'),
         help='text or .gz file containing word list or class definitions')
+    argument_group.add_argument(
+        '--training-set', metavar='TRAINING-SET', type=TextFileType('r'),
+        nargs='+',
+        help='text or .gz files containing training data (one sentence per '
+             'line)')
     argument_group.add_argument(
         '--dictionary-format', metavar='FORMAT', type=str, default='words',
         help='dictionary format, one of "words" (one word per line, default), '
@@ -223,7 +223,7 @@ def train(args):
         trainer = create_trainer(
             training_options, optimization_options,
             network, dictionary, scorer,
-            args.training_files, validation_iter,
+            args.training_set, validation_iter,
             state, args.profile)
         trainer.set_logging(args.log_update_interval)
 
