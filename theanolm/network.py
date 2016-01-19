@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from collections import OrderedDict
-from distutils.util import strtobool
 import logging
 import numpy
 import theano
@@ -18,149 +17,6 @@ class Network(object):
     A class that stores the neural network architecture and state.
     """
 
-    class Architecture(object):
-        """Neural Network Architecture Description
-        """
-
-        def __init__(self, layers):
-            """Constructs a description of the neural network architecture.
-
-            :type layers: list of dict
-            :param layers: parameters for each layer as a list of dictionaries
-            """
-
-            self.layers = layers
-
-        @classmethod
-        def from_state(classname, state):
-            """Constructs a description of the network architecture stored in a
-            state.
-
-            :type state: hdf5.File
-            :param state: HDF5 file that contains the architecture parameters
-            """
-
-            layers = []
-
-            if not 'arch/layers' in state:
-                raise IncompatibleStateError(
-                    "Parameter 'arch/layers' is missing from neural network state.")
-            h5_layers = state['arch/layers']
-
-            for layer_id in sorted(h5_layers.keys()):
-                layer = dict()
-                h5_layer = h5_layers[layer_id]
-                for variable in h5_layer.attrs:
-                    layer[variable] = h5_layer.attrs[variable]
-                for variable in h5_layer:
-                    values = []
-                    h5_values = h5_layer[variable]
-                    for value_id in sorted(h5_values.attrs.keys()):
-                        values.append(h5_values.attrs[value_id])
-                    layer[variable] = values
-                layers.append(layer)
-
-            return classname(layers)
-        
-        @classmethod
-        def from_description(classname, description_file):
-            """Reads a description of the network architecture from a text file.
-
-            :type description_file: file or file-like object
-            :param description_file: text file containing the description
-
-            :rtype: Network.Architecture
-            :returns: an object describing the network architecture
-            """
-
-            layers = []
-
-            for line in description_file:
-                layer_description = { 'inputs': [], 'network_output': False }
-
-                fields = line.split()
-                if not fields:
-                    continue
-                if fields[0] != 'layer':
-                    raise InputError("Unknown network element: {}.".format(
-                        fields[0]))
-
-                for field in fields[1:]:
-                    variable, value = field.split('=')
-                    if variable == 'size':
-                        layer_description[variable] = int(value)
-                    elif variable == 'network_output':
-                        layer_description[variable] = bool(strtobool(value))
-                    elif variable == 'input':
-                        layer_description['inputs'].append(value)
-                    else:
-                        layer_description[variable] = value
-
-                if not 'type' in layer_description:
-                    raise InputError("'type' is not given in a layer description.")
-                if not 'name' in layer_description:
-                    raise InputError("'name' is not given in a layer description.")
-                if not layer_description['inputs']:
-                    raise InputError("'input' is not given in a layer description.")
-
-                layers.append(layer_description)
-
-            return classname(layers)
-
-        def get_state(self, state):
-            """Saves the architecture parameters in a HDF5 file.
-
-            The variable values will be saved as attributes of HDF5 groups. A
-            group will be created for each level of the hierarchy.
-
-            :type state: h5py.File
-            :param state: HDF5 file for storing the architecture parameters
-            """
-
-            h5_layers = state.require_group('arch/layers')
-            for layer_id, layer in enumerate(self.layers):
-                h5_layer = h5_layers.require_group(str(layer_id))
-                for variable, values in layer.items():
-                    if isinstance(values, list):
-                        h5_values = h5_layer.require_group(variable)
-                        for value_id, value in enumerate(values):
-                            h5_values.attrs[str(value_id)] = value
-                    else:
-                        h5_layer.attrs[variable] = values
-
-        def check_state(self, state):
-            """Checks that the architecture stored in a state matches this
-            network architecture, and raises an ``IncompatibleStateError``
-            if not.
-
-            :type state: h5py.File
-            :param state: HDF5 file that contains the architecture parameters
-            """
-
-            if not 'arch/layers' in state:
-                raise IncompatibleStateError(
-                    "Parameter 'arch/layers' is missing from neural network state.")
-            h5_layers = state['arch/layers']
-            for layer_id, layer in enumerate(self.layers):
-                h5_layer = h5_layers[str(layer_id)]
-                for variable, values in layer.items():
-                    if isinstance(values, list):
-                        h5_values = h5_layer[variable]
-                        for value_id, value in enumerate(values):
-                            h5_value = h5_values.attrs[str(value_id)]
-                            if value != h5_value:
-                                raise IncompatibleStateError(
-                                    "Neural network state has {0}={1}, while "
-                                    "this architecture has {0}={2}.".format(
-                                        variable, value, h5_value))
-                    else:
-                        h5_value = h5_layer.attrs[variable]
-                        if values != h5_value:
-                            raise IncompatibleStateError(
-                                "Neural network state has {0}={1}, while "
-                                "this architecture has {0}={2}.".format(
-                                    variable, value, h5_value))
-
     def __init__(self, dictionary, architecture, batch_processing=True, profile=False):
         """Initializes the neural network parameters for all layers, and
         creates Theano shared variables from them.
@@ -168,7 +24,7 @@ class Network(object):
         :type dictionary: Dictionary
         :param dictionary: mapping between word IDs and word classes
 
-        :type architecture: Network.Architecture
+        :type architecture: Architecture
         :param architecture: an object that describes the network architecture
 
         :type batch_processing: bool
@@ -203,7 +59,6 @@ class Network(object):
         # Create the layers.
         logging.debug("Creating layers.")
         self.network_input = NetworkInput(dictionary.num_classes(), self)
-        self.output_layer = None
         self.layers = OrderedDict()
         self.layers['X'] = self.network_input
         for layer_description in architecture.layers:
@@ -218,14 +73,7 @@ class Network(object):
                 layer_options['size'] = dictionary.num_classes()
             layer = create_layer(layer_options, self, profile=profile)
             self.layers[layer.name] = layer
-            if layer_options['network_output']:
-                if not self.output_layer is None:
-                    raise InputError("More than one layer in architecture "
-                                     "description has 'network_output=True'.")
-                self.output_layer = layer
-        if self.output_layer is None:
-            raise InputError("None of the layers in architecture description "
-                             "have 'network_output=True'.")
+        self.output_layer = self.layers[architecture.output_layer]
 
         # This list will be filled by the recurrent layers to contain the
         # recurrent state outputs, required by TextSampler.
