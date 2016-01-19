@@ -166,8 +166,7 @@ def train(args):
 
     print("Building neural network.")
     sys.stdout.flush()
-    architecture = \
-        theanolm.Network.Architecture.from_description(args.architecture)
+    architecture = theanolm.Architecture.from_description(args.architecture)
     network = theanolm.Network(dictionary, architecture, batch_processing=True,
                                profile=args.profile)
 

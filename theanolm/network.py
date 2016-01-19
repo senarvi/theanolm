@@ -69,7 +69,7 @@ class Network(object):
                         [ self.layers[x] for x in value ]
                 else:
                     layer_options[variable] = value
-            if layer_options['network_output']:
+            if layer_options['name'] == architecture.output_layer:
                 layer_options['size'] = dictionary.num_classes()
             layer = create_layer(layer_options, self, profile=profile)
             self.layers[layer.name] = layer

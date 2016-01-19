@@ -97,6 +97,9 @@ class Architecture(object):
                     raise InputError("Unknown network parameter: {}".format(
                         variable))
             break
+        if output_layer is None:
+            raise InputError("Network output layer is not specified in "
+                             "architecture description.")
 
         for line in description_file:
             fields = line.split()
