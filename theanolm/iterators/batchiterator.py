@@ -1,38 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from collections import OrderedDict
-import logging
+import abc
 import numpy
 import theano
-
-def find_sentence_starts(data):
-    """Finds the positions inside a memory-mapped file, where the sentences
-    (lines) start.
-
-    TextIOWrapper disables tell() when readline() is called, so search for
-    sentence starts in memory-mapped data.
-
-    :type data: mmap.mmap
-    :param data: memory-mapped data of the input file
-
-    :rtype: list of ints
-    :returns: a list of file offsets pointing to the next character from a
-              newline (including file start and excluding file end)
-    """
-
-    result = [0]
-
-    pos = 0
-    while True:
-        pos = data.find(b'\n', pos)
-        if pos == -1:
-            break;
-        pos += 1
-        if pos < len(data):
-            result.append(pos)
-
-    return result
 
 def utterance_from_line(line):
     """Converts a line of text, read from an input file, into a list of words.
@@ -62,17 +33,17 @@ def utterance_from_line(line):
     return result
 
 class BatchIterator(object):
-    """ Iterator for Reading Mini-Batches
+    """Iterator for Reading Mini-Batches
     """
 
+    __metaclass__ = abc.ABCMeta
+
     def __init__(self,
-                 input_file,
                  dictionary,
                  batch_size=1,
                  max_sequence_length=None):
-        """
-        :type input_file: file or mmap object
-        :param input_file: input text file or its memory-mapped data
+        """Constructs an iterator for reading mini-batches from given file or
+        memory map.
 
         :type dictionary: Dictionary
         :param dictionary: dictionary that provides mapping between words and
@@ -87,13 +58,11 @@ class BatchIterator(object):
                                     this
         """
 
-        self.input_file = input_file
         self.dictionary = dictionary
         self.batch_size = batch_size
         self.max_sequence_length = max_sequence_length
         self.buffer = []
         self.end_of_file = False
-        self.input_file.seek(0)
 
     def __iter__(self):
         return self
@@ -155,15 +124,15 @@ class BatchIterator(object):
         self._reset(False)
         return (num_sequences + self.batch_size - 1) // self.batch_size
 
+    @abc.abstractmethod
     def _reset(self, shuffle=True):
         """Resets the read pointer back to the beginning of the file.
-        
+
         :type shuffle: bool
-        :param shuffle: also shuffles the input sentences, unless set to False
-                        (not supported by this super class)
+        :param shuffle: also shuffles the input sentences, if supported
         """
 
-        self.input_file.seek(0)
+        return
 
     def _read_sequence(self):
         """Returns next word sequence.
@@ -199,11 +168,12 @@ class BatchIterator(object):
             self.buffer = []
         return result
 
+    @abc.abstractmethod
     def _readline(self):
-        """Read the next input line.
+        """Reads the next input line.
         """
 
-        return self.input_file.readline()
+        return
 
     def _prepare_batch(self, sequences):
         """Transposes a list of sequences into a list of time steps. Then
@@ -243,118 +213,3 @@ class BatchIterator(object):
             mask[:length, i] = 1
 
         return word_ids, probs, mask
-
-class ShufflingBatchIterator(BatchIterator):
-    """ Iterator for Reading Mini-Batches in a Random Order
-    
-    Receives the positions of the line starts in the constructor, and shuffles
-    the array whenever the end is reached.
-    """
-
-    def __init__(self,
-                 input_file,
-                 dictionary,
-                 line_starts,
-                 batch_size=128,
-                 max_sequence_length=100):
-        """
-        :type input_file: file object
-        :param input_file: input text file
-
-        :type dictionary: Dictionary
-        :param dictionary: dictionary that provides mapping between words and
-                           word IDs
-
-        :type line_starts: list of ints
-        :param line_starts: a list of start positions of the input sentences;
-                            the sentences will be read in the order they appear
-                            in this list
-
-        :type batch_size: int
-        :param batch_size: number of sentences in one mini-batch (unless the end
-                           of file is encountered earlier)
-
-        :type max_sequence_length: int
-        :param max_sequence_length: if not None, limit to sequences shorter than
-                                    this
-        """
-
-        self.line_starts = numpy.asarray(line_starts, dtype='int64')
-        super().__init__(input_file, dictionary, batch_size, max_sequence_length)
-        self.next_line = 0
-
-    def get_state(self, state):
-        """Returns the iterator state as a dictionary.
-
-        Sets ``iterator/line_starts`` to the sentence starts (in the shuffled
-        order), and ``iterator/next_line`` the index to the current sentence.
-        Note that if the program is restarted, the same training file has to be
-        loaded, or the offsets will be incorrect. If there already is a
-        ``iterator/line_starts`` in the state, it will be replaced, so it has to
-        have the same number of elements.
-
-        :type state: h5py.File
-        :param state: HDF5 file for storing the iterator state
-        """
-
-        h5_iterator = state.require_group('iterator')
-
-        if 'line_starts' in h5_iterator:
-            h5_iterator['line_starts'][:] = self.line_starts
-        else:
-            h5_iterator.create_dataset('line_starts', data=self.line_starts)
-
-        h5_iterator.attrs['next_line'] = self.next_line
-
-    def set_state(self, state):
-        """Restores the iterator state.
-
-        Sets the offsets to the sentence starts (the order in which they are
-        iterated), and the index to the current sentence.
-        
-        Requires that ``state`` contains values for all the iterator parameters.
-
-        :type state: h5py.File
-        :param state: HDF5 file that contains the iterator state
-        """
-
-        if not 'iterator' in state:
-            raise IncompatibleStateError("Iterator state is missing.")
-        h5_iterator = state['iterator']
-
-        if not 'line_starts' in h5_iterator:
-            raise IncompatibleStateError("Line starts / iteration order is "
-                                         "missing from training state.")
-        self.line_starts = h5_iterator['line_starts'].value
-        if self.line_starts.size == 0:
-            raise IncompatibleStateError("Line starts / iteration order is "
-                                         "empty in the training state.")
-
-        if not 'next_line' in h5_iterator.attrs:
-            raise IncompatibleStateError("Current iteration position is "
-                                         "missing from training state.")
-        self.next_line = int(h5_iterator.attrs['next_line'])
-        logging.debug("Restored iterator to line %d of %d.",
-                     self.next_line,
-                     self.line_starts.size)
-
-    def _reset(self, shuffle=True):
-        """Resets the read pointer back to the beginning of the file.
-        
-        :type shuffle: bool
-        :param shuffle: also shuffles the input sentences, unless set to False
-        """
-
-        self.next_line = 0
-        if shuffle:
-            logging.info("Shuffling the order of input lines.")
-            numpy.random.shuffle(self.line_starts)
-
-    def _readline(self):
-        if self.next_line >= self.line_starts.size:
-            return ''
-        else:
-            self.input_file.seek(self.line_starts[self.next_line])
-            line = self.input_file.readline()
-            self.next_line += 1
-            return line

@@ -6,7 +6,7 @@ import logging
 import mmap
 import numpy
 import theano
-from theanolm import find_sentence_starts, ShufflingBatchIterator
+from theanolm import ShufflingBatchIterator
 from theanolm.exceptions import IncompatibleStateError, NumberError
 from theanolm.optimizers import create_optimizer
 from theanolm.stoppers import create_stopper
@@ -18,19 +18,28 @@ class BasicTrainer(object):
 
     def __init__(self, training_options, optimization_options,
                  network, dictionary, scorer,
-                 training_file, validation_iter, state,
+                 training_files, validation_iter, state,
                  profile=False):
         """Creates the optimizer and initializes the training process.
+
+        :type training_options: dict
+        :param training_options: a dictionary of training options
+
+        :type optimization_options: dict
+        :param optimization_options: a dictionary of optimization options
+
+        :type network: theanolm.Network
+        :param network: a neural network to be trained
 
         :type dictionary: theanolm.Dictionary
         :param dictionary: dictionary that provides mapping between words and
                            word IDs
 
-        :type network: theanolm.Network
-        :param network: a neural network to be trained
-
         :type scorer: theanolm.TextScorer
         :param scorer: a text scorer for computing validation set perplexity
+
+        :type training_files: list of file objects
+        :param training_files: list of files to be used as training data
 
         :type validation_iter: theanolm.BatchIterator
         :param validation_iter: an iterator for computing validation set
@@ -40,11 +49,8 @@ class BasicTrainer(object):
         :param state: HDF5 file where initial training state will be possibly
                       read from, and candidate states will be saved to
 
-        :type training_options: dict
-        :param training_options: a dictionary of training options
-
-        :type optimization_options: dict
-        :param optimization_options: a dictionary of optimization options
+        :type profile: bool
+        :param profile: if set to True, creates Theano profile objects
         """
 
         self.network = network
@@ -55,18 +61,9 @@ class BasicTrainer(object):
                                           self.network,
                                           profile)
 
-        training_mmap = mmap.mmap(training_file.fileno(),
-                                  0,
-                                  prot=mmap.PROT_READ)
-
-        print("Finding sentence start positions in training data.")
-        sys.stdout.flush()
-        sentence_starts = find_sentence_starts(training_mmap)
-
         self.training_iter = ShufflingBatchIterator(
-            training_mmap,
+            training_files,
             dictionary,
-            sentence_starts,
             batch_size=training_options['batch_size'],
             max_sequence_length=training_options['sequence_length'])
 

@@ -19,7 +19,8 @@ def add_arguments(parser):
         help='path where the best model state will be saved in numpy .npz '
              'format')
     argument_group.add_argument(
-        'training_file', metavar='TRAINING-SET', type=TextFileType('r'),
+        'training_files', metavar='TRAINING-SET', type=TextFileType('r'),
+        nargs='+',
         help='text or .gz file containing training data (one sentence per '
              'line)')
     argument_group.add_argument(
@@ -222,7 +223,7 @@ def train(args):
         trainer = create_trainer(
             training_options, optimization_options,
             network, dictionary, scorer,
-            args.training_file, validation_iter,
+            args.training_files, validation_iter,
             state, args.profile)
         trainer.set_logging(args.log_update_interval)
 
