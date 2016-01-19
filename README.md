@@ -84,34 +84,32 @@ training data.
 
 #### Network structure description
 
-The network structure is specified in a text file that contains a list of layer
-descriptions. Each line starts with the word `layer` and may contain the
-following fields:
+The network structure is specified in a text file that starts with a network
+element, which is followed by a number of layer elements. The network element is
+a line that starts with the word `network`, and specifies the output layer of
+the network in `output` field. Layer elements are lines that start with the
+word `layer` and may contain the following fields:
 
-- `type` selects the layer class. Currently `projection`, `tanh`, `lstm`, `gru`,
-  `dropout`, and `softmax` are implemented. The dropout layer does not contain
-  any neurons, but only sets some activations randomly to zero at train time.
-  Has to be specified for all layers.
-- `name` is used to identify the layer. Names are used in the `input` field to
-  specify where each layer gets its input. The name is also used to identify the
-  layers when saving the model parameters to disk. Has to be specified for all
-  layers.
-- `input` specifies the layer whose output will be the input of this layer. Some
-  layers types allow multiple inputs. There is one special value, `X`, which
-  means the input will be the network input.
+- `type` selects the layer class. Currently `projection`, `tanh`, `lstm`,
+  `gru`, `dropout`, and `softmax` are implemented. The dropout layer does not
+  contain any neurons, but only sets some activations randomly to zero at train
+  time. Has to be specified for all layers.
+- `name` is used to identify the layer. Has to be specified for all layers.
+- `input` specifies the layer whose output will be the input of this layer.
+  Some layers types allow multiple inputs. There is one special value, `X`,
+  which means the input will be the network input.
 - `size` gives the number of output connections. If not given, defaults to the
   number of input connections. Will be automatically set to the size of the
   vocabulary in the output layer.
-- `network_output` has to be set to `true` in exactly one layer, indicating that
-  the output of the layer will be the output of the network.
 - `dropout_rate` may be set in the dropout layer.
 
 Description of a typical LSTM neural network language model could look like
 this:
 
+    network output=output_layer
     layer type=projection name=projection_layer input=X size=100
     layer type=lstm name=hidden_layer input=projection_layer size=300
-    layer type=softmax name=output_layer input=hidden_layer network_output=true
+    layer type=softmax name=output_layer input=hidden_layer
 
 #### Optimization
 
