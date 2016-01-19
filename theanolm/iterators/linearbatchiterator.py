@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from theanolm.iterators.batchiterator import BatchIterator
+
 class LinearBatchIterator(BatchIterator):
     """Iterator for Reading Mini-Batches from a Single File in a Linear Order
     """

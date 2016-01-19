@@ -163,22 +163,23 @@ value between 4 and 32 is used.
 
 #### Command line
 
-Train command takes four positional arguments: output model path, training data
-path, validation data path, and dictionary path. The input files can be either
-plain text or compressed with gzip. Text data is read one utterance per line.
-Start-of-sentence and end-of-sentence tags (`<s>` and `</s>`) will be added to
-the beginning and end of each utterance, if they are missing. If an empty line
-is encountered, it will be ignored, instead of interpreted as the empty sentence
-`<s> </s>`.
+Train command takes three positional arguments: output model path, validation
+data path, and dictionary path. In addition the `--training-set` argument is
+mandatory and specifies the path to one or more training data files. The input
+files can be either plain text or compressed with gzip. Text data is read one
+utterance per line. Start-of-sentence and end-of-sentence tags (`<s>` and
+`</s>`) will be added to the beginning and end of each utterance, if they are
+missing. If an empty line is encountered, it will be ignored, instead of
+interpreted as the empty sentence `<s> </s>`.
 
 Below is an example of how to train a language model, assuming you have the word
 classes in SRILM format in `dictionary.classes`:
 
     theanolm train \
       model.h5 \
-      training-data.txt.gz \
       validation-data.txt.gz \
       dictionary.classes \
+      --training-set training-data.txt.gz \
       --dictionary-format srilm-classes \
       --hidden-layer-size 300 \
       --hidden-layer-type lstm \

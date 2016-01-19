@@ -181,9 +181,9 @@ def train(args):
     validation_mmap = mmap.mmap(args.validation_file.fileno(),
                                 0,
                                 prot=mmap.PROT_READ)
-    validation_iter = theanolm.BatchIterator(validation_mmap,
-                                             dictionary,
-                                             batch_size=32)
+    validation_iter = theanolm.LinearBatchIterator(validation_mmap,
+                                                   dictionary,
+                                                   batch_size=32)
 
     optimization_options = {
         'method': args.optimization_method,

@@ -2,9 +2,12 @@
 # -*- coding: utf-8 -*-
 
 from collections import OrderedDict
+import sys
+import mmap
 import logging
 import numpy
 import theano
+from theanolm.iterators.batchiterator import BatchIterator
 
 def find_sentence_starts(data):
     """Finds the positions inside a memory-mapped file, where the sentences
@@ -102,8 +105,9 @@ class ShufflingBatchIterator(BatchIterator):
                  dictionary,
                  batch_size=128,
                  max_sequence_length=100):
-        """
-        :type input_files: list of file objects
+        """Initializes the iterator to read sentences in linear order.
+
+        :type input_files: list of file or mmap objects
         :param input_files: input text files
 
         :type dictionary: Dictionary
@@ -178,8 +182,8 @@ class ShufflingBatchIterator(BatchIterator):
                                          "missing from training state.")
         self.next_line = int(h5_iterator.attrs['next_line'])
         logging.debug("Restored iterator to line %d of %d.",
-                     self.next_line,
-                     self.line_starts.size)
+                      self.next_line,
+                      self.order.size)
 
     def _reset(self, shuffle=True):
         """Resets the read pointer back to the beginning of the file.
@@ -191,16 +195,17 @@ class ShufflingBatchIterator(BatchIterator):
         self.next_line = 0
         if shuffle:
             logging.info("Shuffling the order of input lines.")
-            numpy.random.shuffle(self.line_starts)
+            numpy.random.shuffle(self.order)
 
     def _readline(self):
         """Reads the next input line.
         """
 
-        if self.next_line >= self.line_starts.size:
+        if self.next_line >= self.order.size:
             return ''
         else:
-            self.input_file.seek(self.line_starts[self.next_line])
-            line = self.input_file.readline()
+            input_file, position = self.sentence_pointers[self.next_line]
+            input_file.seek(position)
+            line = input_file.readline()
             self.next_line += 1
             return line

@@ -5,6 +5,7 @@ import unittest
 import os
 import mmap
 import theanolm
+from theanolm.iterators.shufflingbatchiterator import find_sentence_starts
 
 class TestIterators(unittest.TestCase):
     def setUp(self):
@@ -24,7 +25,7 @@ class TestIterators(unittest.TestCase):
         sentences_mmap = mmap.mmap(self.sentences_file.fileno(),
                                    0,
                                    access=mmap.ACCESS_READ)
-        sentence_starts = theanolm.find_sentence_starts(sentences_mmap)
+        sentence_starts = find_sentence_starts(sentences_mmap)
         self.sentences_file.seek(sentence_starts[0])
         self.assertEqual(self.sentences_file.readline(), 'yksi kaksi\n')
         self.sentences_file.seek(sentence_starts[1])
@@ -36,25 +37,24 @@ class TestIterators(unittest.TestCase):
         self.sentences_file.seek(sentence_starts[4])
         self.assertEqual(self.sentences_file.readline(), 'kymmenen\n')
 
+        # The current behaviour is to cut the sentences, so we always get 3
+        # batches.
         self.sentences_file.seek(0)
-        iterator = theanolm.ShufflingBatchIterator(self.sentences_file,
+        iterator = theanolm.ShufflingBatchIterator([self.sentences_file],
                                                    self.dictionary,
-                                                   sentence_starts,
+                                                   batch_size=2,
+                                                   max_sequence_length=5)
+        self.assertEqual(len(iterator), 3)
+        iterator = theanolm.ShufflingBatchIterator([self.sentences_file],
+                                                   self.dictionary,
                                                    batch_size=2,
                                                    max_sequence_length=4)
         self.assertEqual(len(iterator), 3)
-        iterator = theanolm.ShufflingBatchIterator(self.sentences_file,
+        iterator = theanolm.ShufflingBatchIterator([self.sentences_file],
                                                    self.dictionary,
-                                                   sentence_starts,
-                                                   batch_size=2,
-                                                   max_sequence_length=3)
-        self.assertEqual(len(iterator), 3)
-        iterator = theanolm.ShufflingBatchIterator(self.sentences_file,
-                                                   self.dictionary,
-                                                   sentence_starts,
                                                    batch_size=2,
                                                    max_sequence_length=2)
-        self.assertEqual(len(iterator), 4)
+        self.assertEqual(len(iterator), 3)
 
 if __name__ == '__main__':
     unittest.main()

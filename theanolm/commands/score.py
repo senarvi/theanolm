@@ -107,7 +107,7 @@ def _score_text(input_file, dictionary, scorer, output_file,
     :param word_level: if set to True, also writes word-level statistics
     """
 
-    validation_iter = theanolm.BatchIterator(input_file, dictionary)
+    validation_iter = theanolm.LinearBatchIterator(input_file, dictionary)
     base_conversion = 1 if log_base is None else numpy.log(log_base)
 
     total_logprob = 0
