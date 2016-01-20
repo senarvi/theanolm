@@ -83,6 +83,25 @@ class TestIterators(unittest.TestCase):
                          '<s> neljä </s> '
                          '<s> kolme kaksi yksi </s>')
         self.assertEqual(len(iterator), 5)
+        sentences = []
+        for word_ids, probs, mask in iterator:
+            for sequence in range(2):
+                sequence_mask = numpy.array(mask)[:,sequence]
+                sequence_word_ids = numpy.array(word_ids)[sequence_mask != 0,sequence]
+                sentences.append(' '.join(self.dictionary.ids_to_names(sequence_word_ids)))
+        sentences = ' '.join(sorted(sentences))
+        self.assertEqual(sentences,
+                         '<s> kahdeksan seitsemän kuusi </s> '
+                         '<s> kolme kaksi yksi </s> '
+                         '<s> kolme neljä viisi </s> '
+                         '<s> kuusi seitsemän kahdeksan </s> '
+                         '<s> kymmenen </s> '
+                         '<s> kymmenen yhdeksän </s> '
+                         '<s> neljä </s> '
+                         '<s> viisi </s> '
+                         '<s> yhdeksän </s> '
+                         '<s> yksi kaksi </s>')
+
         iterator = theanolm.ShufflingBatchIterator([self.sentences1_file, self.sentences2_file],
                                                    self.dictionary,
                                                    batch_size=2,

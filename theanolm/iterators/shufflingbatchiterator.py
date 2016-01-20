@@ -203,9 +203,10 @@ class ShufflingBatchIterator(BatchIterator):
 
         if self.next_line >= self.order.size:
             return ''
-        else:
-            input_file, position = self.sentence_pointers[self.next_line]
-            input_file.seek(position)
-            line = input_file.readline()
-            self.next_line += 1
-            return line
+
+        sentence_index = self.order[self.next_line]
+        input_file, position = self.sentence_pointers[sentence_index]
+        input_file.seek(position)
+        line = input_file.readline()
+        self.next_line += 1
+        return line
