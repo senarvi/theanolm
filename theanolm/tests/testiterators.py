@@ -64,34 +64,15 @@ class TestIterators(unittest.TestCase):
                                                    batch_size=2,
                                                    max_sequence_length=5)
 
-        word_names = []
+        sentences1 = []
         for word_ids, probs, mask in iterator:
             for sequence in range(2):
                 sequence_mask = numpy.array(mask)[:,sequence]
                 sequence_word_ids = numpy.array(word_ids)[sequence_mask != 0,sequence]
-                word_names.extend(self.dictionary.ids_to_names(sequence_word_ids))
-        corpus = ' '.join(word_names)
-        self.assertEqual(corpus,
-                         '<s> yksi kaksi </s> '
-                         '<s> kolme neljä viisi </s> '
-                         '<s> kuusi seitsemän kahdeksan </s> '
-                         '<s> yhdeksän </s> '
-                         '<s> kymmenen </s> '
-                         '<s> kymmenen yhdeksän </s> '
-                         '<s> kahdeksan seitsemän kuusi </s> '
-                         '<s> viisi </s> '
-                         '<s> neljä </s> '
-                         '<s> kolme kaksi yksi </s>')
-        self.assertEqual(len(iterator), 5)
-
-        sentences = []
-        for word_ids, probs, mask in iterator:
-            for sequence in range(2):
-                sequence_mask = numpy.array(mask)[:,sequence]
-                sequence_word_ids = numpy.array(word_ids)[sequence_mask != 0,sequence]
-                sentences.append(' '.join(self.dictionary.ids_to_names(sequence_word_ids)))
-        sentences = ' '.join(sorted(sentences))
-        self.assertEqual(sentences,
+                sentences1.append(' '.join(self.dictionary.ids_to_names(sequence_word_ids)))
+        sentences1_str = ' '.join(sentences1)
+        sentences1_sorted_str = ' '.join(sorted(sentences1))
+        self.assertEqual(sentences1_sorted_str,
                          '<s> kahdeksan seitsemän kuusi </s> '
                          '<s> kolme kaksi yksi </s> '
                          '<s> kolme neljä viisi </s> '
@@ -102,6 +83,18 @@ class TestIterators(unittest.TestCase):
                          '<s> viisi </s> '
                          '<s> yhdeksän </s> '
                          '<s> yksi kaksi </s>')
+        self.assertEqual(len(iterator), 5)
+
+        sentences2 = []
+        for word_ids, probs, mask in iterator:
+            for sequence in range(2):
+                sequence_mask = numpy.array(mask)[:,sequence]
+                sequence_word_ids = numpy.array(word_ids)[sequence_mask != 0,sequence]
+                sentences2.append(' '.join(self.dictionary.ids_to_names(sequence_word_ids)))
+        sentences2_str = ' '.join(sentences2)
+        sentences2_sorted_str = ' '.join(sorted(sentences2))
+        self.assertEqual(sentences1_sorted_str, sentences2_sorted_str)
+        self.assertNotEqual(sentences1_str, sentences2_str)
 
         # The current behaviour is to cut the sentences, so we always get 5
         # batches.

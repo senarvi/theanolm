@@ -126,6 +126,7 @@ class ShufflingBatchIterator(BatchIterator):
         self.sentence_pointers = SentencePointers(input_files)
         self.order = list(range(len(self.sentence_pointers)))
         self.order = numpy.asarray(self.order, dtype='int64')
+        numpy.random.shuffle(self.order)
         self.next_line = 0
 
         super().__init__(dictionary, batch_size, max_sequence_length)
