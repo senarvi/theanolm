@@ -46,10 +46,7 @@ class LSTMLayer(BasicLayer):
         self._init_orthogonal_weight('step_input/W', output_size, output_size,
                                      count=num_gates+1)
         # biases for each gate and the candidate state
-        # XXX
-        self._init_bias('layer_input/b', output_size, [None] * (num_gates + 1))
-#        self._init_bias('layer_input/b', output_size, [-1.0, 1.0, -1.0, 0.0])
-        # XXX
+        self._init_bias('layer_input/b', output_size, [-1.0, 1.0, -1.0, 0.0])
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.
