@@ -108,16 +108,21 @@ def add_arguments(parser):
     
     argument_group = parser.add_argument_group("early stopping")
     argument_group.add_argument(
-        '--stopping-criterion', metavar='NAME', type=str, default='basic',
-        help='selects a criterion for early-stopping, one of "basic" (fixed '
-             'number of epochs), "no-improvement" (no improvement with some '
-             'learning rate value), "learning-rate" (default "basic")')
+        '--stopping-criterion', metavar='NAME', type=str, default='epoch-count',
+        help='selects a criterion for early-stopping, one of "epoch-count" '
+             '(default, fixed number of epochs), "no-improvement" (no '
+             'improvement since learning rate was decreased), "annealing-count" '
+             '(fixed number of times learning rate is decreased)')
     argument_group.add_argument(
         '--min-epochs', metavar='N', type=int, default=1,
         help='perform at least N training epochs (default 1)')
     argument_group.add_argument(
         '--max-epochs', metavar='N', type=int, default=100,
         help='perform at most N training epochs (default 100)')
+    argument_group.add_argument(
+        '--max-annealing-count', metavar='N', type=int, default=0,
+        help='when using annealing-count stopping criterion, continue training '
+             'after decreasing learning rate at most N times (default 0)')
     
     argument_group = parser.add_argument_group("logging and debugging")
     argument_group.add_argument(
@@ -212,7 +217,8 @@ def train(args):
         'reset_when_annealing': args.reset_when_annealing,
         'stopping_criterion': args.stopping_criterion,
         'max_epochs': args.max_epochs,
-        'min_epochs': args.min_epochs}
+        'min_epochs': args.min_epochs,
+        'max_annealing_count': args.max_annealing_count}
     logging.debug("TRAINING OPTIONS")
     for option_name, option_value in training_options.items():
         logging.debug("%s: %s", option_name, str(option_value))
