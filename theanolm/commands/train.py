@@ -43,10 +43,10 @@ def add_arguments(parser):
     
     argument_group = parser.add_argument_group("training process")
     argument_group.add_argument(
-        '--training-strategy', metavar='NAME', type=str, default='basic',
+        '--training-strategy', metavar='NAME', type=str, default='local-mean',
         help='selects a training and validation strategy, one of "basic", '
             '"local-mean", "local-median", "validation-average" (default '
-            '"basic")')
+            '"local-mean")')
     argument_group.add_argument(
         '--sequence-length', metavar='N', type=int, default=100,
         help='ignore sentences longer than N words (default 100)')
@@ -54,15 +54,14 @@ def add_arguments(parser):
         '--batch-size', metavar='N', type=int, default=16,
         help='each mini-batch will contain N sentences (default 16)')
     argument_group.add_argument(
-        '--validation-frequency', metavar='N', type=int, default='100',
+        '--validation-frequency', metavar='N', type=int, default='8',
         help='cross-validate for reducing learning rate N times per training '
-             'epoch (default 100)')
+             'epoch (default 8)')
     argument_group.add_argument(
-        '--patience', metavar='N', type=int, default=0,
+        '--patience', metavar='N', type=int, default=4,
         help='wait for N validations, before decreasing learning rate, if '
              'perplexity has not decreased; if less than zero, never decrease '
-             'learning rate (default is 0, meaning that learning rate will be '
-             'decreased immediately when perplexity stops decreasing)')
+             'learning rate (default 4)')
     argument_group.add_argument(
         '--reset-when-annealing', action="store_true",
         help='reset the optimizer timestep when decreasing learning rate')
@@ -73,10 +72,10 @@ def add_arguments(parser):
     
     argument_group = parser.add_argument_group("optimization")
     argument_group.add_argument(
-        '--optimization-method', metavar='NAME', type=str, default='sgd',
+        '--optimization-method', metavar='NAME', type=str, default='adagrad',
         help='optimization method, one of "sgd", "nesterov", "adagrad", '
              '"adadelta", "rmsprop-sgd", "rmsprop-nesterov", "adam" '
-             '(default "sgd")')
+             '(default "adagrad")')
     argument_group.add_argument(
         '--learning-rate', metavar='ALPHA', type=float, default=0.1,
         help='initial learning rate (default 0.1)')
@@ -98,21 +97,22 @@ def add_arguments(parser):
              'very small numbers (default 1e-6)')
     argument_group.add_argument(
         '--gradient-normalization', metavar='THRESHOLD', type=float,
-        default=None,
+        default=5,
         help='scale down the gradients if necessary to make sure their norm '
-             '(normalized by mini-batch size) will not exceed THRESHOLD (no '
-             'scaling by default)')
+             '(normalized by mini-batch size) will not exceed THRESHOLD '
+             '(default 5)')
     argument_group.add_argument(
         '--ignore-unk', action="store_true",
         help="don't include the probability of unknown words in the cost")
-    
+
     argument_group = parser.add_argument_group("early stopping")
     argument_group.add_argument(
-        '--stopping-criterion', metavar='NAME', type=str, default='epoch-count',
+        '--stopping-criterion', metavar='NAME', type=str,
+        default='annealing-count',
         help='selects a criterion for early-stopping, one of "epoch-count" '
-             '(default, fixed number of epochs), "no-improvement" (no '
-             'improvement since learning rate was decreased), "annealing-count" '
-             '(fixed number of times learning rate is decreased)')
+             '(fixed number of epochs), "no-improvement" (no improvement since '
+             'learning rate was decreased), "annealing-count" (default, '
+             'learning rate is decreased a fixed number of times)')
     argument_group.add_argument(
         '--min-epochs', metavar='N', type=int, default=1,
         help='perform at least N training epochs (default 1)')
