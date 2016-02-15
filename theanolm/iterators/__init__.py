@@ -1,10 +1,6 @@
-from theanolm.layers.networkinput import NetworkInput
-from theanolm.layers.projectionlayer import ProjectionLayer
-from theanolm.layers.tanhlayer import TanhLayer
-from theanolm.layers.grulayer import GRULayer
-from theanolm.layers.lstmlayer import LSTMLayer
-from theanolm.layers.softmaxlayer import SoftmaxLayer
-from theanolm.layers.dropoutlayer import DropoutLayer
+from theanolm.iterators.linearbatchiterator import LinearBatchIterator
+from theanolm.iterators.shufflingbatchiterator import ShufflingBatchIterator
+from theanolm.iterators.batchiterator import utterance_from_line
 
 def create_layer(layer_options, *args, **kwargs):
     """Constructs one of the Layer classes based on a layer definition.

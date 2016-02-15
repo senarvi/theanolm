@@ -5,7 +5,8 @@ import sys
 import logging
 import mmap
 import numpy
-from theanolm import find_sentence_starts, ShufflingBatchIterator
+import theano
+from theanolm import ShufflingBatchIterator
 from theanolm.exceptions import IncompatibleStateError, NumberError
 from theanolm.optimizers import create_optimizer
 from theanolm.stoppers import create_stopper
@@ -17,29 +18,39 @@ class BasicTrainer(object):
 
     def __init__(self, training_options, optimization_options,
                  network, dictionary, scorer,
-                 training_file, validation_iter,
+                 training_files, validation_iter, state,
                  profile=False):
         """Creates the optimizer and initializes the training process.
-
-        :type dictionary: theanolm.Dictionary
-        :param dictionary: dictionary that provides mapping between words and
-                           word IDs
-
-        :type network: theanolm.Network
-        :param network: a neural network to be trained
-
-        :type scorer: theanolm.TextScorer
-        :param scorer: a text scorer for computing validation set perplexity
-
-        :type validation_iter: theanolm.BatchIterator
-        :param validation_iter: an iterator for computing validation set
-                                perplexity
 
         :type training_options: dict
         :param training_options: a dictionary of training options
 
         :type optimization_options: dict
         :param optimization_options: a dictionary of optimization options
+
+        :type network: theanolm.Network
+        :param network: a neural network to be trained
+
+        :type dictionary: theanolm.Dictionary
+        :param dictionary: dictionary that provides mapping between words and
+                           word IDs
+
+        :type scorer: theanolm.TextScorer
+        :param scorer: a text scorer for computing validation set perplexity
+
+        :type training_files: list of file objects
+        :param training_files: list of files to be used as training data
+
+        :type validation_iter: theanolm.BatchIterator
+        :param validation_iter: an iterator for computing validation set
+                                perplexity
+
+        :type state: h5py.File
+        :param state: HDF5 file where initial training state will be possibly
+                      read from, and candidate states will be saved to
+
+        :type profile: bool
+        :param profile: if set to True, creates Theano profile objects
         """
 
         self.network = network
@@ -50,18 +61,9 @@ class BasicTrainer(object):
                                           self.network,
                                           profile)
 
-        training_mmap = mmap.mmap(training_file.fileno(),
-                                  0,
-                                  prot=mmap.PROT_READ)
-
-        print("Finding sentence start positions in training data.")
-        sys.stdout.flush()
-        sentence_starts = find_sentence_starts(training_mmap)
-
         self.training_iter = ShufflingBatchIterator(
-            training_mmap,
+            training_files,
             dictionary,
-            sentence_starts,
             batch_size=training_options['batch_size'],
             max_sequence_length=training_options['sequence_length'])
 
@@ -74,26 +76,28 @@ class BasicTrainer(object):
         self.stopper = create_stopper(training_options, self)
         self.options = training_options
 
-        # path where the model and training state will be saved
-        self.model_path = None
         # current candidate for the minimum validation cost state
-        self._candidate_state = None
-        # index to the cost history that corresponds to the current candidate
-        # state
-        self._candidate_index = None
+        self._candidate_state = state
+        if self._candidate_state.keys():
+            print("Restoring initial network state from {}.".format(
+                self._candidate_state.filename))
+            sys.stdout.flush()
+            self._reset_state()
+        else:
+            # index to the cost history that corresponds to the current candidate
+            # state
+            self._candidate_index = None
+            # current training epoch
+            self.epoch_number = 1
+            # number of mini-batch updates performed in this epoch
+            self.update_number = 0
+            # validation set cost history
+            self._cost_history = numpy.asarray([], dtype=theano.config.floatX)
+
         # number of mini-batch updates between log messages
         self.log_update_interval = 0
-        # current training epoch
-        self.epoch_number = 1
-        # number of mini-batch updates performed in this epoch
-        self.update_number = 0
         # total number of mini-batch updates performed (after restart)
         self.total_updates = 0
-        # validation set cost history
-        self._cost_history = []
-
-    def set_model_path(self, path):
-        self.model_path = path
 
     def set_logging(self, interval):
         self.log_update_interval = interval
@@ -127,42 +131,36 @@ class BasicTrainer(object):
 
         logging.info("Training finished.")
 
-    def result(self):
-        """Returns the trained state as a dictionary of parameter values.
-
-        :rtype: dict of numpy types
-        :returns: a dictionary of trained parameter values (None before a
-                  validation has been performed)
-        """
-
-        return self._candidate_state
-
-    def get_state(self):
-        """Pulls parameter values from Theano shared variables and returns a
-        dictionary of all the network and training state variables.
+    def get_state(self, state):
+        """Pulls parameter values from Theano shared variables and updates a
+        HDF5 file with all the network and training state variables.
 
         For consistency, all the parameter values are returned as numpy types,
         since state read from a model file also contains numpy types. This also
         ensures the cost history will be copied into the returned dictionary.
 
-        :rtype: dict of numpy types
-        :returns: a dictionary of the parameter values
+        :type state: h5py.File
+        :param state: HDF5 file for storing the current state
         """
 
-        result = self.network.get_state()
-        result['trainer.epoch_number'] = numpy.int64(self.epoch_number)
-        result['trainer.update_number'] = numpy.int64(self.update_number)
-        result['trainer.cost_history'] = numpy.array(self._cost_history)
-        result.update(self.training_iter.get_state())
-        result.update(self.optimizer.get_state())
-        result.update(self.stopper.get_state())
-        return result
+        h5_trainer = state.require_group('trainer')
+        h5_trainer.attrs['epoch_number'] = self.epoch_number
+        h5_trainer.attrs['update_number'] = self.update_number
+        if 'cost_history' in h5_trainer:
+            h5_trainer['cost_history'].resize(self._cost_history.shape)
+            h5_trainer['cost_history'][:] = self._cost_history
+        else:
+            h5_trainer.create_dataset(
+                'cost_history', data=self._cost_history, maxshape=(None,),
+                chunks=(1000,))
 
-    def reset_state(self, state=None):
-        """Resets the values of Theano shared variables to a state that gives a
-        minimum of the validation set cost. If ``state`` is not given, uses the
-        current candidate state. If ``state`` is given, uses it and saves it as
-        the new candidate state.
+        self.network.get_state(state)
+        self.training_iter.get_state(state)
+        self.optimizer.get_state(state)
+
+    def _reset_state(self):
+        """Resets the values of Theano shared variables to the current candidate
+         state.
 
         Sets candidate state index point to the last element in the loaded cost
         history.
@@ -170,48 +168,45 @@ class BasicTrainer(object):
         Requires that if ``state`` is set, it contains values for all the
         training parameters.
 
-        :type state: dict of numpy types
-        :param state: if a dictionary of training parameters is given, takes the
-                      new values from this dictionary, and assumes this is the
-                      state of minimum cost found so far
+        :type state: h5py.File
+        :param state: if a HDF5 file is given, reads the the training parameters
+                      from this file, and assumes this is the state of minimum
+                      cost found so far
         """
 
-        if state is None:
-            state = self._candidate_state
-        else:
-            self._candidate_state = state
+        self.network.set_state(self._candidate_state)
 
-        self.network.set_state(state)
+        if not 'trainer' in self._candidate_state:
+            raise IncompatibleStateError("Training state is missing.")
+        h5_trainer = self._candidate_state['trainer']
 
-        if not 'trainer.epoch_number' in state:
+        if not 'epoch_number' in h5_trainer.attrs:
             raise IncompatibleStateError("Current epoch number is missing from "
                                          "training state.")
-        self.epoch_number = state['trainer.epoch_number'].item()
+        self.epoch_number = int(h5_trainer.attrs['epoch_number'])
 
-        if not 'trainer.update_number' in state:
-            raise IncompatibleStateError("Current update number is missing "
-                                         "from training state.")
-        self.update_number = state['trainer.update_number'].item()
+        if not 'update_number' in h5_trainer.attrs:
+            raise IncompatibleStateError("Current update number is missing from "
+                                         "training state.")
+        self.update_number = int(h5_trainer.attrs['update_number'])
+
         logging.info("[%d] (%.2f %%) of epoch %d",
                      self.update_number,
                      self.update_number / self.updates_per_epoch * 100,
                      self.epoch_number)
 
-        if not 'trainer.cost_history' in state:
+        if not 'cost_history' in h5_trainer:
             raise IncompatibleStateError("Validation set cost history is "
                                          "missing from training state.")
-        self._cost_history = state['trainer.cost_history'].tolist()
-        # If the cost history was empty when the state was saved,
-        # ndarray.tolist() will return None.
-        if self._cost_history is None:
+        self._cost_history = h5_trainer['cost_history'].value
+        if self._cost_history.size == 0:
             raise IncompatibleStateError("Validation set cost history is "
                                          "empty in the training state.")
-        self._candidate_index = len(self._cost_history) - 1
+        self._candidate_index = self._cost_history.size - 1
         self._log_validation()
 
-        self.training_iter.set_state(state)
-        self.optimizer.set_state(state)
-        self.stopper.set_state(state)
+        self.training_iter.set_state(self._candidate_state)
+        self.optimizer.set_state(self._candidate_state)
 
     def num_validations(self):
         """Returns the number of validations performed.
@@ -220,7 +215,7 @@ class BasicTrainer(object):
         :returns: size of cost history
         """
 
-        return len(self._cost_history)
+        return self._cost_history.size
 
     def validations_since_candidate(self):
         """Returns the number of times the validation set cost has been computed
@@ -231,11 +226,11 @@ class BasicTrainer(object):
                   means the current candidate is the last validation)
         """
 
-        if len(self._cost_history) == 0:
+        if self._cost_history.size == 0:
             raise RuntimeError("BasicTrainer.validations_since_candidate() "
                                "called with empty cost history.")
 
-        return len(self._cost_history) - 1 - self._candidate_index
+        return self._cost_history.size - 1 - self._candidate_index
 
     def candidate_cost(self):
         """Returns the validation set cost given by the current candidate for
@@ -261,7 +256,7 @@ class BasicTrainer(object):
         old_value = self.optimizer.get_learning_rate()
         new_value = old_value / 2
 
-        self.reset_state()
+        self._reset_state()
         self.stopper.improvement_ceased()
         self.optimizer.set_learning_rate(new_value)
 
@@ -283,7 +278,7 @@ class BasicTrainer(object):
                   previous candidate state; False otherwise
         """
 
-        if len(self._cost_history) == 0:
+        if self._cost_history.size == 0:
             raise RuntimeError("BasicTrainer._has_improved() called with empty "
                                "cost history.")
 
@@ -318,34 +313,31 @@ class BasicTrainer(object):
                       self.update_number,
                       ' '.join(str_costs[-20:]))
 
-    def _set_candidate_state(self, state=None, index=None):
+    def _set_candidate_state(self, state=None):
         """Sets neural network and training state as the candidate for the
         minimum validation cost state, and writes to disk.
 
-        :type state: dict
-        :param state: if set to a dictionary, read the state from the dictionary
-                      items, instead of the current state
-
-        :type index: int
-        :param index: index to the cost history that points to the candidate
-                      state, or None for the last item of the cost history
+        :type state: h5py.File
+        :param state: if a HDF5 file is given, reads the state from this file,
+                      instead of the current state
         """
 
         if state is None:
-            state = self.get_state()
-        if index is None:
-            index = len(self._cost_history) - 1
-
-        self._candidate_state = state
-        self._candidate_index = index
-
-        path = self.model_path
-        if not path is None:
-            numpy.savez(path, **state)
-            logging.info("New candidate for optimal state. Saved %d parameters "
-                         "to %s.", len(state), path)
+            self.get_state(self._candidate_state)
         else:
-            logging.debug("New candidate for optimal state.")
+            state.flush()
+            for name in state:
+                if name in self._candidate_state:
+                    del self._candidate_state[name]
+                self._candidate_state.copy(state[name], name, expand_refs=True)
+            for name in state.attrs:
+                self._candidate_state.attrs[name] = state.attrs[name]
+
+        self._candidate_index = self._cost_history.size - 1
+
+        self._candidate_state.flush()
+        logging.info("New candidate for optimal state saved to %s.",
+                     self._candidate_state.filename)
 
     def _validate(self, perplexity):
         """When ``perplexity`` is not None, appends it to cost history and
@@ -359,7 +351,7 @@ class BasicTrainer(object):
         if perplexity is None:
             return
 
-        self._cost_history.append(perplexity)
+        self._cost_history = numpy.append(self._cost_history, perplexity)
 
         if self._has_improved():
             self._set_candidate_state()
@@ -373,7 +365,7 @@ class BasicTrainer(object):
             # If any validations have been done, the best state has been found
             # and saved. If training has been started from previous state,
             # _candidate_state has been set to the initial state.
-            assert not self._candidate_state is None
+            assert self._candidate_state.keys()
 
             self._decrease_learning_rate()
 

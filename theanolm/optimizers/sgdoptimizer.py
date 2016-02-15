@@ -26,15 +26,13 @@ class SGDOptimizer(BasicOptimizer):
         if not 'learning_rate' in optimization_options:
             raise ValueError("Learning rate is not given in optimization "
                              "options.")
-        self.param_init_values['optimizer.learning_rate'] = \
+        self.param_init_values['optimizer/learning_rate'] = \
             numpy.dtype(theano.config.floatX).type(
                 optimization_options['learning_rate'])
 
         for name, param in network.params.items():
-            self.param_init_values[name + '.gradient'] = \
+            self.param_init_values[name + '_gradient'] = \
                 numpy.zeros_like(param.get_value())
-
-        self._create_params()
 
         super().__init__(optimization_options, network, *args, **kwargs)
 
@@ -42,15 +40,21 @@ class SGDOptimizer(BasicOptimizer):
         result = []
         for name, gradient_new in zip(self.network.params,
                                       self._gradient_exprs):
-            gradient = self.params[name + '.gradient']
+            gradient = self.params[name + '_gradient']
             result.append((gradient, gradient_new))
         return result
 
     def _get_model_updates(self):
-        alpha = self.params['optimizer.learning_rate']
+        alpha = self.params['optimizer/learning_rate']
+
+        updates = dict()
+        for name, param in self.network.params.items():
+            gradient = self.params[name + '_gradient']
+            updates[name] = -gradient
+        self._normalize(updates)
 
         result = []
         for name, param in self.network.params.items():
-            gradient = self.params[name + '.gradient']
-            result.append((param, param - alpha * gradient))
+            update = updates[name]
+            result.append((param, param + alpha * update))
         return result

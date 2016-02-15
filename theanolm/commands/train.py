@@ -6,6 +6,7 @@ import os
 import mmap
 import logging
 import numpy
+import h5py
 import theano
 import theanolm
 from theanolm.trainers import create_trainer
@@ -18,10 +19,6 @@ def add_arguments(parser):
         help='path where the best model state will be saved in numpy .npz '
              'format')
     argument_group.add_argument(
-        'training_file', metavar='TRAINING-SET', type=TextFileType('r'),
-        help='text or .gz file containing training data (one sentence per '
-             'line)')
-    argument_group.add_argument(
         'validation_file', metavar='VALIDATION-SET', type=TextFileType('r'),
         help='text or .gz file containing validation data (one sentence per '
              'line) for early stopping')
@@ -29,33 +26,27 @@ def add_arguments(parser):
         'dictionary_file', metavar='DICTIONARY', type=TextFileType('r'),
         help='text or .gz file containing word list or class definitions')
     argument_group.add_argument(
+        '--training-set', metavar='TRAINING-SET', type=TextFileType('r'),
+        nargs='+',
+        help='text or .gz files containing training data (one sentence per '
+             'line)')
+    argument_group.add_argument(
         '--dictionary-format', metavar='FORMAT', type=str, default='words',
         help='dictionary format, one of "words" (one word per line, default), '
              '"classes" (word and class ID per line), "srilm-classes" (class '
              'name, membership probability, and word per line)')
     
-    argument_group = parser.add_argument_group("network structure")
+    argument_group = parser.add_argument_group("network architecture")
     argument_group.add_argument(
-        '--word-projection-dim', metavar='N', type=int, default=100,
-        help='word projections will be N-dimensional (default 100)')
-    argument_group.add_argument(
-        '--hidden-layer-size', metavar='N', type=int, default=1000,
-        help='hidden layer will contain N outputs (default 1000)')
-    argument_group.add_argument(
-        '--hidden-layer-type', metavar='NAME', type=str, default='lstm',
-        help='hidden layer unit type, "lstm" or "gru" (default "lstm")')
-    argument_group.add_argument(
-        '--skip-layer-size', metavar='N', type=int, default=0,
-        help='if N is greater than zero, include a layer between hidden and '
-             'output layers, with N outputs, and direct connections from input '
-             'layer (default is to not create such layer)')
+        '--architecture', metavar='DESC', type=TextFileType('r'),
+        help='path to neural network architecture description')
     
     argument_group = parser.add_argument_group("training process")
     argument_group.add_argument(
-        '--training-strategy', metavar='NAME', type=str, default='basic',
+        '--training-strategy', metavar='NAME', type=str, default='local-mean',
         help='selects a training and validation strategy, one of "basic", '
             '"local-mean", "local-median", "validation-average" (default '
-            '"basic")')
+            '"local-mean")')
     argument_group.add_argument(
         '--sequence-length', metavar='N', type=int, default=100,
         help='ignore sentences longer than N words (default 100)')
@@ -63,15 +54,14 @@ def add_arguments(parser):
         '--batch-size', metavar='N', type=int, default=16,
         help='each mini-batch will contain N sentences (default 16)')
     argument_group.add_argument(
-        '--validation-frequency', metavar='N', type=int, default='100',
+        '--validation-frequency', metavar='N', type=int, default='8',
         help='cross-validate for reducing learning rate N times per training '
-             'epoch (default 100)')
+             'epoch (default 8)')
     argument_group.add_argument(
-        '--patience', metavar='N', type=int, default=0,
+        '--patience', metavar='N', type=int, default=4,
         help='wait for N validations, before decreasing learning rate, if '
              'perplexity has not decreased; if less than zero, never decrease '
-             'learning rate (default is 0, meaning that learning rate will be '
-             'decreased immediately when perplexity stops decreasing)')
+             'learning rate (default 4)')
     argument_group.add_argument(
         '--reset-when-annealing', action="store_true",
         help='reset the optimizer timestep when decreasing learning rate')
@@ -82,10 +72,10 @@ def add_arguments(parser):
     
     argument_group = parser.add_argument_group("optimization")
     argument_group.add_argument(
-        '--optimization-method', metavar='NAME', type=str, default='sgd',
+        '--optimization-method', metavar='NAME', type=str, default='adagrad',
         help='optimization method, one of "sgd", "nesterov", "adagrad", '
-             '"adadelta", "rmsprop-sgd", "rmsprop-momentum", "adam" '
-             '(default "sgd")')
+             '"adadelta", "rmsprop-sgd", "rmsprop-nesterov", "adam" '
+             '(default "adagrad")')
     argument_group.add_argument(
         '--learning-rate', metavar='ALPHA', type=float, default=0.1,
         help='initial learning rate (default 0.1)')
@@ -102,28 +92,37 @@ def add_arguments(parser):
              '(default 0.999)')
     argument_group.add_argument(
         '--numerical-stability-term', metavar='EPSILON', type=float,
-        default=1e-7,
+        default=1e-6,
         help='a value that is used to prevent instability when dividing by '
-             'very small numbers (default 1e-7)')
+             'very small numbers (default 1e-6)')
     argument_group.add_argument(
         '--gradient-normalization', metavar='THRESHOLD', type=float,
-        default=None,
+        default=5,
         help='scale down the gradients if necessary to make sure their norm '
-             '(normalized by mini-batch size) will not exceed THRESHOLD (no '
-             'scaling by default)')
-    
+             '(normalized by mini-batch size) will not exceed THRESHOLD '
+             '(default 5)')
+    argument_group.add_argument(
+        '--ignore-unk', action="store_true",
+        help="don't include the probability of unknown words in the cost")
+
     argument_group = parser.add_argument_group("early stopping")
     argument_group.add_argument(
-        '--stopping-criterion', metavar='NAME', type=str, default='basic',
-        help='selects a criterion for early-stopping, one of "basic" (fixed '
-             'number of epochs), "no-improvement" (no improvement with some '
-             'learning rate value), "learning-rate" (default "basic")')
+        '--stopping-criterion', metavar='NAME', type=str,
+        default='annealing-count',
+        help='selects a criterion for early-stopping, one of "epoch-count" '
+             '(fixed number of epochs), "no-improvement" (no improvement since '
+             'learning rate was decreased), "annealing-count" (default, '
+             'learning rate is decreased a fixed number of times)')
     argument_group.add_argument(
         '--min-epochs', metavar='N', type=int, default=1,
         help='perform at least N training epochs (default 1)')
     argument_group.add_argument(
         '--max-epochs', metavar='N', type=int, default=100,
         help='perform at most N training epochs (default 100)')
+    argument_group.add_argument(
+        '--max-annealing-count', metavar='N', type=int, default=0,
+        help='when using annealing-count stopping criterion, continue training '
+             'after decreasing learning rate at most N times (default 0)')
     
     argument_group = parser.add_argument_group("logging and debugging")
     argument_group.add_argument(
@@ -161,12 +160,8 @@ def train(args):
         theano.config.compute_test_value = 'warn'
     else:
         theano.config.compute_test_value = 'off'
-
-    if os.path.exists(args.model_path):
-        print("Reading initial state from %s." % args.model_path)
-        initial_state = numpy.load(args.model_path)
-    else:
-        initial_state = None
+    theano.config.profile = args.profile
+    theano.config.profile_memory = args.profile
 
     print("Reading dictionary.")
     sys.stdout.flush()
@@ -177,28 +172,23 @@ def train(args):
 
     print("Building neural network.")
     sys.stdout.flush()
-    architecture = theanolm.Network.Architecture(
-        args.word_projection_dim,
-        args.hidden_layer_type,
-        args.hidden_layer_size,
-        args.skip_layer_size)
-    print(architecture)
-    network = theanolm.Network(dictionary, architecture, args.profile)
-    if not initial_state is None:
-        print("Restoring neural network to previous state.")
-        sys.stdout.flush()
-        network.set_state(initial_state)
+    architecture = theanolm.Architecture.from_description(args.architecture)
+    network = theanolm.Network(dictionary, architecture, batch_processing=True,
+                               profile=args.profile)
 
     print("Building text scorer.")
     sys.stdout.flush()
-    scorer = theanolm.TextScorer(network, args.profile)
+    classes_to_ignore = []
+    if args.ignore_unk:
+        classes_to_ignore.append(dictionary.unk_id)
+    scorer = theanolm.TextScorer(network, classes_to_ignore, args.profile)
 
     validation_mmap = mmap.mmap(args.validation_file.fileno(),
                                 0,
                                 prot=mmap.PROT_READ)
-    validation_iter = theanolm.BatchIterator(validation_mmap,
-                                             dictionary,
-                                             batch_size=32)
+    validation_iter = theanolm.LinearBatchIterator(validation_mmap,
+                                                   dictionary,
+                                                   batch_size=32)
 
     optimization_options = {
         'method': args.optimization_method,
@@ -206,12 +196,17 @@ def train(args):
         'gradient_decay_rate': args.gradient_decay_rate,
         'sqr_gradient_decay_rate': args.sqr_gradient_decay_rate,
         'learning_rate': args.learning_rate,
-        'momentum': args.momentum}
+        'momentum': args.momentum,
+        'classes_to_ignore': classes_to_ignore}
     if not args.gradient_normalization is None:
         optimization_options['max_gradient_norm'] = args.gradient_normalization
     logging.debug("OPTIMIZATION OPTIONS")
     for option_name, option_value in optimization_options.items():
-        logging.debug("%s: %s", option_name, str(option_value))
+        if type(option_value) is list:
+            value_str = ', '.join(str(x) for x in option_value)
+            logging.debug("%s: [%s]", option_name, value_str)
+        else:
+            logging.debug("%s: %s", option_name, str(option_value))
 
     training_options = {
         'strategy': args.training_strategy,
@@ -222,32 +217,29 @@ def train(args):
         'reset_when_annealing': args.reset_when_annealing,
         'stopping_criterion': args.stopping_criterion,
         'max_epochs': args.max_epochs,
-        'min_epochs': args.min_epochs}
+        'min_epochs': args.min_epochs,
+        'max_annealing_count': args.max_annealing_count}
     logging.debug("TRAINING OPTIONS")
     for option_name, option_value in training_options.items():
         logging.debug("%s: %s", option_name, str(option_value))
 
-    print("Building neural network trainer.")
-    sys.stdout.flush()
-    trainer = create_trainer(training_options, optimization_options,
-        network, dictionary, scorer,
-        args.training_file, validation_iter,
-        args.profile)
-    if not initial_state is None:
-        print("Restoring training to previous state.")
+    with h5py.File(args.model_path, 'a', driver='core') as state:
+        print("Building neural network trainer.")
         sys.stdout.flush()
-        trainer.reset_state(initial_state)
-    trainer.set_model_path(args.model_path)
-    trainer.set_logging(args.log_update_interval)
+        trainer = create_trainer(
+            training_options, optimization_options,
+            network, dictionary, scorer,
+            args.training_set, validation_iter,
+            state, args.profile)
+        trainer.set_logging(args.log_update_interval)
 
-    print("Training neural network.")
-    sys.stdout.flush()
-    trainer.run()
+        print("Training neural network.")
+        sys.stdout.flush()
+        trainer.run()
 
-    final_state = trainer.result()
-    if final_state is None:
-        print("The model has not been trained.")
-    else:
-        network.set_state(final_state)
-        perplexity = scorer.compute_perplexity(validation_iter)
-        print("Best validation set perplexity:", perplexity)
+        if not state.keys():
+            print("The model has not been trained.")
+        else:
+            network.set_state(state)
+            perplexity = scorer.compute_perplexity(validation_iter)
+            print("Best validation set perplexity:", perplexity)

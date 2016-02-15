@@ -3,7 +3,7 @@
 
 from theanolm.stoppers.basicstopper import BasicStopper
 
-class LearningRateStopper(BasicStopper):
+class AnnealingCountStopper(BasicStopper):
     """Stops training when the learning rate has been decreased
     a fixed number of times.
     """
@@ -20,14 +20,14 @@ class LearningRateStopper(BasicStopper):
         super().__init__(training_options, *args, **kwargs)
 
         self.min_epochs = training_options['min_epochs']
-        self._decreases_left = training_options['max_decreases']
+        self._annealing_left = training_options['max_annealing_count']
 
     def improvement_ceased(self):
         """Called when the performance of the model ceases to improve
         sufficiently on the validation set.
         """
 
-        self._decreases_left -= 1
+        self._annealing_left -= 1
 
     def start_new_minibatch(self):
         """Decides whether training should continue after the current
@@ -40,4 +40,4 @@ class LearningRateStopper(BasicStopper):
         if self.trainer.epoch_number <= self.min_epochs:
             return True
 
-        return self._decreases_left > 0
+        return self._annealing_left >= 0
