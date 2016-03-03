@@ -84,10 +84,7 @@ training data.
 
 #### Network structure description
 
-The network structure is specified in a text file that starts with a network
-element, which is followed by a number of layer elements. The network element is
-a line that starts with the word `network`, and specifies the output layer of
-the network in `output` field. Layer elements are lines that start with the
+The neural network layers are specified in a text file. Each line start with the
 word `layer` and may contain the following fields:
 
 - `type` selects the layer class. Currently `projection`, `tanh`, `lstm`,
@@ -103,10 +100,10 @@ word `layer` and may contain the following fields:
   vocabulary in the output layer.
 - `dropout_rate` may be set in the dropout layer.
 
-Description of a typical LSTM neural network language model could look like
-this:
+Multiple layers may use the same input (including the network input `X`). The
+last layer is always the network output. Description of a typical LSTM neural
+network language model could look like this:
 
-    network output=output_layer
     layer type=projection name=projection_layer input=X size=100
     layer type=lstm name=hidden_layer input=projection_layer size=300
     layer type=softmax name=output_layer input=hidden_layer

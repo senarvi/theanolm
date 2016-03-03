@@ -10,7 +10,7 @@ class Architecture(object):
     file or from a neural network state stored in an HDF5 file.
     """
 
-    def __init__(self, layers, output_layer):
+    def __init__(self, layers, output_layer=None):
         """Constructs a description of the neural network architecture.
 
         :type layers: list of dict
@@ -18,11 +18,17 @@ class Architecture(object):
         
         :type output_layer: str
         :param output_layer: name of the layer that gives the output of the
-                             network
+                             network (the last layer if None)
         """
 
         self.layers = layers
-        self.output_layer = output_layer
+        if not layers:
+            raise ValueError("Cannot construct Architecture without layers.")
+
+        if output_layer is None:
+            self.output_layer = layers[-1]['name']
+        else:
+            self.output_layer = output_layer
 
     @classmethod
     def from_state(classname, state):
@@ -80,27 +86,6 @@ class Architecture(object):
 
         layers = []
 
-        output_layer = None
-        for line in description_file:
-            fields = line.split()
-            if not fields:
-                continue
-            if fields[0] != 'network':
-                raise InputError("Expecting 'network' in architecture "
-                                 "description.")
-
-            for field in fields[1:]:
-                variable, value = field.split('=')
-                if variable == 'output':
-                    output_layer = value
-                else:
-                    raise InputError("Unknown network parameter: {}".format(
-                        variable))
-            break
-        if output_layer is None:
-            raise InputError("Network output layer is not specified in "
-                             "architecture description.")
-
         for line in description_file:
             fields = line.split()
             if not fields:
@@ -126,7 +111,10 @@ class Architecture(object):
                 raise InputError("'input' is not given in a layer description.")
             layers.append(layer_description)
 
-        return classname(layers, output_layer)
+        if not layers:
+            raise InputError("Architecture description is empty.")
+
+        return classname(layers)
 
     def get_state(self, state):
         """Saves the architecture parameters in a HDF5 file.
