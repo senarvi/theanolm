@@ -71,7 +71,7 @@ training and evaluating models reasonable.
 A dictionary is provided to the training script. If words are used, the
 dictonary is simply a list of words, one per line, and `--dictionary-format
 words` argument is given to `theanolm train` command. Words that do not appear
-in the dictionary will be mapped to the <UNK> token.
+in the dictionary will be mapped to the \<UNK\> token.
 
 If you want to use word classes,
 [SRILM format](http://www.speech.sri.com/projects/srilm/manpages/classes-format.5.html)
