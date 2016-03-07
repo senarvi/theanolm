@@ -87,10 +87,9 @@ training data.
 The neural network layers are specified in a text file. Each line start with the
 word `layer` and may contain the following fields:
 
-- `type` selects the layer class. Currently `projection`, `tanh`, `lstm`,
-  `gru`, `dropout`, and `softmax` are implemented. The dropout layer does not
-  contain any neurons, but only sets some activations randomly to zero at train
-  time. Has to be specified for all layers.
+- `type` selects the layer class and has to be specified for all layers.
+  Currently `projection`, `tanh`, `lstm`, `gru`, `dropout`, and `softmax` are
+  implemented.
 - `name` is used to identify the layer. Has to be specified for all layers.
 - `input` specifies the layer whose output will be the input of this layer.
   Some layers types allow multiple inputs. There is one special value, `X`,
@@ -107,6 +106,21 @@ network language model could look like this:
     layer type=projection name=projection_layer input=X size=100
     layer type=lstm name=hidden_layer input=projection_layer size=300
     layer type=softmax name=output_layer input=hidden_layer
+
+A dropout layer is not a real layer in the sense that it does not contain any
+neurons. It can be added after another layer, and only sets some activations
+randomly to zero at train time. This is helpful with larger networks to prevent
+overlearning. The effect can be controlled using the `dropout_rate` parameter.
+The training converges slower the larger the dropout rate. A larger network with
+dropout layers could be specified using the following description:
+
+    layer type=projection name=projection_layer input=X size=500
+    layer type=dropout name=dropout_layer_1 input=projection_layer dropout_rate=0.25
+    layer type=lstm name=hidden_layer_1 input=dropout_layer_1 size=1500
+    layer type=dropout name=dropout_layer_2 input=hidden_layer_1 dropout_rate=0.25
+    layer type=tanh name=hidden_layer_2 input=dropout_layer_2 size=1500
+    layer type=dropout name=dropout_layer_3 input=hidden_layer_2 dropout_rate=0.25
+    layer type=softmax name=output_layer input=dropout_layer_3
 
 #### Optimization
 
