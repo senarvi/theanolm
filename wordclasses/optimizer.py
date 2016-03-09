@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import numpy
+
+class Optimizer(object):
+    '''
+    classdocs
+    '''
+
+    def __init__(self, num_classes, corpus_file, vocabulary_file = None):
+        '''
+        Reads the vocabulary from the corpus, which may be restricted by
+        `vocabulary_file`. Then reads the statistics from the corpus.
+        '''
+
+        # Read the vocabulary.
+        self.vocabulary = set(['<s>', '</s>', '<UNK>'])
+        if vocabulary_file is None:
+            for line in corpus_file:
+                self.vocabulary.update(line.split())
+        else:
+            restrict_words = set(line.strip() for line in vocabulary_file)
+            for line in corpus_file:
+                for word in line.split():
+                    if word in restrict_words:
+                        self.vocabulary.add(word)
+
+        # Create word IDs and read word statistics.
+        self.vocabulary_size = len(self.vocabulary)
+        self.word_ids = dict(zip(self.vocabulary, range(self.vocabulary_size)))
+        self._read_word_statistics(corpus_file)
+
+        # Initialize classes and compute class statistics.
+        self._random_init_classes(num_classes)
+        self._compute_class_statistics()
+
+    def _read_word_statistics(self, corpus_file):
+        '''
+        Reads word statistics from corpus file.
+        '''
+
+        self.word_counts = numpy.zeros(self.vocabulary_size, numpy.int64)
+        self.word_bigram_counts = numpy.zeros(
+            (self.vocabulary_size, self.vocabulary_size), numpy.int64)
+
+        for line in corpus_file:
+            sentence = [self.word_ids['<s>']]
+            for word in line.split():
+                if word in self.vocabulary:
+                    sentence.append(self.word_ids[word])
+                else:
+                    sentence.append(self.word_ids['<UNK>'])
+            for word_id in sentence:
+                self.word_counts[word_id] += 1
+            for left, right in zip(sentence[:-1], sentence[1:]):
+                self.word_bigram_counts[left, right] += 1
+
+    def _random_init_classes(self, num_classes):
+        '''
+        Randomly initialize word classes.
+        '''
+        
+        self.num_classes = num_classes + 3
+
+        self.word_to_class = [None] * self.vocabulary_size
+        self.class_to_words = [set() for _ in range(self.num_classes)]
+
+        self.word_to_class[self.word_ids['<s>']] = 0
+        self.class_to_words[0].add(self.word_ids['<s>'])
+        self.word_to_class[self.word_ids['</s>']] = 1
+        self.class_to_words[1].add(self.word_ids['</s>'])
+        self.word_to_class[self.word_ids['<UNK>']] = 2
+        self.class_to_words[2].add(self.word_ids['<UNK>'])
+
+        class_id = 3
+        print(self.word_to_class)
+        for word_id, _ in sorted(enumerate(self.word_counts),
+                                 key=lambda x: x[1]):
+            if not self.word_to_class[word_id] is None:
+                # A class has been already assigned to <s>, </s>, and <UNK>.
+                continue
+            self.word_to_class[word_id] = class_id
+            self.class_to_words[class_id].add(word_id)
+            class_id = min((class_id + 1) % self.num_classes, 3)
+
+    def _compute_class_statistics(self):
+        '''
+        Computes class statistics.
+        '''
+
+        self.class_counts = numpy.zeros(self.num_classes, numpy.int64)
+        self.class_bigram_counts = numpy.zeros(
+            (self.num_classes, self.num_classes), numpy.int64)
+        self.class_word_counts = numpy.zeros(self.vocabulary_size, numpy.int64)
+        self.word_class_counts = numpy.zeros(self.vocabulary_size, numpy.int64)
+
+        
