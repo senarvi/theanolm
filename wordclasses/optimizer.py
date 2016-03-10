@@ -90,7 +90,7 @@ class Optimizer(object):
                 continue
             self.word_to_class[word_id] = class_id
             self.class_to_words[class_id].add(word_id)
-            class_id = min((class_id + 1) % self.num_classes, 3)
+            class_id = max((class_id + 1) % self.num_classes, 3)
 
     def _compute_class_statistics(self):
         """Computes class statistics.
@@ -143,7 +143,7 @@ class Optimizer(object):
         result += 2 * old_count * numpy.log(old_count)
         result -= 2 * new_count * numpy.log(new_count)
 
-        for iter_class_id, iter_wc_count in self.wc_counts[word_id,:]:
+        for iter_class_id, iter_wc_count in enumerate(self.wc_counts[word_id,:]):
             if iter_class_id == old_class_id:
                 continue
             if iter_class_id == new_class_id:
@@ -159,7 +159,7 @@ class Optimizer(object):
             new_count = old_count + iter_wc_count
             result += self._ll_change(old_count, new_count)
 
-        for iter_class_id, iter_cw_count in self.cw_counts[:,word_id]:
+        for iter_class_id, iter_cw_count in enumerate(self.cw_counts[:,word_id]):
             if iter_class_id == old_class_id:
                 continue
             if iter_class_id == new_class_id:

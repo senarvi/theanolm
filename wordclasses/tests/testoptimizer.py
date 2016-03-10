@@ -112,7 +112,7 @@ class TestOptimizer(unittest.TestCase):
         new_ll = optimizer.log_likelihood()
 
         self.assertNotEqual(orig_ll, new_ll)
-        self.assertEqual(orig_ll + ll_diff, new_ll)
+        self.assertTrue(numpy.isclose(orig_ll + ll_diff, new_ll))
 
 if __name__ == '__main__':
     unittest.main()
