@@ -22,6 +22,7 @@ def main():
 
     optimizer = Optimizer(args.num_classes, args.training_set, args.vocabulary)
     iteration = 1
+    print("Starting optimization.")
     while True:
         num_moves = optimizer.iterate()
         print("Iteration {}: {} moves, log likelihood {}".format(
