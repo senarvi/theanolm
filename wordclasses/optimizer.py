@@ -47,26 +47,24 @@ class Optimizer(object):
                (numpy.ma.log(self.word_counts) * self.word_counts).sum() - \
                2 * (numpy.ma.log(self.class_counts) * self.class_counts).sum()
 
-    def iterate(self):
-        """Run one optimization iteration.
+    def move_to_best_class(self, word):
+        """Moves a word to the class that minimizes training set log likelihood.
         """
 
-        num_moves = 0
-        for word_id in self.word_ids.values():
-            if word_id == self.word_ids['<s>']:
-                continue
-            if word_id == self.word_ids['</s>']:
-                continue
-            if word_id == self.word_ids['<UNK>']:
-                continue
-            old_class_id = self.word_to_class[word_id]
-            if len(self.class_to_words[old_class_id]) == 1:
-                continue
-            ll_diff, new_class_id = self._find_best_move(word_id)
-            if ll_diff > 0:
-                self._move(word_id, new_class_id)
-                num_moves += 1
-        return num_moves
+        if word.startswith('<'):
+            return False
+
+        word_id = self.word_ids[word]
+        old_class_id = self.word_to_class[word_id]
+        if len(self.class_to_words[old_class_id]) == 1:
+            return False
+
+        ll_diff, new_class_id = self._find_best_move(word_id)
+        if ll_diff > 0:
+            self._move(word_id, new_class_id)
+            return True
+        else:
+            return False
 
     def _read_word_statistics(self, corpus_file):
         """Reads word statistics from corpus file.
@@ -163,15 +161,13 @@ class Optimizer(object):
         best_class_id = None
 
         old_class_id = self.word_to_class[word_id]
-        class_id = self.first_normal_class_id
-        while class_id < self.num_classes:
+        for class_id in range(self.first_normal_class_id, self.num_classes):
             if class_id == old_class_id:
                 continue
             ll_diff = self._evaluate_move(word_id, class_id)
             if ll_diff > best_ll_diff:
                 best_ll_diff = ll_diff
                 best_class_id = class_id
-            class_id += 1
 
         assert not best_class_id is None
         return best_ll_diff, best_class_id
@@ -195,37 +191,33 @@ class Optimizer(object):
         result += 2 * old_count * numpy.log(old_count)
         result -= 2 * new_count * numpy.log(new_count)
 
-        for iter_class_id, iter_wc_count in enumerate(self.wc_counts[word_id,:]):
-            if iter_class_id == old_class_id:
-                continue
-            if iter_class_id == new_class_id:
-                continue
+        iter_class_ids = numpy.asarray(
+            [id != old_class_id and id != new_class_id
+             for id in range(self.num_classes)])
 
-            # old class, class X
-            old_count = self.cc_counts[old_class_id,iter_class_id]
-            new_count = old_count - iter_wc_count
-            result += self._ll_change(old_count, new_count)
+        # old class, class X
+        old_counts = self.cc_counts[old_class_id,iter_class_ids]
+        new_counts = old_counts - self.wc_counts[word_id,iter_class_ids]
+        result -= (numpy.ma.log(old_counts) * old_counts).sum()
+        result += (numpy.ma.log(new_counts) * new_counts).sum()
 
-            # new class, class X
-            old_count = self.cc_counts[new_class_id,iter_class_id]
-            new_count = old_count + iter_wc_count
-            result += self._ll_change(old_count, new_count)
+        # new class, class X
+        old_counts = self.cc_counts[new_class_id,iter_class_ids]
+        new_counts = old_counts + self.wc_counts[word_id,iter_class_ids]
+        result -= (numpy.ma.log(old_counts) * old_counts).sum()
+        result += (numpy.ma.log(new_counts) * new_counts).sum()
 
-        for iter_class_id, iter_cw_count in enumerate(self.cw_counts[:,word_id]):
-            if iter_class_id == old_class_id:
-                continue
-            if iter_class_id == new_class_id:
-                continue
+        # class X, old class
+        old_counts = self.cc_counts[iter_class_ids,old_class_id]
+        new_counts = old_counts - self.cw_counts[iter_class_ids,word_id]
+        result -= (numpy.ma.log(old_counts) * old_counts).sum()
+        result += (numpy.ma.log(new_counts) * new_counts).sum()
 
-            # class X, old class
-            old_count = self.cc_counts[iter_class_id,old_class_id]
-            new_count = old_count - iter_cw_count
-            result += self._ll_change(old_count, new_count)
-
-            # class X, new class
-            old_count = self.cc_counts[iter_class_id,new_class_id]
-            new_count = old_count + iter_cw_count
-            result += self._ll_change(old_count, new_count)
+        # class X, new class
+        old_counts = self.cc_counts[iter_class_ids,new_class_id]
+        new_counts = old_counts + self.cw_counts[iter_class_ids,word_id]
+        result -= (numpy.ma.log(old_counts) * old_counts).sum()
+        result += (numpy.ma.log(new_counts) * new_counts).sum()
 
         # old class, new class
         old_count = self.cc_counts[old_class_id,new_class_id]

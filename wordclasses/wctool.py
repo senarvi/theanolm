@@ -22,11 +22,17 @@ def main():
 
     optimizer = Optimizer(args.num_classes, args.training_set, args.vocabulary)
     iteration = 1
-    print("Starting optimization.")
     while True:
-        num_moves = optimizer.iterate()
-        print("Iteration {}: {} moves, log likelihood {}".format(
-            iteration, num_moves, optimizer.log_likelihood()))
+        print("Starting iteration {}.".format(iteration))
+        num_words = 0
+        num_moves = 0
+        for word in optimizer.vocabulary:
+            print(word)
+            num_words += 1
+            if optimizer.move_to_best_class(word):
+                num_moves += 1
+                print("iteration {}, {} words, {} moves, log likelihood {}".format(
+                    iteration, num_words, num_moves, optimizer.log_likelihood()))
         if num_moves == 0:
             break
         iteration += 1
