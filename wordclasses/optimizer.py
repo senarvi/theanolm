@@ -44,6 +44,48 @@ class Optimizer(object):
                (numpy.ma.log(self.word_counts) * self.word_counts).sum() - \
                2 * (numpy.ma.log(self.class_counts) * self.class_counts).sum()
 
+    def iterate(self):
+        """Run one optimization iteration.
+        """
+
+        num_moves = 0
+        for word_id in self.word_ids.values():
+            if word_id == self.word_ids['<s>']:
+                continue
+            if word_id == self.word_ids['</s>']:
+                continue
+            if word_id == self.word_ids['<UNK>']:
+                continue
+            old_class_id = self.word_to_class[word_id]
+            if len(self.class_to_words[old_class_id]) == 1:
+                continue
+            ll_diff, new_class_id = self._find_best_move(word_id)
+            if ll_diff > 0:
+                self._move(word_id, new_class_id)
+                num_moves += 1
+        return num_moves
+
+    def _find_best_move(self, word_id):
+        """Finds the class such that moving the given word to that class would
+        give best improvement in log likelihood.
+        """
+
+        best_ll_diff = -numpy.inf
+        best_class_id = None
+
+        old_class_id = self.word_to_class[word_id]
+        class_id = self.first_normal_class_id
+        while class_id < self.num_classes:
+            if class_id == old_class_id:
+                continue
+            ll_diff = self._evaluate_move(word_id, class_id)
+            if ll_diff > best_ll_diff:
+                best_ll_diff = ll_diff
+                best_class_id = class_id
+
+        assert not best_class_id is None
+        return best_ll_diff, best_class_id
+
     def _read_word_statistics(self, corpus_file):
         """Reads word statistics from corpus file.
         """
@@ -71,6 +113,7 @@ class Optimizer(object):
         """
 
         self.num_classes = num_classes + 3
+        self.first_normal_class_id = 3
 
         self.word_to_class = [None] * self.vocabulary_size
         self.class_to_words = [set() for _ in range(self.num_classes)]
@@ -82,7 +125,7 @@ class Optimizer(object):
         self.word_to_class[self.word_ids['<UNK>']] = 2
         self.class_to_words[2].add(self.word_ids['<UNK>'])
 
-        class_id = 3
+        class_id = self.first_normal_class_id
         for word_id, _ in sorted(enumerate(self.word_counts),
                                  key=lambda x: x[1]):
             if not self.word_to_class[word_id] is None:
@@ -90,7 +133,7 @@ class Optimizer(object):
                 continue
             self.word_to_class[word_id] = class_id
             self.class_to_words[class_id].add(word_id)
-            class_id = max((class_id + 1) % self.num_classes, 3)
+            class_id = max((class_id + 1) % self.num_classes, self.first_normal_class_id)
 
     def _compute_class_statistics(self):
         """Computes class statistics.
