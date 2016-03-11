@@ -99,7 +99,8 @@ class Optimizer(object):
         self.num_classes = num_classes + 3
         self.first_normal_class_id = 3
 
-        self.word_to_class = [None] * self.vocabulary_size
+        self.word_to_class = -1 * numpy.ones(self.vocabulary_size,
+                                             self.count_type)
         self.class_to_words = [set() for _ in range(self.num_classes)]
 
         self.word_to_class[self.word_ids['<s>']] = 0
@@ -112,7 +113,7 @@ class Optimizer(object):
         class_id = self.first_normal_class_id
         for word_id, _ in sorted(enumerate(self.word_counts),
                                  key=lambda x: x[1]):
-            if not self.word_to_class[word_id] is None:
+            if self.word_to_class[word_id] != -1:
                 # A class has been already assigned to <s>, </s>, and <UNK>.
                 continue
             self.word_to_class[word_id] = class_id
@@ -270,25 +271,27 @@ class Optimizer(object):
         self.class_counts[old_class_id] -= word_count
         self.class_counts[new_class_id] += word_count
 
-        for right_word_id in self.ww_counts[word_id,:].nonzero()[1]:
-            if right_word_id == word_id:
-                continue
-            count = self.ww_counts[word_id,right_word_id]
-            right_class_id = self.word_to_class[right_word_id]
+        # word, word X
+        right_word_ids = numpy.asarray(
+            [id for id in self.ww_counts[word_id,:].nonzero()[1] if id != word_id])
+        right_class_ids = self.word_to_class[right_word_ids]
+        counts = self.ww_counts[word_id,right_word_ids].toarray().flatten()
+        self.cw_counts[old_class_id,right_word_ids] -= counts
+        self.cw_counts[new_class_id,right_word_ids] += counts
+        for right_class_id, count in zip(right_class_ids, counts):
             self.cc_counts[old_class_id,right_class_id] -= count
             self.cc_counts[new_class_id,right_class_id] += count
-            self.cw_counts[old_class_id,right_word_id] -= count
-            self.cw_counts[new_class_id,right_word_id] += count
 
-        for left_word_id in self.ww_counts[:,word_id].nonzero()[0]:
-            if left_word_id == word_id:
-                continue
-            count = self.ww_counts[left_word_id,word_id]
-            left_class_id = self.word_to_class[left_word_id]
+        # word X, word
+        left_word_ids = numpy.asarray(
+            [id for id in self.ww_counts[:,word_id].nonzero()[0] if id != word_id])
+        left_class_ids = self.word_to_class[left_word_ids]
+        counts = self.ww_counts[left_word_ids,word_id].toarray().flatten()
+        self.wc_counts[left_word_ids,old_class_id] -= counts
+        self.wc_counts[left_word_ids,new_class_id] += counts
+        for left_class_id, count in zip(left_class_ids, counts):
             self.cc_counts[left_class_id,old_class_id] -= count
             self.cc_counts[left_class_id,new_class_id] += count
-            self.wc_counts[left_word_id,old_class_id] -= count
-            self.wc_counts[left_word_id,new_class_id] += count
 
         count = self.ww_counts[word_id,word_id]
         self.cc_counts[old_class_id,old_class_id] -= count
