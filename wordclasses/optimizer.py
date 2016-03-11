@@ -267,6 +267,8 @@ class Optimizer(object):
         """
 
         old_class_id = self.word_to_class[word_id]
+
+        # word
         word_count = self.word_counts[word_id]
         self.class_counts[old_class_id] -= word_count
         self.class_counts[new_class_id] += word_count
@@ -278,9 +280,8 @@ class Optimizer(object):
         counts = self.ww_counts[word_id,right_word_ids].toarray().flatten()
         self.cw_counts[old_class_id,right_word_ids] -= counts
         self.cw_counts[new_class_id,right_word_ids] += counts
-        for right_class_id, count in zip(right_class_ids, counts):
-            self.cc_counts[old_class_id,right_class_id] -= count
-            self.cc_counts[new_class_id,right_class_id] += count
+        numpy.add.at(self.cc_counts[old_class_id,:], right_class_ids, -counts)
+        numpy.add.at(self.cc_counts[new_class_id,:], right_class_ids, counts)
 
         # word X, word
         left_word_ids = numpy.asarray(
@@ -289,10 +290,10 @@ class Optimizer(object):
         counts = self.ww_counts[left_word_ids,word_id].toarray().flatten()
         self.wc_counts[left_word_ids,old_class_id] -= counts
         self.wc_counts[left_word_ids,new_class_id] += counts
-        for left_class_id, count in zip(left_class_ids, counts):
-            self.cc_counts[left_class_id,old_class_id] -= count
-            self.cc_counts[left_class_id,new_class_id] += count
+        numpy.add.at(self.cc_counts[:,old_class_id], left_class_ids, -counts)
+        numpy.add.at(self.cc_counts[:,new_class_id], left_class_ids, counts)
 
+        # word, word
         count = self.ww_counts[word_id,word_id]
         self.cc_counts[old_class_id,old_class_id] -= count
         self.cc_counts[new_class_id,new_class_id] += count
