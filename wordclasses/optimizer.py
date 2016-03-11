@@ -4,6 +4,14 @@
 import numpy
 from scipy.sparse import csc_matrix, dok_matrix
 
+def size(x):
+    suffixes = ['bytes', 'KB', 'MB', 'GB', 'TB']
+    index = 0
+    while x > 1024 and index < 4:
+        index += 1
+        x /= 1024
+    return "{} {}".format(int(round(x)), suffixes[index])
+
 class Optimizer(object):
     """Word Class Optimizer
     """
@@ -71,8 +79,8 @@ class Optimizer(object):
         """
 
         self.word_counts = numpy.zeros(self.vocabulary_size, self.count_type)
-        print("Allocated {} bytes for word counts.".format(
-            self.word_counts.nbytes))
+        print("Allocated {} for word counts.".format(
+            size(self.word_counts.nbytes)))
 
         self.ww_counts = dok_matrix(
             (self.vocabulary_size, self.vocabulary_size), dtype=self.count_type)
@@ -89,8 +97,8 @@ class Optimizer(object):
             for left_word_id, right_word_id in zip(sentence[:-1], sentence[1:]):
                 self.ww_counts[left_word_id,right_word_id] += 1
         self.ww_counts = self.ww_counts.tocsc()
-        print("Word-word counts is a sparse matrix of {} bytes.".format(
-            self.ww_counts.data.nbytes))
+        print("Allocated {} for sparse word-word counts.".format(
+            size(self.ww_counts.data.nbytes)))
 
     def _freq_init_classes(self, num_classes):
         """Initializes word classes based on word frequency.
@@ -125,23 +133,23 @@ class Optimizer(object):
         """
 
         self.class_counts = numpy.zeros(self.num_classes, self.count_type)
-        print("Allocated {} bytes for class counts.".format(
-            self.class_counts.nbytes))
+        print("Allocated {} for class counts.".format(
+            size(self.class_counts.nbytes)))
 
         self.cc_counts = numpy.zeros(
             (self.num_classes, self.num_classes), dtype=self.count_type)
-        print("Allocated {} bytes for class-class counts.".format(
-            self.cc_counts.nbytes))
+        print("Allocated {} for class-class counts.".format(
+            size(self.cc_counts.nbytes)))
 
         self.cw_counts = numpy.zeros(
             (self.num_classes, self.vocabulary_size), dtype=self.count_type)
-        print("Allocated {} bytes for class-word counts.".format(
-            self.cw_counts.nbytes))
+        print("Allocated {} for class-word counts.".format(
+            size(self.cw_counts.nbytes)))
 
         self.wc_counts = numpy.zeros(
             (self.vocabulary_size, self.num_classes), dtype=self.count_type)
-        print("Allocated {} bytes for word-class counts.".format(
-            self.wc_counts.nbytes))
+        print("Allocated {} for word-class counts.".format(
+            size(self.wc_counts.nbytes)))
 
         for word_id, class_id in enumerate(self.word_to_class):
             self.class_counts[class_id] += self.word_counts[word_id]
@@ -192,9 +200,12 @@ class Optimizer(object):
         result += 2 * old_count * numpy.log(old_count)
         result -= 2 * new_count * numpy.log(new_count)
 
-        iter_class_ids = numpy.asarray(
-            [id != old_class_id and id != new_class_id
-             for id in range(self.num_classes)])
+#        iter_class_ids = numpy.asarray(
+#            [id != old_class_id and id != new_class_id
+#             for id in range(self.num_classes)])
+        iter_class_ids = numpy.arange(self.num_classes)
+        iter_class_ids = iter_class_ids[(iter_class_ids != old_class_id) & \
+                                        (iter_class_ids != new_class_id)]
 
         # old class, class X
         old_counts = self.cc_counts[old_class_id,iter_class_ids]
