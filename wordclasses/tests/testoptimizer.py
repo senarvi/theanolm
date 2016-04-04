@@ -107,12 +107,15 @@ class TestOptimizer(unittest.TestCase):
         new_class_id = 3 if orig_class_id != 3 else 4
 
         orig_ll = optimizer.log_likelihood()
-        ll_diff = optimizer._evaluate_move(word_id, new_class_id)
+        ll_diff_numpy = optimizer._evaluate_move_numpy(word_id, new_class_id)
+        ll_diff_theano = optimizer._evaluate_move_theano(word_id, new_class_id)
+        self.assertTrue(numpy.isclose(ll_diff_numpy, ll_diff_theano))
+
         optimizer._move(word_id, new_class_id)
         new_ll = optimizer.log_likelihood()
 
         self.assertNotEqual(orig_ll, new_ll)
-        self.assertTrue(numpy.isclose(orig_ll + ll_diff, new_ll))
+        self.assertTrue(numpy.isclose(orig_ll + ll_diff_numpy, new_ll))
 
 if __name__ == '__main__':
     unittest.main()

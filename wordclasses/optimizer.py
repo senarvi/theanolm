@@ -3,6 +3,9 @@
 
 import numpy
 from scipy.sparse import csc_matrix, dok_matrix
+import theano
+from theano import sparse
+from theano import tensor
 
 def size(x):
     suffixes = ['bytes', 'KB', 'MB', 'GB', 'TB']
@@ -16,7 +19,7 @@ class Optimizer(object):
     """Word Class Optimizer
     """
 
-    def __init__(self, num_classes, corpus_file, vocabulary_file = None, count_type = numpy.int32):
+    def __init__(self, num_classes, corpus_file, vocabulary_file = None, count_type = 'int32'):
         """Reads the vocabulary from the text ``corpus_file``. The vocabulary
         may be restricted by ``vocabulary_file``. Then reads the statistics from
         the text.
@@ -45,6 +48,12 @@ class Optimizer(object):
         # Initialize classes and compute class statistics.
         self._freq_init_classes(num_classes)
         self._compute_class_statistics()
+
+        self.cc_counts_theano = theano.shared(self.cc_counts, 'cc_counts')
+        self.cw_counts_theano = theano.shared(self.cw_counts, 'cw_counts')
+        self.wc_counts_theano = theano.shared(self.wc_counts, 'wc_counts')
+        self.ww_counts_theano = theano.shared(self.ww_counts, 'ww_counts')
+        self._create_evaluate_function()
 
     def log_likelihood(self):
         """Computes the log likelihood that a bigram model would give to the
@@ -174,6 +183,9 @@ class Optimizer(object):
             if class_id == old_class_id:
                 continue
             ll_diff = self._evaluate_move(word_id, class_id)
+            ll_diff_theano = self._evaluate_move_theano(word_id, class_id)
+            print("ll_diff= ", ll_diff, "ll_diff_theano =", ll_diff_theano)
+            sys.exit(0)
             if ll_diff > best_ll_diff:
                 best_ll_diff = ll_diff
                 best_class_id = class_id
@@ -181,7 +193,7 @@ class Optimizer(object):
         assert not best_class_id is None
         return best_ll_diff, best_class_id
 
-    def _evaluate_move(self, word_id, new_class_id):
+    def _evaluate_move_numpy(self, word_id, new_class_id):
         """Evaluates how much moving a word to another class would change the
         log likelihood.
         """
@@ -200,12 +212,10 @@ class Optimizer(object):
         result += 2 * old_count * numpy.log(old_count)
         result -= 2 * new_count * numpy.log(new_count)
 
-#        iter_class_ids = numpy.asarray(
-#            [id != old_class_id and id != new_class_id
-#             for id in range(self.num_classes)])
-        iter_class_ids = numpy.arange(self.num_classes)
-        iter_class_ids = iter_class_ids[(iter_class_ids != old_class_id) & \
-                                        (iter_class_ids != new_class_id)]
+        # Iterate over classes other than the old and new class of the word.
+        class_ids = numpy.arange(self.num_classes)
+        selector = (class_ids != old_class_id) & (class_ids != new_class_id)
+        iter_class_ids = class_ids[selector]
 
         # old class, class X
         old_counts = self.cc_counts[old_class_id,iter_class_ids]
@@ -265,12 +275,127 @@ class Optimizer(object):
 
         return result
 
+    def _evaluate_move_theano(self, word_id, new_class_id):
+        """Evaluates how much moving a word to another class would change the
+        log likelihood.
+        """
+
+        old_class_id = self.word_to_class[word_id]
+        old_class_count = self.class_counts[old_class_id]
+        new_class_count = self.class_counts[new_class_id]
+        word_count = self.word_counts[word_id]
+        return self._evaluate_function(word_id, old_class_id, new_class_id,
+                                       word_count, old_class_count, new_class_count)
+
+    def _create_evaluate_function(self):
+        word_id = tensor.scalar('word_id', dtype=self.count_type)
+        old_class_id = tensor.scalar('old_class_id', dtype=self.count_type)
+        new_class_id = tensor.scalar('new_class_id', dtype=self.count_type)
+        word_count = tensor.scalar('word_count', dtype=self.count_type)
+        old_class_count = tensor.scalar('old_class_count', dtype=self.count_type)
+        new_class_count = tensor.scalar('new_class_count', dtype=self.count_type)
+
+        # old class
+        old_count = old_class_count
+        new_count = old_count - word_count
+        result = 2 * old_count * tensor.log(old_count)
+        result -= 2 * new_count * tensor.log(new_count)
+
+        # new class
+        old_count = new_class_count
+        new_count = old_count + word_count
+        result += 2 * old_count * tensor.log(old_count)
+        result -= 2 * new_count * tensor.log(new_count)
+
+        # Iterate over classes other than the old and new class of the word.
+        class_ids = tensor.arange(self.num_classes)
+        selector = tensor.neq(class_ids, old_class_id) * \
+                   tensor.neq(class_ids, new_class_id)
+        iter_class_ids = class_ids[selector.nonzero()]
+
+        # old class, class X
+        old_counts = self.cc_counts_theano[old_class_id,iter_class_ids]
+        new_counts = old_counts - self.wc_counts_theano[word_id,iter_class_ids]
+        nonzero_ids = tensor.neq(old_counts, 0)
+        result -= (tensor.switch(nonzero_ids, tensor.log(old_counts), 0) * old_counts).sum()
+        nonzero_ids = tensor.neq(new_counts, 0)
+        result += (tensor.switch(nonzero_ids, tensor.log(new_counts), 0) * new_counts).sum()
+
+        # new class, class X
+        old_counts = self.cc_counts_theano[new_class_id,iter_class_ids]
+        new_counts = old_counts + self.wc_counts_theano[word_id,iter_class_ids]
+        nonzero_ids = tensor.neq(old_counts, 0)
+        result -= (tensor.switch(nonzero_ids, tensor.log(old_counts), 0) * old_counts).sum()
+        nonzero_ids = tensor.neq(new_counts, 0)
+        result += (tensor.switch(nonzero_ids, tensor.log(new_counts), 0) * new_counts).sum()
+
+        # class X, old class
+        old_counts = self.cc_counts_theano[iter_class_ids,old_class_id]
+        new_counts = old_counts - self.cw_counts_theano[iter_class_ids,word_id]
+        nonzero_ids = tensor.neq(old_counts, 0)
+        result -= (tensor.switch(nonzero_ids, tensor.log(old_counts), 0) * old_counts).sum()
+        nonzero_ids = tensor.neq(new_counts, 0)
+        result += (tensor.switch(nonzero_ids, tensor.log(new_counts), 0) * new_counts).sum()
+
+        # class X, new class
+        old_counts = self.cc_counts_theano[iter_class_ids,new_class_id]
+        new_counts = old_counts + self.cw_counts_theano[iter_class_ids,word_id]
+        nonzero_ids = tensor.neq(old_counts, 0)
+        result -= (tensor.switch(nonzero_ids, tensor.log(old_counts), 0) * old_counts).sum()
+        nonzero_ids = tensor.neq(new_counts, 0)
+        result += (tensor.switch(nonzero_ids, tensor.log(new_counts), 0) * new_counts).sum()
+
+        # old class, new class
+        old_count = self.cc_counts_theano[old_class_id,new_class_id]
+        new_count = old_count - \
+                    self.wc_counts_theano[word_id,new_class_id] + \
+                    self.cw_counts_theano[old_class_id,word_id] - \
+                    self.ww_counts_theano[word_id,word_id]
+        result += self._ll_change_theano(old_count, new_count)
+
+        # new class, old class
+        old_count = self.cc_counts_theano[new_class_id,old_class_id]
+        new_count = old_count - \
+                    self.cw_counts_theano[new_class_id,word_id] + \
+                    self.wc_counts_theano[word_id,old_class_id] - \
+                    self.ww_counts_theano[word_id,word_id]
+        result += self._ll_change_theano(old_count, new_count)
+
+        # old class, old class
+        old_count = self.cc_counts_theano[old_class_id,old_class_id]
+        new_count = old_count - \
+                    self.wc_counts_theano[word_id,old_class_id] - \
+                    self.cw_counts_theano[old_class_id,word_id] + \
+                    self.ww_counts_theano[word_id,word_id]
+        result += self._ll_change_theano(old_count, new_count)
+
+        # new class, new class
+        old_count = self.cc_counts_theano[new_class_id,new_class_id]
+        new_count = old_count + \
+                    self.wc_counts_theano[word_id,new_class_id] + \
+                    self.cw_counts_theano[new_class_id,word_id] + \
+                    self.ww_counts_theano[word_id,word_id]
+        result += self._ll_change_theano(old_count, new_count)
+
+        self._evaluate_function = theano.function(
+            [word_id, old_class_id, new_class_id, word_count, old_class_count, new_class_count],
+            result,
+            name='evaluate')
+
     def _ll_change(self, old_count, new_count):
         result = 0
         if old_count != 0:
             result -= old_count * numpy.log(old_count)
         if new_count != 0:
             result += new_count * numpy.log(new_count)
+        return result
+
+    def _ll_change_theano(self, old_count, new_count):
+        result = 0
+        if old_count != 0:
+            result -= old_count * tensor.log(old_count)
+        if new_count != 0:
+            result += new_count * tensor.log(new_count)
         return result
 
     def _move(self, word_id, new_class_id):
