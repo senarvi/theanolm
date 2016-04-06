@@ -49,11 +49,16 @@ class Optimizer(object):
         self._freq_init_classes(num_classes)
         self._compute_class_statistics()
 
+        self.class_counts_theano = theano.shared(self.class_counts, 'class_counts')
+        self.word_counts_theano = theano.shared(self.word_counts, 'word_counts')
         self.cc_counts_theano = theano.shared(self.cc_counts, 'cc_counts')
         self.cw_counts_theano = theano.shared(self.cw_counts, 'cw_counts')
         self.wc_counts_theano = theano.shared(self.wc_counts, 'wc_counts')
         self.ww_counts_theano = theano.shared(self.ww_counts, 'ww_counts')
+        self.ww_counts_csr_theano = theano.shared(self.ww_counts_csr, 'ww_counts_csr')
+        self.word_to_class_theano = theano.shared(self.word_to_class, 'word_to_class')
         self._create_evaluate_function()
+        self._create_move_function()
 
     def log_likelihood(self):
         """Computes the log likelihood that a bigram model would give to the
@@ -74,11 +79,13 @@ class Optimizer(object):
         word_id = self.word_ids[word]
         old_class_id = self.word_to_class[word_id]
         if len(self.class_to_words[old_class_id]) == 1:
+            print('move_to_best_class: only one word in class {}.'.format(old_class_id))
             return False
 
         ll_diff, new_class_id = self._find_best_move(word_id)
         if ll_diff > 0:
-            self._move(word_id, new_class_id)
+            self._move_numpy(word_id, new_class_id)
+            self._move_theano(word_id, new_class_id)
             return True
         else:
             return False
@@ -105,6 +112,7 @@ class Optimizer(object):
                 self.word_counts[word_id] += 1
             for left_word_id, right_word_id in zip(sentence[:-1], sentence[1:]):
                 self.ww_counts[left_word_id,right_word_id] += 1
+        self.ww_counts_csr = self.ww_counts.tocsr()
         self.ww_counts = self.ww_counts.tocsc()
         print("Allocated {} for sparse word-word counts.".format(
             size(self.ww_counts.data.nbytes)))
@@ -178,22 +186,23 @@ class Optimizer(object):
         best_ll_diff = -numpy.inf
         best_class_id = None
 
-        old_class_id = self.word_to_class[word_id]
+        old_class_id_numpy = self.word_to_class[word_id]
+        old_class_id_theano = self.word_to_class_theano.get_value()[word_id]
+        print("old_class_id_numpy =", old_class_id_numpy, "old_class_id_theano =", old_class_id_theano)
         for class_id in range(self.first_normal_class_id, self.num_classes):
-            if class_id == old_class_id:
+            if class_id == old_class_id_numpy:
                 continue
-            ll_diff = self._evaluate_move(word_id, class_id)
-            ll_diff_theano = self._evaluate_move_theano(word_id, class_id)
-            print("ll_diff= ", ll_diff, "ll_diff_theano =", ll_diff_theano)
-            sys.exit(0)
-            if ll_diff > best_ll_diff:
-                best_ll_diff = ll_diff
+            ll_diff_numpy = self._evaluate_numpy(word_id, class_id)
+            ll_diff_theano = self._evaluate_theano(word_id, class_id)
+            print("ll_diff_numpy= ", ll_diff_numpy, "ll_diff_theano =", ll_diff_theano)
+            if ll_diff_numpy > best_ll_diff:
+                best_ll_diff = ll_diff_numpy
                 best_class_id = class_id
 
         assert not best_class_id is None
         return best_ll_diff, best_class_id
 
-    def _evaluate_move_numpy(self, word_id, new_class_id):
+    def _evaluate_numpy(self, word_id, new_class_id):
         """Evaluates how much moving a word to another class would change the
         log likelihood.
         """
@@ -275,25 +284,24 @@ class Optimizer(object):
 
         return result
 
-    def _evaluate_move_theano(self, word_id, new_class_id):
+    def _evaluate_theano(self, word_id, new_class_id):
         """Evaluates how much moving a word to another class would change the
         log likelihood.
         """
 
-        old_class_id = self.word_to_class[word_id]
-        old_class_count = self.class_counts[old_class_id]
-        new_class_count = self.class_counts[new_class_id]
-        word_count = self.word_counts[word_id]
-        return self._evaluate_function(word_id, old_class_id, new_class_id,
-                                       word_count, old_class_count, new_class_count)
+        return self._evaluate_function(word_id, new_class_id)
 
     def _create_evaluate_function(self):
+        """Creates a Theano function that evaluates how much moving a word to
+        another class would change the log likelihood.
+        """
+
         word_id = tensor.scalar('word_id', dtype=self.count_type)
-        old_class_id = tensor.scalar('old_class_id', dtype=self.count_type)
         new_class_id = tensor.scalar('new_class_id', dtype=self.count_type)
-        word_count = tensor.scalar('word_count', dtype=self.count_type)
-        old_class_count = tensor.scalar('old_class_count', dtype=self.count_type)
-        new_class_count = tensor.scalar('new_class_count', dtype=self.count_type)
+        old_class_id = self.word_to_class_theano[word_id]
+        old_class_count = self.class_counts_theano[old_class_id]
+        new_class_count = self.class_counts_theano[new_class_id]
+        word_count = self.word_counts_theano[word_id]
 
         # old class
         old_count = old_class_count
@@ -378,7 +386,7 @@ class Optimizer(object):
         result += self._ll_change_theano(old_count, new_count)
 
         self._evaluate_function = theano.function(
-            [word_id, old_class_id, new_class_id, word_count, old_class_count, new_class_count],
+            [word_id, new_class_id],
             result,
             name='evaluate')
 
@@ -398,8 +406,8 @@ class Optimizer(object):
             result += new_count * tensor.log(new_count)
         return result
 
-    def _move(self, word_id, new_class_id):
-        """Moves a word to another class.
+    def _move_numpy(self, word_id, new_class_id):
+        """Moves a word to another class and updates NumPy arrays.
         """
 
         old_class_id = self.word_to_class[word_id]
@@ -441,3 +449,83 @@ class Optimizer(object):
         self.class_to_words[old_class_id].remove(word_id)
         self.class_to_words[new_class_id].add(word_id)
         self.word_to_class[word_id] = new_class_id
+
+    def _move_theano(self, word_id, new_class_id):
+        """Moves a word to another class and updates Theano tensors.
+        """
+
+        self._move_function(word_id, new_class_id)
+#        self.class_to_words[old_class_id].remove(word_id)
+#        self.class_to_words[new_class_id].add(word_id)
+
+    def _create_move_function(self):
+        """Creates a Theano function that moves a word to another class.
+
+        tensor.inc_subtensor actually works like numpy.add.at, so we can use it
+        add the count as many times as the word occurs in a class.
+        """
+
+        updates = []
+        word_id = tensor.scalar('word_id', dtype=self.count_type)
+        new_class_id = tensor.scalar('new_class_id', dtype=self.count_type)
+        old_class_id = self.word_to_class_theano[word_id]
+
+        # word
+        word_count = self.word_counts_theano[word_id]
+        c_counts = self.class_counts_theano
+        c_counts = tensor.inc_subtensor(c_counts[old_class_id], -word_count)
+        c_counts = tensor.inc_subtensor(c_counts[new_class_id], word_count)
+        updates.append((self.class_counts_theano, c_counts))
+
+        # word, word X
+        data, indices, indptr, _ = sparse.csm_properties(self.ww_counts_csr_theano)
+        right_word_ids = indices[indptr[word_id]:indptr[word_id + 1]]
+        counts = data[indptr[word_id]:indptr[word_id + 1]]
+        selector = tensor.neq(right_word_ids, word_id).nonzero()
+        right_word_ids = right_word_ids[selector]
+        counts = counts[selector]
+
+        cw_counts = self.cw_counts_theano
+        cw_counts = tensor.inc_subtensor(cw_counts[old_class_id,right_word_ids], -counts)
+        cw_counts = tensor.inc_subtensor(cw_counts[new_class_id,right_word_ids], counts)
+        right_class_ids = self.word_to_class_theano[right_word_ids]
+        cc_counts = self.cc_counts_theano
+        cc_counts = tensor.inc_subtensor(cc_counts[old_class_id,right_class_ids], -counts)
+        cc_counts = tensor.inc_subtensor(cc_counts[new_class_id,right_class_ids], counts)
+
+        # word X, word
+        data, indices, indptr, _ = sparse.csm_properties(self.ww_counts_theano)
+        left_word_ids = indices[indptr[word_id]:indptr[word_id + 1]]
+        counts = data[indptr[word_id]:indptr[word_id + 1]]
+        selector = tensor.neq(left_word_ids, word_id).nonzero()
+        left_word_ids = left_word_ids[selector]
+        counts = counts[selector]
+
+        wc_counts = self.wc_counts_theano
+        wc_counts = tensor.inc_subtensor(wc_counts[left_word_ids,old_class_id], -counts)
+        wc_counts = tensor.inc_subtensor(wc_counts[left_word_ids,new_class_id], counts)
+        left_class_ids = self.word_to_class_theano[left_word_ids]
+        cc_counts = tensor.inc_subtensor(cc_counts[left_class_ids,old_class_id], -counts)
+        cc_counts = tensor.inc_subtensor(cc_counts[left_class_ids,new_class_id], counts)
+
+        # word, word
+        count = self.ww_counts_theano[word_id,word_id]
+        cc_counts = tensor.inc_subtensor(cc_counts[old_class_id,old_class_id], -count)
+        cc_counts = tensor.inc_subtensor(cc_counts[new_class_id,new_class_id], count)
+        cw_counts = tensor.inc_subtensor(cw_counts[old_class_id,word_id], -count)
+        cw_counts = tensor.inc_subtensor(cw_counts[new_class_id,word_id], count)
+        wc_counts = tensor.inc_subtensor(wc_counts[word_id,old_class_id], -count)
+        wc_counts = tensor.inc_subtensor(wc_counts[word_id,new_class_id], count)
+        updates.append((self.cc_counts_theano, cc_counts))
+        updates.append((self.cw_counts_theano, cw_counts))
+        updates.append((self.wc_counts_theano, wc_counts))
+
+        w_to_c = self.word_to_class_theano
+        w_to_c = tensor.set_subtensor(w_to_c[word_id], new_class_id)
+        updates.append((self.word_to_class_theano, w_to_c))
+
+        self._move_function = theano.function(
+            [word_id, new_class_id],
+            [],
+            updates=updates,
+            name='move')

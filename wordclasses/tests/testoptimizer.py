@@ -57,7 +57,7 @@ class TestOptimizer(unittest.TestCase):
         word_id = optimizer.word_ids['d']
         orig_class_id = optimizer.word_to_class[word_id]
         new_class_id = 3 if orig_class_id != 3 else 4
-        optimizer._move(word_id, new_class_id)
+        optimizer._move_numpy(word_id, new_class_id)
 
         self.assertEqual(numpy.count_nonzero(optimizer.class_counts != orig_class_counts), 2)
         self.assertEqual(numpy.sum(optimizer.class_counts), numpy.sum(orig_class_counts))
@@ -68,7 +68,7 @@ class TestOptimizer(unittest.TestCase):
         self.assertGreater(numpy.count_nonzero(optimizer.wc_counts != orig_wc_counts), 0)
         self.assertEqual(numpy.sum(optimizer.wc_counts), numpy.sum(orig_wc_counts))
 
-        optimizer._move(word_id, orig_class_id)
+        optimizer._move_numpy(word_id, orig_class_id)
 
         self.assertEqual(numpy.count_nonzero(optimizer.class_counts != orig_class_counts), 0)
         self.assertEqual(numpy.count_nonzero(optimizer.cc_counts != orig_cc_counts), 0)
