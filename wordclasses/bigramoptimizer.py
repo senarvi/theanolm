@@ -221,6 +221,19 @@ class BigramOptimizer(object):
 
         return self._word_ids[word]
 
+    def words(self):
+        """A generator for iterating through the words.
+
+        :rtype: (str, int, float)
+        :returns: a tuple containing a word, its class ID, and unigram class
+                  membership probability
+        """
+
+        for word, word_id in self._word_ids.items():
+            class_id = self.get_word_class(word_id)
+            prob = 0.0
+            yield word, class_id, prob
+
     @abc.abstractmethod
     def get_word_class(self, word_id):
         """Returns the class the given word is currently assigned to.

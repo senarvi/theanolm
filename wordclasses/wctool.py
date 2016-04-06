@@ -22,6 +22,15 @@ def main():
         '--method', metavar='NAME', type=str, default='bigram-theano',
         help='method for creating word classes, one of "bigram-theano", '
              '"bigram-numpy" (default "bigram-theano")')
+    parser.add_argument(
+        '--output-format', metavar='FORMAT', type=str, default='srilm-classes',
+        help='format of the output file, one of "classes" (word and class ID '
+             'per line), "srilm-classes" (default; class name, membership '
+             'probability, and word per line)')
+    parser.add_argument(
+        '--output-file', metavar='OUTPUT', type=TextFileType('w'), default='-',
+        help='where to write the word classes (default stdout)')
+
     args = parser.parse_args()
 
     if args.method == 'bigram-theano':
@@ -50,3 +59,9 @@ def main():
         iteration += 1
 
     print("Optimization finished.")
+
+    for word, class_id, prob in optimizer.words():
+        if args.output_format == 'classes':
+            args.output_file.write('{} {}\n'.format(word, class_id))
+        elif args.output_format == 'srilm-classes':
+            args.output_file.write('CLASS-{:05d} {} {}\n'.format(class_id, prob, word))
