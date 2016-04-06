@@ -3,7 +3,7 @@
 
 import argparse
 from theanolm.filetypes import TextFileType
-from wordclasses import Optimizer
+from wordclasses import TheanoBigramOptimizer, NumpyBigramOptimizer
 
 def main():
     parser = argparse.ArgumentParser(prog='wctool')
@@ -18,9 +18,21 @@ def main():
         '--vocabulary', metavar='VOCABULARY', type=TextFileType('r'),
         help='text or .gz file containing a list of words to include in class '
              'forming')
+    parser.add_argument(
+        '--method', metavar='NAME', type=str, default='bigram-theano',
+        help='method for creating word classes, one of "bigram-theano", '
+             '"bigram-numpy" (default "bigram-theano")')
     args = parser.parse_args()
 
-    optimizer = Optimizer(args.num_classes, args.training_set, args.vocabulary)
+    if args.method == 'bigram-theano':
+        optimizer = TheanoBigramOptimizer(args.num_classes, args.training_set,
+                                          args.vocabulary)
+    elif args.method == 'bigram-numpy':
+        optimizer = NumpyBigramOptimizer(args.num_classes, args.training_set,
+                                         args.vocabulary)
+    else:
+        raise ValueError("Invalid method requested: " + args.method)
+
     iteration = 1
     while True:
         print("Starting iteration {}.".format(iteration))

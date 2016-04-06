@@ -1,3 +1,4 @@
 from theanolm.filetypes import TextFileType
-from wordclasses.optimizer import Optimizer
+from wordclasses.theanobigramoptimizer import TheanoBigramOptimizer
+from wordclasses.numpybigramoptimizer import NumpyBigramOptimizer
 from wordclasses.wctool import main
