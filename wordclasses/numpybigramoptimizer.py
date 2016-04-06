@@ -9,34 +9,32 @@ class NumpyBigramOptimizer(BigramOptimizer):
     """Word Class Optimizer
     """
 
-    def __init__(self, num_classes, corpus_file, vocabulary_file = None):
-        """Reads the statistics from the training corpus.
+    def __init__(self, statistics, vocabulary):
+        """Computes initial statistics.
 
-        :type num_classes: int
-        :param num_classes: number of classes the optimizer should create
+        :type statistics: WordStatistics
+        :param statistics: word statistics from the training corpus
 
-        :type corpus_file: file object
-        :param corpus_file: a file that contains the input sentences
-
-        :type vocabulary_file: file object
-        :param vocabulary_file: if not None, restricts the vocabulary to the
-                                words read from this file
+        :type vocabulary: theanolm.Vocabulary
+        :param vocabulary: words to include in the optimization and initial classes
         """
 
-        super().__init__(num_classes, corpus_file, vocabulary_file)
+        if numpy.count_nonzero(statistics.unigram_counts) == 0:
+            raise ValueError("Empty word unigram statistics.")
+        if numpy.count_nonzero(statistics.bigram_counts) == 0:
+            raise ValueError("Empty word bigram statistics.")
 
-        # Read word counts from the training corpus.
-        corpus_file.seek(0)
-        self._word_counts, ww_counts = self._read_word_statistics(corpus_file)
-        self._ww_counts = ww_counts.tocsc()
+        super().__init__(vocabulary)
+
+        self._word_counts = statistics.unigram_counts
+        self._ww_counts = statistics.bigram_counts.tocsc()
         print("Allocated {} for word counts.".format(
             byte_size(self._word_counts.nbytes)))
         print("Allocated {} for sparse word-word counts.".format(
             byte_size(self._ww_counts.data.nbytes)))
 
         # Initialize classes.
-        self._word_to_class, self._class_to_words = \
-            self._freq_init_classes(num_classes, self._word_counts)
+        self._word_to_class = numpy.array(vocabulary.word_id_to_class_id)
         print("Allocated {} for word-to-class mapping.".format(
             byte_size(self._word_to_class.nbytes)))
 
@@ -65,18 +63,6 @@ class NumpyBigramOptimizer(BigramOptimizer):
         """
 
         return self._word_to_class[word_id]
-
-    def get_class_words(self, class_id):
-        """Returns the words that are assigned to given class.
-
-        :type class_id: int
-        :param class_id: ID of the word
-
-        :rtype: set
-        :returns: IDs of the words that are assigned to the given class
-        """
-
-        return self._class_to_words[class_id]
 
     def log_likelihood(self):
         """Computes the log likelihood that a bigram model would give to the
@@ -220,6 +206,16 @@ class NumpyBigramOptimizer(BigramOptimizer):
         self._wc_counts[word_id,old_class_id] -= count
         self._wc_counts[word_id,new_class_id] += count
 
-        self._class_to_words[old_class_id].remove(word_id)
-        self._class_to_words[new_class_id].add(word_id)
         self._word_to_class[word_id] = new_class_id
+
+    def _class_size(self, class_id):
+        """Calculates the number of words in a class.
+
+        :type class_id: int
+        :param class_id: ID of a class
+
+        :rtype: int
+        :returns: number of words in the class
+        """
+
+        return numpy.count_nonzero(self._word_to_class == class_id)

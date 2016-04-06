@@ -9,7 +9,7 @@ class LinearBatchIterator(BatchIterator):
 
     def __init__(self,
                  input_file,
-                 dictionary,
+                 vocabulary,
                  batch_size=1,
                  max_sequence_length=None):
         """Constructs an iterator for reading mini-batches from given file or
@@ -18,8 +18,8 @@ class LinearBatchIterator(BatchIterator):
         :type input_file: file or mmap object
         :param input_file: input text file or its memory-mapped data
 
-        :type dictionary: Dictionary
-        :param dictionary: dictionary that provides mapping between words and
+        :type vocabulary: Vocabulary
+        :param vocabulary: vocabulary that provides mapping between words and
                            word IDs
 
         :type batch_size: int
@@ -34,7 +34,7 @@ class LinearBatchIterator(BatchIterator):
         self.input_file = input_file
         self.input_file.seek(0)
 
-        super().__init__(dictionary, batch_size, max_sequence_length)
+        super().__init__(vocabulary, batch_size, max_sequence_length)
 
     def _reset(self, shuffle=True):
         """Resets the read pointer back to the beginning of the file.

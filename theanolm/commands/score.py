@@ -22,11 +22,11 @@ def add_arguments(parser):
         help='text or .gz file containing text to be scored (one sentence per '
              'line)')
     argument_group.add_argument(
-        'dictionary_file', metavar='DICTIONARY', type=TextFileType('r'),
+        'vocabulary_file', metavar='VOCAB', type=TextFileType('r'),
         help='text or .gz file containing word list or class definitions')
     argument_group.add_argument(
-        '--dictionary-format', metavar='FORMAT', type=str, default='words',
-        help='dictionary format, one of "words" (one word per line, default), '
+        '--vocabulary-format', metavar='FORMAT', type=str, default='words',
+        help='vocabulary format, one of "words" (one word per line, default), '
              '"classes" (word and class ID per line), "srilm-classes" (class '
              'name, membership probability, and word per line)')
     argument_group.add_argument(
@@ -47,17 +47,18 @@ def add_arguments(parser):
         help="don't include the probability of unknown words")
 
 def score(args):
-    print("Reading dictionary.")
+    print("Reading vocabulary.")
     sys.stdout.flush()
-    dictionary = theanolm.Dictionary(args.dictionary_file, args.dictionary_format)
-    print("Number of words in vocabulary:", dictionary.num_words())
-    print("Number of word classes:", dictionary.num_classes())
+    vocabulary = theanolm.Vocabulary.from_file(args.vocabulary_file,
+                                               args.vocabulary_format)
+    print("Number of words in vocabulary:", vocabulary.num_words())
+    print("Number of word classes:", vocabulary.num_classes())
 
     print("Building neural network.")
     sys.stdout.flush()
     with h5py.File(args.model_path, 'r') as state:
         architecture = theanolm.Architecture.from_state(state)
-        network = theanolm.Network(dictionary, architecture, batch_processing=True)
+        network = theanolm.Network(vocabulary, architecture, batch_processing=True)
         print("Restoring neural network state.")
         network.set_state(state)
 
@@ -65,21 +66,21 @@ def score(args):
     sys.stdout.flush()
     classes_to_ignore = []
     if args.ignore_unk:
-        classes_to_ignore.append(dictionary.unk_id)
+        classes_to_ignore.append(vocabulary.word_to_class_id('<unk>'))
     scorer = theanolm.TextScorer(network, classes_to_ignore)
 
     print("Scoring text.")
     if args.output == 'perplexity':
-        _score_text(args.input_file, dictionary, scorer, args.output_file,
+        _score_text(args.input_file, vocabulary, scorer, args.output_file,
                     args.log_base, False)
     elif args.output == 'word-scores':
-        _score_text(args.input_file, dictionary, scorer, args.output_file,
+        _score_text(args.input_file, vocabulary, scorer, args.output_file,
                     args.log_base, True)
     elif args.output == 'utterance-scores':
-        _score_utterances(args.input_file, dictionary, scorer, args.output_file,
+        _score_utterances(args.input_file, vocabulary, scorer, args.output_file,
                           args.log_base)
 
-def _score_text(input_file, dictionary, scorer, output_file,
+def _score_text(input_file, vocabulary, scorer, output_file,
                 log_base=None, word_level=False):
     """Reads text from ``input_file``, computes perplexity using
     ``scorer``, and writes to ``output_file``.
@@ -88,8 +89,8 @@ def _score_text(input_file, dictionary, scorer, output_file,
     :param input_file: a file that contains the input sentences in SRILM n-best
                        format
 
-    :type dictionary: Dictionary
-    :param dictionary: dictionary that provides mapping between words and word
+    :type vocabulary: Vocabulary
+    :param vocabulary: vocabulary that provides mapping between words and word
                        IDs
 
     :type scorer: TextScorer
@@ -107,7 +108,7 @@ def _score_text(input_file, dictionary, scorer, output_file,
     :param word_level: if set to True, also writes word-level statistics
     """
 
-    validation_iter = theanolm.LinearBatchIterator(input_file, dictionary)
+    validation_iter = theanolm.LinearBatchIterator(input_file, vocabulary)
     base_conversion = 1 if log_base is None else numpy.log(log_base)
 
     total_logprob = 0
@@ -128,7 +129,7 @@ def _score_text(input_file, dictionary, scorer, output_file,
 
             seq_logprobs = [x / base_conversion for x in seq_logprobs]
             seq_logprob /= base_conversion
-            seq_class_names = dictionary.ids_to_names(seq_word_ids)
+            seq_class_names = vocabulary.ids_to_names(seq_word_ids)
             output_file.write("# Sentence {0}\n".format(num_sentences))
 
             # In case some word IDs are ignored, seq_word_ids may contain more
@@ -169,7 +170,7 @@ def _score_text(input_file, dictionary, scorer, output_file,
                 cross_entropy, log_base))
         output_file.write("Perplexity: {0}\n".format(perplexity))
 
-def _score_utterances(input_file, dictionary, scorer, output_file,
+def _score_utterances(input_file, vocabulary, scorer, output_file,
                       log_base=None):
     """Reads utterances from ``input_file``, computes LM scores using
     ``scorer``, and writes one score per line to ``output_file``.
@@ -183,8 +184,8 @@ def _score_utterances(input_file, dictionary, scorer, output_file,
     :param input_file: a file that contains the input sentences in SRILM n-best
                        format
 
-    :type dictionary: Dictionary
-    :param dictionary: dictionary that provides mapping between words and word
+    :type vocabulary: Vocabulary
+    :param vocabulary: vocabulary that provides mapping between words and word
                        IDs
 
     :type scorer: TextScorer
@@ -208,13 +209,13 @@ def _score_utterances(input_file, dictionary, scorer, output_file,
         if not words:
             continue
 
-        word_ids = dictionary.words_to_ids(words)
-        num_words += len(word_ids)
-        num_unks += word_ids.count(dictionary.unk_id)
+        class_ids = vocabulary.words_to_class_ids(words)
+        num_words += len(class_ids)
+        num_unks += class_ids.count(vocabulary.word_to_class_id('<unk>'))
 
-        probs = dictionary.words_to_probs(words)
+        probs = vocabulary.words_to_probs(words)
 
-        lm_score = scorer.score_sequence(word_ids, probs)
+        lm_score = scorer.score_sequence(class_ids, probs)
         lm_score /= base_conversion
         output_file.write(str(lm_score) + '\n')
 

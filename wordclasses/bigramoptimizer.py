@@ -9,62 +9,22 @@ class BigramOptimizer(object):
     """Word Class Optimizer
     """
 
-    def __init__(self, num_classes, corpus_file, vocabulary_file = None, count_type = 'int64'):
+    def __init__(self, vocabulary, count_type = 'int32'):
         """Reads the vocabulary from the text ``corpus_file`` and creates word
         IDs. The vocabulary may be restricted by ``vocabulary_file``.
 
-        :type num_classes: int
-        :param num_classes: number of classes the optimizer should create
-
         :type corpus_file: file object
         :param corpus_file: a file that contains the input sentences
 
-        :type vocabulary_file: file object
-        :param vocabulary_file: if not None, restricts the vocabulary to the
-                                words read from this file
+        :type vocabulary: theanolm.Vocabulary
+        :param vocabulary: words to include in the optimization and initial classes
         """
 
+        self._initial_vocabulary = vocabulary
+        self.first_normal_class_id = vocabulary.first_normal_class_id
+        self.vocabulary_size = vocabulary.num_words()
+        self.num_classes = vocabulary.num_classes()
         self._count_type = count_type
-
-        self.vocabulary = set(['<s>', '</s>', '<unk>'])
-        if vocabulary_file is None:
-            for line in corpus_file:
-                self.vocabulary.update(line.split())
-        else:
-            restrict_words = set(line.strip() for line in vocabulary_file)
-            for line in corpus_file:
-                for word in line.split():
-                    if word in restrict_words:
-                        self.vocabulary.add(word)
-
-        self.vocabulary_size = len(self.vocabulary)
-        self._word_ids = dict(zip(self.vocabulary, range(self.vocabulary_size)))
-
-    def _read_word_statistics(self, corpus_file):
-        """Reads word statistics from corpus file.
-
-        :type corpus_file: file object
-        :param corpus_file: a file that contains the input sentences
-        """
-
-        word_counts = numpy.zeros(self.vocabulary_size, self._count_type)
-        ww_counts = dok_matrix(
-            (self.vocabulary_size, self.vocabulary_size), dtype=self._count_type)
-
-        for line in corpus_file:
-            sentence = [self.get_word_id('<s>')]
-            for word in line.split():
-                if word in self.vocabulary:
-                    sentence.append(self.get_word_id(word))
-                else:
-                    sentence.append(self.get_word_id('<unk>'))
-            sentence.append(self.get_word_id('</s>'))
-            for word_id in sentence:
-                word_counts[word_id] += 1
-            for left_word_id, right_word_id in zip(sentence[:-1], sentence[1:]):
-                ww_counts[left_word_id,right_word_id] += 1
-
-        return word_counts, ww_counts
 
     def _compute_class_statistics(self, word_counts, ww_counts, word_to_class):
         """Computes class statistics from word statistics.
@@ -90,46 +50,6 @@ class BigramOptimizer(object):
 
         return class_counts, cc_counts, cw_counts, wc_counts
 
-    def _freq_init_classes(self, num_classes, word_counts):
-        """Initializes word classes based on word frequency.
-
-        :type num_classes: int
-        :param num_classes: number of classes to create in addition to the
-                            special classes
-
-        :type word_counts: dict
-        :param word_counts: word unigram counts in the training corpus
-
-        :rtype: (numpy.ndarray, list of sets)
-        :returns: a tuple containing word-to-class and class-to-words mappings
-        """
-
-        self.num_classes = num_classes + 3
-        self.first_normal_class_id = 3
-
-        word_to_class = -1 * numpy.ones(self.vocabulary_size,
-                                        self._count_type)
-        class_to_words = [set() for _ in range(self.num_classes)]
-
-        word_to_class[self.get_word_id('<s>')] = 0
-        class_to_words[0].add(self.get_word_id('<s>'))
-        word_to_class[self.get_word_id('</s>')] = 1
-        class_to_words[1].add(self.get_word_id('</s>'))
-        word_to_class[self.get_word_id('<unk>')] = 2
-        class_to_words[2].add(self.get_word_id('<unk>'))
-
-        class_id = self.first_normal_class_id
-        for word_id, _ in sorted(enumerate(word_counts),
-                                 key=lambda x: x[1]):
-            if word_to_class[word_id] != -1:
-                # A class has been already assigned to <s>, </s>, and <unk>.
-                continue
-            word_to_class[word_id] = class_id
-            class_to_words[class_id].add(word_id)
-            class_id = max((class_id + 1) % self.num_classes, self.first_normal_class_id)
-
-        return word_to_class, class_to_words
-
     def move_to_best_class(self, word):
         """Moves a word to the class that minimizes training set log likelihood.
         """
@@ -139,8 +59,8 @@ class BigramOptimizer(object):
 
         word_id = self.get_word_id(word)
         old_class_id = self.get_word_class(word_id)
-        if len(self.get_class_words(old_class_id)) == 1:
-            print('move_to_best_class: only one word in class {}.'.format(old_class_id))
+        if self._class_size(old_class_id) < 2:
+            print('Less than two word in class {}. Not moving word {}.'.format(old_class_id, word))
             return False
 
         ll_diff, new_class_id = self._find_best_move(word_id)
@@ -219,17 +139,17 @@ class BigramOptimizer(object):
         :returns: ID of the given word
         """
 
-        return self._word_ids[word]
+        return self._initial_vocabulary.word_to_id[word]
 
     def words(self):
-        """A generator for iterating through the words.
+        """Returns a generator for iterating through the words.
 
-        :rtype: (str, int, float)
-        :returns: a tuple containing a word, its class ID, and unigram class
-                  membership probability
+        :rtype: generator for (str, int, float)
+        :returns: a generator for tuples containing a word, its class ID, and
+                  unigram class membership probability
         """
 
-        for word, word_id in self._word_ids.items():
+        for word, word_id in self._initial_vocabulary.word_to_id.items():
             class_id = self.get_word_class(word_id)
             prob = 0.0
             yield word, class_id, prob
@@ -272,4 +192,18 @@ class BigramOptimizer(object):
         """
 
         raise NotImplementedError("BigramOptimizer.log_likelihood() has to be "
+                                  "implemented by the subclass.")
+
+    @abc.abstractmethod
+    def _class_size(self, class_id):
+        """Calculates the number of words in a class.
+
+        :type class_id: int
+        :param class_id: ID of a class
+
+        :rtype: int
+        :returns: number of words in the class
+        """
+
+        raise NotImplementedError("BigramOptimizer._class_size() has to be "
                                   "implemented by the subclass.")

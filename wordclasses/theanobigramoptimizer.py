@@ -12,28 +12,27 @@ class TheanoBigramOptimizer(BigramOptimizer):
     """Word Class Optimizer
     """
 
-    def __init__(self, num_classes, corpus_file, vocabulary_file = None):
-        """Reads the statistics from the training corpus.
+    def __init__(self, statistics, vocabulary):
+        """Computes initial statistics.
 
-        :type num_classes: int
-        :param num_classes: number of classes the optimizer should create
+        :type statistics: WordStatistics
+        :param statistics: word statistics from the training corpus
 
-        :type corpus_file: file object
-        :param corpus_file: a file that contains the input sentences
-
-        :type vocabulary_file: file object
-        :param vocabulary_file: if not None, restricts the vocabulary to the
-                                words read from this file
+        :type vocabulary: theanolm.Vocabulary
+        :param vocabulary: words to include in the optimization and initial classes
         """
 
-        # Sparse classes in Theano 0.8 support only int32 indices.
-        super().__init__(num_classes, corpus_file, vocabulary_file, 'int32')
+        if numpy.count_nonzero(statistics.unigram_counts) == 0:
+            raise ValueError("Empty word unigram statistics.")
+        if numpy.count_nonzero(statistics.bigram_counts) == 0:
+            raise ValueError("Empty word bigram statistics.")
 
-        # Read word counts from the training corpus.
-        corpus_file.seek(0)
-        word_counts, ww_counts = self._read_word_statistics(corpus_file)
-        ww_counts_csc = ww_counts.tocsc()
-        ww_counts_csr = ww_counts.tocsr()
+        # Sparse classes in Theano 0.8 support only int32 indices.
+        super().__init__(vocabulary, 'int32')
+
+        word_counts = statistics.unigram_counts
+        ww_counts_csc = statistics.bigram_counts.tocsc()
+        ww_counts_csr = statistics.bigram_counts.tocsr()
         print("Allocated {} for word counts.".format(
             byte_size(word_counts.nbytes)))
         print("Allocated {} for CSC word-word counts.".format(
@@ -42,14 +41,13 @@ class TheanoBigramOptimizer(BigramOptimizer):
             byte_size(ww_counts_csr.data.nbytes)))
 
         # Initialize classes.
-        word_to_class, self._class_to_words = \
-            self._freq_init_classes(num_classes, word_counts)
+        word_to_class = numpy.array(vocabulary.word_id_to_class_id)
         print("Allocated {} for word-to-class mapping.".format(
             byte_size(word_to_class.nbytes)))
 
         # Compute class counts from word counts.
         class_counts, cc_counts, cw_counts, wc_counts = \
-            self._compute_class_statistics(word_counts, ww_counts, word_to_class)
+            self._compute_class_statistics(word_counts, ww_counts_csc, word_to_class)
         print("Allocated {} for class counts.".format(
             byte_size(class_counts.nbytes)))
         print("Allocated {} for class-class counts.".format(
@@ -71,6 +69,7 @@ class TheanoBigramOptimizer(BigramOptimizer):
         self._create_evaluate_function()
         self._create_move_function()
         self._create_log_likelihood_function()
+        self._create_class_size_function()
 
     def get_word_class(self, word_id):
         """Returns the class the given word is currently assigned to.
@@ -83,18 +82,6 @@ class TheanoBigramOptimizer(BigramOptimizer):
         """
 
         return self._word_to_class.get_value()[word_id]
-
-    def get_class_words(self, class_id):
-        """Returns the words that are assigned to given class.
-
-        :type class_id: int
-        :param class_id: ID of the word
-
-        :rtype: set
-        :returns: IDs of the words that are assigned to the given class
-        """
-
-        return self._class_to_words[class_id]
 
     def _create_evaluate_function(self):
         """Creates a Theano function that evaluates how much moving a word to
@@ -187,15 +174,6 @@ class TheanoBigramOptimizer(BigramOptimizer):
             result,
             name='evaluate')
 
-    def _move(self, word_id, new_class_id):
-        """Moves a word to another class.
-        """
-
-        old_class_id = self.get_word_class(word_id)
-        self._move_function(word_id, new_class_id)
-        self._class_to_words[old_class_id].remove(word_id)
-        self._class_to_words[new_class_id].add(word_id)
-
     def _create_move_function(self):
         """Creates a Theano function that moves a word to another class.
 
@@ -262,7 +240,7 @@ class TheanoBigramOptimizer(BigramOptimizer):
         w_to_c = tensor.set_subtensor(w_to_c[word_id], new_class_id)
         updates.append((self._word_to_class, w_to_c))
 
-        self._move_function = theano.function(
+        self._move = theano.function(
             [word_id, new_class_id],
             [],
             updates=updates,
@@ -281,6 +259,25 @@ class TheanoBigramOptimizer(BigramOptimizer):
             [],
             result,
             name='log_likelihood')
+
+    def _create_class_size_function(self):
+        """Creates a function that calculates the number of words in a class.
+
+        :type class_id: int
+        :param class_id: ID of a class
+
+        :rtype: int
+        :returns: number of words in the class
+        """
+
+        class_id = tensor.scalar('class_id', dtype=self._count_type)
+
+        result = tensor.eq(self._word_to_class, class_id).sum()
+
+        self._class_size = theano.function(
+            [class_id],
+            result,
+            name='class_size')
 
     @staticmethod
     def _ll_change(old_count, new_count):
