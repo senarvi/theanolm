@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import abc
+import logging
 import numpy
 from scipy.sparse import dok_matrix
 
@@ -60,7 +61,8 @@ class BigramOptimizer(object):
         word_id = self.get_word_id(word)
         old_class_id = self.get_word_class(word_id)
         if self._class_size(old_class_id) < 2:
-            print('Less than two word in class {}. Not moving word {}.'.format(old_class_id, word))
+            logging.debug('Less than two word in class %d. Not moving word %s.',
+                          old_class_id, word)
             return False
 
         ll_diff, new_class_id = self._find_best_move(word_id)

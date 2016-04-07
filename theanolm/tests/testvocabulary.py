@@ -11,14 +11,17 @@ from theanolm.iterators.shufflingbatchiterator import find_sentence_starts
 class TestVocabulary(unittest.TestCase):
     def setUp(self):
         script_path = os.path.dirname(os.path.realpath(__file__))
-        sentences_path = os.path.join(script_path, 'sentences1.txt')
+        sentences1_path = os.path.join(script_path, 'sentences1.txt')
+        sentences2_path = os.path.join(script_path, 'sentences2.txt')
         vocabulary_path = os.path.join(script_path, 'vocabulary.txt')
 
-        self.sentences_file = open(sentences_path)
+        self.sentences1_file = open(sentences1_path)
+        self.sentences2_file = open(sentences2_path)
         self.vocabulary_file = open(vocabulary_path)
 
     def tearDown(self):
-        self.sentences_file.close()
+        self.sentences1_file.close()
+        self.sentences2_file.close()
         self.vocabulary_file.close()
 
     def test_from_file(self):
@@ -28,13 +31,14 @@ class TestVocabulary(unittest.TestCase):
         self.assertEqual(vocabulary.num_classes(), 10 + 3)
 
     def test_from_corpus(self):
-        self.sentences_file.seek(0)
-        vocabulary = theanolm.Vocabulary.from_corpus(self.sentences_file)
+        self.sentences1_file.seek(0)
+        vocabulary = theanolm.Vocabulary.from_corpus([self.sentences1_file])
         self.assertEqual(vocabulary.num_words(), 10 + 3)
         self.assertEqual(vocabulary.num_classes(), 10 + 3)
 
-        self.sentences_file.seek(0)
-        vocabulary = theanolm.Vocabulary.from_corpus(self.sentences_file, 3)
+        self.sentences1_file.seek(0)
+        self.sentences2_file.seek(0)
+        vocabulary = theanolm.Vocabulary.from_corpus([self.sentences1_file, self.sentences2_file], 3)
         self.assertEqual(vocabulary.num_words(), 10 + 3)
         self.assertEqual(vocabulary.num_classes(), 3 + 3)
         self.assertEqual(vocabulary.word_to_id['<s>'], 0)

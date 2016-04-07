@@ -14,15 +14,15 @@ from theanolm.iterators import utterance_from_line
 def add_arguments(parser):
     argument_group = parser.add_argument_group("files")
     argument_group.add_argument(
-        'model_path', metavar='MODEL', type=str,
+        'model_path', metavar='MODEL-FILE', type=str,
         help='path where the best model state will be saved in numpy .npz '
              'format')
     argument_group.add_argument(
-        'input_file', metavar='INPUT', type=TextFileType('r'),
+        'input_file', metavar='INPUT-FILE', type=TextFileType('r'),
         help='text or .gz file containing text to be scored (one sentence per '
              'line)')
     argument_group.add_argument(
-        'vocabulary_file', metavar='VOCAB', type=TextFileType('r'),
+        'vocabulary_file', metavar='VOCAB-FILE', type=TextFileType('r'),
         help='text or .gz file containing word list or class definitions')
     argument_group.add_argument(
         '--vocabulary-format', metavar='FORMAT', type=str, default='words',
@@ -30,7 +30,7 @@ def add_arguments(parser):
              '"classes" (word and class ID per line), "srilm-classes" (class '
              'name, membership probability, and word per line)')
     argument_group.add_argument(
-        '--output-file', metavar='OUTPUT', type=TextFileType('w'), default='-',
+        '--output-file', metavar='FILE', type=TextFileType('w'), default='-',
         help='where to write the statistics (default stdout)')
     
     argument_group = parser.add_argument_group("scoring")

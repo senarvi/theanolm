@@ -15,18 +15,18 @@ from theanolm.filetypes import TextFileType
 def add_arguments(parser):
     argument_group = parser.add_argument_group("files")
     argument_group.add_argument(
-        'model_path', metavar='MODEL', type=str,
+        'model_path', metavar='MODEL-FILE', type=str,
         help='path where the best model state will be saved in numpy .npz '
              'format')
     argument_group.add_argument(
-        'validation_file', metavar='VALIDATION-SET', type=TextFileType('r'),
+        'validation_file', metavar='VALID-FILE', type=TextFileType('r'),
         help='text or .gz file containing validation data (one sentence per '
              'line) for early stopping')
     argument_group.add_argument(
-        'vocabulary_file', metavar='VOCAB', type=TextFileType('r'),
+        'vocabulary_file', metavar='VOCAB-FILE', type=TextFileType('r'),
         help='text or .gz file containing word list or class definitions')
     argument_group.add_argument(
-        '--training-set', metavar='TRAINING-SET', type=TextFileType('r'),
+        '--training-set', metavar='FILE', type=TextFileType('r'),
         nargs='+',
         help='text or .gz files containing training data (one sentence per '
              'line)')
@@ -133,7 +133,7 @@ def add_arguments(parser):
         help='minimum level of events to log, one of "debug", "info", "warn" '
              '(default "info")')
     argument_group.add_argument(
-        '--log-update-interval', metavar='N', type=int, default=1000,
+        '--log-interval', metavar='N', type=int, default=1000,
         help='print statistics of every Nth mini-batch update; quiet if less '
              'than one (default 1000)')
     argument_group.add_argument(
@@ -231,7 +231,7 @@ def train(args):
             network, vocabulary, scorer,
             args.training_set, validation_iter,
             state, args.profile)
-        trainer.set_logging(args.log_update_interval)
+        trainer.set_logging(args.log_interval)
 
         print("Training neural network.")
         sys.stdout.flush()

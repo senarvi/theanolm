@@ -13,7 +13,7 @@ class TestStatistics(unittest.TestCase):
         with open(sentences_path) as sentences_file:
             self.vocabulary = Vocabulary.from_corpus(sentences_file)
             sentences_file.seek(0)
-            self.statistics = WordStatistics(sentences_file, self.vocabulary)
+            self.statistics = WordStatistics([sentences_file], self.vocabulary)
 
     def test_unigram_counts(self):
         unigram_counts = self.statistics.unigram_counts
