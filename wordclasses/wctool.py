@@ -7,7 +7,35 @@ import logging
 from time import time
 from theanolm.filetypes import TextFileType
 from theanolm import Vocabulary
-from wordclasses import TheanoBigramOptimizer, NumpyBigramOptimizer, WordStatistics
+from wordclasses import TheanoBigramOptimizer, NumpyBigramOptimizer
+from wordclasses import WordStatistics
+from wordclasses.functions import is_scheduled
+
+def save(optimizer, output_file, output_format):
+    """Writes the current classes to a file.
+
+    If the output file is seekable, first rewinds and truncates the file.
+
+    :type optimizer: BigramOptimizer
+    :param optimizer: save the current state of this optimizer
+
+    :type output_file: file object
+    :param output_file: a file or stream where to save the classes
+
+    :type output_format: str
+    :param output_format: either "classes" or "srilm-classes" - selects the
+                          output file format
+    """
+
+    if output_file.seekable():
+        output_file.seek(0)
+        output_file.truncate()
+
+    for word, class_id, prob in optimizer.words():
+        if output_format == 'classes':
+            output_file.write('{} {}\n'.format(word, class_id))
+        elif output_format == 'srilm-classes':
+            output_file.write('CLASS-{:05d} {} {}\n'.format(class_id, prob, word))
 
 def main():
     parser = argparse.ArgumentParser(prog='wctool')
@@ -36,8 +64,8 @@ def main():
              'per line), "srilm-classes" (default; class name, membership '
              'probability, and word per line)')
     argument_group.add_argument(
-        '--output-frequency', metavar='N', type=int, default='8',
-        help='save classes N times per optimization iteration (default 8)')
+        '--output-frequency', metavar='N', type=int, default='1',
+        help='save classes N times per optimization iteration (default 1)')
 
     argument_group = parser.add_argument_group("optimization")
     argument_group.add_argument(
@@ -111,15 +139,14 @@ def main():
                      num_moves,
                      optimizer.log_likelihood(),
                      duration * 100)
+            if is_scheduled(num_words,
+                            args.output_frequency,
+                            vocabulary.num_words()):
+                save(optimizer, args.output_file, args.output_format)
 
         if num_moves == 0:
             break
         iteration += 1
 
     logging.info("Optimization finished.")
-
-    for word, class_id, prob in optimizer.words():
-        if args.output_format == 'classes':
-            args.output_file.write('{} {}\n'.format(word, class_id))
-        elif args.output_format == 'srilm-classes':
-            args.output_file.write('CLASS-{:05d} {} {}\n'.format(class_id, prob, word))
+    save(optimizer, args.output_file, args.output_format)
