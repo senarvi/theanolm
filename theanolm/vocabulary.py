@@ -255,11 +255,11 @@ class Vocabulary(object):
         return classname(word_classes, word_to_class_id)
 
     @classmethod
-    def from_corpus(classname, corpus_file, num_classes=None):
-        """Creates a vocabulary based on word counts from a corpus file.
+    def from_corpus(classname, input_files, num_classes=None):
+        """Creates a vocabulary based on word counts from training set.
 
-        :type corpus_file: file object
-        :param corpus_file: file where to read the words from
+        :type input_files: list of file or mmap objects
+        :param input_files: input text files
 
         :type num_classes: int
         :param num_classes: number of classes to create in addition to the
@@ -268,12 +268,13 @@ class Vocabulary(object):
 
         word_counts = dict()
 
-        for line in corpus_file:
-            for word in line.split():
-                if not word in word_counts:
-                    word_counts[word] = 1
-                else:
-                    word_counts[word] += 1
+        for subset_file in input_files:
+            for line in subset_file:
+                for word in line.split():
+                    if not word in word_counts:
+                        word_counts[word] = 1
+                    else:
+                        word_counts[word] += 1
 
         return classname.from_word_counts(word_counts, num_classes)
 

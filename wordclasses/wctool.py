@@ -9,7 +9,8 @@ from wordclasses import TheanoBigramOptimizer, NumpyBigramOptimizer, WordStatist
 def main():
     parser = argparse.ArgumentParser(prog='wctool')
     parser.add_argument(
-        'training_set', metavar='TRAINING-SET', type=TextFileType('r'),
+        '--training-set', metavar='TRAINING-SET', type=TextFileType('r'),
+        nargs='+',
         help='text or .gz files containing training data (one sentence per '
              'line)')
     parser.add_argument(
@@ -43,7 +44,8 @@ def main():
     if args.vocabulary is None:
         vocabulary = Vocabulary.from_corpus(args.training_set,
                                             args.num_classes)
-        args.training_set.seek(0)
+        for subset_file in args.training_set:
+            subset_file.seek(0)
     else:
         vocabulary = Vocabulary.from_file(args.vocabulary,
                                           args.vocabulary_format)
