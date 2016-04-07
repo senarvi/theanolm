@@ -20,6 +20,14 @@ class TestBigramOptimizer(unittest.TestCase):
     def tearDown(self):
         self.sentences_file.close()
 
+    def assert_optimizers_equal(self, numpy_optimizer, theano_optimizer):
+        self.assertTrue(numpy.array_equal(numpy_optimizer._word_counts, theano_optimizer._word_counts.get_value()))
+        self.assertEqual((numpy_optimizer._ww_counts - theano_optimizer._ww_counts.get_value()).nnz, 0)
+        self.assertTrue(numpy.array_equal(numpy_optimizer._class_counts, theano_optimizer._class_counts.get_value()))
+        self.assertTrue(numpy.array_equal(numpy_optimizer._cc_counts, theano_optimizer._cc_counts.get_value()))
+        self.assertTrue(numpy.array_equal(numpy_optimizer._cw_counts, theano_optimizer._cw_counts.get_value()))
+        self.assertTrue(numpy.array_equal(numpy_optimizer._wc_counts, theano_optimizer._wc_counts.get_value()))
+
     def test_statistics(self):
         num_words = 8
         theano_optimizer = TheanoBigramOptimizer(self.statistics, self.vocabulary)
@@ -40,42 +48,26 @@ class TestBigramOptimizer(unittest.TestCase):
         unk_word_id = self.vocabulary.word_to_id['<unk>']
         eos_word_id = self.vocabulary.word_to_id['</s>']
 
-        self.assertEqual(len(theano_optimizer._word_counts.get_value()), num_words)
+        self.assert_optimizers_equal(numpy_optimizer, theano_optimizer)
         self.assertEqual(len(numpy_optimizer._word_counts), num_words)
         self.assertEqual(numpy_optimizer._word_counts[sos_word_id], 11)
-        self.assertEqual(theano_optimizer._word_counts.get_value()[sos_word_id], 11)
         self.assertEqual(numpy_optimizer._word_counts[a_word_id], 13)
-        self.assertEqual(theano_optimizer._word_counts.get_value()[a_word_id], 13)
         self.assertEqual(numpy_optimizer._word_counts[b_word_id], 8)
-        self.assertEqual(theano_optimizer._word_counts.get_value()[b_word_id], 8)
         self.assertEqual(numpy_optimizer._word_counts[c_word_id], 8)
-        self.assertEqual(theano_optimizer._word_counts.get_value()[c_word_id], 8)
         self.assertEqual(numpy_optimizer._word_counts[d_word_id], 11)
-        self.assertEqual(theano_optimizer._word_counts.get_value()[d_word_id], 11)
         self.assertEqual(numpy_optimizer._word_counts[e_word_id], 15)
-        self.assertEqual(theano_optimizer._word_counts.get_value()[e_word_id], 15)
         self.assertEqual(numpy_optimizer._word_counts[unk_word_id], 0)
-        self.assertEqual(theano_optimizer._word_counts.get_value()[unk_word_id], 0)
         self.assertEqual(numpy_optimizer._word_counts[eos_word_id], 11)
-        self.assertEqual(theano_optimizer._word_counts.get_value()[eos_word_id], 11)
 
         self.assertEqual(numpy_optimizer._ww_counts.shape[0], num_words)
         self.assertEqual(numpy_optimizer._ww_counts.shape[1], num_words)
-        self.assertEqual(theano_optimizer._ww_counts.get_value().shape[0], num_words)
-        self.assertEqual(theano_optimizer._ww_counts.get_value().shape[1], num_words)
         self.assertEqual(len(numpy_optimizer._class_counts), self.num_classes + 3)
-        self.assertEqual(len(theano_optimizer._class_counts.get_value()), self.num_classes + 3)
         self.assertEqual(numpy_optimizer._cc_counts.shape[0], self.num_classes + 3)
-        self.assertEqual(theano_optimizer._cc_counts.get_value().shape[1], self.num_classes + 3)
 
         self.assertEqual(numpy_optimizer._cw_counts.shape[0], self.num_classes + 3)
         self.assertEqual(numpy_optimizer._cw_counts.shape[1], num_words)
-        self.assertEqual(theano_optimizer._cw_counts.get_value().shape[0], self.num_classes + 3)
-        self.assertEqual(theano_optimizer._cw_counts.get_value().shape[1], num_words)
         self.assertEqual(numpy_optimizer._wc_counts.shape[0], num_words)
         self.assertEqual(numpy_optimizer._wc_counts.shape[1], self.num_classes + 3)
-        self.assertEqual(theano_optimizer._wc_counts.get_value().shape[0], num_words)
-        self.assertEqual(theano_optimizer._wc_counts.get_value().shape[1], self.num_classes + 3)
 
     def test_move_and_back(self):
         numpy_optimizer = NumpyBigramOptimizer(self.statistics, self.vocabulary)
@@ -90,7 +82,9 @@ class TestBigramOptimizer(unittest.TestCase):
         orig_class_id = numpy_optimizer.get_word_class(word_id)
         new_class_id = 3 if orig_class_id != 3 else 4
         numpy_optimizer._move(word_id, new_class_id)
+        theano_optimizer._move(word_id, new_class_id)
 
+        self.assert_optimizers_equal(numpy_optimizer, theano_optimizer)
         self.assertEqual(numpy.count_nonzero(numpy_optimizer._class_counts != orig_class_counts), 2)
         self.assertEqual(numpy.sum(numpy_optimizer._class_counts), numpy.sum(orig_class_counts))
         self.assertGreater(numpy.count_nonzero(numpy_optimizer._cc_counts != orig_cc_counts), 0)
@@ -101,11 +95,13 @@ class TestBigramOptimizer(unittest.TestCase):
         self.assertEqual(numpy.sum(numpy_optimizer._wc_counts), numpy.sum(orig_wc_counts))
 
         numpy_optimizer._move(word_id, orig_class_id)
+        theano_optimizer._move(word_id, orig_class_id)
 
-        self.assertEqual(numpy.count_nonzero(numpy_optimizer._class_counts != orig_class_counts), 0)
-        self.assertEqual(numpy.count_nonzero(numpy_optimizer._cc_counts != orig_cc_counts), 0)
-        self.assertEqual(numpy.count_nonzero(numpy_optimizer._cw_counts != orig_cw_counts), 0)
-        self.assertEqual(numpy.count_nonzero(numpy_optimizer._wc_counts != orig_wc_counts), 0)
+        self.assert_optimizers_equal(numpy_optimizer, theano_optimizer)
+        self.assertTrue(numpy.array_equal(numpy_optimizer._class_counts, orig_class_counts))
+        self.assertTrue(numpy.array_equal(numpy_optimizer._cc_counts, orig_cc_counts))
+        self.assertTrue(numpy.array_equal(numpy_optimizer._cw_counts, orig_cw_counts))
+        self.assertTrue(numpy.array_equal(numpy_optimizer._wc_counts, orig_wc_counts))
 
     def test_move_and_recompute(self):
         optimizer1 = NumpyBigramOptimizer(self.statistics, self.vocabulary)
@@ -130,6 +126,12 @@ class TestBigramOptimizer(unittest.TestCase):
         self.assertEqual(numpy.count_nonzero(optimizer1._cw_counts != optimizer2._cw_counts), 0)
         self.assertEqual(numpy.count_nonzero(optimizer1._wc_counts != optimizer2._wc_counts), 0)
 
+        optimizer3 = TheanoBigramOptimizer(self.statistics, self.vocabulary)
+        orig_class_id = optimizer3.get_word_class(word_id)
+        optimizer3._move(word_id, new_class_id)
+
+        self.assert_optimizers_equal(optimizer2, optimizer3)
+
     def test_evaluate(self):
         numpy_optimizer = NumpyBigramOptimizer(self.statistics, self.vocabulary)
         theano_optimizer = TheanoBigramOptimizer(self.statistics, self.vocabulary)
@@ -138,15 +140,18 @@ class TestBigramOptimizer(unittest.TestCase):
         new_class_id = 3 if orig_class_id != 3 else 4
 
         orig_ll = numpy_optimizer.log_likelihood()
-        ll_diff_numpy = numpy_optimizer._evaluate(word_id, new_class_id)
-#        ll_diff_theano = theano_optimizer._evaluate(word_id, new_class_id)
-#        self.assertTrue(numpy.isclose(ll_diff_numpy, ll_diff_theano))
+        self.assertTrue(numpy.isclose(orig_ll, theano_optimizer.log_likelihood()))
+
+        ll_diff = numpy_optimizer._evaluate(word_id, new_class_id)
+        self.assertTrue(numpy.isclose(ll_diff, theano_optimizer._evaluate(word_id, new_class_id)))
 
         numpy_optimizer._move(word_id, new_class_id)
         new_ll = numpy_optimizer.log_likelihood()
-
         self.assertFalse(numpy.isclose(orig_ll, new_ll))
-        self.assertTrue(numpy.isclose(orig_ll + ll_diff_numpy, new_ll))
+        self.assertTrue(numpy.isclose(orig_ll + ll_diff, new_ll))
+
+        theano_optimizer._move(word_id, new_class_id)
+        self.assertTrue(numpy.isclose(new_ll, theano_optimizer.log_likelihood()))
 
 if __name__ == '__main__':
     unittest.main()
