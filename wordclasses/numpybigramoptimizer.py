@@ -64,6 +64,24 @@ class NumpyBigramOptimizer(BigramOptimizer):
 
         return self._word_to_class[word_id]
 
+    def get_word_prob(self, word_id):
+        """Returns the unigram probability of a word within its class.
+
+        :type word_id: int
+        :param word_id: ID of the word
+
+        :rtype: float
+        :returns: class membership probability
+        """
+
+        word_count = self._word_counts[word_id]
+        class_id = self._word_to_class[word_id]
+        class_count = self._class_counts[class_id]
+        if class_count == 0:
+            return 0.0
+        else:
+            return word_count / class_count
+
     def log_likelihood(self):
         """Computes the log likelihood that a bigram model would give to the
         corpus.

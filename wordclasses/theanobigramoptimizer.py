@@ -66,6 +66,7 @@ class TheanoBigramOptimizer(BigramOptimizer):
         self._cc_counts = theano.shared(cc_counts, 'cc_counts')
         self._cw_counts = theano.shared(cw_counts, 'cw_counts')
         self._wc_counts = theano.shared(wc_counts, 'wc_counts')
+        self._create_get_word_prob_function()
         self._create_evaluate_function()
         self._create_move_function()
         self._create_log_likelihood_function()
@@ -82,6 +83,25 @@ class TheanoBigramOptimizer(BigramOptimizer):
         """
 
         return self._word_to_class.get_value()[word_id]
+
+    def _create_get_word_prob_function(self):
+        """Creates a Theano function that returns the unigram probability of a
+        word within its class.
+        """
+
+        word_id = tensor.scalar('word_id', dtype=self._count_type)
+
+        word_count = self._word_counts[word_id]
+        class_id = self._word_to_class[word_id]
+        class_count = self._class_counts[class_id]
+        result = tensor.switch(tensor.neq(class_count, 0),
+                               word_count / class_count,
+                               0)
+
+        self.get_word_prob = theano.function(
+            [word_id],
+            result,
+            name='get_word_prob')
 
     def _create_evaluate_function(self):
         """Creates a Theano function that evaluates how much moving a word to

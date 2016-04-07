@@ -153,7 +153,7 @@ class BigramOptimizer(object):
 
         for word, word_id in self._initial_vocabulary.word_to_id.items():
             class_id = self.get_word_class(word_id)
-            prob = 0.0
+            prob = self.get_word_prob(word_id)
             yield word, class_id, prob
 
     @abc.abstractmethod
@@ -168,6 +168,20 @@ class BigramOptimizer(object):
         """
 
         raise NotImplementedError("BigramOptimizer.get_word_class() has to be "
+                                  "implemented by the subclass.")
+
+    @abc.abstractmethod
+    def get_word_prob(self, word_id):
+        """Returns the unigram probability of a word within its class.
+
+        :type word_id: int
+        :param word_id: ID of the word
+
+        :rtype: float
+        :returns: class membership probability
+        """
+
+        raise NotImplementedError("BigramOptimizer.get_word_prob() has to be "
                                   "implemented by the subclass.")
 
     @abc.abstractmethod

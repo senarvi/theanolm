@@ -35,6 +35,9 @@ def main():
         help='format of the output file, one of "classes" (word and class ID '
              'per line), "srilm-classes" (default; class name, membership '
              'probability, and word per line)')
+    argument_group.add_argument(
+        '--output-frequency', metavar='N', type=int, default='8',
+        help='save classes N times per optimization iteration (default 8)')
 
     argument_group = parser.add_argument_group("optimization")
     argument_group.add_argument(
