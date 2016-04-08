@@ -27,7 +27,7 @@ def add_arguments(parser):
         help='text or .gz file containing word list or class definitions')
     argument_group.add_argument(
         '--training-set', metavar='FILE', type=TextFileType('r'),
-        nargs='+',
+        nargs='+', required=True,
         help='text or .gz files containing training data (one sentence per '
              'line)')
     argument_group.add_argument(

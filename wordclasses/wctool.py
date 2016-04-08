@@ -43,7 +43,7 @@ def main():
     argument_group = parser.add_argument_group("files")
     argument_group.add_argument(
         '--training-set', metavar='FILE', type=TextFileType('r'),
-        nargs='+',
+        nargs='+', required=True,
         help='text or .gz files containing training data (one sentence per '
              'line)')
     argument_group.add_argument(
