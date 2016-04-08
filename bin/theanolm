@@ -34,7 +34,11 @@ def main():
     version_parser.set_defaults(command_function=version.version)
 
     args = parser.parse_args()
-    args.command_function(args)
+
+    if hasattr(args, 'command_function'):
+        args.command_function(args)
+    else:
+        parser.print_help()
 
 if __name__ == "__main__":
     main()
