@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from collections import OrderedDict
-import time
+from time import time
 import logging
 import numpy
 import theano
@@ -178,13 +178,13 @@ class BasicOptimizer(object):
                   training data
         """
 
-        update_start_time = time.time()
+        update_start_time = time()
         self.update_cost = self.gradient_update_function(word_ids, mask)
         if numpy.isnan(self.update_cost) or numpy.isinf(self.update_cost):
             raise NumberError("Mini-batch cost computation resulted in a "
                               "numerical error.")
         self.model_update_function()
-        self.update_duration = time.time() - update_start_time
+        self.update_duration = time() - update_start_time
 
     def reset(self):
         """Resets the optimizer timestep. May be called after decreasing

@@ -17,12 +17,12 @@ class Network(object):
     A class that stores the neural network architecture and state.
     """
 
-    def __init__(self, dictionary, architecture, batch_processing=True, profile=False):
+    def __init__(self, vocabulary, architecture, batch_processing=True, profile=False):
         """Initializes the neural network parameters for all layers, and
         creates Theano shared variables from them.
 
-        :type dictionary: Dictionary
-        :param dictionary: mapping between word IDs and word classes
+        :type vocabulary: Vocabulary
+        :param vocabulary: mapping between word IDs and word classes
 
         :type architecture: Architecture
         :param architecture: an object that describes the network architecture
@@ -36,7 +36,7 @@ class Network(object):
         :param profile: if set to True, creates a Theano profile object
         """
 
-        self.dictionary = dictionary
+        self.vocabulary = vocabulary
         self.architecture = architecture
         self.batch_processing = batch_processing
 
@@ -58,7 +58,7 @@ class Network(object):
 
         # Create the layers.
         logging.debug("Creating layers.")
-        self.network_input = NetworkInput(dictionary.num_classes(), self)
+        self.network_input = NetworkInput(vocabulary.num_classes(), self)
         self.layers = OrderedDict()
         self.layers['X'] = self.network_input
         for layer_description in architecture.layers:
@@ -70,7 +70,7 @@ class Network(object):
                 else:
                     layer_options[variable] = value
             if layer_options['name'] == architecture.output_layer:
-                layer_options['size'] = dictionary.num_classes()
+                layer_options['size'] = vocabulary.num_classes()
             layer = create_layer(layer_options, self, profile=profile)
             self.layers[layer.name] = layer
         self.output_layer = self.layers[architecture.output_layer]
@@ -137,7 +137,7 @@ class Network(object):
         # used to index the same location in the output matrix. The word ID is
         # added to index the probability of that word.
         target_indices = \
-            tensor.arange(word_ids.shape[0]) * self.dictionary.num_classes() \
+            tensor.arange(word_ids.shape[0]) * self.vocabulary.num_classes() \
             + word_ids
         target_probs = output_probs[target_indices]
 

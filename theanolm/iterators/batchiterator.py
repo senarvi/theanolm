@@ -39,14 +39,14 @@ class BatchIterator(object):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self,
-                 dictionary,
+                 vocabulary,
                  batch_size=1,
                  max_sequence_length=None):
         """Constructs an iterator for reading mini-batches from given file or
         memory map.
 
-        :type dictionary: Dictionary
-        :param dictionary: dictionary that provides mapping between words and
+        :type vocabulary: Vocabulary
+        :param vocabulary: vocabulary that provides mapping between words and
                            word IDs
 
         :type batch_size: int
@@ -58,7 +58,7 @@ class BatchIterator(object):
                                     this
         """
 
-        self.dictionary = dictionary
+        self.vocabulary = vocabulary
         self.batch_size = batch_size
         self.max_sequence_length = max_sequence_length
         self.buffer = []
@@ -196,20 +196,20 @@ class BatchIterator(object):
                           IDs
 
         :rtype: tuple of numpy matrices
-        :returns: the word ID, class membership probability, and mask matrix
+        :returns: class ID, class membership probability, and mask matrix
         """
 
         num_sequences = len(sequences)
         batch_length = numpy.max([len(s) for s in sequences])
 
-        word_ids = numpy.zeros((batch_length, num_sequences), numpy.int64)
+        class_ids = numpy.zeros((batch_length, num_sequences), numpy.int64)
         probs = numpy.zeros((batch_length, num_sequences)).astype(theano.config.floatX)
         mask = numpy.zeros((batch_length, num_sequences), numpy.int8)
 
         for i, sequence in enumerate(sequences):
             length = len(sequence)
-            word_ids[:length, i] = self.dictionary.words_to_ids(sequence)
-            probs[:length, i] = self.dictionary.words_to_probs(sequence)
+            class_ids[:length, i] = self.vocabulary.words_to_class_ids(sequence)
+            probs[:length, i] = self.vocabulary.words_to_probs(sequence)
             mask[:length, i] = 1
 
-        return word_ids, probs, mask
+        return class_ids, probs, mask

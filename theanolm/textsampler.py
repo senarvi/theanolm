@@ -11,7 +11,7 @@ class TextSampler(object):
     model.
     """
 
-    def __init__(self, network, dictionary):
+    def __init__(self, network, vocabulary):
         """Creates the neural network architecture.
 
         Creates the function self.step_function that uses the state of the
@@ -23,13 +23,13 @@ class TextSampler(object):
         :type network: Network
         :param network: the neural network object
 
-        :type dictionary: Dictionary
-        :param dictionary: dictionary that provides mapping between words and
+        :type vocabulary: Vocabulary
+        :param vocabulary: vocabulary that provides mapping between words and
                            word IDs
         """
 
         self.network = network
-        self.dictionary = dictionary
+        self.vocabulary = vocabulary
 
         inputs = [self.network.input]
         inputs.extend(self.network.recurrent_state_input)
@@ -68,12 +68,14 @@ class TextSampler(object):
         :returns: list of the generated words
         """
 
+        sos_class_id = self.vocabulary.word_to_class_id('<s>')
+        eos_class_id = self.vocabulary.word_to_class_id('</s>')
+
         # We are only generating one sequence at a time. The input is passed as
         # a 2-dimensional matrix with only one element, since in mini-batch mode
         # the matrix contains multiple sequences and time steps.
-        result = [self.dictionary.sos_id]
-        step_output = \
-            self.dictionary.sos_id * numpy.ones(shape=(1,1)).astype('int64')
+        result = [sos_class_id]
+        step_output = sos_class_id * numpy.ones(shape=(1,1)).astype('int64')
 
         # Construct a list of recurrent state variables that will be passed
         # through time steps, and initialize them to zeros. The state vector is
@@ -93,9 +95,9 @@ class TextSampler(object):
             recurrent_state = step_result[1:]
             assert len(recurrent_state) == \
                    len(self.network.recurrent_state_size)
-            # The word ID from the single time step from the single sequence.
-            word_id = step_output[0,0]
-            result.append(word_id)
-            if word_id == self.dictionary.eos_id:
+            # The class ID from the single time step from the single sequence.
+            class_id = step_output[0,0]
+            result.append(class_id)
+            if class_id == eos_class_id:
                 break
-        return self.dictionary.ids_to_words(result)
+        return self.vocabulary.ids_to_words(result)
