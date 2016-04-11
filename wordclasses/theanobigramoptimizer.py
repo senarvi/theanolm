@@ -48,6 +48,7 @@ class TheanoBigramOptimizer(BigramOptimizer):
                       byte_size(word_to_class.nbytes))
 
         # Compute class counts from word counts.
+        logging.info("Computing class and class/word statistics.")
         class_counts, cc_counts, cw_counts, wc_counts = \
             self._compute_class_statistics(word_counts, ww_counts_csc, word_to_class)
         logging.debug("Allocated %s for class counts.",

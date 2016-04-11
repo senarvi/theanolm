@@ -37,21 +37,22 @@ class NumpyBigramOptimizer(BigramOptimizer):
         # Initialize classes.
         self._word_to_class = numpy.array(vocabulary.word_id_to_class_id)
         logging.debug("Allocated %s for word-to-class mapping.",
-                      byte_size(word_to_class.nbytes))
+                      byte_size(self._word_to_class.nbytes))
 
         # Compute class counts from word counts.
+        logging.info("Computing class and class/word statistics.")
         self._class_counts, self._cc_counts, self._cw_counts, self._wc_counts = \
             self._compute_class_statistics(self._word_counts,
                                            self._ww_counts,
                                            self._word_to_class)
         logging.debug("Allocated %s for class counts.",
-                      byte_size(class_counts.nbytes))
+                      byte_size(self._class_counts.nbytes))
         logging.debug("Allocated %s for class-class counts.",
-                      byte_size(cc_counts.nbytes))
+                      byte_size(self._cc_counts.nbytes))
         logging.debug("Allocated %s for class-word counts.",
-                      byte_size(cw_counts.nbytes))
+                      byte_size(self._cw_counts.nbytes))
         logging.debug("Allocated %s for word-class counts.",
-                      byte_size(wc_counts.nbytes))
+                      byte_size(self._wc_counts.nbytes))
 
     def get_word_class(self, word_id):
         """Returns the class the given word is currently assigned to.
