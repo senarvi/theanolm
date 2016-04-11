@@ -318,9 +318,10 @@ class Vocabulary(object):
         :returns: the given words translated into class IDs
         """
 
+        unk_class_id = self.word_to_class_id('<unk>')
         return [ self.word_to_class_id(word)
                  if word in self.word_to_id
-                 else self.unk_id
+                 else unk_class_id
                  for word in words ]
 
     def ids_to_words(self, word_ids):
