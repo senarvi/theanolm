@@ -112,6 +112,24 @@ class TestBigramOptimizer(unittest.TestCase):
         counts = optimizer1._compute_class_statistics(optimizer1._word_counts,
                                                       optimizer1._ww_counts,
                                                       optimizer1._word_to_class)
+
+        class_counts = numpy.zeros(optimizer1.num_classes, 'int32')
+        cc_counts = numpy.zeros((optimizer1.num_classes, optimizer1.num_classes), dtype='int32')
+        cw_counts = numpy.zeros((optimizer1.num_classes, optimizer1.vocabulary_size), dtype='int32')
+        wc_counts = numpy.zeros((optimizer1.vocabulary_size, optimizer1.num_classes), dtype='int32')
+        for wid, cid in enumerate(optimizer1._word_to_class):
+            class_counts[cid] += optimizer1._word_counts[wid]
+        for left_wid, right_wid in zip(*optimizer1._ww_counts.nonzero()):
+            count = optimizer1._ww_counts[left_wid, right_wid]
+            left_cid = optimizer1._word_to_class[left_wid]
+            right_cid = optimizer1._word_to_class[right_wid]
+            cc_counts[left_cid,right_cid] += count
+            cw_counts[left_cid,right_wid] += count
+            wc_counts[left_wid,right_cid] += count
+        self.assertTrue(numpy.array_equal(class_counts, counts[0]))
+        self.assertTrue(numpy.array_equal(cc_counts, counts[1]))
+        self.assertTrue(numpy.array_equal(cw_counts, counts[2]))
+        self.assertTrue(numpy.array_equal(wc_counts, counts[3]))
         optimizer1._class_counts = counts[0]
         optimizer1._cc_counts = counts[1]
         optimizer1._cw_counts = counts[2]

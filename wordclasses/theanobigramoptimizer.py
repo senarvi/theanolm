@@ -32,43 +32,38 @@ class TheanoBigramOptimizer(BigramOptimizer):
         # Sparse classes in Theano 0.8 support only int32 indices.
         super().__init__(vocabulary, 'int32')
 
+        # Create word counts.
         word_counts = statistics.unigram_counts
-        ww_counts_csc = statistics.bigram_counts.tocsc()
-        ww_counts_csr = statistics.bigram_counts.tocsr()
+        self._word_counts = theano.shared(word_counts, 'word_counts')
         logging.debug("Allocated %s for word counts.",
                       byte_size(word_counts.nbytes))
+        ww_counts_csc = statistics.bigram_counts.tocsc()
+        self._ww_counts = theano.shared(ww_counts_csc, 'ww_counts_csc')
         logging.debug("Allocated %s for CSC word-word counts.",
                       byte_size(ww_counts_csc.data.nbytes))
+        ww_counts_csr = statistics.bigram_counts.tocsr()
+        self._ww_counts_csr = theano.shared(ww_counts_csr, 'ww_counts_csr')
         logging.debug("Allocated %s for CSR word-word counts.",
                       byte_size(ww_counts_csr.data.nbytes))
 
         # Initialize classes.
         word_to_class = numpy.array(vocabulary.word_id_to_class_id)
+        self._word_to_class = theano.shared(word_to_class, 'word_to_class')
         logging.debug("Allocated %s for word-to-class mapping.",
                       byte_size(word_to_class.nbytes))
 
         # Compute class counts from word counts.
         logging.info("Computing class and class/word statistics.")
         class_counts, cc_counts, cw_counts, wc_counts = \
-            self._compute_class_statistics(word_counts, ww_counts_csc, word_to_class)
-        logging.debug("Allocated %s for class counts.",
-                      byte_size(class_counts.nbytes))
-        logging.debug("Allocated %s for class-class counts.",
-                      byte_size(cc_counts.nbytes))
-        logging.debug("Allocated %s for class-word counts.",
-                      byte_size(cw_counts.nbytes))
-        logging.debug("Allocated %s for word-class counts.",
-                      byte_size(wc_counts.nbytes))
-
-        # Create Theano shared variables and functions.
-        self._word_counts = theano.shared(word_counts, 'word_counts')
-        self._ww_counts = theano.shared(ww_counts_csc, 'ww_counts_csc')
-        self._ww_counts_csr = theano.shared(ww_counts_csr, 'ww_counts_csr')
-        self._word_to_class = theano.shared(word_to_class, 'word_to_class')
+            self._compute_class_statistics(word_counts,
+                                           ww_counts_csc,
+                                           word_to_class)
         self._class_counts = theano.shared(class_counts, 'class_counts')
         self._cc_counts = theano.shared(cc_counts, 'cc_counts')
         self._cw_counts = theano.shared(cw_counts, 'cw_counts')
         self._wc_counts = theano.shared(wc_counts, 'wc_counts')
+
+        # Create Theano functions.
         self._create_get_word_prob_function()
         self._create_evaluate_function()
         self._create_move_function()
@@ -201,7 +196,7 @@ class TheanoBigramOptimizer(BigramOptimizer):
         """Creates a Theano function that moves a word to another class.
 
         tensor.inc_subtensor actually works like numpy.add.at, so we can use it
-        add the count as many times as the word occurs in a class.
+        to add the count as many times as the word occurs in a class.
         """
 
         updates = []

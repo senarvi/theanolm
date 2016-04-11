@@ -4,7 +4,7 @@
 import abc
 import logging
 import numpy
-from scipy.sparse import dok_matrix
+from wordclasses.functions import byte_size
 
 class BigramOptimizer(object):
     """Word Class Optimizer
@@ -27,32 +27,11 @@ class BigramOptimizer(object):
         self.num_classes = vocabulary.num_classes()
         self._count_type = count_type
 
-    def _compute_class_statistics(self, word_counts, ww_counts, word_to_class):
-        """Computes class statistics from word statistics.
-        """
-
-        class_counts = numpy.zeros(self.num_classes, self._count_type)
-        cc_counts = numpy.zeros(
-            (self.num_classes, self.num_classes), dtype=self._count_type)
-        cw_counts = numpy.zeros(
-            (self.num_classes, self.vocabulary_size), dtype=self._count_type)
-        wc_counts = numpy.zeros(
-            (self.vocabulary_size, self.num_classes), dtype=self._count_type)
-
-        for word_id, class_id in enumerate(word_to_class):
-            class_counts[class_id] += word_counts[word_id]
-        for left_word_id, right_word_id in zip(*ww_counts.nonzero()):
-            count = ww_counts[left_word_id, right_word_id]
-            left_class_id = word_to_class[left_word_id]
-            right_class_id = word_to_class[right_word_id]
-            cc_counts[left_class_id,right_class_id] += count
-            cw_counts[left_class_id,right_word_id] += count
-            wc_counts[left_word_id,right_class_id] += count
-
-        return class_counts, cc_counts, cw_counts, wc_counts
-
     def move_to_best_class(self, word):
         """Moves a word to the class that minimizes training set log likelihood.
+
+        :type word: int
+        :param word: ID of the word to be moved
         """
 
         if word.startswith('<') and word.endswith('>'):
@@ -71,6 +50,59 @@ class BigramOptimizer(object):
             return True
         else:
             return False
+
+    def _compute_class_statistics(self, word_counts, ww_counts, word_to_class):
+        """Computes class statistics from word statistics given the
+        word-to-class mapping.
+
+        :type word_counts: numpy.ndarray
+        :param word_counts: word unigram counts
+
+        :type ww_counts: scipy.sparse.csc_matrix
+        :param ww_counts: word bigram counts
+
+        :type word_to_class: numpy.ndarray
+        :param word_to_class: gives the class ID of each word ID
+        """
+
+        class_counts = numpy.zeros(self.num_classes, self._count_type)
+        logging.debug("Allocated %s for class counts.",
+                      byte_size(class_counts.nbytes))
+        cc_counts = numpy.zeros(
+            (self.num_classes, self.num_classes), dtype=self._count_type)
+        logging.debug("Allocated %s for class-class counts.",
+                      byte_size(cc_counts.nbytes))
+        cw_counts = numpy.zeros(
+            (self.num_classes, self.vocabulary_size), dtype=self._count_type)
+        logging.debug("Allocated %s for class-word counts.",
+                      byte_size(cw_counts.nbytes))
+        wc_counts = numpy.zeros(
+            (self.vocabulary_size, self.num_classes), dtype=self._count_type)
+        logging.debug("Allocated %s for word-class counts.",
+                      byte_size(wc_counts.nbytes))
+
+        numpy.add.at(class_counts, word_to_class, word_counts)
+
+        left_word_ids, right_word_ids = ww_counts.nonzero()
+        counts = ww_counts[left_word_ids, right_word_ids].flat
+        left_class_ids = word_to_class[left_word_ids]
+        right_class_ids = word_to_class[right_word_ids]
+        numpy.add.at(cc_counts, (left_class_ids, right_class_ids), counts)
+        numpy.add.at(cw_counts, (left_class_ids, right_word_ids), counts)
+        numpy.add.at(wc_counts, (left_word_ids, right_class_ids), counts)
+
+        return class_counts, cc_counts, cw_counts, wc_counts
+
+#        for word_id, class_id in enumerate(word_to_class):
+#            class_counts[class_id] += word_counts[word_id]
+#        for left_word_id, right_word_id in zip(*ww_counts.nonzero()):
+#            count = ww_counts[left_word_id, right_word_id]
+#            left_class_id = word_to_class[left_word_id]
+#            right_class_id = word_to_class[right_word_id]
+#            cc_counts[left_class_id,right_class_id] += count
+#            cw_counts[left_class_id,right_word_id] += count
+#            wc_counts[left_word_id,right_class_id] += count
+#        return class_counts, cc_counts, cw_counts, wc_counts
 
     def _find_best_move(self, word_id):
         """Finds the class such that moving the given word to that class would

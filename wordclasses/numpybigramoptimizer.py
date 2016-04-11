@@ -20,17 +20,19 @@ class NumpyBigramOptimizer(BigramOptimizer):
         :param vocabulary: words to include in the optimization and initial classes
         """
 
-        if numpy.count_nonzero(statistics.unigram_counts) == 0:
+	# count_nonzero() and any() seem to fail on the sparse matrix.
+        if not statistics.unigram_counts.any():
             raise ValueError("Empty word unigram statistics.")
-        if numpy.count_nonzero(statistics.bigram_counts) == 0:
+        if statistics.bigram_counts.nnz == 0:
             raise ValueError("Empty word bigram statistics.")
 
         super().__init__(vocabulary)
 
+        # Create word counts.
         self._word_counts = statistics.unigram_counts
-        self._ww_counts = statistics.bigram_counts.tocsc()
         logging.debug("Allocated %s for word counts.",
                       byte_size(self._word_counts.nbytes))
+        self._ww_counts = statistics.bigram_counts.tocsc()
         logging.debug("Allocated %s for sparse word-word counts.",
                       byte_size(self._ww_counts.data.nbytes))
 
@@ -45,14 +47,6 @@ class NumpyBigramOptimizer(BigramOptimizer):
             self._compute_class_statistics(self._word_counts,
                                            self._ww_counts,
                                            self._word_to_class)
-        logging.debug("Allocated %s for class counts.",
-                      byte_size(self._class_counts.nbytes))
-        logging.debug("Allocated %s for class-class counts.",
-                      byte_size(self._cc_counts.nbytes))
-        logging.debug("Allocated %s for class-word counts.",
-                      byte_size(self._cw_counts.nbytes))
-        logging.debug("Allocated %s for word-class counts.",
-                      byte_size(self._wc_counts.nbytes))
 
     def get_word_class(self, word_id):
         """Returns the class the given word is currently assigned to.
