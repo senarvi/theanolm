@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import logging
 import numpy
 import theano
 from theano import sparse
@@ -22,9 +23,10 @@ class TheanoBigramOptimizer(BigramOptimizer):
         :param vocabulary: words to include in the optimization and initial classes
         """
 
-        if numpy.count_nonzero(statistics.unigram_counts) == 0:
+	# count_nonzero() and any() seem to fail on the sparse matrix.
+        if not statistics.unigram_counts.any():
             raise ValueError("Empty word unigram statistics.")
-        if numpy.count_nonzero(statistics.bigram_counts) == 0:
+        if statistics.bigram_counts.nnz == 0:
             raise ValueError("Empty word bigram statistics.")
 
         # Sparse classes in Theano 0.8 support only int32 indices.
@@ -33,29 +35,29 @@ class TheanoBigramOptimizer(BigramOptimizer):
         word_counts = statistics.unigram_counts
         ww_counts_csc = statistics.bigram_counts.tocsc()
         ww_counts_csr = statistics.bigram_counts.tocsr()
-        print("Allocated {} for word counts.".format(
-            byte_size(word_counts.nbytes)))
-        print("Allocated {} for CSC word-word counts.".format(
-            byte_size(ww_counts_csc.data.nbytes)))
-        print("Allocated {} for CSR word-word counts.".format(
-            byte_size(ww_counts_csr.data.nbytes)))
+        logging.debug("Allocated %s for word counts.",
+                      byte_size(word_counts.nbytes))
+        logging.debug("Allocated %s for CSC word-word counts.",
+                      byte_size(ww_counts_csc.data.nbytes))
+        logging.debug("Allocated %s for CSR word-word counts.",
+                      byte_size(ww_counts_csr.data.nbytes))
 
         # Initialize classes.
         word_to_class = numpy.array(vocabulary.word_id_to_class_id)
-        print("Allocated {} for word-to-class mapping.".format(
-            byte_size(word_to_class.nbytes)))
+        logging.debug("Allocated %s for word-to-class mapping.",
+                      byte_size(word_to_class.nbytes))
 
         # Compute class counts from word counts.
         class_counts, cc_counts, cw_counts, wc_counts = \
             self._compute_class_statistics(word_counts, ww_counts_csc, word_to_class)
-        print("Allocated {} for class counts.".format(
-            byte_size(class_counts.nbytes)))
-        print("Allocated {} for class-class counts.".format(
-            byte_size(cc_counts.nbytes)))
-        print("Allocated {} for class-word counts.".format(
-            byte_size(cw_counts.nbytes)))
-        print("Allocated {} for word-class counts.".format(
-            byte_size(wc_counts.nbytes)))
+        logging.debug("Allocated %s for class counts.",
+                      byte_size(class_counts.nbytes))
+        logging.debug("Allocated %s for class-class counts.",
+                      byte_size(cc_counts.nbytes))
+        logging.debug("Allocated %s for class-word counts.",
+                      byte_size(cw_counts.nbytes))
+        logging.debug("Allocated %s for word-class counts.",
+                      byte_size(wc_counts.nbytes))
 
         # Create Theano shared variables and functions.
         self._word_counts = theano.shared(word_counts, 'word_counts')

@@ -110,6 +110,8 @@ def main():
     else:
         vocabulary = Vocabulary.from_file(args.vocabulary,
                                           args.vocabulary_format)
+
+    logging.info("Reading word unigram and bigram statistics.")
     statistics = WordStatistics(args.training_set, vocabulary)
 
     if args.method == 'bigram-theano':

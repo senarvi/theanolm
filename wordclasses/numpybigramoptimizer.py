@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import logging
 import numpy
 from wordclasses.bigramoptimizer import BigramOptimizer
 from wordclasses.functions import byte_size
@@ -28,29 +29,29 @@ class NumpyBigramOptimizer(BigramOptimizer):
 
         self._word_counts = statistics.unigram_counts
         self._ww_counts = statistics.bigram_counts.tocsc()
-        print("Allocated {} for word counts.".format(
-            byte_size(self._word_counts.nbytes)))
-        print("Allocated {} for sparse word-word counts.".format(
-            byte_size(self._ww_counts.data.nbytes)))
+        logging.debug("Allocated %s for word counts.",
+                      byte_size(self._word_counts.nbytes))
+        logging.debug("Allocated %s for sparse word-word counts.",
+                      byte_size(self._ww_counts.data.nbytes))
 
         # Initialize classes.
         self._word_to_class = numpy.array(vocabulary.word_id_to_class_id)
-        print("Allocated {} for word-to-class mapping.".format(
-            byte_size(self._word_to_class.nbytes)))
+        logging.debug("Allocated %s for word-to-class mapping.",
+                      byte_size(word_to_class.nbytes))
 
         # Compute class counts from word counts.
         self._class_counts, self._cc_counts, self._cw_counts, self._wc_counts = \
             self._compute_class_statistics(self._word_counts,
                                            self._ww_counts,
                                            self._word_to_class)
-        print("Allocated {} for class counts.".format(
-            byte_size(self._class_counts.nbytes)))
-        print("Allocated {} for class-class counts.".format(
-            byte_size(self._cc_counts.nbytes)))
-        print("Allocated {} for class-word counts.".format(
-            byte_size(self._cw_counts.nbytes)))
-        print("Allocated {} for word-class counts.".format(
-            byte_size(self._wc_counts.nbytes)))
+        logging.debug("Allocated %s for class counts.",
+                      byte_size(class_counts.nbytes))
+        logging.debug("Allocated %s for class-class counts.",
+                      byte_size(cc_counts.nbytes))
+        logging.debug("Allocated %s for class-word counts.",
+                      byte_size(cw_counts.nbytes))
+        logging.debug("Allocated %s for word-class counts.",
+                      byte_size(wc_counts.nbytes))
 
     def get_word_class(self, word_id):
         """Returns the class the given word is currently assigned to.
