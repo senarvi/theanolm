@@ -80,9 +80,15 @@ class Network(object):
         self.recurrent_state_output = [None] * len(self.recurrent_state_size)
 
         # Create initial parameter values.
+        logging.debug("Initializing parameters.")
         self.param_init_values = OrderedDict()
+        num_params = 0
         for layer in self.layers.values():
+            for name, value in layer.param_init_values.items():
+                logging.debug("- %s size=%d", name, value.size)
+                num_params += value.size
             self.param_init_values.update(layer.param_init_values)
+        logging.debug("Total number of parameters: %d", num_params)
 
         # Create Theano shared variables.
         self.params = { name: theano.shared(value, name)
