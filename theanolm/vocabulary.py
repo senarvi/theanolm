@@ -23,138 +23,135 @@ class Vocabulary(object):
         class.
         """
 
-        def __init__(self, id, word, prob):
+        def __init__(self, class_id, word_id, prob):
             """Initializes the class with one word with given probability.
 
-            :type id: int
-            :param id: ID for the class
+            :type class_id: int
+            :param class_id: ID for the class
 
-            :type word: str
-            :param word: the initial word in the class
+            :type word_id: int
+            :param word_id: ID of the initial word in the class
 
             :type prob: float
             :param prob: the membership probability of the word
             """
 
             self.id = id
-            self._probs = OrderedDict({word: prob})
+            self.probs = OrderedDict({word_id: prob})
 
-        def add(self, word, prob):
+        def add(self, word_id, prob):
             """Adds a word to the class with given probability.
 
             The membership probabilities are not guaranteed to be normalized.
 
-            :type word: str
-            :param word: the word to add to the class
+            :type word_id: int
+            :param word_id: ID of the word to add to the class
 
             :type prob: float
             :param prob: the membership probability of the new word
             """
 
-            self._probs[word] = prob
+            self.probs[word_id] = prob
 
-        def get_prob(self, word):
+        def get_prob(self, word_id):
             """Returns the class membership probability of a word.
 
-            :type word: str
-            :param word: a word that belongs to this class
+            :type word_id: int
+            :param word_id: a word ID that belongs to this class
 
             :rtype: float
             :returns: the class membership probability of the word
             """
 
-            return self._probs[word]
+            return self.probs[word_id]
 
         def normalize_probs(self):
             """Normalizes the class membership probabilities to sum to one.
             """
 
-            prob_sum = sum(self._probs.values())
-            for word in self._probs:
-                self._probs[word] /= prob_sum
+            prob_sum = sum(self.probs.values())
+            for word_id in self.probs:
+                self.probs[word_id] /= prob_sum
 
         def sample(self):
             """Samples a word from the membership probability distribution.
 
-            :rtype: str
-            :returns: a random word from this class
+            :rtype: int
+            :returns: a random word ID from this class
             """
 
-            words = list(self._probs.keys())
-            probs = list(self._probs.values())
+            word_ids = list(self.probs.keys())
+            probs = list(self.probs.values())
             sample_distribution = numpy.random.multinomial(1, probs)
             indices = numpy.flatnonzero(sample_distribution)
             assert len(indices) == 1
-            return words[indices[0]]
+            return word_ids[indices[0]]
 
-        def name(self):
-            """If the class contains only one word, returns the word. Otherwise
-            returns CLASS-12345, where 12345 is the internal class ID.
+    def __init__(self, id_to_word, word_to_class_id, word_classes):
+        """Creates a vocabulary based on given word-to-class mapping. Prepends
+        the vocabulary with special words and updates the word and class IDs.
 
-            :type word_ids: list of ints
-            :param word_ids: a list of word IDs
-
-            :rtype: list of strings
-            :returns: the given word IDs translated into words
-            """
-
-            if len(self._probs) == 1:
-                return next(iter(self._probs))
-            elif self.id is None:
-                return 'CLASS'
-            else:
-                return 'CLASS-{0:05d}'.format(self.id)
-
-    def __init__(self, word_classes, word_to_class_id):
-        """Creates a vocabulary based on given word-to-class mapping.
-
-        :type word_classes: list of WordClass objects
-        :param word_classes: list of all the word classes
+        :type id_to_word: list
+        :param id_to_word: mapping from word IDs to word names
 
         :type word_to_class_id: dict
         :param word_to_class_id: mapping from words to indices in
                                  ``word_classes``
+
+        :type word_classes: list of WordClass objects
+        :param word_classes: list of all the word classes
         """
 
-        self.word_to_id = dict()
+        self.id_to_word = []
         self._word_classes = []
         self.word_id_to_class_id = []
 
         if not '<s>' in word_to_class_id:
-            word_id = len(self.word_id_to_class_id)
+            word_id = len(self.id_to_word)
+            assert word_id == len(self.word_id_to_class_id)
             class_id = len(self._word_classes)
-            self.word_to_id['<s>'] = word_id
+            self.id_to_word.append('<s>')
             self.word_id_to_class_id.append(class_id)
-            word_class = Vocabulary.WordClass(class_id, '<s>', 1.0)
+            word_class = Vocabulary.WordClass(class_id, word_id, 1.0)
             self._word_classes.append(word_class)
 
         if not '</s>' in word_to_class_id:
-            word_id = len(self.word_id_to_class_id)
+            word_id = len(self.id_to_word)
+            assert word_id == len(self.word_id_to_class_id)
             class_id = len(self._word_classes)
-            self.word_to_id['</s>'] = word_id
+            self.id_to_word.append('</s>')
             self.word_id_to_class_id.append(class_id)
-            word_class = Vocabulary.WordClass(class_id, '</s>', 1.0)
+            word_class = Vocabulary.WordClass(class_id, word_id, 1.0)
             self._word_classes.append(word_class)
 
         if not '<unk>' in word_to_class_id:
-            word_id = len(self.word_id_to_class_id)
+            word_id = len(self.id_to_word)
+            assert word_id == len(self.word_id_to_class_id)
             class_id = len(self._word_classes)
-            self.word_to_id['<unk>'] = word_id
+            self.id_to_word.append('<unk>')
             self.word_id_to_class_id.append(class_id)
-            word_class = Vocabulary.WordClass(class_id, '<unk>', 1.0)
+            word_class = Vocabulary.WordClass(class_id, word_id, 1.0)
             self._word_classes.append(word_class)
 
-        self.first_normal_word_id = len(self.word_id_to_class_id)
+        self.first_normal_word_id = len(self.id_to_word)
+        assert self.first_normal_word_id == len(self.word_id_to_class_id)
         self.first_normal_class_id = len(self._word_classes)
 
-        for word, class_id in word_to_class_id.items():
-            word_id = len(self.word_id_to_class_id)
-            self.word_to_id[word] = word_id
-            self.word_id_to_class_id.append(self.first_normal_class_id + class_id)
+        self.id_to_word.extend(id_to_word)
+        self.word_to_id = {word: word_id
+                           for word_id, word in enumerate(self.id_to_word)}
 
-        self._word_classes.extend(word_classes)
-        for word_class in self._word_classes:
+        for word_id, word in enumerate(id_to_word):
+            class_id = self.first_normal_class_id + word_to_class_id[word]
+            assert self.first_normal_word_id + word_id == \
+                   len(self.word_id_to_class_id)
+            self.word_id_to_class_id.append(class_id)
+
+        for word_class in word_classes:
+            word_class.probs = {self.first_normal_word_id + word_id: prob
+                                for (word_id, prob) in word_class.probs.items()}
             word_class.normalize_probs()
+        self._word_classes.extend(word_classes)
 
     @classmethod
     def from_file(classname, input_file, input_format):
@@ -180,8 +177,9 @@ class Vocabulary(object):
 	                     "classes", or "srilm-classes"
         """
 
-        word_classes = []
+        id_to_word = []
         word_to_class_id = dict()
+        word_classes = []
         # Mapping from the IDs in the file to our internal class IDs.
         file_id_to_class_id = dict()
 
@@ -205,21 +203,24 @@ class Vocabulary(object):
             else:
                 raise InputError("%d fields on one line of vocabulary file: %s" % (len(fields), line))
 
+            word_id = len(id_to_word)
+            id_to_word.append(word)
+
             if word in word_to_class_id:
                 raise InputError("Word `%s' appears more than once in the vocabulary file." % word)
             if file_id in file_id_to_class_id:
                 class_id = file_id_to_class_id[file_id]
-                word_classes[class_id].add(word, prob)
+                word_classes[class_id].add(word_id, prob)
             else:
                 # No ID in the file or a new ID.
                 class_id = len(word_classes)
-                word_class = Vocabulary.WordClass(class_id, word, prob)
+                word_class = Vocabulary.WordClass(class_id, word_id, prob)
                 word_classes.append(word_class)
                 if not file_id is None:
                     file_id_to_class_id[file_id] = class_id
             word_to_class_id[word] = class_id
 
-        return classname(word_classes, word_to_class_id)
+        return classname(id_to_word, word_to_class_id, word_classes)
 
     @classmethod
     def from_word_counts(classname, word_counts, num_classes=None):
@@ -234,8 +235,9 @@ class Vocabulary(object):
                             special classes, or None for one class per word
         """
 
-        word_classes = []
+        id_to_word = []
         word_to_class_id = dict()
+        word_classes = []
 
         if num_classes is None:
             num_classes = len(word_counts)
@@ -243,16 +245,19 @@ class Vocabulary(object):
         class_id = 0
         for word, _ in sorted(word_counts.items(),
                               key=lambda x: x[1]):
+            word_id = len(id_to_word)
+            id_to_word.append(word)
+
             if class_id < len(word_classes):
-                word_classes[class_id].add(word, 1.0)
+                word_classes[class_id].add(word_id, 1.0)
             else:
                 assert class_id == len(word_classes)
-                word_class = Vocabulary.WordClass(class_id, word, 1.0)
+                word_class = Vocabulary.WordClass(class_id, word_id, 1.0)
                 word_classes.append(word_class)
             word_to_class_id[word] = class_id
             class_id = (class_id + 1) % num_classes
 
-        return classname(word_classes, word_to_class_id)
+        return classname(id_to_word, word_to_class_id, word_classes)
 
     @classmethod
     def from_corpus(classname, input_files, num_classes=None):
@@ -285,7 +290,7 @@ class Vocabulary(object):
         :returns: the number of words in the vocabulary
         """
 
-        return len(self.word_id_to_class_id)
+        return len(self.id_to_word)
 
     def num_classes(self):
         """Returns the number of word classes.
@@ -308,38 +313,37 @@ class Vocabulary(object):
 
         return self.word_id_to_class_id[self.word_to_id[word]]
 
-    def words_to_class_ids(self, words):
-        """Translates words into class IDs.
+    def words_to_ids(self, words):
+        """Translates words into word IDs.
 
         :type words: list of strs
         :param words: a list of words
 
         :rtype: list of ints
-        :returns: the given words translated into class IDs
+        :returns: the given words translated into word IDs
         """
 
-        unk_class_id = self.word_to_class_id('<unk>')
-        return [ self.word_to_class_id(word)
-                 if word in self.word_to_id
-                 else unk_class_id
-                 for word in words ]
+        unk_id = self.word_to_id['<unk>']
+        return [self.word_to_id[word]
+                if word in self.word_to_id
+                else unk_id
+                for word in words]
 
-    def ids_to_words(self, word_ids):
-        """Translates class IDs into words. If classes are used, samples
-        a word from the membership probability distribution.
+    def class_id_to_word_id(self, class_id):
+        """Samples a word from the membership probability distribution of a
+        class. (If classes are not used, returns the one word in the class.)
 
-        :type word_ids: list of ints
-        :param word_ids: a list of word IDs
+        :type class_id: int
+        :param class_id: a class ID
 
-        :rtype: list of strings
-        :returns: the given word IDs translated into words
+        :rtype: int
+        :returns: a word from the given class
         """
 
-        return [self._word_classes[word_id].sample()
-                for word_id in word_ids]
+        return self._word_classes[class_id].sample()
 
-    def ids_to_names(self, word_ids):
-        """Translates word / class IDs into word / class names. If a class
+    def word_ids_to_classes(self, word_ids):
+        """Translates word IDs into class names. If a class
         contains only one word, class name will be the word. Otherwise class
         name will be CLASS-12345, where 12345 is the internal class ID.
 
@@ -350,25 +354,51 @@ class Vocabulary(object):
         :returns: class names of the given word IDs
         """
 
-        return [self._word_classes[word_id].name()
+        return [self._class_name(self._word_classes[word_id])
                 for word_id in word_ids]
 
-    def words_to_probs(self, words):
-        """Returns a list of class membership probabilities for each input word.
+    def _class_name(self, word_class):
+        """If given class contains only one word, returns the word. Otherwicse
+        returns CLASS-12345, where 12345 is the internal class ID.
 
-        :type words: numpy.ndarray of strs
-        :param words: a vector or matrix of words
+        :type word_class: WordClass
+        :param word_class: a word class object
 
-        :rtype: numpy.ndarray of floats
-        :returns: a matrix the same shape as ``words`` containing the class
-                  membership probabilities
+        :rtype: str
+        :returns: a name for the class
         """
 
-        # <unk> has class membership probability 1.0.
-        return [ self._word_classes[self.word_to_class_id(word)].get_prob(word)
-                 if word in self.word_to_id
-                 else 1.0
-                 for word in words ]
+        if len(word_class.probs) == 1:
+            word_id = next(iter(word_class.probs))
+            return self.id_to_word[word_id]
+        elif word_class.id is None:
+            return 'CLASS'
+        else:
+            return 'CLASS-{0:05d}'.format(word_class.id)
+
+    def get_word_prob(self, word_id):
+        """Returns the class membership probability of a word.
+
+        :type word_id: int
+        :param word_id: ID of a word
+
+        :rtype: float
+        :returns: the probability of the word within its class
+        """
+
+        class_id = self.word_id_to_class_id[word_id]
+        word_class = self._word_classes[class_id]
+        return word_class.get_prob(word_id)
+
+    def words(self):
+        """A generator for all the words in the vocabulary.
+
+        :rtype: generator of str
+        :returns: iterates through the words
+        """
+
+        for word in self.word_to_id.keys():
+            yield word
 
     def __contains__(self, word):
         """Tests if ``word`` is included in the vocabulary.
@@ -381,13 +411,3 @@ class Vocabulary(object):
         """
 
         return word in self.word_to_id
-
-    def words(self):
-        """A generator for all the words in the vocabulary.
-
-        :rtype: generator of str
-        :returns: iterates through the words
-        """
-
-        for word in self.word_to_id.keys():
-            yield word

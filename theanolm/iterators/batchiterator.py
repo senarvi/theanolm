@@ -196,20 +196,27 @@ class BatchIterator(object):
                           IDs
 
         :rtype: tuple of numpy matrices
-        :returns: class ID, class membership probability, and mask matrix
+        :returns: word ID, class ID, class membership probability, and mask matrix
         """
 
         num_sequences = len(sequences)
         batch_length = numpy.max([len(s) for s in sequences])
 
+        word_ids = numpy.zeros((batch_length, num_sequences), numpy.int64)
         class_ids = numpy.zeros((batch_length, num_sequences), numpy.int64)
         probs = numpy.zeros((batch_length, num_sequences)).astype(theano.config.floatX)
         mask = numpy.zeros((batch_length, num_sequences), numpy.int8)
 
         for i, sequence in enumerate(sequences):
             length = len(sequence)
-            class_ids[:length, i] = self.vocabulary.words_to_class_ids(sequence)
-            probs[:length, i] = self.vocabulary.words_to_probs(sequence)
+            sequence_word_ids = self.vocabulary.words_to_ids(sequence)
+            word_ids[:length, i] = sequence_word_ids
+            class_ids[:length, i] = \
+                [self.vocabulary.word_id_to_class_id[word_id]
+                 for word_id in sequence_word_ids]
+            probs[:length, i] = \
+                [self.vocabulary.get_word_prob(word_id)
+                 for word_id in sequence_word_ids]
             mask[:length, i] = 1
 
-        return class_ids, probs, mask
+        return word_ids, class_ids, probs, mask

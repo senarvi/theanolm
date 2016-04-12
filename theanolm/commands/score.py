@@ -115,8 +115,9 @@ def _score_text(input_file, vocabulary, scorer, output_file,
     num_sentences = 0
     num_words = 0
     num_probs = 0
-    for word_ids, membership_probs, mask in validation_iter:
-        logprobs = scorer.score_batch(word_ids, membership_probs, mask)
+    for word_ids, class_ids, membership_probs, mask in validation_iter:
+        logprobs = scorer.score_batch(word_ids, class_ids, membership_probs,
+                                      mask)
         for seq_index, seq_logprobs in enumerate(logprobs):
             seq_logprob = sum(seq_logprobs)
             num_probs += len(seq_logprobs)
@@ -129,7 +130,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
 
             seq_logprobs = [x / base_conversion for x in seq_logprobs]
             seq_logprob /= base_conversion
-            seq_class_names = vocabulary.ids_to_names(seq_word_ids)
+            seq_class_names = vocabulary.word_ids_to_classes(seq_word_ids)
             output_file.write("# Sentence {0}\n".format(num_sentences))
 
             # In case some word IDs are ignored, seq_word_ids may contain more
@@ -209,13 +210,15 @@ def _score_utterances(input_file, vocabulary, scorer, output_file,
         if not words:
             continue
 
-        class_ids = vocabulary.words_to_class_ids(words)
+        word_ids = vocabulary.words_to_ids(words)
+        class_ids = vocabulary.words_ids_to_class_ids(words)
         num_words += len(class_ids)
         num_unks += class_ids.count(vocabulary.word_to_class_id('<unk>'))
 
-        probs = vocabulary.words_to_probs(words)
+        probs = [self.vocabulary.get_word_prob(word_id)
+                 for word_id in word_ids]
 
-        lm_score = scorer.score_sequence(class_ids, probs)
+        lm_score = scorer.score_sequence(word_ids, class_ids, probs)
         lm_score /= base_conversion
         output_file.write(str(lm_score) + '\n')
 
