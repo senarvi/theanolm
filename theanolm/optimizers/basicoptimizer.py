@@ -68,7 +68,7 @@ class BasicOptimizer(object):
         # GPU earlier than necessary.
         mask = self.network.mask[1:]
         for class_id in classes_to_ignore:
-            mask *= tensor.neq(self.network.input[1:], class_id)
+            mask *= tensor.neq(self.network.class_input[1:], class_id)
         logprobs *= tensor.cast(mask, theano.config.floatX)
         # Cost is the negative log probability normalized by the number of
         # training examples in the mini-batch, so that the gradients will also

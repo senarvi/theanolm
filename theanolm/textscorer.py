@@ -36,9 +36,9 @@ class TextScorer(object):
         # Ignore unused input variables, because is_training is only used by
         # dropout layer.
         self.score_function = theano.function(
-            [self.network.word_input,
-             self.network.class_input,
-             self.network.mask],
+            [network.word_input,
+             network.class_input,
+             network.mask],
             tensor.log(network.prediction_probs),
             givens=[(network.is_training, numpy.int8(0))],
             name='text_scorer',
