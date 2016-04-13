@@ -84,12 +84,17 @@ training data.
 
 #### Network structure description
 
-The neural network layers are specified in a text file. Each line start with the
-word `layer` and may contain the following fields:
+The neural network layers are specified in a text file. The file contains input
+layer elements, one element on each line. Input elements start with the word
+`input` and should contain the following fields:
 
-- `type` selects the layer class and has to be specified for all layers.
-  Currently `projection`, `tanh`, `lstm`, `gru`, `dropout`, and `softmax` are
-  implemented.
+- `type` is either `word` or `class` and selects the input unit.
+- `name` is used to identify the input.
+
+Layer elements start with the word `layer` and may contain the following fields:
+
+- `type` selects the layer class. Has to be specified for all layers. Currently
+  `projection`, `tanh`, `lstm`, `gru`, `dropout`, and `softmax` are implemented.
 - `name` is used to identify the layer. Has to be specified for all layers.
 - `input` specifies the layer whose output will be the input of this layer.
   Some layers types allow multiple inputs. There is one special value, `X`,
@@ -99,11 +104,15 @@ word `layer` and may contain the following fields:
   vocabulary in the output layer.
 - `dropout_rate` may be set in the dropout layer.
 
-Multiple layers may use the same input (including the network input `X`). The
-last layer is always the network output. Description of a typical LSTM neural
-network language model could look like this:
+The elements have to specified in the order that the network is constructed,
+i.e. an element can have in its inputs only elements that have already been
+specified. Multiple layers may have the same element in their input. The first
+layer should be a projection layer. The last layer is where the network output
+will be read from. Description of a typical LSTM neural network language model
+could look like this:
 
-    layer type=projection name=projection_layer input=X size=100
+    input type=class name=class_input
+    layer type=projection name=projection_layer input=class_input size=100
     layer type=lstm name=hidden_layer input=projection_layer size=300
     layer type=softmax name=output_layer input=hidden_layer
 
@@ -114,7 +123,8 @@ overlearning. The effect can be controlled using the `dropout_rate` parameter.
 The training converges slower the larger the dropout rate. A larger network with
 dropout layers could be specified using the following description:
 
-    layer type=projection name=projection_layer input=X size=500
+    input type=class name=class_input
+    layer type=projection name=projection_layer input=class_input size=500
     layer type=dropout name=dropout_layer_1 input=projection_layer dropout_rate=0.25
     layer type=lstm name=hidden_layer_1 input=dropout_layer_1 size=1500
     layer type=dropout name=dropout_layer_2 input=hidden_layer_1 dropout_rate=0.25
@@ -159,7 +169,7 @@ assuming gradient normalization is used.
 | ------------------------------ | --------------------- | --------------- |
 | Stochastic Gradient Descent    | sgd                   | 1.0             |
 | Nesterov Momentum              | nesterov              | 0.1             |
-| AdaGrad                        | adagrad               | 0.1             |
+| AdaGrad                        | adagrad               | 1.0 or 0.1      |
 | ADADELTA                       | adadelta              | 1.0             |
 | SGD with RMSProp               | rmsprop-sgd           | 0.1             |
 | Nesterov Momentum with RMSProp | rmsprop-nesterov      | 0.01            |
@@ -189,14 +199,12 @@ classes in SRILM format in `dictionary.classes`:
     theanolm train \
       model.h5 \
       validation-data.txt.gz \
-      dictionary.classes \
+      vocabulary.classes \
       --training-set training-data.txt.gz \
-      --dictionary-format srilm-classes \
-      --hidden-layer-size 300 \
-      --hidden-layer-type lstm \
-      --optimization-method adam \
+      --vocabulary-format srilm-classes \
+      --architecture lstm100.arch \
       --batch-size 16 \
-      --learning-rate 0.01
+      --learning-rate 1.0
 
 #### Model file
 
@@ -235,9 +243,9 @@ evaluation data:
 
     theanolm score \
       model.h5 \
-      evaluation-data.txt.gz \
-      dictionary.classes \
-      --dictionary-format srilm-classes \
+      test-data.txt.gz \
+      vocabulary.classes \
+      --vocabulary-format srilm-classes \
       --output perplexity
 
 
@@ -248,8 +256,8 @@ A neural network language model can also be used to generate text, using the
 
     theanolm sample \
       model.h5 \
-      dictionary.classes \
-      --dictionary-format srilm-classes
+      vocabulary.classes \
+      --vocabulary-format srilm-classes
       --num-sentences 10
 
 
