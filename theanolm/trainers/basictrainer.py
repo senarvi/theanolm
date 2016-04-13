@@ -17,7 +17,7 @@ class BasicTrainer(object):
     """
 
     def __init__(self, training_options, optimization_options,
-                 network, dictionary, scorer,
+                 network, vocabulary, scorer,
                  training_files, validation_iter, state,
                  profile=False):
         """Creates the optimizer and initializes the training process.
@@ -31,8 +31,8 @@ class BasicTrainer(object):
         :type network: theanolm.Network
         :param network: a neural network to be trained
 
-        :type dictionary: theanolm.Dictionary
-        :param dictionary: dictionary that provides mapping between words and
+        :type vocabulary: theanolm.Vocabulary
+        :param vocabulary: vocabulary that provides mapping between words and
                            word IDs
 
         :type scorer: theanolm.TextScorer
@@ -63,7 +63,7 @@ class BasicTrainer(object):
 
         self.training_iter = ShufflingBatchIterator(
             training_files,
-            dictionary,
+            vocabulary,
             batch_size=training_options['batch_size'],
             max_sequence_length=training_options['sequence_length'])
 

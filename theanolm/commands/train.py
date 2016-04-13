@@ -15,24 +15,24 @@ from theanolm.filetypes import TextFileType
 def add_arguments(parser):
     argument_group = parser.add_argument_group("files")
     argument_group.add_argument(
-        'model_path', metavar='MODEL', type=str,
+        'model_path', metavar='MODEL-FILE', type=str,
         help='path where the best model state will be saved in numpy .npz '
              'format')
     argument_group.add_argument(
-        'validation_file', metavar='VALIDATION-SET', type=TextFileType('r'),
+        'validation_file', metavar='VALID-FILE', type=TextFileType('r'),
         help='text or .gz file containing validation data (one sentence per '
              'line) for early stopping')
     argument_group.add_argument(
-        'dictionary_file', metavar='DICTIONARY', type=TextFileType('r'),
+        'vocabulary_file', metavar='VOCAB-FILE', type=TextFileType('r'),
         help='text or .gz file containing word list or class definitions')
     argument_group.add_argument(
-        '--training-set', metavar='TRAINING-SET', type=TextFileType('r'),
-        nargs='+',
+        '--training-set', metavar='FILE', type=TextFileType('r'),
+        nargs='+', required=True,
         help='text or .gz files containing training data (one sentence per '
              'line)')
     argument_group.add_argument(
-        '--dictionary-format', metavar='FORMAT', type=str, default='words',
-        help='dictionary format, one of "words" (one word per line, default), '
+        '--vocabulary-format', metavar='FORMAT', type=str, default='words',
+        help='vocabulary format, one of "words" (one word per line, default), '
              '"classes" (word and class ID per line), "srilm-classes" (class '
              'name, membership probability, and word per line)')
     
@@ -133,7 +133,7 @@ def add_arguments(parser):
         help='minimum level of events to log, one of "debug", "info", "warn" '
              '(default "info")')
     argument_group.add_argument(
-        '--log-update-interval', metavar='N', type=int, default=1000,
+        '--log-interval', metavar='N', type=int, default=1000,
         help='print statistics of every Nth mini-batch update; quiet if less '
              'than one (default 1000)')
     argument_group.add_argument(
@@ -163,31 +163,31 @@ def train(args):
     theano.config.profile = args.profile
     theano.config.profile_memory = args.profile
 
-    print("Reading dictionary.")
+    print("Reading vocabulary.")
     sys.stdout.flush()
-    dictionary = theanolm.Dictionary(args.dictionary_file,
-                                     args.dictionary_format)
-    print("Number of words in vocabulary:", dictionary.num_words())
-    print("Number of word classes:", dictionary.num_classes())
+    vocabulary = theanolm.Vocabulary.from_file(args.vocabulary_file,
+                                               args.vocabulary_format)
+    print("Number of words in vocabulary:", vocabulary.num_words())
+    print("Number of word classes:", vocabulary.num_classes())
 
     print("Building neural network.")
     sys.stdout.flush()
     architecture = theanolm.Architecture.from_description(args.architecture)
-    network = theanolm.Network(dictionary, architecture, batch_processing=True,
+    network = theanolm.Network(vocabulary, architecture, batch_processing=True,
                                profile=args.profile)
 
     print("Building text scorer.")
     sys.stdout.flush()
     classes_to_ignore = []
     if args.ignore_unk:
-        classes_to_ignore.append(dictionary.unk_id)
+        classes_to_ignore.append(vocabulary.word_to_class_id('<unk>'))
     scorer = theanolm.TextScorer(network, classes_to_ignore, args.profile)
 
     validation_mmap = mmap.mmap(args.validation_file.fileno(),
                                 0,
                                 prot=mmap.PROT_READ)
     validation_iter = theanolm.LinearBatchIterator(validation_mmap,
-                                                   dictionary,
+                                                   vocabulary,
                                                    batch_size=32)
 
     optimization_options = {
@@ -228,10 +228,10 @@ def train(args):
         sys.stdout.flush()
         trainer = create_trainer(
             training_options, optimization_options,
-            network, dictionary, scorer,
+            network, vocabulary, scorer,
             args.training_set, validation_iter,
             state, args.profile)
-        trainer.set_logging(args.log_update_interval)
+        trainer.set_logging(args.log_interval)
 
         print("Training neural network.")
         sys.stdout.flush()

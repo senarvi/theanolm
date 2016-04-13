@@ -13,17 +13,17 @@ class TestIterators(unittest.TestCase):
         script_path = os.path.dirname(os.path.realpath(__file__))
         sentences1_path = os.path.join(script_path, 'sentences1.txt')
         sentences2_path = os.path.join(script_path, 'sentences2.txt')
-        dictionary_path = os.path.join(script_path, 'dictionary.txt')
+        vocabulary_path = os.path.join(script_path, 'vocabulary.txt')
 
         self.sentences1_file = open(sentences1_path)
         self.sentences2_file = open(sentences2_path)
-        self.dictionary_file = open(dictionary_path)
-        self.dictionary = theanolm.Dictionary(self.dictionary_file, 'words')
+        self.vocabulary_file = open(vocabulary_path)
+        self.vocabulary = theanolm.Vocabulary.from_file(self.vocabulary_file, 'words')
 
     def tearDown(self):
         self.sentences1_file.close()
         self.sentences2_file.close()
-        self.dictionary_file.close()
+        self.vocabulary_file.close()
 
     def test_find_sentence_starts(self):
         sentences1_mmap = mmap.mmap(self.sentences1_file.fileno(),
@@ -60,7 +60,7 @@ class TestIterators(unittest.TestCase):
 
     def test_shuffling_batch_iterator(self):
         iterator = theanolm.ShufflingBatchIterator([self.sentences1_file, self.sentences2_file],
-                                                   self.dictionary,
+                                                   self.vocabulary,
                                                    batch_size=2,
                                                    max_sequence_length=5)
 
@@ -69,7 +69,7 @@ class TestIterators(unittest.TestCase):
             for sequence in range(2):
                 sequence_mask = numpy.array(mask)[:,sequence]
                 sequence_word_ids = numpy.array(word_ids)[sequence_mask != 0,sequence]
-                sentences1.append(' '.join(self.dictionary.ids_to_names(sequence_word_ids)))
+                sentences1.append(' '.join(self.vocabulary.ids_to_names(sequence_word_ids)))
         sentences1_str = ' '.join(sentences1)
         sentences1_sorted_str = ' '.join(sorted(sentences1))
         self.assertEqual(sentences1_sorted_str,
@@ -90,7 +90,7 @@ class TestIterators(unittest.TestCase):
             for sequence in range(2):
                 sequence_mask = numpy.array(mask)[:,sequence]
                 sequence_word_ids = numpy.array(word_ids)[sequence_mask != 0,sequence]
-                sentences2.append(' '.join(self.dictionary.ids_to_names(sequence_word_ids)))
+                sentences2.append(' '.join(self.vocabulary.ids_to_names(sequence_word_ids)))
         sentences2_str = ' '.join(sentences2)
         sentences2_sorted_str = ' '.join(sorted(sentences2))
         self.assertEqual(sentences1_sorted_str, sentences2_sorted_str)
@@ -99,19 +99,19 @@ class TestIterators(unittest.TestCase):
         # The current behaviour is to cut the sentences, so we always get 5
         # batches.
         iterator = theanolm.ShufflingBatchIterator([self.sentences1_file, self.sentences2_file],
-                                                   self.dictionary,
+                                                   self.vocabulary,
                                                    batch_size=2,
                                                    max_sequence_length=4)
         self.assertEqual(len(iterator), 5)
         iterator = theanolm.ShufflingBatchIterator([self.sentences1_file, self.sentences2_file],
-                                                   self.dictionary,
+                                                   self.vocabulary,
                                                    batch_size=2,
                                                    max_sequence_length=3)
         self.assertEqual(len(iterator), 5)
 
     def test_linear_batch_iterator(self):
         iterator = theanolm.LinearBatchIterator(self.sentences1_file,
-                                                self.dictionary,
+                                                self.vocabulary,
                                                 batch_size=2,
                                                 max_sequence_length=5)
         word_names = []
@@ -121,7 +121,7 @@ class TestIterators(unittest.TestCase):
             for sequence in range(mask.shape[1]):
                 sequence_mask = mask[:,sequence]
                 sequence_word_ids = word_ids[sequence_mask != 0,sequence]
-                word_names.extend(self.dictionary.ids_to_names(sequence_word_ids))
+                word_names.extend(self.vocabulary.ids_to_names(sequence_word_ids))
         corpus = ' '.join(word_names)
         self.assertEqual(corpus,
                          '<s> yksi kaksi </s> '

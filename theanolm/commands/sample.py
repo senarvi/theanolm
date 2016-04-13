@@ -13,19 +13,19 @@ from theanolm.filetypes import TextFileType
 def add_arguments(parser):
     argument_group = parser.add_argument_group("files")
     argument_group.add_argument(
-        'model_path', metavar='MODEL', type=str,
+        'model_path', metavar='MODEL-FILE', type=str,
         help='path where the best model state will be saved in numpy .npz '
              'format')
     argument_group.add_argument(
-        'dictionary_file', metavar='DICTIONARY', type=TextFileType('r'),
+        'vocabulary_file', metavar='VOCAB-FILE', type=TextFileType('r'),
         help='text or .gz file containing word list or class definitions')
     argument_group.add_argument(
-        '--dictionary-format', metavar='FORMAT', type=str, default='words',
-        help='dictionary format, one of "words" (one word per line, default), '
+        '--vocabulary-format', metavar='FORMAT', type=str, default='words',
+        help='vocabulary format, one of "words" (one word per line, default), '
              '"classes" (word and class ID per line), "srilm-classes" (class '
              'name, membership probability, and word per line)')
     argument_group.add_argument(
-        '--output-file', metavar='OUTPUT', type=TextFileType('w'), default='-',
+        '--output-file', metavar='FILE', type=TextFileType('w'), default='-',
         help='where to write the generated sentences (default stdout)')
     
     argument_group = parser.add_argument_group("sampling")
@@ -57,23 +57,24 @@ def sample(args):
     except subprocess.CalledProcessError:
         pass
 
-    print("Reading dictionary.")
+    print("Reading vocabulary.")
     sys.stdout.flush()
-    dictionary = theanolm.Dictionary(args.dictionary_file, args.dictionary_format)
-    print("Number of words in vocabulary:", dictionary.num_words())
-    print("Number of word classes:", dictionary.num_classes())
+    vocabulary = theanolm.Vocabulary.from_file(args.vocabulary_file,
+                                               args.vocabulary_format)
+    print("Number of words in vocabulary:", vocabulary.num_words())
+    print("Number of word classes:", vocabulary.num_classes())
 
     print("Building neural network.")
     sys.stdout.flush()
     with h5py.File(args.model_path, 'r') as state:
         architecture = theanolm.Architecture.from_state(state)
-        network = theanolm.Network(dictionary, architecture, batch_processing=False)
+        network = theanolm.Network(vocabulary, architecture, batch_processing=False)
         print("Restoring neural network state.")
         network.set_state(state)
 
     print("Building text sampler.")
     sys.stdout.flush()
-    sampler = theanolm.TextSampler(network, dictionary)
+    sampler = theanolm.TextSampler(network, vocabulary)
 
     for i in range(args.num_sentences):
         words = sampler.generate()
