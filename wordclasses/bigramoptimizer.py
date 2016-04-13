@@ -93,17 +93,6 @@ class BigramOptimizer(object):
 
         return class_counts, cc_counts, cw_counts, wc_counts
 
-#        for word_id, class_id in enumerate(word_to_class):
-#            class_counts[class_id] += word_counts[word_id]
-#        for left_word_id, right_word_id in zip(*ww_counts.nonzero()):
-#            count = ww_counts[left_word_id, right_word_id]
-#            left_class_id = word_to_class[left_word_id]
-#            right_class_id = word_to_class[right_word_id]
-#            cc_counts[left_class_id,right_class_id] += count
-#            cw_counts[left_class_id,right_word_id] += count
-#            wc_counts[left_word_id,right_class_id] += count
-#        return class_counts, cc_counts, cw_counts, wc_counts
-
     def _find_best_move(self, word_id):
         """Finds the class such that moving the given word to that class would
         give best improvement in log likelihood.
