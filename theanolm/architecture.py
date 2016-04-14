@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import os
 from theanolm.exceptions import IncompatibleStateError, InputError
 
 class Architecture(object):
@@ -59,7 +60,7 @@ class Architecture(object):
         inputs = []
         for input_id in sorted(h5_inputs.keys()):
             h5_input = h5_inputs[input_id]
-            inputs.append(classname.read_h5_dict(h5_input))
+            inputs.append(classname._read_h5_dict(h5_input))
 
         if not 'layers' in h5_arch:
             raise IncompatibleStateError(
@@ -69,7 +70,7 @@ class Architecture(object):
         layers = []
         for layer_id in sorted(h5_layers.keys()):
             h5_layer = h5_layers[layer_id]
-            layers.append(classname.read_h5_dict(h5_layer))
+            layers.append(classname._read_h5_dict(h5_layer))
 
         if not 'output_layer' in h5_arch.attrs:
             raise IncompatibleStateError(
@@ -137,6 +138,27 @@ class Architecture(object):
             raise InputError("Architecture description contains no layers.")
 
         return classname(inputs, layers)
+
+    @classmethod
+    def from_package(classname, name):
+        """Reads network architecture from one of the files packaged with
+        TheanoLM.
+
+        :type name: str
+        :param name: name of a standard architecture file (without directory or
+                     file extension)
+
+        :rtype: Network.Architecture
+        :returns: an object describing the network architecture
+        """
+
+        package_dir = os.path.abspath(os.path.dirname(__file__))
+        description_path = os.path.join(package_dir,
+                                        'architectures',
+                                        name + '.arch')
+
+        with open(description_path, 'rt', encoding='utf-8') as description_file:
+            return classname.from_description(description_file)
 
     def get_state(self, state):
         """Saves the architecture parameters in a HDF5 file.

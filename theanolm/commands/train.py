@@ -38,9 +38,10 @@ def add_arguments(parser):
     
     argument_group = parser.add_argument_group("network architecture")
     argument_group.add_argument(
-        '--architecture', metavar='DESC', type=TextFileType('r'),
-        help='path to neural network architecture description')
-    
+        '--architecture', metavar='FILE', type=str,
+        help='path to neural network architecture description, or a standard '
+             'architecture name, "lstm300" or "lstm1500" (default "lstm300")')
+
     argument_group = parser.add_argument_group("training process")
     argument_group.add_argument(
         '--training-strategy', metavar='NAME', type=str, default='local-mean',
@@ -172,7 +173,11 @@ def train(args):
 
     print("Building neural network.")
     sys.stdout.flush()
-    architecture = theanolm.Architecture.from_description(args.architecture)
+    if args.architecture == 'lstm300' or args.architecture == 'lstm1500':
+        architecture = theanolm.Architecture.from_package(args.architecture)
+    else:
+        with open(args.architecture, 'rt', encoding='utf-8') as f:
+            architecture = theanolm.Architecture.from_description(f)
     network = theanolm.Network(vocabulary, architecture, batch_processing=True,
                                profile=args.profile)
 

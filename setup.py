@@ -3,13 +3,12 @@
 import os
 import subprocess
 from glob import glob
-from setuptools import setup
+from setuptools import setup, find_packages
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
 version = subprocess.check_output(['git', 'describe'], cwd=script_dir)
 version = version.decode('utf-8').rstrip()[1:]
 scripts = glob(os.path.join(script_dir, 'bin', '*'))
-architectures = glob(os.path.join(script_dir, 'architectures', '*.arch'))
 
 long_description = 'TheanoLM is a recurrent neural network language modeling ' \
                    'toolkit implemented using Theano. Theano allows the user ' \
@@ -38,9 +37,7 @@ setup(name='TheanoLM',
       license='Apache License, Version 2.0',
       keywords=keywords,
       classifiers=classifiers,
-      packages=['theanolm', 'theanolm.commands', 'theanolm.iterators',
-                'theanolm.layers', 'theanolm.optimizers', 'theanolm.stoppers',
-                'theanolm.trainers', 'wordclasses'],
+      packages=find_packages(),
+      package_data={'theanolm': ['architectures/*.arch']},
       scripts=scripts,
-      data_files=[('architectures', architectures)],
       install_requires=['numpy', 'scipy', 'theano', 'h5py'])
