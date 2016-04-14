@@ -17,12 +17,21 @@ RMSProp, AdaGrad, ADADELTA, and Adam optimizers are provided.
 Installation
 ------------
 
-To run the program, you need to first install Theano and h5py (python-h5py
-Ubuntu package). The Python package theanolm has to be found from a directory on
-your ``$PYTHONPATH``, and the scripts from bin directory have to be found from a
-directory on your ``$PATH``. The easiest way to try the program is to clone the
-Git repository to, say, ``$HOME/git/theanolm``, add that directory to
-``$PYTHONPATH`` and the ``bin`` subdirectory to ``$PATH``::
+TheanoLM is available from the Python Package Index. The easiest way to install
+it is using pip::
+
+    pip install TheanoLM
+
+If you do not have access rights or do not want to install globally, you can
+install it under your user directory::
+
+    pip install TheanoLM --user
+
+If you want to develop TheanoLM, it is convenient to run it from a Git
+repository tree. First make sure that you have Theano and h5py (python-h5py
+Ubuntu package) installed. Clone TheanoLM Git repository to, say,
+``$HOME/git/theanolm``, and add that directory to ``$PYTHONPATH`` and the
+``bin`` subdirectory to ``$PATH``::
 
     mkdir -p "$HOME/git"
     cd "$HOME/git"
@@ -319,4 +328,4 @@ Author
 ~~~~~~
 
 | Seppo Enarvi
-| http://users.marjaniemi.com/seppo/
+| http://senarvi.github.io/

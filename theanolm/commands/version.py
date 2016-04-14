@@ -3,6 +3,7 @@
 
 import os
 import subprocess
+import pkg_resources
 
 def version(args):
     try:
@@ -12,4 +13,6 @@ def version(args):
         git_description = git_description.decode('utf-8').rstrip()
         print("TheanoLM", git_description)
     except subprocess.CalledProcessError:
-        print("Git repository description is not available.")
+        print("TheanoLM", pkg_resources.require("TheanoLMxx")[0].version)
+    except:
+        print("Unable to get version information.")

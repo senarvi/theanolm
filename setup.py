@@ -7,7 +7,7 @@ from setuptools import setup
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
 version = subprocess.check_output(['git', 'describe'], cwd=script_dir)
-version = version.decode('utf-8').rstrip()
+version = version.decode('utf-8').rstrip()[1:]
 scripts = glob(os.path.join(script_dir, 'bin', '*'))
 architectures = glob(os.path.join(script_dir, 'architectures', '*.arch'))
 
