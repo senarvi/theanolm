@@ -288,8 +288,8 @@ Contributing
 You're welcome to contribute.
 
 1. Fork the repository on GitHub.
-2. Clone the forked repository into a local directory: ``git clone
-   my-repository-url``
+2. Clone the forked repository into a local directory:
+   ``git clone my-repository-url``
 3. Create a new branch: ``git checkout -b my-new-feature``
 4. Commit your changes: ``git commit -a``
 5. Push to the branch: ``git push origin my-new-feature``
