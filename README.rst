@@ -22,7 +22,7 @@ Ubuntu package). The Python package theanolm has to be found from a directory on
 your ``$PYTHONPATH``, and the scripts from bin directory have to be found from a
 directory on your ``$PATH``. The easiest way to try the program is to clone the
 Git repository to, say, ``$HOME/git/theanolm``, add that directory to
-``$PYTHONPATH`` and the ``bin`` subdirectory to ``$PATH``:::
+``$PYTHONPATH`` and the ``bin`` subdirectory to ``$PATH``::
 
     mkdir -p "$HOME/git"
     cd "$HOME/git"
@@ -39,7 +39,7 @@ need to have CUDA installed. A GPU device can be selected using
 For details about configuring Theano, see `Theano manual
 <http://deeplearning.net/software/theano/library/config.html>`_. Currently
 Theano supports only 32-bit floating point precision, when using a GPU. The
-simplest way to get started is to set ``$THEANO_FLAGS`` as follows:::
+simplest way to get started is to set ``$THEANO_FLAGS`` as follows::
 
     export THEANO_FLAGS=floatX=float32,device=gpu
 
@@ -113,7 +113,7 @@ i.e. an element can have in its inputs only elements that have already been
 specified. Multiple layers may have the same element in their input. The first
 layer should be a projection layer. The last layer is where the network output
 will be read from. Description of a typical LSTM neural network language model
-could look like this:::
+could look like this::
 
     input type=class name=class_input
     layer type=projection name=projection_layer input=class_input size=100
@@ -125,7 +125,7 @@ neurons. It can be added after another layer, and only sets some activations
 randomly to zero at train time. This is helpful with larger networks to prevent
 overlearning. The effect can be controlled using the ``dropout_rate`` parameter.
 The training converges slower the larger the dropout rate. A larger network with
-dropout layers could be specified using the following description:::
+dropout layers could be specified using the following description::
 
     input type=class name=class_input
     layer type=projection name=projection_layer input=class_input size=500
@@ -208,7 +208,7 @@ missing. If an empty line is encountered, it will be ignored, instead of
 interpreted as the empty sentence ``<s> </s>``.
 
 Below is an example of how to train a language model, assuming you have the word
-classes in SRILM format in ``dictionary.classes``:::
+classes in SRILM format in ``dictionary.classes``::
 
     theanolm train \
       model.h5 \
@@ -255,7 +255,7 @@ can be one of:
   utterance, one per line. This can be used for rescoring n-best lists.
 
 The example below shows how one can compute the perplexity of a model on
-evaluation data:::
+evaluation data::
 
     theanolm score \
       model.h5 \
@@ -268,7 +268,7 @@ Generating text
 ~~~~~~~~~~~~~~~
 
 A neural network language model can also be used to generate text, using the
-``theanolm sample`` command:::
+``theanolm sample`` command::
 
     theanolm sample \
       model.h5 \
@@ -288,8 +288,8 @@ Contributing
 You're welcome to contribute.
 
 1. Fork the repository on GitHub.
-2. Clone the forked repository into a local directory: \`git clone
-   my-repository-url'
+2. Clone the forked repository into a local directory: ``git clone
+   my-repository-url``
 3. Create a new branch: ``git checkout -b my-new-feature``
 4. Commit your changes: ``git commit -a``
 5. Push to the branch: ``git push origin my-new-feature``
