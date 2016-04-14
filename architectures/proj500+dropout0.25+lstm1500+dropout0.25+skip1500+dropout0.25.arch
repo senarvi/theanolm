@@ -1,0 +1,8 @@
+input type=class name=class_input
+layer type=projection name=projection_layer input=class_input size=500
+layer type=dropout name=dropout_layer_1 input=projection_layer dropout_rate=0.25
+layer type=lstm name=hidden_layer_1 input=dropout_layer_1 size=1500
+layer type=dropout name=dropout_layer_2 input=hidden_layer_1 dropout_rate=0.25
+layer type=tanh name=hidden_layer_2 input=dropout_layer_1 input=dropout_layer_2 size=1500
+layer type=dropout name=dropout_layer_3 input=hidden_layer_2 dropout_rate=0.25
+layer type=softmax name=output_layer input=dropout_layer_3
