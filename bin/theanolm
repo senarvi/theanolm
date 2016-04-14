@@ -2,10 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import theanolm.commands.train as train
-import theanolm.commands.score as score
-import theanolm.commands.sample as sample
-import theanolm.commands.version as version
+from theanolm.commands import *
 
 def main():
     parser = argparse.ArgumentParser(prog='theanolm')
