@@ -59,7 +59,7 @@ class Architecture(object):
         inputs = []
         for input_id in sorted(h5_inputs.keys()):
             h5_input = h5_inputs[input_id]
-            inputs.append(self.read_h5_dict(h5_input))
+            inputs.append(classname.read_h5_dict(h5_input))
 
         if not 'layers' in h5_arch:
             raise IncompatibleStateError(
@@ -69,7 +69,7 @@ class Architecture(object):
         layers = []
         for layer_id in sorted(h5_layers.keys()):
             h5_layer = h5_layers[layer_id]
-            layers.append(self.read_h5_dict(h5_layer))
+            layers.append(classname.read_h5_dict(h5_layer))
 
         if not 'output_layer' in h5_arch.attrs:
             raise IncompatibleStateError(

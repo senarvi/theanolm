@@ -13,6 +13,6 @@ def version(args):
         git_description = git_description.decode('utf-8').rstrip()
         print("TheanoLM", git_description)
     except subprocess.CalledProcessError:
-        print("TheanoLM", pkg_resources.require("TheanoLMxx")[0].version)
+        print("TheanoLM", pkg_resources.require("TheanoLM")[0].version)
     except:
         print("Unable to get version information.")
