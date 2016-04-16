@@ -78,7 +78,7 @@ class BasicTrainer(object):
 
         # current candidate for the minimum validation cost state
         self._candidate_state = state
-        if self._candidate_state.keys():
+        if 'trainer' in self._candidate_state:
             print("Restoring initial network state from {}.".format(
                 self._candidate_state.filename))
             sys.stdout.flush()

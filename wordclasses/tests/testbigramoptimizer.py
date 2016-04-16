@@ -155,7 +155,7 @@ class TestBigramOptimizer(unittest.TestCase):
         theano_optimizer = TheanoBigramOptimizer(self.statistics, self.vocabulary)
         word_id = numpy_optimizer.get_word_id('d')
         orig_class_id = numpy_optimizer.get_word_class(word_id)
-        new_class_id = 3 if orig_class_id != 3 else 4
+        new_class_id = 1 if orig_class_id != 1 else 0
 
         orig_ll = numpy_optimizer.log_likelihood()
         self.assertTrue(numpy.isclose(orig_ll, theano_optimizer.log_likelihood()))

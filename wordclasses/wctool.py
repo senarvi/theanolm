@@ -111,6 +111,10 @@ def main():
         vocabulary = Vocabulary.from_file(args.vocabulary,
                                           args.vocabulary_format)
 
+    print("Number of words in vocabulary:", vocabulary.num_words())
+    print("Number of word classes:", vocabulary.num_classes())
+    print("Number of normal word classes:", vocabulary.num_normal_classes)
+
     logging.info("Reading word unigram and bigram statistics.")
     statistics = WordStatistics(args.training_set, vocabulary)
 

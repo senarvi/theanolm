@@ -20,9 +20,9 @@ class WordStatistics(object):
         """
 
         vocabulary_size = vocabulary.num_words()
-        sos_class_id = vocabulary.word_to_class_id('<s>')
-        eos_class_id = vocabulary.word_to_class_id('</s>')
-        unk_class_id = vocabulary.word_to_class_id('<unk>')
+        sos_id = vocabulary.word_to_id['<s>']
+        eos_id = vocabulary.word_to_id['</s>']
+        unk_id = vocabulary.word_to_id['<unk>']
 
         self.unigram_counts = numpy.zeros(vocabulary_size, count_type)
         self.bigram_counts = dok_matrix(
@@ -30,13 +30,13 @@ class WordStatistics(object):
 
         for subset_file in input_files:
             for line in subset_file:
-                sentence = [sos_class_id]
+                sentence = [sos_id]
                 for word in line.split():
                     if word in vocabulary:
                         sentence.append(vocabulary.word_to_id[word])
                     else:
-                        sentence.append(unk_class_id)
-                sentence.append(eos_class_id)
+                        sentence.append(unk_id)
+                sentence.append(eos_id)
                 for word_id in sentence:
                     self.unigram_counts[word_id] += 1
                 for left_word_id, right_word_id in zip(sentence[:-1], sentence[1:]):

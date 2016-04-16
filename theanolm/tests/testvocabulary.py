@@ -41,20 +41,20 @@ class TestVocabulary(unittest.TestCase):
         vocabulary = theanolm.Vocabulary.from_corpus([self.sentences1_file, self.sentences2_file], 3)
         self.assertEqual(vocabulary.num_words(), 10 + 3)
         self.assertEqual(vocabulary.num_classes(), 3 + 3)
-        self.assertEqual(vocabulary.word_to_id['<s>'], 0)
-        self.assertEqual(vocabulary.word_to_id['</s>'], 1)
-        self.assertEqual(vocabulary.word_to_id['<unk>'], 2)
-        self.assertEqual(vocabulary.word_to_class_id('<s>'), 0)
-        self.assertEqual(vocabulary.word_to_class_id('</s>'), 1)
-        self.assertEqual(vocabulary.word_to_class_id('<unk>'), 2)
+        self.assertEqual(vocabulary.word_to_id['<s>'], 10)
+        self.assertEqual(vocabulary.word_to_id['</s>'], 11)
+        self.assertEqual(vocabulary.word_to_id['<unk>'], 12)
+        self.assertEqual(vocabulary.word_to_class_id('<s>'), 3)
+        self.assertEqual(vocabulary.word_to_class_id('</s>'), 4)
+        self.assertEqual(vocabulary.word_to_class_id('<unk>'), 5)
         word_ids = set()
         class_ids = set()
         for word in vocabulary.words():
             if not word.startswith('<'):
                 word_ids.add(vocabulary.word_to_id[word])
                 class_ids.add(vocabulary.word_to_class_id(word))
-        self.assertEqual(word_ids, set(range(3, 13)))
-        self.assertEqual(class_ids, set(range(3, 6)))
+        self.assertEqual(word_ids, set(range(10)))
+        self.assertEqual(class_ids, set(range(3)))
 
 if __name__ == '__main__':
     unittest.main()

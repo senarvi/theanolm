@@ -22,9 +22,9 @@ class BigramOptimizer(object):
         """
 
         self._initial_vocabulary = vocabulary
-        self.first_normal_class_id = vocabulary.first_normal_class_id
         self.vocabulary_size = vocabulary.num_words()
         self.num_classes = vocabulary.num_classes()
+        self.num_normal_classes = vocabulary.num_normal_classes
         self._count_type = count_type
 
     def move_to_best_class(self, word):
@@ -110,7 +110,7 @@ class BigramOptimizer(object):
         best_class_id = None
 
         old_class_id = self.get_word_class(word_id)
-        for class_id in range(self.first_normal_class_id, self.num_classes):
+        for class_id in range(self.num_normal_classes):
             if class_id == old_class_id:
                 continue
             ll_diff = self._evaluate(word_id, class_id)

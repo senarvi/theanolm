@@ -169,8 +169,8 @@ by “learning rate”. The initial value can be set using the ``--learning-rate
 argument. The average per-word gradient will be multiplied by this factor. In
 practice the gradient is scaled by the number of words by dividing the cost
 function by the number of training examples in the mini-batch. In most of the
-cases, something between 0.01 and 1.0 works well, depending on the optimization
-method.
+cases, something between 0.1 and 1.0 works well, depending on the optimization
+method and data.
 
 However, optimization methods that adapt the gradients before updating
 parameters, can easily make the gradients explode, unless gradient
@@ -182,13 +182,13 @@ starting point, assuming gradient normalization is used.
 +--------------------------------+-----------------------+-----------------+
 | Optimization Method            | --optimization-method | --learning-rate |
 +================================+=======================+=================+
-| Stochastic Gradient Descent    | sgd                   | 1.0             |
+| Stochastic Gradient Descent    | sgd                   | 1               |
 +--------------------------------+-----------------------+-----------------+
-| Nesterov Momentum              | nesterov              | 1.0 or 0.1      |
+| Nesterov Momentum              | nesterov              | 1 or 0.1        |
 +--------------------------------+-----------------------+-----------------+
-| AdaGrad                        | adagrad               | 1.0 or 0.1      |
+| AdaGrad                        | adagrad               | 1 or 0.1        |
 +--------------------------------+-----------------------+-----------------+
-| ADADELTA                       | adadelta              | 1.0             |
+| ADADELTA                       | adadelta              | 10 or 1         |
 +--------------------------------+-----------------------+-----------------+
 | SGD with RMSProp               | rmsprop-sgd           | 0.1             |
 +--------------------------------+-----------------------+-----------------+
@@ -196,6 +196,16 @@ starting point, assuming gradient normalization is used.
 +--------------------------------+-----------------------+-----------------+
 | Adam                           | adam                  | 0.01            |
 +--------------------------------+-----------------------+-----------------+
+
+AdaGrad automatically scales the gradients before updating the neural network
+parameters. It is the fastest method to converge and usually reaches close to
+the optimum without manual annealing. ADADELTA is an extension of AdaGrad that
+is not as aggressive in scaling down the gradients. It seems to benefit from
+manual annealing, but still stay behind AdaGrad in terms of final model
+performance.
+
+Nesterov Momentum requires manual annealing, but seems to find the best final
+model.
 
 The number of sequences included in one mini-batch can be set with the
 ``--batch-size`` argument. Larger mini-batches are more efficient to compute on
@@ -207,27 +217,47 @@ value between 4 and 32 is used.
 Command line
 ^^^^^^^^^^^^
 
-Train command takes three positional arguments: output model path, validation
-data path, and dictionary path. In addition the ``--training-set`` argument is
-mandatory and specifies the path to one or more training data files. The input
-files can be either plain text or compressed with gzip. Text data is read one
-utterance per line. Start-of-sentence and end-of-sentence tags (``<s>`` and
-``</s>``) will be added to the beginning and end of each utterance, if they are
-missing. If an empty line is encountered, it will be ignored, instead of
+Train command takes two positional arguments: output model path and validation
+data path. In addition the ``--training-set`` argument is mandatory, and is
+followed by path to one or more training data files. The rest of the arguments
+have default values. Below is an example that shows what the command line may
+look like at its simplest::
+
+    theanolm train model.h5 validation-data.txt --training-set training-data.txt
+
+The input files can be either plain text or compressed with gzip. Text data is
+read one utterance per line. Start-of-sentence and end-of-sentence tags (``<s>``
+and ``</s>``) will be added to the beginning and end of each utterance, if they
+are missing. If an empty line is encountered, it will be ignored, instead of
 interpreted as the empty sentence ``<s> </s>``.
 
-Below is an example of how to train a language model, assuming you have the word
-classes in SRILM format in ``dictionary.classes``::
+The default *lstm300* network architecture is used unless another architecture
+is selected with the ``architecture`` argument. A larger network can be selected
+with *lstm1500*, or a path to a custom network architecture description can be
+given.
+
+When the *no-improvement* stopping condition is used, learning rate is halved
+when validation set perplexity stops improving, and training stops when the
+perplexity did not improve at all with the current learning rate.
+``--validation-frequency`` argument defines how many cross-validations are
+performed on each epoch. ``--patience`` argument defines how many times
+perplexity is allowedto increase before learning rate is reduced.
+
+Below is a more complex example that reads word classes from
+``vocabulary.classes`` and uses Nesterov Momentum optimizer with annealing::
 
     theanolm train \
       model.h5 \
       validation-data.txt.gz \
-      vocabulary.classes \
       --training-set training-data.txt.gz \
+      --vocabulary vocabulary.classes \
       --vocabulary-format srilm-classes \
-      --architecture lstm100.arch \
-      --batch-size 16 \
-      --learning-rate 1.0
+      --architecture lstm1500 \
+      --learning-rate 1.0 \
+      --optimization-method nesterov \
+      --stopping-condition no-improvement \
+      --validation-frequency 8 \
+      --patience 4
 
 Model file
 ^^^^^^^^^^
@@ -266,12 +296,7 @@ can be one of:
 The example below shows how one can compute the perplexity of a model on
 evaluation data::
 
-    theanolm score \
-      model.h5 \
-      test-data.txt.gz \
-      vocabulary.classes \
-      --vocabulary-format srilm-classes \
-      --output perplexity
+    theanolm score model.h5 test-data.txt.gz --output perplexity
 
 Generating text
 ~~~~~~~~~~~~~~~
@@ -279,11 +304,7 @@ Generating text
 A neural network language model can also be used to generate text, using the
 ``theanolm sample`` command::
 
-    theanolm sample \
-      model.h5 \
-      vocabulary.classes \
-      --vocabulary-format srilm-classes
-      --num-sentences 10
+    theanolm sample model.h5 --num-sentences 10
 
 About the project
 -----------------

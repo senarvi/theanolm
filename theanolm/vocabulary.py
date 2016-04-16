@@ -3,6 +3,7 @@
 
 from collections import OrderedDict
 import numpy
+import h5py
 from theanolm.exceptions import InputError
 
 class Vocabulary(object):
@@ -87,71 +88,68 @@ class Vocabulary(object):
             assert len(indices) == 1
             return word_ids[indices[0]]
 
-    def __init__(self, id_to_word, word_to_class_id, word_classes):
-        """Creates a vocabulary based on given word-to-class mapping. Prepends
-        the vocabulary with special words and updates the word and class IDs.
+    def __init__(self, id_to_word, word_id_to_class_id, word_classes):
+        """If the special tokens <s>, </s>, and <unk> don't exist in the word
+        list, adds them and creates a separate class for each token. Then
+        constructs a vocabulary based on given word-to-class mapping.
 
-        :type id_to_word: list
+        :type id_to_word: list of strs
         :param id_to_word: mapping from word IDs to word names
 
-        :type word_to_class_id: dict
-        :param word_to_class_id: mapping from words to indices in
-                                 ``word_classes``
+        :type word_id_to_class_id: list of ints
+        :param word_id_to_class_id: mapping from word IDs to indices in
+                                    ``word_classes``
 
         :type word_classes: list of WordClass objects
         :param word_classes: list of all the word classes
         """
 
-        self.id_to_word = []
-        self._word_classes = []
-        self.word_id_to_class_id = []
-
-        if not '<s>' in word_to_class_id:
-            word_id = len(self.id_to_word)
-            assert word_id == len(self.word_id_to_class_id)
-            class_id = len(self._word_classes)
-            self.id_to_word.append('<s>')
-            self.word_id_to_class_id.append(class_id)
+        if not '<s>' in id_to_word:
+            word_id = len(id_to_word)
+            assert word_id == len(word_id_to_class_id)
+            class_id = len(word_classes)
+            id_to_word.append('<s>')
+            word_id_to_class_id.append(class_id)
             word_class = Vocabulary.WordClass(class_id, word_id, 1.0)
-            self._word_classes.append(word_class)
+            word_classes.append(word_class)
 
-        if not '</s>' in word_to_class_id:
-            word_id = len(self.id_to_word)
-            assert word_id == len(self.word_id_to_class_id)
-            class_id = len(self._word_classes)
-            self.id_to_word.append('</s>')
-            self.word_id_to_class_id.append(class_id)
+        if not '</s>' in id_to_word:
+            word_id = len(id_to_word)
+            assert word_id == len(word_id_to_class_id)
+            class_id = len(word_classes)
+            id_to_word.append('</s>')
+            word_id_to_class_id.append(class_id)
             word_class = Vocabulary.WordClass(class_id, word_id, 1.0)
-            self._word_classes.append(word_class)
+            word_classes.append(word_class)
 
-        if not '<unk>' in word_to_class_id:
-            word_id = len(self.id_to_word)
-            assert word_id == len(self.word_id_to_class_id)
-            class_id = len(self._word_classes)
-            self.id_to_word.append('<unk>')
-            self.word_id_to_class_id.append(class_id)
+        if not '<unk>' in id_to_word:
+            word_id = len(id_to_word)
+            assert word_id == len(word_id_to_class_id)
+            class_id = len(word_classes)
+            id_to_word.append('<unk>')
+            word_id_to_class_id.append(class_id)
             word_class = Vocabulary.WordClass(class_id, word_id, 1.0)
-            self._word_classes.append(word_class)
+            word_classes.append(word_class)
 
-        self.first_normal_word_id = len(self.id_to_word)
-        assert self.first_normal_word_id == len(self.word_id_to_class_id)
-        self.first_normal_class_id = len(self._word_classes)
-
-        self.id_to_word.extend(id_to_word)
-        self.word_to_id = {word: word_id
-                           for word_id, word in enumerate(self.id_to_word)}
-
-        for word_id, word in enumerate(id_to_word):
-            class_id = self.first_normal_class_id + word_to_class_id[word]
-            assert self.first_normal_word_id + word_id == \
-                   len(self.word_id_to_class_id)
-            self.word_id_to_class_id.append(class_id)
+        index = len(word_classes) - 1
+        while True:
+            word_class = word_classes[index]
+            if len(word_class.probs) == 1:
+                word_id = next(iter(word_class.probs))
+                if id_to_word[word_id].startswith('<'):
+                    index -= 1
+                    continue
+            break
+        self.num_normal_classes = index + 1
 
         for word_class in word_classes:
-            word_class.probs = {self.first_normal_word_id + word_id: prob
-                                for (word_id, prob) in word_class.probs.items()}
             word_class.normalize_probs()
-        self._word_classes.extend(word_classes)
+
+        self.id_to_word = numpy.asarray(id_to_word, dtype=object)
+        self.word_id_to_class_id = numpy.asarray(word_id_to_class_id)
+        self._word_classes = word_classes
+        self.word_to_id = {word: word_id
+                           for word_id, word in enumerate(self.id_to_word)}
 
     @classmethod
     def from_file(classname, input_file, input_format):
@@ -178,7 +176,7 @@ class Vocabulary(object):
         """
 
         id_to_word = []
-        word_to_class_id = dict()
+        word_id_to_class_id = []
         word_classes = []
         # Mapping from the IDs in the file to our internal class IDs.
         file_id_to_class_id = dict()
@@ -203,11 +201,11 @@ class Vocabulary(object):
             else:
                 raise InputError("%d fields on one line of vocabulary file: %s" % (len(fields), line))
 
+            if word in id_to_word:
+                raise InputError("Word `%s' appears more than once in the vocabulary file." % word)
             word_id = len(id_to_word)
             id_to_word.append(word)
 
-            if word in word_to_class_id:
-                raise InputError("Word `%s' appears more than once in the vocabulary file." % word)
             if file_id in file_id_to_class_id:
                 class_id = file_id_to_class_id[file_id]
                 word_classes[class_id].add(word_id, prob)
@@ -218,9 +216,11 @@ class Vocabulary(object):
                 word_classes.append(word_class)
                 if not file_id is None:
                     file_id_to_class_id[file_id] = class_id
-            word_to_class_id[word] = class_id
 
-        return classname(id_to_word, word_to_class_id, word_classes)
+            assert word_id == len(word_id_to_class_id)
+            word_id_to_class_id.append(class_id)
+
+        return classname(id_to_word, word_id_to_class_id, word_classes)
 
     @classmethod
     def from_word_counts(classname, word_counts, num_classes=None):
@@ -236,7 +236,7 @@ class Vocabulary(object):
         """
 
         id_to_word = []
-        word_to_class_id = dict()
+        word_id_to_class_id = []
         word_classes = []
 
         if num_classes is None:
@@ -254,10 +254,12 @@ class Vocabulary(object):
                 assert class_id == len(word_classes)
                 word_class = Vocabulary.WordClass(class_id, word_id, 1.0)
                 word_classes.append(word_class)
-            word_to_class_id[word] = class_id
+
+            assert word_id == len(word_id_to_class_id)
+            word_id_to_class_id.append(class_id)
             class_id = (class_id + 1) % num_classes
 
-        return classname(id_to_word, word_to_class_id, word_classes)
+        return classname(id_to_word, word_id_to_class_id, word_classes)
 
     @classmethod
     def from_corpus(classname, input_files, num_classes=None):
@@ -282,6 +284,80 @@ class Vocabulary(object):
                         word_counts[word] += 1
 
         return classname.from_word_counts(word_counts, num_classes)
+
+    @classmethod
+    def from_state(classname, state):
+        """Reads the vocabulary from a network state.
+
+        :type state: hdf5.File
+        :param state: HDF5 file that contains the architecture parameters
+        """
+
+        if not 'vocabulary' in state:
+            raise IncompatibleStateError(
+                "Vocabulary is missing from neural network state.")
+        h5_vocabulary = state['vocabulary']
+
+        if not 'words' in h5_vocabulary:
+            raise IncompatibleStateError(
+                "Vocabulary parameter 'words' is missing from neural network "
+                "state.")
+        id_to_word = h5_vocabulary['words'].value
+
+        if not 'classes' in h5_vocabulary:
+            raise IncompatibleStateError(
+                "Vocabulary parameter 'classes' is missing from neural network "
+                "state.")
+        word_id_to_class_id = h5_vocabulary['classes'].value
+
+        if not 'probs' in h5_vocabulary:
+            raise IncompatibleStateError(
+                "Vocabulary parameter 'probs' is missing from neural network "
+                "state.")
+        word_classes = [None] * word_id_to_class_id.max()
+        for word_id, prob in enumerate(h5_vocabulary['probs']):
+            class_id = word_id_to_class_id[word_id]
+            if word_classes[class_id] is None:
+                word_class = Vocabulary.WordClass(class_id, word_id, 1.0)
+                word_classes[class_id] = word_class
+            else:
+                word_classes[class_id].add(word_id, 1.0)
+
+        return classname(id_to_word.tolist(),
+                         word_id_to_class_id.tolist(),
+                         word_classes)
+
+    def get_state(self, state):
+        """Saves the vocabulary in a network state file.
+
+        If there already is a vocabulary in the state, it will be replaced, so it
+        has to have the same number of words.
+
+        :type state: h5py.File
+        :param state: HDF5 file for storing the neural network parameters
+        """
+
+        h5_vocabulary = state.require_group('vocabulary')
+
+        if 'words' in h5_vocabulary:
+            state['words'][:] = self.id_to_word
+        else:
+            str_dtype = h5py.special_dtype(vlen=str)
+            h5_vocabulary.create_dataset('words',
+                                         data=self.id_to_word,
+                                         dtype=str_dtype)
+
+        if 'classes' in h5_vocabulary:
+            state['classes'][:] = self.word_id_to_class_id
+        else:
+            h5_vocabulary.create_dataset('classes', data=self.word_id_to_class_id)
+
+        probs = [self._word_classes[class_id].get_prob(word_id)
+                 for word_id, class_id in enumerate(self.word_id_to_class_id)]
+        if 'probs' in h5_vocabulary:
+            state['probs'][:] = probs
+        else:
+            h5_vocabulary.create_dataset('probs', data=probs)
 
     def num_words(self):
         """Returns the number of words in the vocabulary.
