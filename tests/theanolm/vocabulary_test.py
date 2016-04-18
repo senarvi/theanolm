@@ -15,15 +15,18 @@ class TestVocabulary(unittest.TestCase):
         sentences1_path = os.path.join(script_path, 'sentences1.txt')
         sentences2_path = os.path.join(script_path, 'sentences2.txt')
         vocabulary_path = os.path.join(script_path, 'vocabulary.txt')
+        classes_path = os.path.join(script_path, 'classes.txt')
 
         self.sentences1_file = open(sentences1_path)
         self.sentences2_file = open(sentences2_path)
         self.vocabulary_file = open(vocabulary_path)
+        self.classes_file = open(classes_path)
 
     def tearDown(self):
         self.sentences1_file.close()
         self.sentences2_file.close()
         self.vocabulary_file.close()
+        self.classes_file.close()
 
     def test_from_file(self):
         self.vocabulary_file.seek(0)
@@ -58,8 +61,8 @@ class TestVocabulary(unittest.TestCase):
         self.assertEqual(class_ids, set(range(3)))
 
     def test_from_state(self):
-        self.sentences1_file.seek(0)
-        vocabulary1 = Vocabulary.from_corpus([self.sentences1_file])
+        self.classes_file.seek(0)
+        vocabulary1 = Vocabulary.from_file(self.classes_file, 'srilm-classes')
         f = h5py.File('in-memory.h5', driver='core', backing_store=False)
         vocabulary1.get_state(f)
         vocabulary2 = Vocabulary.from_state(f)

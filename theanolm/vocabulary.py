@@ -377,10 +377,10 @@ w
         for word_id, prob in enumerate(h5_probs):
             class_id = word_id_to_class_id[word_id]
             if word_classes[class_id] is None:
-                word_class = Vocabulary.WordClass(class_id, word_id, 1.0)
+                word_class = Vocabulary.WordClass(class_id, word_id, prob)
                 word_classes[class_id] = word_class
             else:
-                word_classes[class_id].add(word_id, 1.0)
+                word_classes[class_id].add(word_id, prob)
 
         return classname(id_to_word.tolist(),
                          word_id_to_class_id.tolist(),
