@@ -4,7 +4,7 @@
 from collections import OrderedDict
 import numpy
 import h5py
-from theanolm.exceptions import InputError
+from theanolm.exceptions import IncompatibleStateError, InputError
 
 class Vocabulary(object):
     """Word or Class Vocabulary
