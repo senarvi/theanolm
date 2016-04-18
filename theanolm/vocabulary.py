@@ -175,6 +175,9 @@ class Vocabulary(object):
 	                     "classes", or "srilm-classes"
         """
 
+        # We have also a set of the words just for faster checking if a word has
+        # already been encountered.
+        words = set()
         id_to_word = []
         word_id_to_class_id = []
         word_classes = []
@@ -201,8 +204,9 @@ class Vocabulary(object):
             else:
                 raise InputError("%d fields on one line of vocabulary file: %s" % (len(fields), line))
 
-            if word in id_to_word:
+            if word in words:
                 raise InputError("Word `%s' appears more than once in the vocabulary file." % word)
+            words.add(word)
             word_id = len(id_to_word)
             id_to_word.append(word)
 
