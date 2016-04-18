@@ -318,8 +318,10 @@ class Vocabulary(object):
             raise IncompatibleStateError(
                 "Vocabulary parameter 'probs' is missing from neural network "
                 "state.")
-        word_classes = [None] * word_id_to_class_id.max()
-        for word_id, prob in enumerate(h5_vocabulary['probs']):
+        num_classes = word_id_to_class_id.max() + 1
+        word_classes = [None] * num_classes
+        h5_probs = h5_vocabulary['probs'].value
+        for word_id, prob in enumerate(h5_probs):
             class_id = word_id_to_class_id[word_id]
             if word_classes[class_id] is None:
                 word_class = Vocabulary.WordClass(class_id, word_id, 1.0)
