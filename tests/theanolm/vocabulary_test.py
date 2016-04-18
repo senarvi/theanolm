@@ -71,5 +71,30 @@ class TestVocabulary(unittest.TestCase):
         self.assertTrue(numpy.array_equal(vocabulary1.word_id_to_class_id, vocabulary2.word_id_to_class_id))
         self.assertListEqual(vocabulary1._word_classes, vocabulary2._word_classes)
 
+    def test_word_ids_to_names(self):
+        self.classes_file.seek(0)
+        vocabulary = Vocabulary.from_file(self.classes_file, 'srilm-classes')
+        word_ids = [vocabulary.word_to_id['yksi'],
+                    vocabulary.word_to_id['kaksi'],
+                    vocabulary.word_to_id['kolme'],
+                    vocabulary.word_to_id['neljä'],
+                    vocabulary.word_to_id['viisi'],
+                    vocabulary.word_to_id['kuusi'],
+                    vocabulary.word_to_id['seitsemän'],
+                    vocabulary.word_to_id['kahdeksan'],
+                    vocabulary.word_to_id['yhdeksän'],
+                    vocabulary.word_to_id['kymmenen']]
+        names = vocabulary.word_ids_to_names(word_ids)
+        self.assertEqual(names[0], 'yksi')
+        self.assertEqual(names[1], 'kaksi')
+        self.assertTrue(names[2].startswith('CLASS-'))
+        self.assertEqual(names[2], names[3])
+        self.assertEqual(names[4], 'viisi')
+        self.assertTrue(names[5].startswith('CLASS-'))
+        self.assertEqual(names[5], names[6])
+        self.assertEqual(names[5], names[7])
+        self.assertEqual(names[5], names[8])
+        self.assertEqual(names[9], 'kymmenen')
+
 if __name__ == '__main__':
     unittest.main()

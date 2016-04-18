@@ -122,7 +122,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
 
             seq_logprobs = [x / base_conversion for x in seq_logprobs]
             seq_logprob /= base_conversion
-            seq_class_names = vocabulary.word_ids_to_classes(seq_word_ids)
+            seq_class_names = vocabulary.word_ids_to_names(seq_word_ids)
             output_file.write("# Sentence {0}\n".format(num_sentences))
 
             # In case some word IDs are ignored, seq_word_ids may contain more

@@ -72,7 +72,7 @@ class TestIterators(unittest.TestCase):
                 sequence_word_ids = numpy.array(word_ids)[sequence_mask != 0,sequence]
                 sequence_class_ids = numpy.array(class_ids)[sequence_mask != 0,sequence]
                 self.assertTrue(numpy.array_equal(sequence_word_ids, sequence_class_ids))
-                sentences1.append(' '.join(self.vocabulary.word_ids_to_classes(sequence_word_ids)))
+                sentences1.append(' '.join(self.vocabulary.word_ids_to_names(sequence_word_ids)))
         sentences1_str = ' '.join(sentences1)
         sentences1_sorted_str = ' '.join(sorted(sentences1))
         self.assertEqual(sentences1_sorted_str,
@@ -95,7 +95,7 @@ class TestIterators(unittest.TestCase):
                 sequence_word_ids = numpy.array(word_ids)[sequence_mask != 0,sequence]
                 sequence_class_ids = numpy.array(class_ids)[sequence_mask != 0,sequence]
                 self.assertTrue(numpy.array_equal(sequence_word_ids, sequence_class_ids))
-                sentences2.append(' '.join(self.vocabulary.word_ids_to_classes(sequence_word_ids)))
+                sentences2.append(' '.join(self.vocabulary.word_ids_to_names(sequence_word_ids)))
         sentences2_str = ' '.join(sentences2)
         sentences2_sorted_str = ' '.join(sorted(sentences2))
         self.assertEqual(sentences1_sorted_str, sentences2_sorted_str)
@@ -128,7 +128,7 @@ class TestIterators(unittest.TestCase):
             for sequence in range(mask.shape[1]):
                 sequence_mask = mask[:,sequence]
                 sequence_word_ids = word_ids[sequence_mask != 0,sequence]
-                word_names.extend(self.vocabulary.word_ids_to_classes(sequence_word_ids))
+                word_names.extend(self.vocabulary.word_ids_to_names(sequence_word_ids))
         corpus = ' '.join(word_names)
         self.assertEqual(corpus,
                          '<s> yksi kaksi </s> '

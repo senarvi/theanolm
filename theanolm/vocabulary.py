@@ -37,7 +37,7 @@ class Vocabulary(object):
             :param prob: the membership probability of the word
             """
 
-            self.id = id
+            self.id = class_id
             self.probs = OrderedDict({word_id: prob})
 
         def add(self, word_id, prob):
@@ -477,20 +477,21 @@ w
 
         return self._word_classes[class_id].sample()
 
-    def word_ids_to_classes(self, word_ids):
-        """Translates word IDs into class names. If a class
-        contains only one word, class name will be the word. Otherwise class
-        name will be CLASS-12345, where 12345 is the internal class ID.
+    def word_ids_to_names(self, word_ids):
+        """Translates word IDs into class / word names. If a class contains only
+        one word, the name will be the word. Otherwise the name will be
+        CLASS-12345, where 12345 is the internal class ID.
 
         :type word_ids: list of ints
         :param word_ids: a list of word IDs
 
         :rtype: list of strings
-        :returns: class names of the given word IDs
+        :returns: a list of corresponding class / word names
         """
 
-        return [self._class_name(self._word_classes[word_id])
-                for word_id in word_ids]
+        class_ids = self.word_id_to_class_id[word_ids]
+        return [self._class_name(self._word_classes[class_id])
+                for class_id in class_ids]
 
     def _class_name(self, word_class):
         """If given class contains only one word, returns the word. Otherwicse
@@ -509,7 +510,7 @@ w
         elif word_class.id is None:
             return 'CLASS'
         else:
-            return 'CLASS-{0:05d}'.format(word_class.id)
+            return 'CLASS-{:05d}'.format(word_class.id)
 
     def get_word_prob(self, word_id):
         """Returns the class membership probability of a word.
