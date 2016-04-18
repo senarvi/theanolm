@@ -40,4 +40,5 @@ setup(name='TheanoLM',
       packages=find_packages(),
       package_data={'theanolm': ['architectures/*.arch']},
       scripts=scripts,
-      install_requires=['numpy', 'scipy', 'theano', 'h5py'])
+      install_requires=['numpy', 'scipy', 'theano', 'h5py'],
+      test_suite='tests')

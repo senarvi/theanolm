@@ -15,7 +15,7 @@ class TestIterators(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_(self):
+    def test_is_scheduled(self):
         self.dummy_trainer.updates_per_epoch = 9
         self.dummy_trainer.update_number = 1
         self.assertFalse(BasicTrainer._is_scheduled(self.dummy_trainer, 2))
