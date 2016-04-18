@@ -7,7 +7,8 @@ import subprocess
 import numpy
 import h5py
 import theano
-import theanolm
+from theanolm import Vocabulary, Architecture, Network, TextScorer
+from theanolm import LinearBatchIterator
 from theanolm.filetypes import TextFileType
 from theanolm.iterators import utterance_from_line
 
@@ -21,14 +22,6 @@ def add_arguments(parser):
         'input_file', metavar='INPUT-FILE', type=TextFileType('r'),
         help='text or .gz file containing text to be scored (one sentence per '
              'line)')
-    argument_group.add_argument(
-        'vocabulary_file', metavar='VOCAB-FILE', type=TextFileType('r'),
-        help='text or .gz file containing word list or class definitions')
-    argument_group.add_argument(
-        '--vocabulary-format', metavar='FORMAT', type=str, default='words',
-        help='vocabulary format, one of "words" (one word per line, default), '
-             '"classes" (word and class ID per line), "srilm-classes" (class '
-             'name, membership probability, and word per line)')
     argument_group.add_argument(
         '--output-file', metavar='FILE', type=TextFileType('w'), default='-',
         help='where to write the statistics (default stdout)')
@@ -47,19 +40,18 @@ def add_arguments(parser):
         help="don't include the probability of unknown words")
 
 def score(args):
-    print("Reading vocabulary.")
-    sys.stdout.flush()
-    vocabulary = theanolm.Vocabulary.from_file(args.vocabulary_file,
-                                               args.vocabulary_format)
-    print("Number of words in vocabulary:", vocabulary.num_words())
-    print("Number of word classes:", vocabulary.num_classes())
-
-    print("Building neural network.")
-    sys.stdout.flush()
     with h5py.File(args.model_path, 'r') as state:
-        architecture = theanolm.Architecture.from_state(state)
-        network = theanolm.Network(vocabulary, architecture, batch_processing=True)
+        print("Reading vocabulary from network state.")
+        sys.stdout.flush()
+        vocabulary = Vocabulary.from_state(state)
+        print("Number of words in vocabulary:", vocabulary.num_words())
+        print("Number of word classes:", vocabulary.num_classes())
+        print("Building neural network.")
+        sys.stdout.flush()
+        architecture = Architecture.from_state(state)
+        network = Network(vocabulary, architecture, batch_processing=True)
         print("Restoring neural network state.")
+        sys.stdout.flush()
         network.set_state(state)
 
     print("Building text scorer.")
@@ -67,7 +59,7 @@ def score(args):
     classes_to_ignore = []
     if args.ignore_unk:
         classes_to_ignore.append(vocabulary.word_to_class_id('<unk>'))
-    scorer = theanolm.TextScorer(network, classes_to_ignore)
+    scorer = TextScorer(network, classes_to_ignore)
 
     print("Scoring text.")
     if args.output == 'perplexity':
@@ -108,15 +100,16 @@ def _score_text(input_file, vocabulary, scorer, output_file,
     :param word_level: if set to True, also writes word-level statistics
     """
 
-    validation_iter = theanolm.LinearBatchIterator(input_file, vocabulary)
+    validation_iter = LinearBatchIterator(input_file, vocabulary)
     base_conversion = 1 if log_base is None else numpy.log(log_base)
 
     total_logprob = 0
     num_sentences = 0
     num_words = 0
     num_probs = 0
-    for word_ids, membership_probs, mask in validation_iter:
-        logprobs = scorer.score_batch(word_ids, membership_probs, mask)
+    for word_ids, class_ids, membership_probs, mask in validation_iter:
+        logprobs = scorer.score_batch(word_ids, class_ids, membership_probs,
+                                      mask)
         for seq_index, seq_logprobs in enumerate(logprobs):
             seq_logprob = sum(seq_logprobs)
             num_probs += len(seq_logprobs)
@@ -129,7 +122,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
 
             seq_logprobs = [x / base_conversion for x in seq_logprobs]
             seq_logprob /= base_conversion
-            seq_class_names = vocabulary.ids_to_names(seq_word_ids)
+            seq_class_names = vocabulary.word_ids_to_classes(seq_word_ids)
             output_file.write("# Sentence {0}\n".format(num_sentences))
 
             # In case some word IDs are ignored, seq_word_ids may contain more
@@ -209,13 +202,15 @@ def _score_utterances(input_file, vocabulary, scorer, output_file,
         if not words:
             continue
 
-        class_ids = vocabulary.words_to_class_ids(words)
+        word_ids = vocabulary.words_to_ids(words)
+        class_ids = vocabulary.words_ids_to_class_ids(words)
         num_words += len(class_ids)
         num_unks += class_ids.count(vocabulary.word_to_class_id('<unk>'))
 
-        probs = vocabulary.words_to_probs(words)
+        probs = [self.vocabulary.get_word_prob(word_id)
+                 for word_id in word_ids]
 
-        lm_score = scorer.score_sequence(class_ids, probs)
+        lm_score = scorer.score_sequence(word_ids, class_ids, probs)
         lm_score /= base_conversion
         output_file.write(str(lm_score) + '\n')
 

@@ -51,6 +51,16 @@ class Network(object):
             numpy.random.randint(1, M2)]
         self.random = RandomStreams(random_seed)
 
+        # Word and class inputs will be available to NetworkInput layers.
+        self.word_input = tensor.matrix('network/word_input', dtype='int64')
+        self.word_input.tag.test_value = test_value(
+            size=(100, 16),
+            max_value=vocabulary.num_words())
+        self.class_input = tensor.matrix('network/class_input', dtype='int64')
+        self.class_input.tag.test_value = test_value(
+            size=(100, 16),
+            max_value=vocabulary.num_classes())
+
         # Recurrent layers will create these lists, used by TextSampler to
         # initialize state variables of appropriate sizes.
         self.recurrent_state_input = []
@@ -58,15 +68,16 @@ class Network(object):
 
         # Create the layers.
         logging.debug("Creating layers.")
-        self.network_input = NetworkInput(vocabulary.num_classes(), self)
         self.layers = OrderedDict()
-        self.layers['X'] = self.network_input
+        for input_options in architecture.inputs:
+            input = NetworkInput(input_options, self)
+            self.layers[input.name] = input
         for layer_description in architecture.layers:
             layer_options = dict()
             for variable, value in layer_description.items():
                 if variable == 'inputs':
                     layer_options['input_layers'] = \
-                        [ self.layers[x] for x in value ]
+                        [self.layers[x] for x in value]
                 else:
                     layer_options[variable] = value
             if layer_options['name'] == architecture.output_layer:
@@ -91,8 +102,8 @@ class Network(object):
         logging.debug("Total number of parameters: %d", num_params)
 
         # Create Theano shared variables.
-        self.params = { name: theano.shared(value, name)
-                        for name, value in self.param_init_values.items() }
+        self.params = {name: theano.shared(value, name)
+                       for name, value in self.param_init_values.items()}
         for layer in self.layers.values():
             layer.set_params(self.params)
 
@@ -125,25 +136,24 @@ class Network(object):
         for layer in self.layers.values():
             layer.create_structure()
 
-        self.input = self.network_input.output
         self.output = self.output_layer.output
 
         # The input at the next time step is what the output (predicted word)
         # should be.
-        word_ids = self.input[1:].flatten()
+        class_ids = self.class_input[1:].flatten()
         output_probs = self.output[:-1].flatten()
 
         # An index to a flattened input matrix times the vocabulary size can be
-        # used to index the same location in the output matrix. The word ID is
+        # used to index the same location in the output matrix. The class ID is
         # added to index the probability of that word.
         target_indices = \
-            tensor.arange(word_ids.shape[0]) * self.vocabulary.num_classes() \
-            + word_ids
+            tensor.arange(class_ids.shape[0]) * self.vocabulary.num_classes() \
+            + class_ids
         target_probs = output_probs[target_indices]
 
         # Reshape to a matrix. Now we have one less time step.
-        num_time_steps = self.input.shape[0] - 1
-        num_sequences = self.input.shape[1]
+        num_time_steps = self.class_input.shape[0] - 1
+        num_sequences = self.class_input.shape[1]
         self.prediction_probs = target_probs.reshape(
             [num_time_steps, num_sequences])
 
@@ -161,7 +171,6 @@ class Network(object):
         for layer in self.layers.values():
             layer.create_structure()
 
-        self.input = self.network_input.output
         self.output = self.output_layer.output
 
     def get_state(self, state):

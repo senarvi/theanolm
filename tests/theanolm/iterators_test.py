@@ -59,17 +59,20 @@ class TestIterators(unittest.TestCase):
         self.sentences2_file.seek(0)
 
     def test_shuffling_batch_iterator(self):
-        iterator = theanolm.ShufflingBatchIterator([self.sentences1_file, self.sentences2_file],
+        iterator = theanolm.ShufflingBatchIterator([ self.sentences1_file,
+                                                     self.sentences2_file ],
                                                    self.vocabulary,
                                                    batch_size=2,
                                                    max_sequence_length=5)
 
         sentences1 = []
-        for word_ids, probs, mask in iterator:
+        for word_ids, class_ids, probs, mask in iterator:
             for sequence in range(2):
                 sequence_mask = numpy.array(mask)[:,sequence]
                 sequence_word_ids = numpy.array(word_ids)[sequence_mask != 0,sequence]
-                sentences1.append(' '.join(self.vocabulary.ids_to_names(sequence_word_ids)))
+                sequence_class_ids = numpy.array(class_ids)[sequence_mask != 0,sequence]
+                self.assertTrue(numpy.array_equal(sequence_word_ids, sequence_class_ids))
+                sentences1.append(' '.join(self.vocabulary.word_ids_to_classes(sequence_word_ids)))
         sentences1_str = ' '.join(sentences1)
         sentences1_sorted_str = ' '.join(sorted(sentences1))
         self.assertEqual(sentences1_sorted_str,
@@ -86,11 +89,13 @@ class TestIterators(unittest.TestCase):
         self.assertEqual(len(iterator), 5)
 
         sentences2 = []
-        for word_ids, probs, mask in iterator:
+        for word_ids, class_ids, probs, mask in iterator:
             for sequence in range(2):
                 sequence_mask = numpy.array(mask)[:,sequence]
                 sequence_word_ids = numpy.array(word_ids)[sequence_mask != 0,sequence]
-                sentences2.append(' '.join(self.vocabulary.ids_to_names(sequence_word_ids)))
+                sequence_class_ids = numpy.array(class_ids)[sequence_mask != 0,sequence]
+                self.assertTrue(numpy.array_equal(sequence_word_ids, sequence_class_ids))
+                sentences2.append(' '.join(self.vocabulary.word_ids_to_classes(sequence_word_ids)))
         sentences2_str = ' '.join(sentences2)
         sentences2_sorted_str = ' '.join(sorted(sentences2))
         self.assertEqual(sentences1_sorted_str, sentences2_sorted_str)
@@ -115,13 +120,15 @@ class TestIterators(unittest.TestCase):
                                                 batch_size=2,
                                                 max_sequence_length=5)
         word_names = []
-        for word_ids, probs, mask in iterator:
+        for word_ids, class_ids, probs, mask in iterator:
             mask = numpy.array(mask)
             word_ids = numpy.array(word_ids)
+            class_ids = numpy.array(class_ids)
+            self.assertTrue(numpy.array_equal(word_ids, class_ids))
             for sequence in range(mask.shape[1]):
                 sequence_mask = mask[:,sequence]
                 sequence_word_ids = word_ids[sequence_mask != 0,sequence]
-                word_names.extend(self.vocabulary.ids_to_names(sequence_word_ids))
+                word_names.extend(self.vocabulary.word_ids_to_classes(sequence_word_ids))
         corpus = ' '.join(word_names)
         self.assertEqual(corpus,
                          '<s> yksi kaksi </s> '

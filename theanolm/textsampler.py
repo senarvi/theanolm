@@ -31,7 +31,7 @@ class TextSampler(object):
         self.network = network
         self.vocabulary = vocabulary
 
-        inputs = [self.network.input]
+        inputs = [self.network.word_input, self.network.class_input]
         inputs.extend(self.network.recurrent_state_input)
 
         # multinomial() is only implemented with dimension < 2, but the matrix
@@ -68,14 +68,16 @@ class TextSampler(object):
         :returns: list of the generated words
         """
 
-        sos_class_id = self.vocabulary.word_to_class_id('<s>')
-        eos_class_id = self.vocabulary.word_to_class_id('</s>')
+        sos_id = self.vocabulary.word_to_id['<s>']
+        sos_class_id = self.vocabulary.word_id_to_class_id[sos_id]
+        eos_id = self.vocabulary.word_to_id['</s>']
 
         # We are only generating one sequence at a time. The input is passed as
         # a 2-dimensional matrix with only one element, since in mini-batch mode
         # the matrix contains multiple sequences and time steps.
         result = [sos_class_id]
-        step_output = sos_class_id * numpy.ones(shape=(1,1)).astype('int64')
+        word_input = sos_id * numpy.ones(shape=(1, 1)).astype('int64')
+        class_input = sos_class_id * numpy.ones(shape=(1, 1)).astype('int64')
 
         # Construct a list of recurrent state variables that will be passed
         # through time steps, and initialize them to zeros. The state vector is
@@ -89,15 +91,18 @@ class TextSampler(object):
 
         for _ in range(max_length):
             # The input is the output from the previous step.
-            step_result = self.step_function(step_output,
+            step_result = self.step_function(word_input, class_input,
                                              *recurrent_state)
-            step_output = step_result[0]
+            class_ids = step_result[0]
             recurrent_state = step_result[1:]
             assert len(recurrent_state) == \
                    len(self.network.recurrent_state_size)
             # The class ID from the single time step from the single sequence.
-            class_id = step_output[0,0]
-            result.append(class_id)
-            if class_id == eos_class_id:
+            class_id = class_ids[0,0]
+            word_id = self.vocabulary.class_id_to_word_id(class_id)
+            result.append(word_id)
+            if word_id == eos_id:
                 break
+            word_input = word_id * numpy.ones(shape=(1, 1)).astype('int64')
+            class_input = class_ids
         return self.vocabulary.ids_to_words(result)

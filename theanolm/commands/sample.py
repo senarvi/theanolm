@@ -7,7 +7,7 @@ import subprocess
 import numpy
 import h5py
 import theano
-import theanolm
+from theanolm import Vocabulary, Architecture, Network, TextSampler
 from theanolm.filetypes import TextFileType
 
 def add_arguments(parser):
@@ -16,14 +16,6 @@ def add_arguments(parser):
         'model_path', metavar='MODEL-FILE', type=str,
         help='path where the best model state will be saved in numpy .npz '
              'format')
-    argument_group.add_argument(
-        'vocabulary_file', metavar='VOCAB-FILE', type=TextFileType('r'),
-        help='text or .gz file containing word list or class definitions')
-    argument_group.add_argument(
-        '--vocabulary-format', metavar='FORMAT', type=str, default='words',
-        help='vocabulary format, one of "words" (one word per line, default), '
-             '"classes" (word and class ID per line), "srilm-classes" (class '
-             'name, membership probability, and word per line)')
     argument_group.add_argument(
         '--output-file', metavar='FILE', type=TextFileType('w'), default='-',
         help='where to write the generated sentences (default stdout)')
@@ -50,31 +42,22 @@ def sample(args):
     else:
         theano.config.compute_test_value = 'off'
 
-    try:
-        script_path = os.path.dirname(os.path.realpath(__file__))
-        git_description = subprocess.check_output(['git', 'describe'], cwd=script_path)
-        print("TheanoLM", git_description.decode('utf-8'))
-    except subprocess.CalledProcessError:
-        pass
-
-    print("Reading vocabulary.")
-    sys.stdout.flush()
-    vocabulary = theanolm.Vocabulary.from_file(args.vocabulary_file,
-                                               args.vocabulary_format)
-    print("Number of words in vocabulary:", vocabulary.num_words())
-    print("Number of word classes:", vocabulary.num_classes())
-
-    print("Building neural network.")
-    sys.stdout.flush()
     with h5py.File(args.model_path, 'r') as state:
-        architecture = theanolm.Architecture.from_state(state)
-        network = theanolm.Network(vocabulary, architecture, batch_processing=False)
+        print("Reading vocabulary from network state.")
+        sys.stdout.flush()
+        vocabulary = Vocabulary.from_state(state)
+        print("Number of words in vocabulary:", vocabulary.num_words())
+        print("Number of word classes:", vocabulary.num_classes())
+        print("Building neural network.")
+        sys.stdout.flush()
+        architecture = Architecture.from_state(state)
+        network = Network(vocabulary, architecture, batch_processing=False)
         print("Restoring neural network state.")
         network.set_state(state)
 
     print("Building text sampler.")
     sys.stdout.flush()
-    sampler = theanolm.TextSampler(network, vocabulary)
+    sampler = TextSampler(network, vocabulary)
 
     for i in range(args.num_sentences):
         words = sampler.generate()

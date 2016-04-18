@@ -22,9 +22,9 @@ class BigramOptimizer(object):
         """
 
         self._initial_vocabulary = vocabulary
-        self.first_normal_class_id = vocabulary.first_normal_class_id
         self.vocabulary_size = vocabulary.num_words()
         self.num_classes = vocabulary.num_classes()
+        self.num_normal_classes = vocabulary.num_normal_classes
         self._count_type = count_type
 
     def move_to_best_class(self, word):
@@ -93,17 +93,6 @@ class BigramOptimizer(object):
 
         return class_counts, cc_counts, cw_counts, wc_counts
 
-#        for word_id, class_id in enumerate(word_to_class):
-#            class_counts[class_id] += word_counts[word_id]
-#        for left_word_id, right_word_id in zip(*ww_counts.nonzero()):
-#            count = ww_counts[left_word_id, right_word_id]
-#            left_class_id = word_to_class[left_word_id]
-#            right_class_id = word_to_class[right_word_id]
-#            cc_counts[left_class_id,right_class_id] += count
-#            cw_counts[left_class_id,right_word_id] += count
-#            wc_counts[left_word_id,right_class_id] += count
-#        return class_counts, cc_counts, cw_counts, wc_counts
-
     def _find_best_move(self, word_id):
         """Finds the class such that moving the given word to that class would
         give best improvement in log likelihood.
@@ -121,7 +110,7 @@ class BigramOptimizer(object):
         best_class_id = None
 
         old_class_id = self.get_word_class(word_id)
-        for class_id in range(self.first_normal_class_id, self.num_classes):
+        for class_id in range(self.num_normal_classes):
             if class_id == old_class_id:
                 continue
             ll_diff = self._evaluate(word_id, class_id)

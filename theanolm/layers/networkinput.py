@@ -14,21 +14,28 @@ class NetworkInput(BasicLayer):
     A dummy layer that provides the input for the first layer.
     """
 
-    def __init__(self, output_size, network):
+    def __init__(self, input_options, network):
         """Creates a neural network input with a given vocabulary size, which
         specifies the input size of the first layer.
 
-        :type output_size: int
-        :param output_size: number of output connections
+        :type input_options: dict
+        :param input_options: dictionary of input options
 
         :type network: Network
-        :param network: the network object creating this layer
+        :param network: the network object which uses this input
         """
 
-        layer_options = { 'name': '__input__',
-                          'input_layers': [],
-                          'size': output_size }
-        super().__init__(layer_options, network)
+        self.input_type = input_options['type']
+        if self.input_type == 'word':
+            output_size = network.vocabulary.num_words()
+        elif self.input_type == 'class':
+            output_size = network.vocabulary.num_classes()
+        else:
+            raise ValueError(
+                "Invalid network input type: {}".format(self.input_type))
+        input_options['size'] = output_size
+        input_options['input_layers'] = []
+        super().__init__(input_options, network)
 
     def create_structure(self):
         """Creates the symbolic matrix that describes the network input.
@@ -38,7 +45,9 @@ class NetworkInput(BasicLayer):
         text, the matrix will contain only one element.
         """
 
-        self.output = tensor.matrix('network/input', dtype='int64')
-        self.output.tag.test_value = test_value(
-            size=(100, 16),
-            max_value=self.output_size)
+        if self.input_type == 'word':
+            self.output = self.network.word_input
+        elif self.input_type == 'class':
+            self.output = self.network.class_input
+        else:
+            assert False

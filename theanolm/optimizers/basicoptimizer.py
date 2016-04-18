@@ -68,7 +68,7 @@ class BasicOptimizer(object):
         # GPU earlier than necessary.
         mask = self.network.mask[1:]
         for class_id in classes_to_ignore:
-            mask *= tensor.neq(self.network.input[1:], class_id)
+            mask *= tensor.neq(self.network.class_input[1:], class_id)
         logprobs *= tensor.cast(mask, theano.config.floatX)
         # Cost is the negative log probability normalized by the number of
         # training examples in the mini-batch, so that the gradients will also
@@ -83,7 +83,9 @@ class BasicOptimizer(object):
         # Ignore unused input, because is_training is only used by dropout
         # layer.
         self.gradient_update_function = theano.function(
-            [self.network.input, self.network.mask],
+            [self.network.word_input,
+             self.network.class_input,
+             self.network.mask],
             cost,
             givens=[(self.network.is_training, numpy.int8(1))],
             updates=self._get_gradient_updates(),
@@ -159,27 +161,26 @@ class BasicOptimizer(object):
         if 'optimizer/learning_rate' in self.params:
             self.params['optimizer/learning_rate'].set_value(x)
 
-    def update_minibatch(self, word_ids, mask):
+    def update_minibatch(self, word_ids, class_ids, mask):
         """Optimizes the neural network parameters using the given inputs and
         learning rate.
 
-        ``batch_iter`` is an iterator to the training data. On each call it
-        creates a tuple of three 2-dimensional matrices, all indexed by time
-        step and sequence. The first matrix contains the word IDs, the second
-        one (class membership probabilities) will be ignored in training, and
-        the third one masks out elements past the sequence ends.
+        :type word_ids: numpy.ndarray of an integer type
+        :param word_ids: a 2-dimensional matrix, indexed by time step and
+                         sequence, that contains the word IDs
 
-        :type batch_iter: BatchIterator
-        :param batch_iter: an iterator that creates mini-batches from the
-                           training data
+        :type class_ids: numpy.ndarray of an integer type
+        :param class_ids: a 2-dimensional matrix, indexed by time step and
+                          sequence, that contains the class IDs
 
-        :rtype: bool
-        :returns: True if an update was performed, False if there was no more
-                  training data
+        :type mask: numpy.ndarray of a floating point type
+        :param mask: a 2-dimensional matrix, indexed by time step and sequence,
+                     that masks out elements past the sequence ends.
         """
 
         update_start_time = time()
-        self.update_cost = self.gradient_update_function(word_ids, mask)
+        self.update_cost = self.gradient_update_function(word_ids, class_ids,
+                                                         mask)
         if numpy.isnan(self.update_cost) or numpy.isinf(self.update_cost):
             raise NumberError("Mini-batch cost computation resulted in a "
                               "numerical error.")

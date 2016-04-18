@@ -33,25 +33,29 @@ class TextScorer(object):
 
         self.classes_to_ignore = classes_to_ignore
 
-        inputs = [network.input, network.mask]
-        logprobs = tensor.log(network.prediction_probs)
         # Ignore unused input variables, because is_training is only used by
         # dropout layer.
         self.score_function = theano.function(
-            inputs,
-            logprobs,
+            [network.word_input,
+             network.class_input,
+             network.mask],
+            tensor.log(network.prediction_probs),
             givens=[(network.is_training, numpy.int8(0))],
             name='text_scorer',
             on_unused_input='ignore',
             profile=profile)
 
-    def score_batch(self, word_ids, membership_probs, mask):
+    def score_batch(self, word_ids, class_ids, membership_probs, mask):
         """Computes the log probabilities predicted by the neural network for
         the words in a mini-batch.
 
         :type word_ids: numpy.ndarray of an integer type
         :param word_ids: a 2-dimensional matrix, indexed by time step and
                          sequence, that contains the word IDs
+
+        :type class_ids: numpy.ndarray of an integer type
+        :param class_ids: a 2-dimensional matrix, indexed by time step and
+                          sequence, that contains the class IDs
 
         :type membership_probs: numpy.ndarray of a floating point type
         :param membership_probs: a 2-dimensional matrix, indexed by time step
@@ -69,7 +73,7 @@ class TextScorer(object):
         result = []
 
         # A matrix of neural network logprobs of each word in each sequence.
-        logprobs = self.score_function(word_ids, mask)
+        logprobs = self.score_function(word_ids, class_ids, mask)
         # Add logprobs from the class membership of the predicted word at each
         # time step of each sequence.
         logprobs += numpy.log(membership_probs[1:])
@@ -108,19 +112,23 @@ class TextScorer(object):
         total_logprob = 0
         num_words = 0
 
-        for word_ids, membership_probs, mask in batch_iter:
-            logprobs = self.score_batch(word_ids, membership_probs, mask)
+        for word_ids, class_ids, membership_probs, mask in batch_iter:
+            logprobs = self.score_batch(word_ids, class_ids, membership_probs,
+                                        mask)
             for seq_logprobs in logprobs:
                 total_logprob += sum(seq_logprobs)
                 num_words += len(seq_logprobs)
         cross_entropy = -total_logprob / num_words
         return numpy.exp(cross_entropy)
 
-    def score_sequence(self, word_ids, membership_probs):
+    def score_sequence(self, word_ids, class_ids, membership_probs):
         """Computes the log probability of a word sequence.
 
         :type word_ids: list of ints
         :param word_ids: list of word IDs
+
+        :type class_ids: list of ints
+        :param class_ids: corresponding class IDs
 
         :type membership_probs: list of floats
         :param membership_probs: list of class membership probabilities
@@ -131,13 +139,14 @@ class TextScorer(object):
 
         # Create 2-dimensional matrices representing the transposes of the
         # vectors.
-        word_ids = numpy.array([[x] for x in word_ids], numpy.int64)
-        membership_probs = numpy.array([[x] for x in membership_probs]).astype(
-            theano.config.floatX)
+        word_ids = numpy.array([ [x] for x in word_ids ], numpy.int64)
+        class_ids = numpy.array([ [x] for x in class_ids ], numpy.int64)
+        membership_probs = numpy.array(
+            [ [x] for x in membership_probs ]).astype(theano.config.floatX)
         # Mask used by the network is all ones.
         mask = numpy.ones(word_ids.shape, numpy.int8)
 
-        logprobs = self.score_function(word_ids, mask)
+        logprobs = self.score_function(word_ids, class_ids, mask)
         # Add logprobs from the class membership of the predicted word at each
         # time step of each sequence.
         logprobs += numpy.log(membership_probs[1:])

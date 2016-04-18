@@ -8,7 +8,8 @@ import logging
 import numpy
 import h5py
 import theano
-import theanolm
+from theanolm import Vocabulary, Architecture, Network, TextScorer
+from theanolm import LinearBatchIterator
 from theanolm.trainers import create_trainer
 from theanolm.filetypes import TextFileType
 
@@ -23,24 +24,32 @@ def add_arguments(parser):
         help='text or .gz file containing validation data (one sentence per '
              'line) for early stopping')
     argument_group.add_argument(
-        'vocabulary_file', metavar='VOCAB-FILE', type=TextFileType('r'),
-        help='text or .gz file containing word list or class definitions')
-    argument_group.add_argument(
         '--training-set', metavar='FILE', type=TextFileType('r'),
         nargs='+', required=True,
         help='text or .gz files containing training data (one sentence per '
              'line)')
     argument_group.add_argument(
+        '--vocabulary', metavar='FILE', type=str, default=None,
+        help='text or .gz file containing word list or class definitions '
+             '(default is to include all the files from the training set)')
+    argument_group.add_argument(
         '--vocabulary-format', metavar='FORMAT', type=str, default='words',
-        help='vocabulary format, one of "words" (one word per line, default), '
-             '"classes" (word and class ID per line), "srilm-classes" (class '
-             'name, membership probability, and word per line)')
-    
+        help='format of the file specified with --vocabulary argument, one of '
+             '"words" (one word per line, default), "classes" (word and class '
+             'ID per line), "srilm-classes" (class name, membership '
+             'probability, and word per line)')
+    argument_group.add_argument(
+        '--num-classes', metavar='N', type=int, default=None,
+        help='generate N classes using a simple word frequency based algorithm '
+             'when --vocabulary argument is not given (default is to not use '
+             'word classes)')
+
     argument_group = parser.add_argument_group("network architecture")
     argument_group.add_argument(
-        '--architecture', metavar='DESC', type=TextFileType('r'),
-        help='path to neural network architecture description')
-    
+        '--architecture', metavar='FILE', type=str,
+        help='path to neural network architecture description, or a standard '
+             'architecture name, "lstm300" or "lstm1500" (default "lstm300")')
+
     argument_group = parser.add_argument_group("training process")
     argument_group.add_argument(
         '--training-strategy', metavar='NAME', type=str, default='local-mean',
@@ -163,67 +172,86 @@ def train(args):
     theano.config.profile = args.profile
     theano.config.profile_memory = args.profile
 
-    print("Reading vocabulary.")
-    sys.stdout.flush()
-    vocabulary = theanolm.Vocabulary.from_file(args.vocabulary_file,
-                                               args.vocabulary_format)
-    print("Number of words in vocabulary:", vocabulary.num_words())
-    print("Number of word classes:", vocabulary.num_classes())
-
-    print("Building neural network.")
-    sys.stdout.flush()
-    architecture = theanolm.Architecture.from_description(args.architecture)
-    network = theanolm.Network(vocabulary, architecture, batch_processing=True,
-                               profile=args.profile)
-
-    print("Building text scorer.")
-    sys.stdout.flush()
-    classes_to_ignore = []
-    if args.ignore_unk:
-        classes_to_ignore.append(vocabulary.word_to_class_id('<unk>'))
-    scorer = theanolm.TextScorer(network, classes_to_ignore, args.profile)
-
-    validation_mmap = mmap.mmap(args.validation_file.fileno(),
-                                0,
-                                prot=mmap.PROT_READ)
-    validation_iter = theanolm.LinearBatchIterator(validation_mmap,
-                                                   vocabulary,
-                                                   batch_size=32)
-
-    optimization_options = {
-        'method': args.optimization_method,
-        'epsilon': args.numerical_stability_term,
-        'gradient_decay_rate': args.gradient_decay_rate,
-        'sqr_gradient_decay_rate': args.sqr_gradient_decay_rate,
-        'learning_rate': args.learning_rate,
-        'momentum': args.momentum,
-        'classes_to_ignore': classes_to_ignore}
-    if not args.gradient_normalization is None:
-        optimization_options['max_gradient_norm'] = args.gradient_normalization
-    logging.debug("OPTIMIZATION OPTIONS")
-    for option_name, option_value in optimization_options.items():
-        if type(option_value) is list:
-            value_str = ', '.join(str(x) for x in option_value)
-            logging.debug("%s: [%s]", option_name, value_str)
+    with h5py.File(args.model_path, 'a', driver='core') as state:
+        if state.keys():
+            print("Reading vocabulary from existing network state.")
+            sys.stdout.flush()
+            vocabulary = Vocabulary.from_state(state)
+        elif args.vocabulary is None:
+            print("Constructing vocabulary from training set.")
+            sys.stdout.flush()
+            vocabulary = Vocabulary.from_corpus(args.training_set,
+                                                args.num_classes)
+            for training_file in args.training_set:
+                training_file.seek(0)
+            vocabulary.get_state(state)
         else:
+            print("Reading vocabulary from {}.".format(args.vocabulary))
+            sys.stdout.flush()
+            with open(args.vocabulary, 'rt', encoding='utf-8') as vocab_file:
+                vocabulary = Vocabulary.from_file(vocab_file,
+                                                  args.vocabulary_format)
+            vocabulary.get_state(state)
+        print("Number of words in vocabulary:", vocabulary.num_words())
+        print("Number of word classes:", vocabulary.num_classes())
+
+        print("Building neural network.")
+        sys.stdout.flush()
+        if args.architecture == 'lstm300' or args.architecture == 'lstm1500':
+            architecture = Architecture.from_package(args.architecture)
+        else:
+            with open(args.architecture, 'rt', encoding='utf-8') as arch_file:
+                architecture = Architecture.from_description(arch_file)
+        network = Network(vocabulary, architecture, batch_processing=True,
+                          profile=args.profile)
+
+        print("Building text scorer.")
+        sys.stdout.flush()
+        classes_to_ignore = []
+        if args.ignore_unk:
+            classes_to_ignore.append(vocabulary.word_to_class_id('<unk>'))
+        scorer = TextScorer(network, classes_to_ignore, args.profile)
+
+        validation_mmap = mmap.mmap(args.validation_file.fileno(),
+                                    0,
+                                    prot=mmap.PROT_READ)
+        validation_iter = LinearBatchIterator(validation_mmap,
+                                              vocabulary,
+                                              batch_size=32)
+
+        optimization_options = {
+            'method': args.optimization_method,
+            'epsilon': args.numerical_stability_term,
+            'gradient_decay_rate': args.gradient_decay_rate,
+            'sqr_gradient_decay_rate': args.sqr_gradient_decay_rate,
+            'learning_rate': args.learning_rate,
+            'momentum': args.momentum,
+            'classes_to_ignore': classes_to_ignore}
+        if not args.gradient_normalization is None:
+            optimization_options['max_gradient_norm'] = args.gradient_normalization
+        logging.debug("OPTIMIZATION OPTIONS")
+        for option_name, option_value in optimization_options.items():
+            if type(option_value) is list:
+                value_str = ', '.join(str(x) for x in option_value)
+                logging.debug("%s: [%s]", option_name, value_str)
+            else:
+                logging.debug("%s: %s", option_name, str(option_value))
+
+        training_options = {
+            'strategy': args.training_strategy,
+            'batch_size': args.batch_size,
+            'sequence_length': args.sequence_length,
+            'validation_frequency': args.validation_frequency,
+            'patience': args.patience,
+            'reset_when_annealing': args.reset_when_annealing,
+            'stopping_criterion': args.stopping_criterion,
+            'max_epochs': args.max_epochs,
+            'min_epochs': args.min_epochs,
+            'max_annealing_count': args.max_annealing_count}
+        logging.debug("TRAINING OPTIONS")
+        for option_name, option_value in training_options.items():
             logging.debug("%s: %s", option_name, str(option_value))
 
-    training_options = {
-        'strategy': args.training_strategy,
-        'batch_size': args.batch_size,
-        'sequence_length': args.sequence_length,
-        'validation_frequency': args.validation_frequency,
-        'patience': args.patience,
-        'reset_when_annealing': args.reset_when_annealing,
-        'stopping_criterion': args.stopping_criterion,
-        'max_epochs': args.max_epochs,
-        'min_epochs': args.min_epochs,
-        'max_annealing_count': args.max_annealing_count}
-    logging.debug("TRAINING OPTIONS")
-    for option_name, option_value in training_options.items():
-        logging.debug("%s: %s", option_name, str(option_value))
-
-    with h5py.File(args.model_path, 'a', driver='core') as state:
         print("Building neural network trainer.")
         sys.stdout.flush()
         trainer = create_trainer(
