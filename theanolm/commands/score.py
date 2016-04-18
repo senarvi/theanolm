@@ -203,11 +203,12 @@ def _score_utterances(input_file, vocabulary, scorer, output_file,
             continue
 
         word_ids = vocabulary.words_to_ids(words)
-        class_ids = vocabulary.words_ids_to_class_ids(words)
+        class_ids = [vocabulary.word_id_to_class_id[word_id]
+                     for word_id in word_ids]
         num_words += len(class_ids)
         num_unks += class_ids.count(vocabulary.word_to_class_id('<unk>'))
 
-        probs = [self.vocabulary.get_word_prob(word_id)
+        probs = [vocabulary.get_word_prob(word_id)
                  for word_id in word_ids]
 
         lm_score = scorer.score_sequence(word_ids, class_ids, probs)
