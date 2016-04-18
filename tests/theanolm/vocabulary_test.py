@@ -5,7 +5,8 @@ import unittest
 import os
 import mmap
 import numpy
-import theanolm
+import h5py
+from theanolm import Vocabulary
 from theanolm.iterators.shufflingbatchiterator import find_sentence_starts
 
 class TestVocabulary(unittest.TestCase):
@@ -26,19 +27,19 @@ class TestVocabulary(unittest.TestCase):
 
     def test_from_file(self):
         self.vocabulary_file.seek(0)
-        vocabulary = theanolm.Vocabulary.from_file(self.vocabulary_file, 'words')
+        vocabulary = Vocabulary.from_file(self.vocabulary_file, 'words')
         self.assertEqual(vocabulary.num_words(), 10 + 3)
         self.assertEqual(vocabulary.num_classes(), 10 + 3)
 
     def test_from_corpus(self):
         self.sentences1_file.seek(0)
-        vocabulary = theanolm.Vocabulary.from_corpus([self.sentences1_file])
+        vocabulary = Vocabulary.from_corpus([self.sentences1_file])
         self.assertEqual(vocabulary.num_words(), 10 + 3)
         self.assertEqual(vocabulary.num_classes(), 10 + 3)
 
         self.sentences1_file.seek(0)
         self.sentences2_file.seek(0)
-        vocabulary = theanolm.Vocabulary.from_corpus([self.sentences1_file, self.sentences2_file], 3)
+        vocabulary = Vocabulary.from_corpus([self.sentences1_file, self.sentences2_file], 3)
         self.assertEqual(vocabulary.num_words(), 10 + 3)
         self.assertEqual(vocabulary.num_classes(), 3 + 3)
         self.assertEqual(vocabulary.word_to_id['<s>'], 10)
@@ -55,6 +56,17 @@ class TestVocabulary(unittest.TestCase):
                 class_ids.add(vocabulary.word_to_class_id(word))
         self.assertEqual(word_ids, set(range(10)))
         self.assertEqual(class_ids, set(range(3)))
+
+    def test_from_state(self):
+        self.sentences1_file.seek(0)
+        vocabulary1 = Vocabulary.from_corpus([self.sentences1_file])
+        f = h5py.File('in-memory.h5', driver='core', backing_store=False)
+        vocabulary1.get_state(f)
+        vocabulary2 = Vocabulary.from_state(f)
+        self.assertTrue(numpy.array_equal(vocabulary1.id_to_word, vocabulary2.id_to_word))
+        self.assertDictEqual(vocabulary1.word_to_id, vocabulary2.word_to_id)
+        self.assertTrue(numpy.array_equal(vocabulary1.word_id_to_class_id, vocabulary2.word_id_to_class_id))
+        self.assertListEqual(vocabulary1._word_classes, vocabulary2._word_classes)
 
 if __name__ == '__main__':
     unittest.main()

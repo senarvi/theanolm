@@ -88,6 +88,59 @@ class Vocabulary(object):
             assert len(indices) == 1
             return word_ids[indices[0]]
 
+        def __len__(self):
+            """Returns the number of words in this class.
+
+            :rtype: int
+            :returns: the number of words in this class
+            """
+
+            return len(self.probs)
+
+        def __eq__(self, other):
+            """Tests if another word class is exactly the same.
+
+            Two word classes are considered the same if the same word IDs have
+            the same probabilities within a tolerance.
+
+            :type other: WordClass
+            :param other: another word class
+
+            :rtype: bool
+            :returns: True if the classes are the same, False otherwise
+            """
+
+            if not isinstance(other, self.__class__):
+                return False
+
+            if self.id != other.id:
+                return False
+
+            if len(self) != len(other):
+                return False
+
+            for word_id, prob in self.probs.items():
+                if not numpy.isclose(prob, other.probs[word_id]):
+                    return False
+
+            return True
+
+        def __ne__(self, other):
+            """Tests if another word class is different.
+
+            Two word classes are considered the same if the same word IDs have
+            the same probabilities within a tolerance.
+w
+            :type other: WordClass
+            :param other: another word class
+
+            :rtype: bool
+            :returns: False if the classes are the same, True otherwise
+            """
+
+            return not self.__eq__(other)
+
+
     def __init__(self, id_to_word, word_id_to_class_id, word_classes):
         """If the special tokens <s>, </s>, and <unk> don't exist in the word
         list, adds them and creates a separate class for each token. Then
@@ -134,7 +187,7 @@ class Vocabulary(object):
         index = len(word_classes) - 1
         while True:
             word_class = word_classes[index]
-            if len(word_class.probs) == 1:
+            if len(word_class) == 1:
                 word_id = next(iter(word_class.probs))
                 if id_to_word[word_id].startswith('<'):
                     index -= 1
@@ -450,7 +503,7 @@ class Vocabulary(object):
         :returns: a name for the class
         """
 
-        if len(word_class.probs) == 1:
+        if len(word_class) == 1:
             word_id = next(iter(word_class.probs))
             return self.id_to_word[word_id]
         elif word_class.id is None:
