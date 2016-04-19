@@ -56,10 +56,10 @@ def score(args):
 
     print("Building text scorer.")
     sys.stdout.flush()
-    classes_to_ignore = []
+    words_to_ignore = []
     if args.ignore_unk:
-        classes_to_ignore.append(vocabulary.word_to_class_id('<unk>'))
-    scorer = TextScorer(network, classes_to_ignore)
+        words_to_ignore.append(vocabulary.word_to_id['<unk>'])
+    scorer = TextScorer(network, words_to_ignore)
 
     print("Scoring text.")
     if args.output == 'perplexity':
@@ -137,7 +137,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
                 history = ', '.join(history)
                 predicted = seq_class_names[word_index + 1]
 
-                if word_id in scorer.classes_to_ignore:
+                if word_id in scorer.words_to_ignore:
                     output_file.write("p({0} | {1}) is not predicted\n".format(
                         predicted, history))
                 else:
@@ -195,6 +195,7 @@ def _score_utterances(input_file, vocabulary, scorer, output_file,
 
     base_conversion = 1 if log_base is None else numpy.log(log_base)
 
+    unk_id = vocabulary.word_to_id['<unk>']
     num_words = 0
     num_unks = 0
     for line_num, line in enumerate(input_file):
@@ -203,11 +204,10 @@ def _score_utterances(input_file, vocabulary, scorer, output_file,
             continue
 
         word_ids = vocabulary.words_to_ids(words)
+        num_words += len(word_ids)
+        num_unks += word_ids.count(unk_id)
         class_ids = [vocabulary.word_id_to_class_id[word_id]
                      for word_id in word_ids]
-        num_words += len(class_ids)
-        num_unks += class_ids.count(vocabulary.word_to_class_id('<unk>'))
-
         probs = [vocabulary.get_word_prob(word_id)
                  for word_id in word_ids]
 

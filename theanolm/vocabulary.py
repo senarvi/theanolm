@@ -130,7 +130,7 @@ class Vocabulary(object):
 
             Two word classes are considered the same if the same word IDs have
             the same probabilities within a tolerance.
-w
+
             :type other: WordClass
             :param other: another word class
 
@@ -435,18 +435,6 @@ w
         """
 
         return len(self._word_classes)
-
-    def word_to_class_id(self, word):
-        """Returns the class ID of given word.
-
-        :type word: str
-        :param word: a word
-
-        :rtype: int
-        :returns: ID of the class where ``word`` is assigned to
-        """
-
-        return self.word_id_to_class_id[self.word_to_id[word]]
 
     def words_to_ids(self, words):
         """Translates words into word IDs.

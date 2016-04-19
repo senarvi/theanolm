@@ -10,7 +10,7 @@ class TextScorer(object):
     """Text Scoring Using a Neural Network Language Model
     """
 
-    def __init__(self, network, classes_to_ignore=[], profile=False):
+    def __init__(self, network, words_to_ignore=[], profile=False):
         """Creates a Theano function self.score_function that computes the
         log probabilities predicted by the neural network for the words in a
         mini-batch.
@@ -23,15 +23,15 @@ class TextScorer(object):
         :type network: Network
         :param network: the neural network object
 
-        :type classes_to_ignore: list of ints
-        :param classes_to_ignore: list of class IDs that will be ignored when
-                                  computing the cost
+        :type words_to_ignore: list of ints
+        :param words_to_ignore: list of word IDs that will be ignored when
+                                computing the cost
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
         """
 
-        self.classes_to_ignore = classes_to_ignore
+        self.words_to_ignore = words_to_ignore
 
         # Ignore unused input variables, because is_training is only used by
         # dropout layer.
@@ -79,7 +79,7 @@ class TextScorer(object):
         logprobs += numpy.log(membership_probs[1:])
         # Ignore logprobs predicting a word that is past the sequence end or one
         # of the words to be ignored.
-        for word_id in self.classes_to_ignore:
+        for word_id in self.words_to_ignore:
             mask[word_ids == word_id] = 0
         for seq_index in range(logprobs.shape[1]):
             seq_logprobs = logprobs[:,seq_index]
@@ -152,7 +152,7 @@ class TextScorer(object):
         logprobs += numpy.log(membership_probs[1:])
         # Zero out logprobs predicting a word to be ignored. Numpy preserves the
         # data type when multiplying by an int8.
-        for word_id in self.classes_to_ignore:
+        for word_id in self.words_to_ignore:
             mask[word_ids == word_id] = 0
         logprobs *= mask[1:]
         logprob = logprobs.sum()

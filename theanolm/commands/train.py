@@ -207,10 +207,10 @@ def train(args):
 
         print("Building text scorer.")
         sys.stdout.flush()
-        classes_to_ignore = []
+        words_to_ignore = []
         if args.ignore_unk:
-            classes_to_ignore.append(vocabulary.word_to_class_id('<unk>'))
-        scorer = TextScorer(network, classes_to_ignore, args.profile)
+            words_to_ignore.append(vocabulary.word_to_id['<unk>'])
+        scorer = TextScorer(network, words_to_ignore, args.profile)
 
         validation_mmap = mmap.mmap(args.validation_file.fileno(),
                                     0,
@@ -226,7 +226,7 @@ def train(args):
             'sqr_gradient_decay_rate': args.sqr_gradient_decay_rate,
             'learning_rate': args.learning_rate,
             'momentum': args.momentum,
-            'classes_to_ignore': classes_to_ignore}
+            'words_to_ignore': words_to_ignore}
         if not args.gradient_normalization is None:
             optimization_options['max_gradient_norm'] = args.gradient_normalization
         logging.debug("OPTIMIZATION OPTIONS")
