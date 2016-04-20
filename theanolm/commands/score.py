@@ -36,8 +36,10 @@ def add_arguments(parser):
         help='convert output log probabilities to base B (default is the '
              'natural logarithm)')
     argument_group.add_argument(
-        '--ignore-unk', action="store_true",
-        help="don't include the probability of unknown words")
+        '--unk-penalty', metavar='LOGPROB', type=float, default=None,
+        help="if LOGPROB is zero, do not include <unk> tokens in perplexity "
+             "computation; otherwise use constant LOGPROB as <unk> token score "
+             "(default is to use the network to predict <unk> probability)")
 
 def score(args):
     with h5py.File(args.model_path, 'r') as state:
@@ -56,10 +58,16 @@ def score(args):
 
     print("Building text scorer.")
     sys.stdout.flush()
-    words_to_ignore = []
-    if args.ignore_unk:
-        words_to_ignore.append(vocabulary.word_to_id['<unk>'])
-    scorer = TextScorer(network, words_to_ignore)
+    if args.unk_penalty is None:
+        ignore_unk = False  
+        unk_penalty = None
+    elif args.unk_penalty == 0:
+        ignore_unk = True
+        unk_penalty = None
+    else:
+        ignore_unk = False
+        unk_penalty = args.unk_penalty
+    scorer = TextScorer(network, ignore_unk, unk_penalty, args.profile)
 
     print("Scoring text.")
     if args.output == 'perplexity':
@@ -102,6 +110,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
 
     validation_iter = LinearBatchIterator(input_file, vocabulary)
     base_conversion = 1 if log_base is None else numpy.log(log_base)
+    unk_id = vocabulary.word_to_id['<unk>']
 
     total_logprob = 0
     num_sentences = 0
@@ -137,7 +146,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
                 history = ', '.join(history)
                 predicted = seq_class_names[word_index + 1]
 
-                if word_id in scorer.words_to_ignore:
+                if scorer.ignore_unk and word_id == unk_id:
                     output_file.write("p({0} | {1}) is not predicted\n".format(
                         predicted, history))
                 else:

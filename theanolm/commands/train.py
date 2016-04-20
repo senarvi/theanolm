@@ -111,8 +111,10 @@ def add_arguments(parser):
              '(normalized by mini-batch size) will not exceed THRESHOLD '
              '(default 5)')
     argument_group.add_argument(
-        '--ignore-unk', action="store_true",
-        help="don't include the probability of unknown words in the cost")
+        '--unk-penalty', metavar='LOGPROB', type=float, default=None,
+        help="if LOGPROB is zero, do not include <unk> tokens in perplexity "
+             "computation; otherwise use constant LOGPROB as <unk> token score "
+             "(default is to use the network to predict <unk> probability)")
 
     argument_group = parser.add_argument_group("early stopping")
     argument_group.add_argument(
@@ -207,10 +209,16 @@ def train(args):
 
         print("Building text scorer.")
         sys.stdout.flush()
-        words_to_ignore = []
-        if args.ignore_unk:
-            words_to_ignore.append(vocabulary.word_to_id['<unk>'])
-        scorer = TextScorer(network, words_to_ignore, args.profile)
+        if args.unk_penalty is None:
+            ignore_unk = False
+            unk_penalty = None
+        elif args.unk_penalty == 0:
+            ignore_unk = True
+            unk_penalty = None
+        else:
+            ignore_unk = False
+            unk_penalty = args.unk_penalty
+        scorer = TextScorer(network, ignore_unk, unk_penalty, args.profile)
 
         validation_mmap = mmap.mmap(args.validation_file.fileno(),
                                     0,
@@ -226,7 +234,9 @@ def train(args):
             'sqr_gradient_decay_rate': args.sqr_gradient_decay_rate,
             'learning_rate': args.learning_rate,
             'momentum': args.momentum,
-            'words_to_ignore': words_to_ignore}
+            'ignore_unk': ignore_unk,
+            'unk_penalty': unk_penalty
+        }
         if not args.gradient_normalization is None:
             optimization_options['max_gradient_norm'] = args.gradient_normalization
         logging.debug("OPTIMIZATION OPTIONS")
@@ -247,7 +257,8 @@ def train(args):
             'stopping_criterion': args.stopping_criterion,
             'max_epochs': args.max_epochs,
             'min_epochs': args.min_epochs,
-            'max_annealing_count': args.max_annealing_count}
+            'max_annealing_count': args.max_annealing_count
+        }
         logging.debug("TRAINING OPTIONS")
         for option_name, option_value in training_options.items():
             logging.debug("%s: %s", option_name, str(option_value))

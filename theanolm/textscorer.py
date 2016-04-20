@@ -10,7 +10,8 @@ class TextScorer(object):
     """Text Scoring Using a Neural Network Language Model
     """
 
-    def __init__(self, network, words_to_ignore=[], profile=False):
+    def __init__(self, network, ignore_unk=False, unk_penalty=None,
+                 profile=False):
         """Creates a Theano function self.score_function that computes the
         log probabilities predicted by the neural network for the words in a
         mini-batch.
@@ -23,15 +24,21 @@ class TextScorer(object):
         :type network: Network
         :param network: the neural network object
 
-        :type words_to_ignore: list of ints
-        :param words_to_ignore: list of word IDs that will be ignored when
-                                computing the cost
+        :type ignore_unk: bool
+        :param ignore_unk: if set to True, <unk> tokens are excluded from
+                           perplexity computation
+
+        :type unk_penalty: float
+        :param unk_penalty: if set to othern than None, used as <unk> token
+                            score
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
         """
 
-        self.words_to_ignore = words_to_ignore
+        self.ignore_unk = ignore_unk
+        self.unk_penalty = unk_penalty
+        self.unk_id = network.vocabulary.word_to_id['<unk>']
 
         # Ignore unused input variables, because is_training is only used by
         # dropout layer.
@@ -48,6 +55,10 @@ class TextScorer(object):
     def score_batch(self, word_ids, class_ids, membership_probs, mask):
         """Computes the log probabilities predicted by the neural network for
         the words in a mini-batch.
+
+        Indices in the resulting list of lists will be a transpose of those of
+        the input matrices matrices, so that the first index is the sequence,
+        not the time step.
 
         :type word_ids: numpy.ndarray of an integer type
         :param word_ids: a 2-dimensional matrix, indexed by time step and
@@ -77,10 +88,13 @@ class TextScorer(object):
         # Add logprobs from the class membership of the predicted word at each
         # time step of each sequence.
         logprobs += numpy.log(membership_probs[1:])
-        # Ignore logprobs predicting a word that is past the sequence end or one
-        # of the words to be ignored.
-        for word_id in self.words_to_ignore:
-            mask[word_ids == word_id] = 0
+        # If requested, predict <unk> with constant score.
+        if not self.unk_penalty is None:
+            logprobs[word_ids[1:] == self.unk_id] = self.unk_penalty
+        # Ignore logprobs predicting a word that is past the sequence end, and
+        # possibly also those that are predicting <unk> token.
+        if self.ignore_unk:
+            mask[word_ids == self.unk_id] = 0
         for seq_index in range(logprobs.shape[1]):
             seq_logprobs = logprobs[:,seq_index]
             seq_mask = mask[1:,seq_index]
@@ -139,10 +153,10 @@ class TextScorer(object):
 
         # Create 2-dimensional matrices representing the transposes of the
         # vectors.
-        word_ids = numpy.array([ [x] for x in word_ids ], numpy.int64)
-        class_ids = numpy.array([ [x] for x in class_ids ], numpy.int64)
+        word_ids = numpy.array([[x] for x in word_ids], numpy.int64)
+        class_ids = numpy.array([[x] for x in class_ids], numpy.int64)
         membership_probs = numpy.array(
-            [ [x] for x in membership_probs ]).astype(theano.config.floatX)
+            [[x] for x in membership_probs]).astype(theano.config.floatX)
         # Mask used by the network is all ones.
         mask = numpy.ones(word_ids.shape, numpy.int8)
 
@@ -150,13 +164,14 @@ class TextScorer(object):
         # Add logprobs from the class membership of the predicted word at each
         # time step of each sequence.
         logprobs += numpy.log(membership_probs[1:])
-        # Zero out logprobs predicting a word to be ignored. Numpy preserves the
-        # data type when multiplying by an int8.
-        for word_id in self.words_to_ignore:
-            mask[word_ids == word_id] = 0
-        logprobs *= mask[1:]
-        logprob = logprobs.sum()
+        # If requested, predict <unk> with constant score.
+        if not self.unk_penalty is None:
+            logprobs[word_ids[1:] == self.unk_id] = self.unk_penalty
+        # If requested, zero out logprobs predicting <unk> token.
+        if self.ignore_unk:
+            logprobs[word_ids[1:] == self.unk_id] = 0
 
+        logprob = logprobs.sum()
         if numpy.isnan(logprob):
             raise NumberError("Sentence logprob has NaN value.")
         return logprob

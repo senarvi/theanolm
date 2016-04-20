@@ -40,7 +40,7 @@ class BigramOptimizer(object):
         word_id = self.get_word_id(word)
         old_class_id = self.get_word_class(word_id)
         if self._class_size(old_class_id) < 2:
-            logging.debug('Less than two word in class %d. Not moving word %s.',
+            logging.debug('Less than two words in class %d. Not moving word %s.',
                           old_class_id, word)
             return False
 

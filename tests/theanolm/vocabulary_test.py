@@ -45,18 +45,23 @@ class TestVocabulary(unittest.TestCase):
         vocabulary = Vocabulary.from_corpus([self.sentences1_file, self.sentences2_file], 3)
         self.assertEqual(vocabulary.num_words(), 10 + 3)
         self.assertEqual(vocabulary.num_classes(), 3 + 3)
-        self.assertEqual(vocabulary.word_to_id['<s>'], 10)
-        self.assertEqual(vocabulary.word_to_id['</s>'], 11)
-        self.assertEqual(vocabulary.word_to_id['<unk>'], 12)
-        self.assertEqual(vocabulary.word_to_class_id('<s>'), 3)
-        self.assertEqual(vocabulary.word_to_class_id('</s>'), 4)
-        self.assertEqual(vocabulary.word_to_class_id('<unk>'), 5)
+
+        sos_id = vocabulary.word_to_id['<s>']
+        eos_id = vocabulary.word_to_id['</s>']
+        unk_id = vocabulary.word_to_id['<unk>']
+        self.assertEqual(sos_id, 10)
+        self.assertEqual(eos_id, 11)
+        self.assertEqual(unk_id, 12)
+        self.assertEqual(vocabulary.word_id_to_class_id[sos_id], 3)
+        self.assertEqual(vocabulary.word_id_to_class_id[eos_id], 4)
+        self.assertEqual(vocabulary.word_id_to_class_id[unk_id], 5)
         word_ids = set()
         class_ids = set()
         for word in vocabulary.words():
             if not word.startswith('<'):
-                word_ids.add(vocabulary.word_to_id[word])
-                class_ids.add(vocabulary.word_to_class_id(word))
+                word_id = vocabulary.word_to_id[word]
+                word_ids.add(word_id)
+                class_ids.add(vocabulary.word_id_to_class_id[word_id])
         self.assertEqual(word_ids, set(range(10)))
         self.assertEqual(class_ids, set(range(3)))
 
