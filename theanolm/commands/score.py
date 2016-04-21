@@ -67,7 +67,7 @@ def score(args):
     else:
         ignore_unk = False
         unk_penalty = args.unk_penalty
-    scorer = TextScorer(network, ignore_unk, unk_penalty, args.profile)
+    scorer = TextScorer(network, ignore_unk, unk_penalty)
 
     print("Scoring text.")
     if args.output == 'perplexity':

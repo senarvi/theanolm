@@ -45,10 +45,39 @@ class BasicLayer(object):
         self.param_init_values = OrderedDict()
 
     def set_params(self, params):
+        """Sets the dictionary that can be used to access Theano shared
+        variables.
+
+        :type params: dict
+        :param params: a dictionary of Theano shared variables indexed by
+        parameter name
+        """
+
         self._params = params
 
+    def _param_path(self, param_name):
+        """Returns the HDF5 path used to address a parameter.
+
+        :type param_name: str
+        :param param_name: name of a parameter within this layer
+
+        :rtype: str
+        :returns: full path of the parameter in a HDF5 file.
+        """
+
+        return 'layers/' + self.name + '/' + param_name
+
     def _get_param(self, param_name):
-        return self._params[self.name + '/' + param_name]
+        """Returns a Theano tensor variable by parameter name.
+
+        :type param_name: str
+        :param param_name: name of a parameter within the layer
+
+        :rtype: theano.tensor.var.TensorVariable
+        :returns: the corresponding tensor variable
+        """
+
+        return self._params[self._param_path(param_name)]
 
     def _init_random_weight(self, param_name, input_size, output_size, scale=None, count=1):
         """Generates a weight matrix from “standard normal” distribution.
@@ -66,7 +95,7 @@ class BasicLayer(object):
         :returns: the generated weight matrix
         """
 
-        self.param_init_values[self.name + '/' + param_name] = \
+        self.param_init_values[self._param_path(param_name)] = \
             numpy.concatenate([random_weight(input_size, output_size, scale=0.01)
                                for _ in range(count)],
                               axis=1)
@@ -86,7 +115,7 @@ class BasicLayer(object):
                       unless an orthogonal matrix is created
         """
 
-        self.param_init_values[self.name + '/' + param_name] = \
+        self.param_init_values[self._param_path(param_name)] = \
             numpy.concatenate([orthogonal_weight(input_size, output_size, scale=0.01)
                                for _ in range(count)],
                               axis=1)
@@ -99,9 +128,7 @@ class BasicLayer(object):
         are elements in the list.
 
         :type param_name: str
-        :param param_name: name for the parameter within the layer object; the
-                           actual name of the Theano shared variable will be
-                           ``<layer name>.<parameter name>``.
+        :param param_name: name for the parameter within the layer
 
         :type size: int
         :param size: number of elements in the vector (or in one subvector, in
@@ -121,10 +148,22 @@ class BasicLayer(object):
                 subvector = numpy.empty(size).astype(theano.config.floatX)
                 subvector.fill(subvector_value)
             subvectors.append(subvector)
-        self.param_init_values[self.name + '/' + param_name] = \
+        self.param_init_values[self._param_path(param_name)] = \
             numpy.concatenate(subvectors)
 
     def _tensor_preact(self, input_matrix, param_name):
-        weight = self._params[self.name + '/' + param_name + '/W']
-        bias = self._params[self.name + '/' + param_name + '/b']
+        """Helper function that creates a pre-activation of ``input_matrix`` by
+        multiplying it by a weight matrix and adding a bias.
+
+        :type input_matrix: theano.tensor.var.TensorVariable
+        :param input_matrix: input tensor matrix whose preactivation will be
+                             computed.
+
+        :type param_name: str
+        :param param_name: name of a parameter group that contains a weight
+                           matrix and a bias vector
+        """
+
+        weight = self._params[self._param_path(param_name) + '/W']
+        bias = self._params[self._param_path(param_name) + '/b']
         return tensor.dot(input_matrix, weight) + bias

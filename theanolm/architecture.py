@@ -47,10 +47,10 @@ class Architecture(object):
         :param state: HDF5 file that contains the architecture parameters
         """
 
-        if not 'arch' in state:
+        if not 'architecture' in state:
             raise IncompatibleStateError(
                 "Architecture is missing from neural network state.")
-        h5_arch = state['arch']
+        h5_arch = state['architecture']
 
         if not 'inputs' in h5_arch:
             raise IncompatibleStateError(
@@ -170,7 +170,7 @@ class Architecture(object):
         :param state: HDF5 file for storing the architecture parameters
         """
 
-        h5_arch = state.require_group('arch')
+        h5_arch = state.require_group('architecture')
 
         h5_inputs = h5_arch.require_group('inputs')
         for input_id, input in enumerate(self.inputs):
@@ -193,10 +193,10 @@ class Architecture(object):
         :param state: HDF5 file that contains the architecture parameters
         """
 
-        if not 'arch' in state:
+        if not 'architecture' in state:
             raise IncompatibleStateError(
                 "Architecture is missing from neural network state.")
-        h5_arch = state['arch']
+        h5_arch = state['architecture']
 
         if not 'inputs' in h5_arch:
             raise IncompatibleStateError(
