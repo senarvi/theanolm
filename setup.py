@@ -1,15 +1,39 @@
 #!/usr/bin/env python3
 
-import os
+import sys
+from os import path
 import subprocess
 from glob import glob
+import re
 from setuptools import setup, find_packages
 
-script_dir = os.path.dirname(os.path.realpath(__file__))
-tag = subprocess.check_output(['git', 'describe'], cwd=script_dir)
-tag = tag.decode('utf-8').rstrip()
-version = tag[1:]
-scripts = glob(os.path.join(script_dir, 'bin', '*'))
+script_dir = path.dirname(path.realpath(__file__))
+scripts = glob(path.join(script_dir, 'bin', '*'))
+pkginfo_path = path.join(script_dir, 'PKG-INFO')
+
+try:
+    tag = subprocess.check_output(['git', 'describe', '--match', 'vv[0-9]*'],
+                                  cwd=script_dir,
+                                  stderr=subprocess.STDOUT)
+    tag = tag.decode('utf-8').rstrip()
+    version = tag[1:]
+except:
+    version = None
+if version is None:
+    if not path.exists(pkginfo_path):
+        print("setup.py can only be run from a Git repository or from a "
+              "distribution that includes distutils metadata (PKG-INFO).")
+        sys.exit(1)
+    version_re = re.compile(r'^Version: +(\d.*)')
+    with open(pkginfo_path, 'r') as pkginfo_file:
+        for line in pkginfo_file:
+            match = version_re.search(line)
+            if match:
+                version = match.group(1).strip()
+                break
+if version is None:
+    print("Version was not found from Git repository or PKG-INFO.")
+    sys.exit(1)
 
 long_description = 'TheanoLM is a recurrent neural network language modeling ' \
                    'toolkit implemented using Theano. Theano allows the user ' \
@@ -33,7 +57,7 @@ setup(name='TheanoLM',
       author='Seppo Enarvi',
       author_email='seppo2016@marjaniemi.com',
       url='https://github.com/senarvi/theanolm',
-      download_url='https://github.com/senarvi/theanolm/tarball/' + tag,
+      download_url='https://github.com/senarvi/theanolm/tarball/v' + version,
       description='Toolkit for neural network language modeling using Theano',
       long_description=long_description,
       license='Apache License, Version 2.0',
