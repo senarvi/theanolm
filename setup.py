@@ -6,8 +6,9 @@ from glob import glob
 from setuptools import setup, find_packages
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
-version = subprocess.check_output(['git', 'describe'], cwd=script_dir)
-version = version.decode('utf-8').rstrip()[1:]
+tag = subprocess.check_output(['git', 'describe'], cwd=script_dir)
+tag = tag.decode('utf-8').rstrip()
+version = tag[1:]
 scripts = glob(os.path.join(script_dir, 'bin', '*'))
 
 long_description = 'TheanoLM is a recurrent neural network language modeling ' \
@@ -32,6 +33,7 @@ setup(name='TheanoLM',
       author='Seppo Enarvi',
       author_email='seppo2016@marjaniemi.com',
       url='https://github.com/senarvi/theanolm',
+      download_url='https://github.com/senarvi/theanolm/tarball/' + tag,
       description='Toolkit for neural network language modeling using Theano',
       long_description=long_description,
       license='Apache License, Version 2.0',
