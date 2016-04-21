@@ -75,7 +75,7 @@ class TextSampler(object):
         # We are only generating one sequence at a time. The input is passed as
         # a 2-dimensional matrix with only one element, since in mini-batch mode
         # the matrix contains multiple sequences and time steps.
-        result = [sos_class_id]
+        result = [sos_id]
         word_input = sos_id * numpy.ones(shape=(1, 1)).astype('int64')
         class_input = sos_class_id * numpy.ones(shape=(1, 1)).astype('int64')
 
@@ -105,4 +105,4 @@ class TextSampler(object):
                 break
             word_input = word_id * numpy.ones(shape=(1, 1)).astype('int64')
             class_input = class_ids
-        return self.vocabulary.ids_to_words(result)
+        return [self.vocabulary.id_to_word[word_id] for word_id in result]
