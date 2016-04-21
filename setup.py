@@ -12,7 +12,7 @@ scripts = glob(path.join(script_dir, 'bin', '*'))
 pkginfo_path = path.join(script_dir, 'PKG-INFO')
 
 try:
-    tag = subprocess.check_output(['git', 'describe', '--match', 'vv[0-9]*'],
+    tag = subprocess.check_output(['git', 'describe', '--match', 'v[0-9]*'],
                                   cwd=script_dir,
                                   stderr=subprocess.STDOUT)
     tag = tag.decode('utf-8').rstrip()
