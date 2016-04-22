@@ -46,7 +46,7 @@ def add_arguments(parser):
 
     argument_group = parser.add_argument_group("network architecture")
     argument_group.add_argument(
-        '--architecture', metavar='FILE', type=str,
+        '--architecture', metavar='FILE', type=str, default='lstm300',
         help='path to neural network architecture description, or a standard '
              'architecture name, "lstm300" or "lstm1500" (default "lstm300")')
 
