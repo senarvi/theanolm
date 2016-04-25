@@ -118,8 +118,9 @@ class BasicTrainer(object):
                 if self._is_scheduled(self.options['validation_frequency']):
                     perplexity = self.scorer.compute_perplexity(self.validation_iter)
                     if numpy.isnan(perplexity) or numpy.isinf(perplexity):
-                        raise NumberError("Validation set perplexity computation resulted "
-                                          "in a numerical error.")
+                        raise NumberError(
+                            "Validation set perplexity computation resulted "
+                            "in a numerical error.")
                 else:
                     perplexity = None
                 self._validate(perplexity)
@@ -127,10 +128,11 @@ class BasicTrainer(object):
                 if not self.stopper.start_new_minibatch():
                     break
 
+            print("Finished training epoch {}.".format(self.epoch_number))
             self.epoch_number += 1
             self.update_number = 0
 
-        logging.info("Training finished.")
+        print("Training finished.")
 
     def get_state(self, state):
         """Pulls parameter values from Theano shared variables and updates a
