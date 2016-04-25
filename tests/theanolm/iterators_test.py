@@ -59,14 +59,15 @@ class TestIterators(unittest.TestCase):
         self.sentences2_file.seek(0)
 
     def test_shuffling_batch_iterator(self):
-        iterator = theanolm.ShufflingBatchIterator([ self.sentences1_file,
-                                                     self.sentences2_file ],
+        iterator = theanolm.ShufflingBatchIterator([self.sentences1_file,
+                                                    self.sentences2_file],
+                                                   [],
                                                    self.vocabulary,
                                                    batch_size=2,
                                                    max_sequence_length=5)
 
         sentences1 = []
-        for word_ids, class_ids, probs, mask in iterator:
+        for word_ids, class_ids, _, mask in iterator:
             for sequence in range(2):
                 sequence_mask = numpy.array(mask)[:,sequence]
                 sequence_word_ids = numpy.array(word_ids)[sequence_mask != 0,sequence]
@@ -89,7 +90,7 @@ class TestIterators(unittest.TestCase):
         self.assertEqual(len(iterator), 5)
 
         sentences2 = []
-        for word_ids, class_ids, probs, mask in iterator:
+        for word_ids, class_ids, _, mask in iterator:
             for sequence in range(2):
                 sequence_mask = numpy.array(mask)[:,sequence]
                 sequence_word_ids = numpy.array(word_ids)[sequence_mask != 0,sequence]
@@ -102,17 +103,36 @@ class TestIterators(unittest.TestCase):
         self.assertNotEqual(sentences1_str, sentences2_str)
 
         # The current behaviour is to cut the sentences, so we always get 5
-        # batches.
-        iterator = theanolm.ShufflingBatchIterator([self.sentences1_file, self.sentences2_file],
+        # batches regardless of the maximum sequence length.
+        iterator = theanolm.ShufflingBatchIterator([self.sentences1_file,
+                                                    self.sentences2_file],
+                                                   [],
                                                    self.vocabulary,
                                                    batch_size=2,
                                                    max_sequence_length=4)
         self.assertEqual(len(iterator), 5)
-        iterator = theanolm.ShufflingBatchIterator([self.sentences1_file, self.sentences2_file],
+        iterator = theanolm.ShufflingBatchIterator([self.sentences1_file,
+                                                    self.sentences2_file],
+                                                   [],
                                                    self.vocabulary,
                                                    batch_size=2,
                                                    max_sequence_length=3)
         self.assertEqual(len(iterator), 5)
+
+        # Sample 2 and 4 sentences (40 % and 80 %).
+        iterator = theanolm.ShufflingBatchIterator([self.sentences1_file,
+                                                    self.sentences2_file],
+                                                   [0.4, 0.8],
+                                                   self.vocabulary,
+                                                   batch_size=1,
+                                                   max_sequence_length=5)
+        self.assertEqual(len(iterator), 2 + 4)
+
+        # Make sure there are no duplicates.
+        self.assertSetEqual(set(iterator.order),
+                            set(numpy.unique(iterator.order)))
+        self.assertEqual(numpy.count_nonzero(iterator.order <= 4), 2)
+        self.assertEqual(numpy.count_nonzero(iterator.order >= 5), 4)
 
     def test_linear_batch_iterator(self):
         iterator = theanolm.LinearBatchIterator(self.sentences1_file,

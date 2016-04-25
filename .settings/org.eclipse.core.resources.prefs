@@ -1,5 +1,6 @@
 eclipse.preferences.version=1
 encoding//bin/theanolm=utf-8
+encoding//tests/theanolm/iterators_test.py=utf-8
 encoding//theanolm/architecture.py=utf-8
 encoding//theanolm/commands/sample.py=utf-8
 encoding//theanolm/commands/score.py=utf-8
@@ -29,7 +30,6 @@ encoding//theanolm/optimizers/nesterovoptimizer.py=utf-8
 encoding//theanolm/optimizers/rmspropsgdoptimizer.py=utf-8
 encoding//theanolm/optimizers/sgdoptimizer.py=utf-8
 encoding//theanolm/stoppers/basicstopper.py=utf-8
-encoding//theanolm/tests/testiterators.py=utf-8
 encoding//theanolm/textsampler.py=utf-8
 encoding//theanolm/textscorer.py=utf-8
 encoding//theanolm/trainers/basictrainer.py=utf-8

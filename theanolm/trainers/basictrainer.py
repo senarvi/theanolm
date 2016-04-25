@@ -18,7 +18,7 @@ class BasicTrainer(object):
 
     def __init__(self, training_options, optimization_options,
                  network, vocabulary, scorer,
-                 training_files, validation_iter, state,
+                 training_files, weights, validation_iter, state,
                  profile=False):
         """Creates the optimizer and initializes the training process.
 
@@ -63,6 +63,7 @@ class BasicTrainer(object):
 
         self.training_iter = ShufflingBatchIterator(
             training_files,
+            weights,
             vocabulary,
             batch_size=training_options['batch_size'],
             max_sequence_length=training_options['sequence_length'])

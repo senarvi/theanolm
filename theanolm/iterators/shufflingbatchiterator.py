@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from collections import OrderedDict
 import sys
 import mmap
 import logging
 import numpy
-import theano
+from numpy import random
 from theanolm.iterators.batchiterator import BatchIterator
 
 def find_sentence_starts(data):
@@ -50,10 +49,17 @@ class SentencePointers(object):
         element is a tuple of two indices - the first index will select the file
         from the mmaps list and the second index points to the position inside
         the file.
+
+        Also saves in ``pointer_ranges`` an index to the first pointer and one
+        past the last pointer of each file.
+
+        :type files: list of file objects
+        :param files: input text files
         """
 
         self.mmaps = []
         self.pointers = []
+        self.pointer_ranges = []
 
         for subset_file in files:
             subset_index = len(self.mmaps)
@@ -62,12 +68,15 @@ class SentencePointers(object):
                                     prot=mmap.PROT_READ)
             self.mmaps.append(subset_mmap)
 
-            print("Finding sentence start positions in {}.".format(
-                subset_file.name))
+            logging.debug("Finding sentence start positions in %s.",
+                          subset_file.name)
             sys.stdout.flush()
             pointers = [(subset_index, x)
                         for x in find_sentence_starts(subset_mmap)]
+            pointers_start = len(self.pointers)
             self.pointers.extend(pointers)
+            pointers_stop = len(self.pointers)
+            self.pointer_ranges.append((pointers_start, pointers_stop))
 
     def __len__(self):
         """Returns the number of sentences.
@@ -102,13 +111,17 @@ class ShufflingBatchIterator(BatchIterator):
 
     def __init__(self,
                  input_files,
+                 weights,
                  vocabulary,
                  batch_size=128,
                  max_sequence_length=100):
         """Initializes the iterator to read sentences in linear order.
 
-        :type input_files: list of file or mmap objects
+        :type input_files: list of file objects
         :param input_files: input text files
+
+        :type weights: list of floats
+        :param weights: input text files
 
         :type vocabulary: Vocabulary
         :param vocabulary: vocabulary that provides mapping between words and
@@ -124,10 +137,8 @@ class ShufflingBatchIterator(BatchIterator):
         """
 
         self.sentence_pointers = SentencePointers(input_files)
-        self.order = list(range(len(self.sentence_pointers)))
-        self.order = numpy.asarray(self.order, dtype='int64')
-        numpy.random.shuffle(self.order)
-        self.next_line = 0
+        self.weights = weights
+        self._reset()
 
         super().__init__(vocabulary, batch_size, max_sequence_length)
 
@@ -186,17 +197,37 @@ class ShufflingBatchIterator(BatchIterator):
                       self.next_line,
                       self.order.size)
 
+    def _create_order(self):
+        """Creates a random iteration order.
+        """
+
     def _reset(self, shuffle=True):
-        """Resets the read pointer back to the beginning of the file.
-        
+        """Resets the read pointer back to the beginning of the file. If
+        ``shuffle`` is set to True, also creates a new random order for
+        iterating the input lines.
+
         :type shuffle: bool
         :param shuffle: also shuffles the input sentences, unless set to False
         """
 
         self.next_line = 0
         if shuffle:
-            logging.info("Shuffling the order of input lines.")
-            numpy.random.shuffle(self.order)
+            logging.debug("Generating a random order of input lines.")
+            samples = []
+            weight_iter = iter(self.weights)
+            for (start, stop) in self.sentence_pointers.pointer_ranges:
+                population = numpy.arange(start, stop, dtype='int64')
+                weight = next(weight_iter, 1.0)
+                sample_size = round(weight * len(population))
+                # No duplicates, unless we need more sentences than there are
+                # in the file.
+                replace = sample_size > len(population)
+                sample = random.choice(population, sample_size, replace=replace)
+                samples.append(sample)
+            self.order = numpy.concatenate(samples)
+            # Order within a certain file is already random. Shuffle elements
+            # also between files.
+            random.shuffle(self.order)
 
     def _readline(self):
         """Reads the next input line.

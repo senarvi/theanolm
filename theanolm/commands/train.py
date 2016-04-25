@@ -24,8 +24,8 @@ def add_arguments(parser):
         help='text or .gz file containing validation data (one sentence per '
              'line) for early stopping')
     argument_group.add_argument(
-        '--training-set', metavar='FILE', type=TextFileType('r'),
-        nargs='+', required=True,
+        '--training-set', metavar='FILE', type=TextFileType('r'), nargs='+',
+        required=True,
         help='text or .gz files containing training data (one sentence per '
              'line)')
     argument_group.add_argument(
@@ -38,19 +38,24 @@ def add_arguments(parser):
              '"words" (one word per line, default), "classes" (word and class '
              'ID per line), "srilm-classes" (class name, membership '
              'probability, and word per line)')
-    argument_group.add_argument(
-        '--num-classes', metavar='N', type=int, default=None,
-        help='generate N classes using a simple word frequency based algorithm '
-             'when --vocabulary argument is not given (default is to not use '
-             'word classes)')
 
     argument_group = parser.add_argument_group("network architecture")
     argument_group.add_argument(
         '--architecture', metavar='FILE', type=str, default='lstm300',
         help='path to neural network architecture description, or a standard '
              'architecture name, "lstm300" or "lstm1500" (default "lstm300")')
+    argument_group.add_argument(
+        '--num-classes', metavar='N', type=int, default=None,
+        help='generate N classes using a simple word frequency based algorithm '
+             'when --vocabulary argument is not given (default is to not use '
+             'word classes)')
 
     argument_group = parser.add_argument_group("training process")
+    argument_group.add_argument(
+        '--weights', metavar='LAMBDA', type=float, nargs='*',
+        help='randomly sample only a fraction of each training file, specified '
+             'by the weights LAMBDA, on each iteration (list the weights in '
+             'the same order as the training files)')
     argument_group.add_argument(
         '--training-strategy', metavar='NAME', type=str, default='local-mean',
         help='selects a training and validation strategy, one of "basic", '
@@ -265,10 +270,14 @@ def train(args):
 
         print("Building neural network trainer.")
         sys.stdout.flush()
+        if len(args.weights) > len(args.training_set):
+            print("You specified more weights than you have given training "
+                  "files.")
+            sys.exit(1)
         trainer = create_trainer(
             training_options, optimization_options,
             network, vocabulary, scorer,
-            args.training_set, validation_iter,
+            args.training_set, args.weights, validation_iter,
             state, args.profile)
         trainer.set_logging(args.log_interval)
 
