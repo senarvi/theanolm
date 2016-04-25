@@ -52,7 +52,7 @@ def add_arguments(parser):
 
     argument_group = parser.add_argument_group("training process")
     argument_group.add_argument(
-        '--weights', metavar='LAMBDA', type=float, nargs='*',
+        '--weights', metavar='LAMBDA', type=float, nargs='*', default=[],
         help='randomly sample only a fraction of each training file, specified '
              'by the weights LAMBDA, on each iteration (list the weights in '
              'the same order as the training files)')
