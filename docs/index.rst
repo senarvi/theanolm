@@ -1,9 +1,6 @@
 TheanoLM
 ========
 
-Introduction
-------------
-
 TheanoLM is a recurrent neural network language modeling tool implemented using
 the Python library `Theano <http://www.deeplearning.net/software/theano/>`_.
 Theano allows the user to customize and extend the neural network very
@@ -14,14 +11,38 @@ easily implemented. Implementations of common layer types, such as long
 short-term memory and gated recurrent units, and Stochastic Gradient Descent,
 RMSProp, AdaGrad, ADADELTA, and Adam optimizers are provided.
 
-About the project
------------------
+This guide provides an introduction how to get started with training neural
+network language models and performing various operations with them:
 
-TheanoLM is open source and licensed under the `Apache License, Version 2.0
-<LICENSE.txt>`__.
+* :ref:`getting-started`
 
-Author
-------
+The development documentation is intended to help extending the toolkit:
 
-| Seppo Enarvi
-| http://senarvi.github.io/
+* :ref:`development`
+
+.. _getting-started:
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Getting Started
+
+   installation
+   usage
+   training
+   applying
+
+.. _development:
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Development
+
+   contributing
+
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
