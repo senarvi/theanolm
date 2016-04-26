@@ -178,4 +178,5 @@ pseudoxml:
 	@echo "Build finished. The pseudo-XML files are in $(BUILDDIR)/pseudoxml."
 
 rst:
-	$(SPHINXAPIDOC) -f -o . ..
+	$(SPHINXAPIDOC) -f -o . ../theanolm
+	$(SPHINXAPIDOC) -f -o . ../wordclasses

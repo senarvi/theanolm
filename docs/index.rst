@@ -38,6 +38,7 @@ The development documentation is intended to help extending the toolkit:
    :caption: Development
 
    contributing
+   modules
 
 
 Indices and tables
