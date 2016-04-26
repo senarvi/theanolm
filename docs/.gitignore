@@ -1,0 +1,9 @@
+_build
+modules.rst
+setup.rst
+tests.rst
+tests.*.rst
+theanolm.rst
+theanolm.*.rst
+wordclasses.rst
+wordclasses.*.rst

@@ -18,9 +18,7 @@ from os import path
 
 script_dir = path.dirname(path.realpath(__file__))
 root_dir = path.abspath(path.join(script_dir, '..'))
-theanolm_path = path.join(root_dir, 'theanolm')
-version_path = path.join(theanolm_path, 'version.py')
-wordclasses_path = path.join(root_dir, 'wordclasses')
+version_path = path.join(root_dir, 'theanolm', 'version.py')
 
 # Import __version__ from the correct location.
 with open(version_path, 'r') as version_file:
@@ -28,8 +26,7 @@ with open(version_path, 'r') as version_file:
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here.
-sys.path.insert(0, wordclasses_path)
-sys.path.insert(0, theanolm_path)
+sys.path.insert(0, root_dir)
 
 # -- General configuration ------------------------------------------------
 
