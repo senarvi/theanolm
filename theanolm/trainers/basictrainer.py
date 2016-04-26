@@ -253,8 +253,6 @@ class BasicTrainer(object):
         """Called when the validation set cost stops decreasing.
         """
 
-        logging.debug("Performance on validation set has ceased to improve.")
-
         # Current learning rate might be smaller than that stored in the state.
         old_value = self.optimizer.get_learning_rate()
         new_value = old_value / 2
@@ -265,8 +263,13 @@ class BasicTrainer(object):
 
         # The learning rate might not change if the optimizer doesn't need it.
         new_value = self.optimizer.get_learning_rate()
-        logging.info("Learning rate updated from %g to %g.",
-                     old_value, new_value)
+        print("Model performance stopped improving. Updating learning rate "
+              "from {} to {} and resetting state to {:.0f} % of epoch {}."
+              .format(old_value,
+                      new_value,
+                      self.update_number / self.updates_per_epoch * 100,
+                      self.epoch_number))
+
         if self.options['reset_when_annealing']:
             self.optimizer.reset()
 
