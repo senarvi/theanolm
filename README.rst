@@ -18,7 +18,9 @@ About the project
 -----------------
 
 TheanoLM is open source and licensed under the `Apache License, Version 2.0
-<LICENSE.txt>`__.
+<LICENSE.txt>`__. The source code is available on `GitHub
+<https://github.com/senarvi/theanolm>`_. Documentation can be read online on
+`Read the Docs <http://theanolm.readthedocs.org/en/latest/>`_.
 
 Author
 ------
