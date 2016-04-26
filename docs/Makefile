@@ -178,5 +178,4 @@ pseudoxml:
 	@echo "Build finished. The pseudo-XML files are in $(BUILDDIR)/pseudoxml."
 
 rst:
-	$(SPHINXAPIDOC) -f -o . ../theanolm
-	$(SPHINXAPIDOC) -f -o . ../wordclasses
+	$(SPHINXAPIDOC) -f -o . .. ../setup.py ../tests

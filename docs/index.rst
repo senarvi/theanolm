@@ -11,38 +11,33 @@ easily implemented. Implementations of common layer types, such as long
 short-term memory and gated recurrent units, and Stochastic Gradient Descent,
 RMSProp, AdaGrad, ADADELTA, and Adam optimizers are provided.
 
-This guide provides an introduction how to get started with training neural
-network language models and performing various operations with them:
+Getting Started section of this guide provides an introduction how to get
+started with training neural network language models and performing various
+operations with them. The development documentation is intended to help
+extending the toolkit.
 
-* :ref:`getting-started`
-
-The development documentation is intended to help extending the toolkit:
-
-* :ref:`development`
-
-.. _getting-started:
+Getting Started
+---------------
 
 .. toctree::
    :maxdepth: 2
-   :caption: Getting Started
 
    installation
    usage
    training
    applying
 
-.. _development:
+Development
+-----------
 
 .. toctree::
    :maxdepth: 2
-   :caption: Development
 
    contributing
    modules
 
-
-Indices and tables
-==================
+Indices and Tables
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`

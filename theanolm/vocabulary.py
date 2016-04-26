@@ -209,6 +209,7 @@ class Vocabulary(object):
         """Reads vocabulary and possibly word classes from a text file.
 
         ``input_format`` is one of:
+
         * "words": ``input_file`` contains one word per line. Each word will be
                    assigned to its own class.
         * "classes": ``input_file`` contains a word followed by whitespace
@@ -223,9 +224,9 @@ class Vocabulary(object):
         :type input_file: file object
         :param input_file: input vocabulary file
 
-        :type input_format str
+        :type input_format: str
         :param input_format: format of the input vocabulary file, "words",
-	                     "classes", or "srilm-classes"
+                             "classes", or "srilm-classes"
         """
 
         # We have also a set of the words just for faster checking if a word has

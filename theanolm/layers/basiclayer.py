@@ -50,7 +50,7 @@ class BasicLayer(object):
 
         :type params: dict
         :param params: a dictionary of Theano shared variables indexed by
-        parameter name
+                       parameter name
         """
 
         self._params = params
