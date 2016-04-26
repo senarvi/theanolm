@@ -5,3 +5,4 @@ from theanolm.architecture import Architecture
 from theanolm.network import Network
 from theanolm.textscorer import TextScorer
 from theanolm.textsampler import TextSampler
+from theanolm.version import __version__

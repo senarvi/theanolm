@@ -8,32 +8,13 @@ import re
 from setuptools import setup, find_packages
 
 script_dir = path.dirname(path.realpath(__file__))
+version_path = path.join(script_dir, 'theanolm', 'version.py')
 scripts = glob(path.join(script_dir, 'bin', '*'))
-pkginfo_path = path.join(script_dir, 'PKG-INFO')
 
-try:
-    tag = subprocess.check_output(['git', 'describe', '--match', 'v[0-9]*'],
-                                  cwd=script_dir,
-                                  stderr=subprocess.STDOUT)
-    tag = tag.decode('utf-8').rstrip()
-    version = tag[1:]
-except:
-    version = None
-if version is None:
-    if not path.exists(pkginfo_path):
-        print("setup.py can only be run from a Git repository or from a "
-              "distribution that includes distutils metadata (PKG-INFO).")
-        sys.exit(1)
-    version_re = re.compile(r'^Version: +(\d.*)')
-    with open(pkginfo_path, 'r') as pkginfo_file:
-        for line in pkginfo_file:
-            match = version_re.search(line)
-            if match:
-                version = match.group(1).strip()
-                break
-if version is None:
-    print("Version was not found from Git repository or PKG-INFO.")
-    sys.exit(1)
+# Don't import theanolm, as the user may not have the dependencies installed
+# yet. This will import __version__.
+with open(version_path, 'r') as version_file:
+    exec(version_file.read())
 
 long_description = 'TheanoLM is a recurrent neural network language modeling ' \
                    'toolkit implemented using Theano. Theano allows the user ' \
@@ -53,11 +34,11 @@ classifiers = ['Development Status :: 4 - Beta',
                'Topic :: Scientific/Engineering']
 
 setup(name='TheanoLM',
-      version=version,
+      version=__version__,
       author='Seppo Enarvi',
       author_email='seppo2016@marjaniemi.com',
       url='https://github.com/senarvi/theanolm',
-      download_url='https://github.com/senarvi/theanolm/tarball/v' + version,
+      download_url='https://github.com/senarvi/theanolm/tarball/v' + __version__,
       description='Toolkit for neural network language modeling using Theano',
       long_description=long_description,
       license='Apache License, Version 2.0',
