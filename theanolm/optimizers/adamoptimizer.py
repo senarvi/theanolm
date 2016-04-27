@@ -95,12 +95,3 @@ class AdamOptimizer(BasicOptimizer):
             result.append((param, param + alpha * update))
         result.append((timestep, timestep_new))
         return result
-
-    def reset(self):
-        """Resets the optimizer timestep. May be called after decreasing
-        learning rate, depending on the program options.
-        """
-
-        logging.info("Resetting optimizer timestep to zero.")
-        self.params['optimizer/timestep'].set_value(
-            numpy.dtype(theano.config.floatX).type(0.0))

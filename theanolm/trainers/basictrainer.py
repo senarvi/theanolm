@@ -273,9 +273,6 @@ class BasicTrainer(object):
                       self.update_number / self.updates_per_epoch * 100,
                       self.epoch_number))
 
-        if self.options['reset_when_annealing']:
-            self.optimizer.reset()
-
     def _has_improved(self):
         """Tests whether the previously computed validation set cost was
         significantly better than the cost given by the current candidate state.

@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import sys
-import os
 import mmap
 import logging
 import numpy
@@ -76,9 +75,6 @@ def add_arguments(parser):
         help='wait for N validations, before decreasing learning rate, if '
              'perplexity has not decreased; if less than zero, never decrease '
              'learning rate (default 4)')
-    argument_group.add_argument(
-        '--reset-when-annealing', action="store_true",
-        help='reset the optimizer timestep when decreasing learning rate')
     argument_group.add_argument(
         '--random-seed', metavar='N', type=int, default=None,
         help='seed to initialize the random state (default is to seed from a '
@@ -258,7 +254,6 @@ def train(args):
             'sequence_length': args.sequence_length,
             'validation_frequency': args.validation_frequency,
             'patience': args.patience,
-            'reset_when_annealing': args.reset_when_annealing,
             'stopping_criterion': args.stopping_criterion,
             'max_epochs': args.max_epochs,
             'min_epochs': args.min_epochs,
