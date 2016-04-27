@@ -213,8 +213,8 @@ def _score_utterances(input_file, vocabulary, scorer, output_file,
             continue
 
         word_ids = vocabulary.words_to_ids(words)
-        num_words += len(word_ids)
-        num_unks += word_ids.count(unk_id)
+        num_words += word_ids.size
+        num_unks += numpy.count_nonzero(word_ids == unk_id)
         class_ids = [vocabulary.word_id_to_class_id[word_id]
                      for word_id in word_ids]
         probs = [vocabulary.get_word_prob(word_id)

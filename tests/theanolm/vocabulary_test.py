@@ -2,20 +2,19 @@
 # -*- coding: utf-8 -*-
 
 import unittest
-import os
-import mmap
+from os import path
 import numpy
+from numpy.testing import assert_almost_equal, assert_equal
 import h5py
 from theanolm import Vocabulary
-from theanolm.iterators.shufflingbatchiterator import find_sentence_starts
 
 class TestVocabulary(unittest.TestCase):
     def setUp(self):
-        script_path = os.path.dirname(os.path.realpath(__file__))
-        sentences1_path = os.path.join(script_path, 'sentences1.txt')
-        sentences2_path = os.path.join(script_path, 'sentences2.txt')
-        vocabulary_path = os.path.join(script_path, 'vocabulary.txt')
-        classes_path = os.path.join(script_path, 'classes.txt')
+        script_path = path.dirname(path.realpath(__file__))
+        sentences1_path = path.join(script_path, 'sentences1.txt')
+        sentences2_path = path.join(script_path, 'sentences2.txt')
+        vocabulary_path = path.join(script_path, 'vocabulary.txt')
+        classes_path = path.join(script_path, 'classes.txt')
 
         self.sentences1_file = open(sentences1_path)
         self.sentences2_file = open(sentences2_path)
@@ -74,7 +73,8 @@ class TestVocabulary(unittest.TestCase):
         self.assertTrue(numpy.array_equal(vocabulary1.id_to_word, vocabulary2.id_to_word))
         self.assertDictEqual(vocabulary1.word_to_id, vocabulary2.word_to_id)
         self.assertTrue(numpy.array_equal(vocabulary1.word_id_to_class_id, vocabulary2.word_id_to_class_id))
-        self.assertListEqual(vocabulary1._word_classes, vocabulary2._word_classes)
+        self.assertListEqual(list(vocabulary1._word_classes),
+                             list(vocabulary2._word_classes))
 
     def test_word_ids_to_names(self):
         self.classes_file.seek(0)
@@ -100,6 +100,32 @@ class TestVocabulary(unittest.TestCase):
         self.assertEqual(names[5], names[7])
         self.assertEqual(names[5], names[8])
         self.assertEqual(names[9], 'kymmenen')
+
+    def test_get_class_memberships(self):
+        vocabulary = Vocabulary.from_file(self.classes_file, 'srilm-classes')
+        word_ids = numpy.array([vocabulary.word_to_id['yksi'],
+                                vocabulary.word_to_id['kaksi'],
+                                vocabulary.word_to_id['kolme'],
+                                vocabulary.word_to_id['neljä'],
+                                vocabulary.word_to_id['viisi'],
+                                vocabulary.word_to_id['kuusi'],
+                                vocabulary.word_to_id['seitsemän'],
+                                vocabulary.word_to_id['kahdeksan'],
+                                vocabulary.word_to_id['yhdeksän'],
+                                vocabulary.word_to_id['kymmenen']])
+        class_ids, probs = vocabulary.get_class_memberships(word_ids)
+        assert_equal(class_ids, vocabulary.word_id_to_class_id[word_ids])
+        assert_equal(class_ids[3], vocabulary.word_id_to_class_id[word_ids[3]])
+        assert_almost_equal(probs, [1.0,
+                                    1.0,
+                                    0.599 / (0.599 + 0.400),
+                                    0.400 / (0.599 + 0.400),
+                                    1.0,
+                                    0.281 / (0.281 + 0.226 + 0.262 + 0.228),
+                                    0.226 / (0.281 + 0.226 + 0.262 + 0.228),
+                                    0.262 / (0.281 + 0.226 + 0.262 + 0.228),
+                                    0.228 / (0.281 + 0.226 + 0.262 + 0.228),
+                                    1.0])
 
 if __name__ == '__main__':
     unittest.main()

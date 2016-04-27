@@ -6,6 +6,7 @@ import os
 import numpy
 from theano import tensor
 from theanolm import Vocabulary, TextScorer
+from numpy.testing import assert_almost_equal
 
 class DummyNetwork(object):
     def __init__(self, vocabulary):
@@ -36,8 +37,10 @@ class TestTextScorer(unittest.TestCase):
         mask = numpy.ones_like(word_ids)
         logprobs = scorer.score_batch(word_ids, class_ids, membership_probs,
                                       mask)
-        self.assertTrue(numpy.allclose(logprobs[0], numpy.log(word_ids[1:,0].astype('float32') / 5)))
-        self.assertTrue(numpy.allclose(logprobs[1], numpy.log(word_ids[1:,1].astype('float32') / 5)))
+        assert_almost_equal(logprobs[0],
+                            numpy.log(word_ids[1:,0].astype('float32') / 5))
+        assert_almost_equal(logprobs[1],
+                            numpy.log(word_ids[1:,1].astype('float32') / 5))
 
         # <unk> is removed from the resulting logprobs.
         scorer = TextScorer(self.dummy_network, ignore_unk=True)
@@ -48,8 +51,10 @@ class TestTextScorer(unittest.TestCase):
         mask = numpy.ones_like(word_ids)
         logprobs = scorer.score_batch(word_ids, class_ids, membership_probs,
                                       mask)
-        self.assertTrue(numpy.allclose(logprobs[0], numpy.log(word_ids[1:,0].astype('float32') / 5)))
-        self.assertTrue(numpy.allclose(logprobs[1], numpy.log(word_ids[2:,1].astype('float32') / 5)))
+        assert_almost_equal(logprobs[0],
+                            numpy.log(word_ids[1:,0].astype('float32') / 5))
+        assert_almost_equal(logprobs[1],
+                            numpy.log(word_ids[2:,1].astype('float32') / 5))
 
         # <unk> is assigned a constant logprob.
         scorer = TextScorer(self.dummy_network, ignore_unk=False, unk_penalty=-5)
@@ -60,43 +65,45 @@ class TestTextScorer(unittest.TestCase):
         mask = numpy.ones_like(word_ids)
         logprobs = scorer.score_batch(word_ids, class_ids, membership_probs,
                                       mask)
-        self.assertTrue(numpy.allclose(logprobs[0], numpy.log(word_ids[1:,0].astype('float32') / 5)))
-        self.assertTrue(numpy.isclose(logprobs[1][0], -5))
-        self.assertTrue(numpy.isclose(logprobs[1][1], numpy.log(word_ids[2,1].astype('float32') / 5)))
+        assert_almost_equal(logprobs[0],
+                            numpy.log(word_ids[1:,0].astype('float32') / 5))
+        assert_almost_equal(logprobs[1][0], -5)
+        assert_almost_equal(logprobs[1][1],
+                            numpy.log(word_ids[2,1].astype('float32') / 5))
 
     def test_score_sequence(self):
         # Network predicts <unk> probability.
         scorer = TextScorer(self.dummy_network)
-        word_ids = list(range(6))
-        class_ids = list(range(6))
-        membership_probs = [1.0] * 6
+        word_ids = numpy.arange(6)
+        class_ids = numpy.arange(6)
+        membership_probs = numpy.ones(6, dtype='float32')
         logprob = scorer.score_sequence(word_ids, class_ids, membership_probs)
-        correct = [float(i) for i in word_ids[1:]]
-        correct = [f / 5 for f in correct]
+        correct = word_ids[1:].astype('float32')    
+        correct = correct / 5
         correct = numpy.log(correct).sum()
         self.assertAlmostEqual(logprob, correct, places=5)
 
         # <unk> is removed from the resulting logprobs.
         scorer = TextScorer(self.dummy_network, ignore_unk=True)
-        word_ids = list(range(6))
+        word_ids = numpy.arange(6)
         word_ids[3] = self.vocabulary.word_to_id['<unk>']
-        class_ids = list(range(6))
-        membership_probs = [1.0] * 6
+        class_ids = numpy.arange(6)
+        membership_probs = numpy.ones(6, dtype='float32')
         logprob = scorer.score_sequence(word_ids, class_ids, membership_probs)
-        correct = [float(i) for i in word_ids[1:3] + word_ids[4:]]
-        correct = [f / 5 for f in correct]
+        correct = word_ids[[1, 2, 4, 5]].astype('float32')
+        correct = correct / 5
         correct = numpy.log(correct).sum()
         self.assertAlmostEqual(logprob, correct, places=5)
 
         # <unk> is assigned a constant logprob.
         scorer = TextScorer(self.dummy_network, ignore_unk=False, unk_penalty=-5)
-        word_ids = list(range(6))
+        word_ids = numpy.arange(6)
         word_ids[3] = self.vocabulary.word_to_id['<unk>']
-        class_ids = list(range(6))
-        membership_probs = [1.0] * 6
+        class_ids = numpy.arange(6)
+        membership_probs = numpy.ones(6, dtype='float32')
         logprob = scorer.score_sequence(word_ids, class_ids, membership_probs)
-        correct = [float(i) for i in word_ids[1:3] + word_ids[4:]]
-        correct = [f / 5 for f in correct]
+        correct = word_ids[[1, 2, 4, 5]].astype('float32')
+        correct = correct / 5
         correct = numpy.log(correct).sum() - 5
         self.assertAlmostEqual(logprob, correct, places=5)
 

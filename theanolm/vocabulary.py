@@ -140,6 +140,18 @@ class Vocabulary(object):
 
             return not self.__eq__(other)
 
+        def __str__(self):
+            """Writes the class members in a string.
+
+            :rtype: str
+            :returns: a string showing the class members and their
+                      probabilities.
+            """
+
+            return '{ ' + \
+                   ', '.join(str(word_id) + ': ' + str(round(prob, 4))
+                             for word_id, prob in self.probs.items()) + \
+                   ' }'
 
     def __init__(self, id_to_word, word_id_to_class_id, word_classes):
         """If the special tokens <s>, </s>, and <unk> don't exist in the word
@@ -200,7 +212,7 @@ class Vocabulary(object):
 
         self.id_to_word = numpy.asarray(id_to_word, dtype=object)
         self.word_id_to_class_id = numpy.asarray(word_id_to_class_id)
-        self._word_classes = word_classes
+        self._word_classes = numpy.asarray(word_classes)
         self.word_to_id = {word: word_id
                            for word_id, word in enumerate(self.id_to_word)}
 
@@ -426,7 +438,7 @@ class Vocabulary(object):
         :returns: the number of words in the vocabulary
         """
 
-        return len(self.id_to_word)
+        return self.id_to_word.size
 
     def num_classes(self):
         """Returns the number of word classes.
@@ -435,7 +447,7 @@ class Vocabulary(object):
         :returns: the number of words classes
         """
 
-        return len(self._word_classes)
+        return self._word_classes.size
 
     def words_to_ids(self, words):
         """Translates words into word IDs.
@@ -443,15 +455,18 @@ class Vocabulary(object):
         :type words: list of strs
         :param words: a list of words
 
-        :rtype: list of ints
+        :rtype: ndarray
         :returns: the given words translated into word IDs
         """
 
         unk_id = self.word_to_id['<unk>']
-        return [self.word_to_id[word]
-                if word in self.word_to_id
-                else unk_id
-                for word in words]
+        result = numpy.zeros(len(words), dtype='int64')
+        for index, word in enumerate(words):
+            if word in self.word_to_id:
+                result[index] = self.word_to_id[word]
+            else:
+                result[index] = unk_id
+        return result
 
     def class_id_to_word_id(self, class_id):
         """Samples a word from the membership probability distribution of a
@@ -514,6 +529,23 @@ class Vocabulary(object):
         class_id = self.word_id_to_class_id[word_id]
         word_class = self._word_classes[class_id]
         return word_class.get_prob(word_id)
+
+    def get_class_memberships(self, word_ids):
+        """Finds the classes and class membership probabilities given a matrix
+        of word IDs.
+
+        :type word_ids: ndarray
+        :param word_ids: a matrix containing word IDs
+
+        :rtype: tuple of ndarrays
+        :returns: two matrices, the first one containing class IDs and the
+                  second one containing class membership probabilities
+        """
+
+        class_ids = self.word_id_to_class_id[word_ids]
+        word_classes = self._word_classes[class_ids]
+        get_probs = numpy.vectorize(lambda wc, wid: wc.get_prob(wid))
+        return class_ids, get_probs(word_classes, word_ids)
 
     def words(self):
         """A generator for all the words in the vocabulary.

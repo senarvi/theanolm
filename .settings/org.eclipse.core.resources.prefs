@@ -1,6 +1,9 @@
 eclipse.preferences.version=1
 encoding//bin/theanolm=utf-8
 encoding//tests/theanolm/iterators_test.py=utf-8
+encoding//tests/theanolm/textscorer_test.py=utf-8
+encoding//tests/theanolm/vocabulary_test.py=utf-8
+encoding//tests/wordclasses/bigramoptimizer_test.py=utf-8
 encoding//theanolm/architecture.py=utf-8
 encoding//theanolm/commands/sample.py=utf-8
 encoding//theanolm/commands/score.py=utf-8
@@ -37,6 +40,7 @@ encoding//theanolm/trainers/basictrainer.py=utf-8
 encoding//theanolm/trainers/localstatisticstrainer.py=utf-8
 encoding//theanolm/trainers/meanvalidationtrainer.py=utf-8
 encoding//theanolm/trainers/medianvalidationtrainer.py=utf-8
+encoding//theanolm/vocabulary.py=utf-8
 encoding//wordclasses/bigramoptimizer.py=utf-8
 encoding//wordclasses/numpybigramoptimizer.py=utf-8
 encoding//wordclasses/optimizer.py=utf-8

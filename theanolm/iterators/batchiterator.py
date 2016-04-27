@@ -3,7 +3,7 @@
 
 from abc import abstractmethod, ABCMeta
 import numpy
-import theano
+from theanolm import Vocabulary
 
 def utterance_from_line(line):
     """Converts a line of text, read from an input file, into a list of words.
@@ -193,28 +193,24 @@ class BatchIterator(object, metaclass=ABCMeta):
         :param sequences: list of sequences, each of which is a list of word
                           IDs
 
-        :rtype: tuple of numpy matrices
-        :returns: word ID, class ID, class membership probability, and mask matrix
+        :rtype: tuple of ndarrays
+        :returns: word ID, class ID, class membership probability, and mask
+                  matrix
         """
 
         num_sequences = len(sequences)
         batch_length = numpy.max([len(s) for s in sequences])
 
-        word_ids = numpy.zeros((batch_length, num_sequences), numpy.int64)
-        class_ids = numpy.zeros((batch_length, num_sequences), numpy.int64)
-        probs = numpy.zeros((batch_length, num_sequences)).astype(theano.config.floatX)
+        word_ids = numpy.ones((batch_length, num_sequences), numpy.int64) * \
+            self.vocabulary.word_to_id['<unk>']
         mask = numpy.zeros((batch_length, num_sequences), numpy.int8)
 
         for i, sequence in enumerate(sequences):
             length = len(sequence)
             sequence_word_ids = self.vocabulary.words_to_ids(sequence)
             word_ids[:length, i] = sequence_word_ids
-            class_ids[:length, i] = \
-                [self.vocabulary.word_id_to_class_id[word_id]
-                 for word_id in sequence_word_ids]
-            probs[:length, i] = \
-                [self.vocabulary.get_word_prob(word_id)
-                 for word_id in sequence_word_ids]
             mask[:length, i] = 1
+
+        class_ids, probs = self.vocabulary.get_class_memberships(word_ids)
 
         return word_ids, class_ids, probs, mask

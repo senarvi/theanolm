@@ -138,8 +138,8 @@ class TextScorer(object):
     def score_sequence(self, word_ids, class_ids, membership_probs):
         """Computes the log probability of a word sequence.
 
-        :type word_ids: list of ints
-        :param word_ids: list of word IDs
+        :type word_ids: ndarray
+        :param word_ids: a vector of word IDs
 
         :type class_ids: list of ints
         :param class_ids: corresponding class IDs
@@ -153,7 +153,7 @@ class TextScorer(object):
 
         # Create 2-dimensional matrices representing the transposes of the
         # vectors.
-        word_ids = numpy.array([[x] for x in word_ids], numpy.int64)
+        word_ids = numpy.transpose(word_ids[numpy.newaxis])
         class_ids = numpy.array([[x] for x in class_ids], numpy.int64)
         membership_probs = numpy.array(
             [[x] for x in membership_probs]).astype(theano.config.floatX)
