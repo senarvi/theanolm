@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from collections import OrderedDict
+from abc import abstractmethod
 from time import time
 import logging
 import numpy
@@ -43,14 +43,23 @@ class BasicOptimizer(object):
         self.params = {name: theano.shared(value, name)
                        for name, value in self.param_init_values.items()}
 
+        float_type = numpy.dtype(theano.config.floatX).type
+
+        # learning rate / step size
+        if not 'learning_rate' in optimization_options:
+            raise ValueError("Learning rate is not given in optimization "
+                             "options.")
+        self.learning_rate = float_type(optimization_options['learning_rate'])
+
         # numerical stability / smoothing term to prevent divide-by-zero
         if not 'epsilon' in optimization_options:
             raise ValueError("Epsilon is not given in optimization options.")
-        self._epsilon = optimization_options['epsilon']
+        self._epsilon = float_type(optimization_options['epsilon'])
 
         # maximum norm for parameter updates
         if 'max_gradient_norm' in optimization_options:
-            self._max_gradient_norm = optimization_options['max_gradient_norm']
+            self._max_gradient_norm = float_type(
+                optimization_options['max_gradient_norm'])
         else:
             self._max_gradient_norm = None
 
@@ -88,16 +97,18 @@ class BasicOptimizer(object):
              self.network.mask],
             cost,
             givens=[(self.network.is_training, numpy.int8(1))],
-            updates=self._get_gradient_updates(),
-            name='gradient_updater',
+            updates=self._gradient_update_exprs(),
+            name='gradient_update_function',
             on_unused_input='ignore',
             profile=profile)
 
+        alpha = tensor.scalar('optimizer/update_weight',
+                              dtype=theano.config.floatX)
         self.model_update_function = theano.function(
+            [alpha],
             [],
-            [],
-            updates=self._get_model_updates(),
-            name='model_updater',
+            updates=self._model_update_exprs(alpha),
+            name='model_update_function',
             profile=profile)
 
     def get_state(self, state):
@@ -109,6 +120,9 @@ class BasicOptimizer(object):
         :type state: h5py.File
         :param state: HDF5 file for storing the optimization parameters
         """
+
+        h5_optimizer = state.require_group('optimizer')
+        h5_optimizer.attrs['learning_rate'] = self.learning_rate
 
         for name, param in self.params.items():
             if name in state:
@@ -125,6 +139,15 @@ class BasicOptimizer(object):
         :type state: h5py.File
         :param state: HDF5 file that contains the optimization parameters
         """
+
+        if not 'optimizer' in state:
+            raise IncompatibleStateError("Optimizer state is missing.")
+        h5_optimizer = state['optimizer']
+
+        if not 'learning_rate' in h5_optimizer.attrs:
+            raise IncompatibleStateError("Learning rate is missing from "
+                                         "optimizer state.")
+        self.learning_rate = h5_optimizer.attrs['learning_rate']
 
         for name, param in self.params.items():
             if not name in state:
@@ -179,12 +202,16 @@ class BasicOptimizer(object):
         """
 
         update_start_time = time()
+
         self.update_cost = self.gradient_update_function(word_ids, class_ids,
                                                          mask)
         if numpy.isnan(self.update_cost) or numpy.isinf(self.update_cost):
             raise NumberError("Mini-batch cost computation resulted in a "
                               "numerical error.")
-        self.model_update_function()
+
+        alpha = self.learning_rate
+        self.model_update_function(alpha)
+
         self.update_duration = time() - update_start_time
 
     def reset(self):
@@ -194,15 +221,42 @@ class BasicOptimizer(object):
 
         pass
 
+    @abstractmethod
+    def _gradient_update_exprs(self):
+        """Returns Theano expressions for updating the any gradient variables
+        needed by the optimizer. Implemented by every optimizer subclass.
+
+        :rtype: iterable over pairs (shared variable, new expression)
+        :returns: expressions how to update the gradient variables
+        """
+
+        raise NotImplementedError("BasicOptimizer._gradient_update_exprs() has "
+                                  "to be implemented by the subclass.")
+
+    @abstractmethod
+    def _model_update_exprs(self, alpha):
+        """Returns Theano expressions for updating the model parameter, given
+        the gradient expressions. Implemented by every optimizer subclass.
+
+        :type alpha: TensorVariable
+        :param alpha: a scale to be applied to the parameter updates
+
+        :rtype: iterable over pairs (shared variable, new expression)
+        :returns: expressions how to update the model parameters
+        """
+
+        raise NotImplementedError("BasicOptimizer._model_update_exprs() has to "
+                                  "be implemented by the subclass.")
+
     def _normalize(self, updates):
         """Normalizes the norm of a parameter update to given maximum value.
 
-        :type updates: dict of str to theano.tensor.var.TensorVariable
+        :type updates: dict of str to TensorVariable
         :param updates: dictionary of symbolic variables that describe the
                         negative gradient of each parameter, after any
                         optimization method specific adaptation
 
-        :rtype: dict of str to theano.tensor.var.TensorVariable
+        :rtype: dict of str to TensorVariable
         :returns: dictionary of symbolic variables that describe ``updates``
                   after normalization has been applied
         """

@@ -18,7 +18,7 @@ class BasicTrainer(object):
 
     def __init__(self, training_options, optimization_options,
                  network, vocabulary, scorer,
-                 training_files, weights, validation_iter, state,
+                 training_files, sampling, validation_iter, state,
                  profile=False):
         """Creates the optimizer and initializes the training process.
 
@@ -40,6 +40,10 @@ class BasicTrainer(object):
 
         :type training_files: list of file objects
         :param training_files: list of files to be used as training data
+
+        :type sampling: list of floats
+        :param sampling: specifies a fraction for each training file, how much
+                         to sample on each epoch
 
         :type validation_iter: theanolm.BatchIterator
         :param validation_iter: an iterator for computing validation set
@@ -63,7 +67,7 @@ class BasicTrainer(object):
 
         self.training_iter = ShufflingBatchIterator(
             training_files,
-            weights,
+            sampling,
             vocabulary,
             batch_size=training_options['batch_size'],
             max_sequence_length=training_options['sequence_length'])
@@ -253,17 +257,16 @@ class BasicTrainer(object):
         """Called when the validation set cost stops decreasing.
         """
 
-        # Current learning rate might be smaller than that stored in the state.
-        old_value = self.optimizer.get_learning_rate()
+        # Current learning rate might be smaller than the one stored in the
+        # state, so set the new value after restoring optimizer to the old
+        # state.
+        old_value = self.optimizer.learning_rate
         new_value = old_value / 2
-
         self._reset_state()
         self.stopper.improvement_ceased()
-        self.optimizer.set_learning_rate(new_value)
+        self.optimizer.learning_rate = new_value
 
-        # The learning rate might not change if the optimizer doesn't need it.
-        new_value = self.optimizer.get_learning_rate()
-        print("Model performance stopped improving. Updating learning rate "
+        print("Model performance stopped improving. Decreasing learning rate "
               "from {} to {} and resetting state to {:.0f} % of epoch {}."
               .format(old_value,
                       new_value,
@@ -302,7 +305,7 @@ class BasicTrainer(object):
                      self.update_number,
                      self.update_number / self.updates_per_epoch * 100,
                      self.epoch_number,
-                     self.optimizer.get_learning_rate(),
+                     self.optimizer.learning_rate,
                      self.optimizer.update_cost,
                      self.optimizer.update_duration * 100)
 

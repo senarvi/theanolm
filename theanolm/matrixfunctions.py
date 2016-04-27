@@ -81,14 +81,14 @@ def get_submatrix(matrices, index, size, end_index=None):
     """Returns a submatrix of a concatenation of 2 or 3 dimensional
     matrices.
 
-    :type matrices: theano.tensor.var.TensorVariable
+    :type matrices: TensorVariable
     :param matrices: symbolic 2 or 3 dimensional matrix formed by
                      concatenating matrices of length size
 
     :type index: int
     :param index: index of the matrix to be returned
 
-    :type size: theano.tensor.var.TensorVariable
+    :type size: TensorVariable
     :param size: size of the last dimension of one submatrix
 
     :type end_index: int

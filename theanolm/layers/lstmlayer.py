@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from collections import OrderedDict
 import numpy
 import theano
 import theano.tensor as tensor
@@ -137,26 +136,26 @@ class LSTMLayer(BasicLayer):
         mini-batch - each value corresponds to the same time step in a different
         sequence.
 
-        :type mask: theano.tensor.var.TensorVariable
+        :type mask: TensorVariable
         :param mask: a symbolic vector that masks out sequences that are past
                      the last word
 
-        :type x_preact: theano.tensor.var.TensorVariable
+        :type x_preact: TensorVariable
         :param x_preact: concatenation of the input x_(t) pre-activations
                          computed using the gate and candidate state weights and
                          biases
 
-        :type C_in: theano.tensor.var.TensorVariable
+        :type C_in: TensorVariable
         :param C_in: C_(t-1), cell state output from the previous time step
 
-        :type h_in: theano.tensor.var.TensorVariable
+        :type h_in: TensorVariable
         :param h_in: h_(t-1), hidden state output of the previous time step
 
-        :type h_weights: theano.tensor.var.TensorVariable
+        :type h_weights: TensorVariable
         :param h_weights: concatenation of the gate and candidate state weights
                           to be applied to h_(t-1)
 
-        :rtype: a tuple of two theano.tensor.var.TensorVariables
+        :rtype: a tuple of two TensorVariables
         :returns: C_(t) and h_(t), the cell state and hidden state outputs
         """
 

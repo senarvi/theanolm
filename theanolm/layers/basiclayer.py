@@ -73,7 +73,7 @@ class BasicLayer(object):
         :type param_name: str
         :param param_name: name of a parameter within the layer
 
-        :rtype: theano.tensor.var.TensorVariable
+        :rtype: TensorVariable
         :returns: the corresponding tensor variable
         """
 
@@ -155,7 +155,7 @@ class BasicLayer(object):
         """Helper function that creates a pre-activation of ``input_matrix`` by
         multiplying it by a weight matrix and adding a bias.
 
-        :type input_matrix: theano.tensor.var.TensorVariable
+        :type input_matrix: TensorVariable
         :param input_matrix: input tensor matrix whose preactivation will be
                              computed.
 

@@ -27,15 +27,6 @@ class AdamOptimizer(BasicOptimizer):
 
         self.param_init_values = dict()
 
-        # Learning rate / step size will change during the iterations, so we'll
-        # make it a shared variable.
-        if not 'learning_rate' in optimization_options:
-            raise ValueError("Learning rate is not given in optimization "
-                             "options.")
-        self.param_init_values['optimizer/learning_rate'] = \
-            numpy.dtype(theano.config.floatX).type(
-                optimization_options['learning_rate'])
-
         self.param_init_values['optimizer/timestep'] = \
             numpy.dtype(theano.config.floatX).type(0.0)
 
@@ -66,7 +57,7 @@ class AdamOptimizer(BasicOptimizer):
 
         super().__init__(optimization_options, network, *args, **kwargs)
 
-    def _get_gradient_updates(self):
+    def _gradient_update_exprs(self):
         result = []
         for name, gradient_new in zip(self.network.params,
                                       self._gradient_exprs):
@@ -84,10 +75,9 @@ class AdamOptimizer(BasicOptimizer):
             result.append((ms_gradient, ms_gradient_new))
         return result
 
-    def _get_model_updates(self):
+    def _model_update_exprs(self, alpha):
         timestep = self.params['optimizer/timestep']
         timestep_new = timestep + 1.0
-        alpha = self.params['optimizer/learning_rate']
         alpha *= tensor.sqrt(1.0 - (self._gamma_ms ** timestep_new))
         alpha /= 1.0 - (self._gamma_m ** timestep_new)
 

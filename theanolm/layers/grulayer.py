@@ -123,23 +123,23 @@ class GRULayer(BasicLayer):
         mini-batch - each value corresponds to the same time step in a different
         sequence.
 
-        :type mask: theano.tensor.var.TensorVariable
+        :type mask: TensorVariable
         :param mask: a symbolic vector that masks out sequences that are past
                      the last word
 
-        :type x_preact: theano.tensor.var.TensorVariable
+        :type x_preact: TensorVariable
         :param x_preact: concatenation of the input x_(t) pre-activations
                          computed using the gate and candidate state weights and
                          biases
 
-        :type h_in: theano.tensor.var.TensorVariable
+        :type h_in: TensorVariable
         :param h_in: h_(t-1), hidden state output of the previous time step
 
-        :type h_weights: theano.tensor.var.TensorVariable
+        :type h_weights: TensorVariable
         :param h_weights: concatenation of the gate and candidate state weights
                           to be applied to h_(t-1)
 
-        :rtype: theano.tensor.var.TensorVariable
+        :rtype: TensorVariable
         :returns: h_(t), the hidden state output
         """
 

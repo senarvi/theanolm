@@ -111,7 +111,7 @@ class ShufflingBatchIterator(BatchIterator):
 
     def __init__(self,
                  input_files,
-                 weights,
+                 sampling,
                  vocabulary,
                  batch_size=128,
                  max_sequence_length=100):
@@ -120,8 +120,9 @@ class ShufflingBatchIterator(BatchIterator):
         :type input_files: list of file objects
         :param input_files: input text files
 
-        :type weights: list of floats
-        :param weights: input text files
+        :type sampling: list of floats
+        :param sampling: specifies a fraction for each input file, how much to
+                         sample on each epoch
 
         :type vocabulary: Vocabulary
         :param vocabulary: vocabulary that provides mapping between words and
@@ -137,7 +138,7 @@ class ShufflingBatchIterator(BatchIterator):
         """
 
         self.sentence_pointers = SentencePointers(input_files)
-        self.weights = weights
+        self.sampling = sampling
         self._reset()
 
         super().__init__(vocabulary, batch_size, max_sequence_length)
@@ -214,11 +215,11 @@ class ShufflingBatchIterator(BatchIterator):
         if shuffle:
             logging.debug("Generating a random order of input lines.")
             samples = []
-            weight_iter = iter(self.weights)
+            fraction_iter = iter(self.sampling)
             for (start, stop) in self.sentence_pointers.pointer_ranges:
                 population = numpy.arange(start, stop, dtype='int64')
-                weight = next(weight_iter, 1.0)
-                sample_size = round(weight * len(population))
+                fraction = next(fraction_iter, 1.0)
+                sample_size = round(fraction * len(population))
                 # No duplicates, unless we need more sentences than there are
                 # in the file.
                 replace = sample_size > len(population)

@@ -52,10 +52,10 @@ def add_arguments(parser):
 
     argument_group = parser.add_argument_group("training process")
     argument_group.add_argument(
-        '--weights', metavar='LAMBDA', type=float, nargs='*', default=[],
-        help='randomly sample only a fraction of each training file, specified '
-             'by the weights LAMBDA, on each iteration (list the weights in '
-             'the same order as the training files)')
+        '--sampling', metavar='FRACTION', type=float, nargs='*', default=[],
+        help='randomly sample only FRACTION of each training file on each '
+             'epoch (list the fractions in the same order as the training '
+             'files)')
     argument_group.add_argument(
         '--training-strategy', metavar='NAME', type=str, default='local-mean',
         help='selects a training and validation strategy, one of "basic", '
@@ -270,14 +270,14 @@ def train(args):
 
         print("Building neural network trainer.")
         sys.stdout.flush()
-        if len(args.weights) > len(args.training_set):
-            print("You specified more weights than you have given training "
-                  "files.")
+        if len(args.sampling) > len(args.training_set):
+            print("You specified sampling for more training files than you "
+                  "have given.")
             sys.exit(1)
         trainer = create_trainer(
             training_options, optimization_options,
             network, vocabulary, scorer,
-            args.training_set, args.weights, validation_iter,
+            args.training_set, args.sampling, validation_iter,
             state, args.profile)
         trainer.set_logging(args.log_interval)
 
