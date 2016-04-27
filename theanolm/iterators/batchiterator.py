@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import abc
+from abc import abstractmethod, ABCMeta
 import numpy
 import theano
 
@@ -32,11 +32,9 @@ def utterance_from_line(line):
 
     return result
 
-class BatchIterator(object):
+class BatchIterator(object, metaclass=ABCMeta):
     """Iterator for Reading Mini-Batches
     """
-
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self,
                  vocabulary,
@@ -124,7 +122,7 @@ class BatchIterator(object):
         self._reset(False)
         return (num_sequences + self.batch_size - 1) // self.batch_size
 
-    @abc.abstractmethod
+    @abstractmethod
     def _reset(self, shuffle=True):
         """Resets the read pointer back to the beginning of the file.
 
@@ -168,7 +166,7 @@ class BatchIterator(object):
             self.buffer = []
         return result
 
-    @abc.abstractmethod
+    @abstractmethod
     def _readline(self):
         """Reads the next input line.
         """

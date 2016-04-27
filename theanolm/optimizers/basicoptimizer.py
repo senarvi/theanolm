@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from abc import abstractmethod
+from abc import abstractmethod, ABCMeta
 from time import time
 import logging
 import numpy
@@ -9,7 +9,7 @@ import theano
 import theano.tensor as tensor
 from theanolm.exceptions import IncompatibleStateError, NumberError
 
-class BasicOptimizer(object):
+class BasicOptimizer(object, metaclass=ABCMeta):
     """Superclass for Neural Network Language Model Optimizers
     """
 
@@ -199,8 +199,7 @@ class BasicOptimizer(object):
         :returns: expressions how to update the gradient variables
         """
 
-        raise NotImplementedError("BasicOptimizer._gradient_update_exprs() has "
-                                  "to be implemented by the subclass.")
+        return
 
     @abstractmethod
     def _model_update_exprs(self, alpha):
@@ -214,8 +213,7 @@ class BasicOptimizer(object):
         :returns: expressions how to update the model parameters
         """
 
-        raise NotImplementedError("BasicOptimizer._model_update_exprs() has to "
-                                  "be implemented by the subclass.")
+        return
 
     def _normalize(self, updates):
         """Normalizes the norm of a parameter update to given maximum value.
