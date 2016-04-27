@@ -3,7 +3,6 @@
 
 from abc import abstractmethod, ABCMeta
 import numpy
-from theanolm import Vocabulary
 
 def utterance_from_line(line):
     """Converts a line of text, read from an input file, into a list of words.
@@ -68,8 +67,18 @@ class BatchIterator(object, metaclass=ABCMeta):
     def __next__(self):
         """Returns the next mini-batch read from the file.
 
-        :rtype: tuple of numpy matrices
-        :returns: the word ID, class membership probability, and mask matrix
+        The first returned matrix contains the word IDs and the second one
+        contains a mask that defines which elements are past the sequence end.
+        Where the word IDs are valid, the mask matrix contains ones. All the
+        words past the sequence ends will be <unk> tokens.
+
+        Both returned matrices have the same shape. The first dimensions is the
+        time step, i.e. the index to a word in a sequence. The second dimension
+        selects the sequence. In other words, the first row is the first word of
+        each sequence and so on.
+
+        :rtype: tuple of ndarrays
+        :returns: word ID and mask matrix
         """
 
         # If EOF was reached on the previous call, but a mini-batch was
@@ -176,26 +185,24 @@ class BatchIterator(object, metaclass=ABCMeta):
     def _prepare_batch(self, sequences):
         """Transposes a list of sequences into a list of time steps. Then
         returns word ID and mask matrices ready to be input to the neural
-        network, and a matrix containing the class membership probabilities.
+        network.
 
-        The first returned matrix contains the word IDs, the second one contains
-        the class membership probabilities, and the third one contains a mask
-        that defines which elements are past the sequence end - where the other
-        matrices contain actual values, the mask matrix contains ones. All the
-        elements past the sequence ends will contain zeros.
+        The first returned matrix contains the word IDs and the second one
+        contains a mask that defines which elements are past the sequence end.
+        Where the word IDs are valid, the mask matrix contains ones. All the
+        words past the sequence ends will be <unk> tokens.
 
-        All the returned matrices have the same shape. The first dimensions is
-        the time step, i.e. the index to a word in a sequence. The second
-        dimension selects the sequence. In other words, the first row is the
-        first word of each sequence and so on.
+        Both returned matrices have the same shape. The first dimensions is the
+        time step, i.e. the index to a word in a sequence. The second dimension
+        selects the sequence. In other words, the first row is the first word of
+        each sequence and so on.
 
         :type sequences: list of lists
         :param sequences: list of sequences, each of which is a list of word
                           IDs
 
         :rtype: tuple of ndarrays
-        :returns: word ID, class ID, class membership probability, and mask
-                  matrix
+        :returns: word ID and mask matrix
         """
 
         num_sequences = len(sequences)
@@ -211,6 +218,4 @@ class BatchIterator(object, metaclass=ABCMeta):
             word_ids[:length, i] = sequence_word_ids
             mask[:length, i] = 1
 
-        class_ids, probs = self.vocabulary.get_class_memberships(word_ids)
-
-        return word_ids, class_ids, probs, mask
+        return word_ids, mask

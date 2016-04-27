@@ -109,9 +109,8 @@ class TextScorer(object):
         """Computes the perplexity of text read using the given iterator.
 
         ``batch_iter`` is an iterator to the input data. On each call it creates
-        a tuple of three 2-dimensional matrices, all indexed by time step and
-        sequence. The first matrix contains the word IDs, the second one
-        contains class membership probabilities, and the third one masks out
+        a two 2-dimensional matrices, both indexed by time step and sequence.
+        The first matrix contains the word IDs, the second one masks out
         elements past the sequence ends.
 
         :type batch_iter: BatchIterator
@@ -126,7 +125,9 @@ class TextScorer(object):
         total_logprob = 0
         num_words = 0
 
-        for word_ids, class_ids, membership_probs, mask in batch_iter:
+        for word_ids, mask in batch_iter:
+            class_ids, membership_probs = \
+                self.vocabulary.get_class_memberships(word_ids)
             logprobs = self.score_batch(word_ids, class_ids, membership_probs,
                                         mask)
             for seq_logprobs in logprobs:

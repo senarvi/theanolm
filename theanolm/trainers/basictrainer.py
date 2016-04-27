@@ -58,6 +58,7 @@ class BasicTrainer(object):
         """
 
         self.network = network
+        self.vocabulary = vocabulary
         self.scorer = scorer
         self.validation_iter = validation_iter
 
@@ -109,10 +110,11 @@ class BasicTrainer(object):
 
     def run(self):
         while self.stopper.start_new_epoch():
-            for word_ids, class_ids, _, mask in self.training_iter:
+            for word_ids, mask in self.training_iter:
                 self.update_number += 1
                 self.total_updates += 1
 
+                class_ids = self.vocabulary.word_id_to_class_id[word_ids]
                 self.optimizer.update_minibatch(word_ids, class_ids, mask)
 
                 if (self.log_update_interval >= 1) and \
@@ -132,7 +134,13 @@ class BasicTrainer(object):
                 if not self.stopper.start_new_minibatch():
                     break
 
-            print("Finished training epoch {}.".format(self.epoch_number))
+            message = "Finished training epoch {}.".format(self.epoch_number)
+            best_cost = self.candidate_cost()
+            if not best_cost is None:
+                message += " Best validation perplexity {:.2f}.".format(
+                    best_cost)
+            print(message)
+
             self.epoch_number += 1
             self.update_number = 0
 
