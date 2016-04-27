@@ -38,6 +38,7 @@ class TextScorer(object):
 
         self.ignore_unk = ignore_unk
         self.unk_penalty = unk_penalty
+        self.vocabulary = network.vocabulary
         self.unk_id = network.vocabulary.word_to_id['<unk>']
 
         # Ignore unused input variables, because is_training is only used by
