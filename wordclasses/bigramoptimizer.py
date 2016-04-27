@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from abc import abstractmethod, ABCMeta
 import logging
 import numpy
 from wordclasses.functions import byte_size
 
-class BigramOptimizer(object, metaclass=ABCMeta):
+class BigramOptimizer(object):
     """Word Class Optimizer
     """
 
@@ -120,7 +119,6 @@ class BigramOptimizer(object, metaclass=ABCMeta):
 
         return best_ll_diff, best_class_id
 
-    @abstractmethod
     def _evaluate(self, word_id, new_class_id):
         """Evaluates how much moving a word to another class would change the
         log likelihood.
@@ -135,9 +133,9 @@ class BigramOptimizer(object, metaclass=ABCMeta):
         :returns: log likelihood change
         """
 
-        return
+        raise NotImplementedError("BigramOptimizer._evaluate() has to be "
+                                  "implemented by the subclass.")
 
-    @abstractmethod
     def _move(self, word_id, new_class_id):
         """Moves a word to another class.
 
@@ -148,7 +146,8 @@ class BigramOptimizer(object, metaclass=ABCMeta):
         :param new_class_id: ID of the class the word will be moved to
         """
 
-        return
+        raise NotImplementedError("BigramOptimizer._move() has to be "
+                                  "implemented by the subclass.")
 
     def get_word_id(self, word):
         """Returns the ID of the given word.
@@ -175,7 +174,6 @@ class BigramOptimizer(object, metaclass=ABCMeta):
             prob = self.get_word_prob(word_id)
             yield word, class_id, prob
 
-    @abstractmethod
     def get_word_class(self, word_id):
         """Returns the class the given word is currently assigned to.
 
@@ -186,9 +184,9 @@ class BigramOptimizer(object, metaclass=ABCMeta):
         :returns: ID of the class the word is assigned to
         """
 
-        return
+        raise NotImplementedError("BigramOptimizer.get_word_class() has to be "
+                                  "implemented by the subclass.")
 
-    @abstractmethod
     def get_word_prob(self, word_id):
         """Returns the unigram probability of a word within its class.
 
@@ -199,22 +197,9 @@ class BigramOptimizer(object, metaclass=ABCMeta):
         :returns: class membership probability
         """
 
-        return
+        raise NotImplementedError("BigramOptimizer.get_word_prob() has to be "
+                                  "implemented by the subclass.")
 
-    @abstractmethod
-    def get_class_words(self, class_id):
-        """Returns the words that are assigned to given class.
-
-        :type class_id: int
-        :param class_id: ID of the word
-
-        :rtype: set
-        :returns: IDs of the words that are assigned to the given class
-        """
-
-        return
-
-    @abstractmethod
     def log_likelihood(self):
         """Computes the log likelihood that a bigram model would give to the
         corpus.
@@ -223,9 +208,9 @@ class BigramOptimizer(object, metaclass=ABCMeta):
         :returns: log likelihood of the training corpus
         """
 
-        return
+        raise NotImplementedError("BigramOptimizer.log_likelihood() has to be "
+                                  "implemented by the subclass.")
 
-    @abstractmethod
     def _class_size(self, class_id):
         """Calculates the number of words in a class.
 
@@ -236,4 +221,5 @@ class BigramOptimizer(object, metaclass=ABCMeta):
         :returns: number of words in the class
         """
 
-        return
+        raise NotImplementedError("BigramOptimizer._class_size() has to be "
+                                  "implemented by the subclass.")
