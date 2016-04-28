@@ -16,9 +16,13 @@
 import sys
 from os import path
 import subprocess
+from unittest.mock import MagicMock
 
 script_dir = path.dirname(path.realpath(__file__))
 root_dir = path.abspath(path.join(script_dir, '..'))
+tests_dir = path.join(root_dir, 'tests')
+docs_dir = path.join(root_dir, 'docs')
+setup_path = path.join(root_dir, 'setup.py')
 version_path = path.join(root_dir, 'theanolm', 'version.py')
 
 # Import __version__ from the correct location.
@@ -28,6 +32,40 @@ with open(version_path, 'r') as version_file:
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here.
 sys.path.insert(0, root_dir)
+
+# Mock out imports for dependencies the Read the Docs build system doesn't have.
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(classname, x):
+        return Mock()
+mock_modules = ['h5py',
+                'numpy',
+                'scipy',
+                'scipy.sparse',
+                'theano',
+                'theano.tensor',
+                'theano.sandbox',
+                'theano.sandbox.rng_mrg',
+                'theano.compile',
+                'theano.compile.debugmode']
+sys.modules.update((module_name, Mock()) for module_name in mock_modules)
+
+def create_apidoc(_):
+    """A workaround for running sphinx-apidoc on Read the Docs.
+    """
+
+    if hasattr(sys, 'real_prefix'):
+        # In a virtualenv sys.prefix points to the virtualenv directory and
+        # sys.real_prefix points to the system prefix.
+        cmd = path.abspath(path.join(sys.prefix, 'bin', 'sphinx-apidoc'))
+    else:
+        cmd = 'sphinx-apidoc'
+    subprocess.check_call(
+        [cmd, '--force', '--no-toc', '-o', docs_dir, root_dir, setup_path,
+         tests_dir])
+
+def setup(app):
+    app.connect('builder-inited', create_apidoc)
 
 # -- General configuration ------------------------------------------------
 
