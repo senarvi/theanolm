@@ -1,25 +1,44 @@
 Installation
 ============
 
+pip
+---
+
 TheanoLM is available from the Python Package Index. The easiest way to install
-it is using pip. It requires NumPy, SciPy, Theano, and H5py packages, and Theano
-requires also Six and Nose. Although pip tries to install the dependencies as
-well, it's probably better to use the system package manager to install the
-packages that are provided in the system package repository. Notice that
-TheanoLM supports only Python 3. In some systems a different version of pip is
-used to install Python 3 packages. For example, the following commands would
-install the dependencies, the correct version of pip, and TheanoLM, in Ubuntu::
+it is using pip. It requires NumPy, SciPy, Theano, and H5py packages. Theano
+requires also Six and Nose. pip tries to install all the dependencies
+automatically. Notice that TheanoLM supports only Python 3. In some systems a
+different version of pip is used to install Python 3 packages. In Ubuntu the
+command is ``pip3``. To install system-wide, use::
+
+    sudo pip3 install TheanoLM
+
+Linux
+-----
+
+Linux distributions commonly provide most of the dependencies through their
+package repositories. You might want to keep the dependencies up to date using
+the system package manager. For example, you can install the dependencies
+(except Theano) in Ubuntu by issuing the following commands, before installing
+TheanoLM::
 
     sudo apt-get install python3-numpy python3-scipy python3-h5py
     sudo apt-get install python3-six python3-nose python3-nose-parameterized
     sudo apt-get install python3-pip
-    sudo pip3 install TheanoLM
+
+Anaconda
+--------
+
+Another easy way to install all the dependencies (except Theano) is to install
+`Anaconda3 <https://www.continuum.io/downloads>`_.
+
+Source Code
+-----------
 
 If you want to develop TheanoLM, it is convenient to use it from a Git
-repository tree. First make sure that you have Theano and h5py (python-h5py
-Ubuntu package) installed. Clone TheanoLM Git repository to, say,
-``$HOME/git/theanolm``, and add that directory to ``$PYTHONPATH`` and the
-``bin`` subdirectory to ``$PATH``::
+repository tree. First install Theano and H5py, for example using pip. Then
+clone TheanoLM Git repository to, say, ``$HOME/git/theanolm``, and add that directory
+to ``$PYTHONPATH`` and the ``bin`` subdirectory to ``$PATH``::
 
     mkdir -p "$HOME/git"
     cd "$HOME/git"
