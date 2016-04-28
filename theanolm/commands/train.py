@@ -116,6 +116,11 @@ def add_arguments(parser):
         help="if LOGPROB is zero, do not include <unk> tokens in perplexity "
              "computation; otherwise use constant LOGPROB as <unk> token score "
              "(default is to use the network to predict <unk> probability)")
+    argument_group.add_argument(
+        '--weights', metavar='WEIGHT', type=float, nargs='*', default=[],
+        help='scale a mini-batch update by WEIGHT if the data is from the '
+             'corresponding training file (list the weights in the same order '
+             'as the training files)')
 
     argument_group = parser.add_argument_group("early stopping")
     argument_group.add_argument(
@@ -208,7 +213,6 @@ def train(args):
         network = Network(vocabulary, architecture, batch_processing=True,
                           profile=args.profile)
 
-        print("Building text scorer.")
         sys.stdout.flush()
         if args.unk_penalty is None:
             ignore_unk = False
@@ -219,6 +223,16 @@ def train(args):
         else:
             ignore_unk = False
             unk_penalty = args.unk_penalty
+
+        num_training_files = len(args.training_set)
+        if len(args.weights) > num_training_files:
+            print("You specified more weights than training files.")
+            sys.exit(1)
+        weights = numpy.ones(num_training_files).astype(theano.config.floatX)
+        for index, weight in enumerate(args.weights):
+            weights[index] = weight
+
+        print("Building text scorer.")
         scorer = TextScorer(network, ignore_unk, unk_penalty, args.profile)
 
         validation_mmap = mmap.mmap(args.validation_file.fileno(),
@@ -234,6 +248,7 @@ def train(args):
             'gradient_decay_rate': args.gradient_decay_rate,
             'sqr_gradient_decay_rate': args.sqr_gradient_decay_rate,
             'learning_rate': args.learning_rate,
+            'weights': weights,
             'momentum': args.momentum,
             'ignore_unk': ignore_unk,
             'unk_penalty': unk_penalty
@@ -266,8 +281,8 @@ def train(args):
         print("Building neural network trainer.")
         sys.stdout.flush()
         if len(args.sampling) > len(args.training_set):
-            print("You specified sampling for more training files than you "
-                  "have given.")
+            print("You specified more sampling coefficients than training "
+                  "files.")
             sys.exit(1)
         trainer = create_trainer(
             training_options, optimization_options,

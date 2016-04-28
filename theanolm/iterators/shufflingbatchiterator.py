@@ -203,7 +203,7 @@ class ShufflingBatchIterator(BatchIterator):
         """
 
     def _reset(self, shuffle=True):
-        """Resets the read pointer back to the beginning of the file. If
+        """Resets the read pointer back to the beginning of the data set. If
         ``shuffle`` is set to True, also creates a new random order for
         iterating the input lines.
 
@@ -232,6 +232,10 @@ class ShufflingBatchIterator(BatchIterator):
 
     def _readline(self):
         """Reads the next input line.
+
+        :rtype: str
+        :returns: next line from the data set, or an empty string if the end of
+                  the data set is reached.
         """
 
         if self.next_line >= self.order.size:
@@ -243,3 +247,18 @@ class ShufflingBatchIterator(BatchIterator):
         line = input_file.readline()
         self.next_line += 1
         return line
+
+    def _file_id(self):
+        """When the data set contains multiple files, returns the index of the
+        current file.
+
+        :rtype: int
+        :return: current file index
+        """
+
+        if self.next_line >= self.order.size:
+            return 0
+
+        sentence_index = self.order[self.next_line]
+        subset_index, _ = self.sentence_pointers.pointers[sentence_index]
+        return subset_index

@@ -68,14 +68,19 @@ class TestIterators(unittest.TestCase):
                                                    max_sequence_length=5)
 
         sentences1 = []
-        for word_ids, mask in iterator:
+        files1 = []
+        for word_ids, file_ids, mask in iterator:
             class_ids = self.vocabulary.word_id_to_class_id[word_ids]
             for sequence in range(2):
                 sequence_mask = mask[:,sequence]
                 sequence_word_ids = word_ids[sequence_mask != 0,sequence]
                 sequence_class_ids = class_ids[sequence_mask != 0,sequence]
+                sequence_file_ids = file_ids[sequence_mask != 0,sequence]
                 assert_equal(sequence_word_ids, sequence_class_ids)
                 sentences1.append(' '.join(self.vocabulary.word_ids_to_names(sequence_word_ids)))
+                files1.extend(sequence_file_ids)
+        self.assertEqual(files1.count(0), 20)
+        self.assertEqual(files1.count(1), 20)
         sentences1_str = ' '.join(sentences1)
         sentences1_sorted_str = ' '.join(sorted(sentences1))
         self.assertEqual(sentences1_sorted_str,
@@ -92,18 +97,21 @@ class TestIterators(unittest.TestCase):
         self.assertEqual(len(iterator), 5)
 
         sentences2 = []
-        for word_ids, mask in iterator:
+        files2 = []
+        for word_ids, file_ids, mask in iterator:
             class_ids = self.vocabulary.word_id_to_class_id[word_ids]
             for sequence in range(2):
                 sequence_mask = mask[:,sequence]
                 sequence_word_ids = word_ids[sequence_mask != 0,sequence]
                 sequence_class_ids = class_ids[sequence_mask != 0,sequence]
+                sequence_file_ids = file_ids[sequence_mask != 0,sequence]
                 assert_equal(sequence_word_ids, sequence_class_ids)
                 sentences2.append(' '.join(self.vocabulary.word_ids_to_names(sequence_word_ids)))
-        sentences2_str = ' '.join(sentences2)
-        sentences2_sorted_str = ' '.join(sorted(sentences2))
-        self.assertEqual(sentences1_sorted_str, sentences2_sorted_str)
-        self.assertNotEqual(sentences1_str, sentences2_str)
+                files2.extend(sequence_file_ids)
+        self.assertCountEqual(sentences1, sentences2)
+        self.assertCountEqual(files1, files2)
+        self.assertTrue(sentences1 != sentences2)
+        self.assertTrue(files1 != files2)
 
         # The current behaviour is to cut the sentences, so we always get 5
         # batches regardless of the maximum sequence length.
@@ -143,9 +151,10 @@ class TestIterators(unittest.TestCase):
                                                 batch_size=2,
                                                 max_sequence_length=5)
         word_names = []
-        for word_ids, mask in iterator:
+        for word_ids, file_ids, mask in iterator:
             class_ids = self.vocabulary.word_id_to_class_id[word_ids]
             assert_equal(word_ids, class_ids)
+            assert_equal(file_ids, 0)
             for sequence in range(mask.shape[1]):
                 sequence_mask = mask[:,sequence]
                 sequence_word_ids = word_ids[sequence_mask != 0,sequence]

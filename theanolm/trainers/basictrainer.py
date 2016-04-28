@@ -110,12 +110,12 @@ class BasicTrainer(object):
 
     def run(self):
         while self.stopper.start_new_epoch():
-            for word_ids, mask in self.training_iter:
+            for word_ids, file_ids, mask in self.training_iter:
                 self.update_number += 1
                 self.total_updates += 1
 
                 class_ids = self.vocabulary.word_id_to_class_id[word_ids]
-                self.optimizer.update_minibatch(word_ids, class_ids, mask)
+                self.optimizer.update_minibatch(word_ids, class_ids, file_ids, mask)
 
                 if (self.log_update_interval >= 1) and \
                    (self.total_updates % self.log_update_interval == 0):

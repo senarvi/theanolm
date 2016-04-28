@@ -116,7 +116,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
     num_sentences = 0
     num_words = 0
     num_probs = 0
-    for word_ids, mask in validation_iter:
+    for word_ids, _, mask in validation_iter:
         class_ids, membership_probs = vocabulary.get_class_memberships(word_ids)
         logprobs = scorer.score_batch(word_ids, class_ids, membership_probs,
                                       mask)

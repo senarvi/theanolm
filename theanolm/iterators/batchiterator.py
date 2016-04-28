@@ -67,12 +67,12 @@ class BatchIterator(object, metaclass=ABCMeta):
     def __next__(self):
         """Returns the next mini-batch read from the file.
 
-        The first returned matrix contains the word IDs and the second one
-        contains a mask that defines which elements are past the sequence end.
-        Where the word IDs are valid, the mask matrix contains ones. All the
-        words past the sequence ends will be <unk> tokens.
+        The first returned matrix contains the word IDs, the second identifies
+        the file in case of multiple training files, and the third contains a
+        mask that defines which elements are past the sequence end. Where the
+        other values are valid, the mask matrix contains ones.
 
-        Both returned matrices have the same shape. The first dimensions is the
+        All returned matrices have the same shape. The first dimensions is the
         time step, i.e. the index to a word in a sequence. The second dimension
         selects the sequence. In other words, the first row is the first word of
         each sequence and so on.
@@ -133,7 +133,7 @@ class BatchIterator(object, metaclass=ABCMeta):
 
     @abstractmethod
     def _reset(self, shuffle=True):
-        """Resets the read pointer back to the beginning of the file.
+        """Resets the read pointer back to the beginning of the data set.
 
         :type shuffle: bool
         :param shuffle: also shuffles the input sentences, if supported
@@ -142,7 +142,8 @@ class BatchIterator(object, metaclass=ABCMeta):
         return
 
     def _read_sequence(self):
-        """Returns next word sequence.
+        """Returns next word sequence. If sequence length is not limited, it
+        will be the next line. Otherwise it may be truncated.
 
         Start-of-sentence and end-of-sentece tags (``<s>`` and ``</s>``) will be
         inserted at the beginning and the end of the sequence, if they're
@@ -153,15 +154,18 @@ class BatchIterator(object, metaclass=ABCMeta):
         reads a line to the buffer first.
 
         :rtype: list
-        :returns: a sequence of words (may be empty), or None if no more data
+        :returns: a sequence of (word, file_id) tuples (may be empty), or None
+                  if no more data
         """
 
         if not self.buffer:
+            file_id = self._file_id()
             line = self._readline()
             if len(line) == 0:
-                # end of file
+                # end of data
                 return None
-            self.buffer = utterance_from_line(line)
+            self.buffer = [(word, file_id)
+                           for word in utterance_from_line(line)]
 
         if self.max_sequence_length is None:
             result = self.buffer
@@ -178,21 +182,35 @@ class BatchIterator(object, metaclass=ABCMeta):
     @abstractmethod
     def _readline(self):
         """Reads the next input line.
+
+        :rtype: str
+        :returns: next line from the data set, or an empty string if the end of
+                  the data set is reached.
         """
 
         return
 
+    def _file_id(self):
+        """When the data set contains multiple files, returns the index of the
+        current file. The default implementation returns always 0.
+
+        :rtype: int
+        :return: current file index
+        """
+
+        return 0
+
     def _prepare_batch(self, sequences):
         """Transposes a list of sequences into a list of time steps. Then
-        returns word ID and mask matrices ready to be input to the neural
-        network.
+        returns word ID, file ID, and mask matrices in a format suitable to be
+        input to the neural network.
 
-        The first returned matrix contains the word IDs and the second one
-        contains a mask that defines which elements are past the sequence end.
-        Where the word IDs are valid, the mask matrix contains ones. All the
-        words past the sequence ends will be <unk> tokens.
+        The first returned matrix contains the word IDs, the second identifies
+        the file in case of multiple training files, and the third contains a
+        mask that defines which elements are past the sequence end. Where the
+        other values are valid, the mask matrix contains ones.
 
-        Both returned matrices have the same shape. The first dimensions is the
+        All returned matrices have the same shape. The first dimensions is the
         time step, i.e. the index to a word in a sequence. The second dimension
         selects the sequence. In other words, the first row is the first word of
         each sequence and so on.
@@ -201,21 +219,31 @@ class BatchIterator(object, metaclass=ABCMeta):
         :param sequences: list of sequences, each of which is a list of word
                           IDs
 
-        :rtype: tuple of ndarrays
-        :returns: word ID and mask matrix
+        :rtype: three ndarrays
+        :returns: word ID, file ID, and mask matrix
         """
 
         num_sequences = len(sequences)
         batch_length = numpy.max([len(s) for s in sequences])
 
-        word_ids = numpy.ones((batch_length, num_sequences), numpy.int64) * \
-            self.vocabulary.word_to_id['<unk>']
-        mask = numpy.zeros((batch_length, num_sequences), numpy.int8)
+        unk_id = self.vocabulary.word_to_id['<unk>']
+        shape = (batch_length, num_sequences)
+        word_ids = numpy.ones(shape, numpy.int64) * unk_id
+        mask = numpy.zeros(shape, numpy.int8)
+        file_ids = numpy.zeros(shape, numpy.int8)
 
         for i, sequence in enumerate(sequences):
             length = len(sequence)
-            sequence_word_ids = self.vocabulary.words_to_ids(sequence)
+
+            sequence_word_ids = numpy.ones(length, numpy.int64) * unk_id
+            sequence_file_ids = numpy.zeros(length, numpy.int8)
+            for index, (word, file_id) in enumerate(sequence):
+                if word in self.vocabulary.word_to_id:
+                    sequence_word_ids[index] = self.vocabulary.word_to_id[word]
+                sequence_file_ids[index] = file_id
+
             word_ids[:length, i] = sequence_word_ids
             mask[:length, i] = 1
+            file_ids[:length, i] = sequence_file_ids
 
-        return word_ids, mask
+        return word_ids, file_ids, mask

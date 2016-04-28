@@ -51,6 +51,11 @@ class BasicOptimizer(object, metaclass=ABCMeta):
                              "options.")
         self.learning_rate = float_type(optimization_options['learning_rate'])
 
+        # weights for training files
+        if not 'weights' in optimization_options:
+            raise ValueError("Weights are not given in optimization options.")
+        self._weights = optimization_options['weights']
+
         # numerical stability / smoothing term to prevent divide-by-zero
         if not 'epsilon' in optimization_options:
             raise ValueError("Epsilon is not given in optimization options.")
@@ -160,17 +165,22 @@ class BasicOptimizer(object, metaclass=ABCMeta):
             else:
                 logging.debug("%s <- array%s", name, str(new_value.shape))
 
-    def update_minibatch(self, word_ids, class_ids, mask):
+    def update_minibatch(self, word_ids, class_ids, file_ids, mask):
         """Optimizes the neural network parameters using the given inputs and
         learning rate.
 
-        :type word_ids: numpy.ndarray of an integer type
+        :type word_ids: ndarray of ints
         :param word_ids: a 2-dimensional matrix, indexed by time step and
                          sequence, that contains the word IDs
 
-        :type class_ids: numpy.ndarray of an integer type
+        :type class_ids: ndarray of ints
         :param class_ids: a 2-dimensional matrix, indexed by time step and
                           sequence, that contains the class IDs
+
+        :type file_ids: ndarray of ints
+        :param file_ids: a 2-dimensional matrix, indexed by time step and
+                         sequence, that identifies the file in case of multiple
+                         training files
 
         :type mask: numpy.ndarray of a floating point type
         :param mask: a 2-dimensional matrix, indexed by time step and sequence,
@@ -186,6 +196,10 @@ class BasicOptimizer(object, metaclass=ABCMeta):
                               "numerical error.")
 
         alpha = self.learning_rate
+        num_words = numpy.count_nonzero(mask)
+        if num_words > 0:
+            weights = self._weights[file_ids]
+            alpha *= weights[mask == 1].sum() / num_words
         self.model_update_function(alpha)
 
         self.update_duration = time() - update_start_time

@@ -126,7 +126,7 @@ class TextScorer(object):
         total_logprob = 0
         num_words = 0
 
-        for word_ids, mask in batch_iter:
+        for word_ids, _, mask in batch_iter:
             class_ids, membership_probs = \
                 self.vocabulary.get_class_memberships(word_ids)
             logprobs = self.score_batch(word_ids, class_ids, membership_probs,
