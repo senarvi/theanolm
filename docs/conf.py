@@ -19,26 +19,7 @@ import subprocess
 
 script_dir = path.dirname(path.realpath(__file__))
 root_dir = path.abspath(path.join(script_dir, '..'))
-tests_dir = path.join(root_dir, 'tests')
-docs_dir = path.join(root_dir, 'docs')
-setup_path = path.join(root_dir, 'setup.py')
 version_path = path.join(root_dir, 'theanolm', 'version.py')
-
-def create_apidoc(_):
-    """A workaround for running sphinx-apidoc on Read the Docs.
-    """
-
-    if hasattr(sys, 'real_prefix'):
-        # In a virtualenv sys.prefix points to the virtualenv directory and
-        # sys.real_prefix points to the system prefix.
-        cmd = path.abspath(path.join(sys.prefix, 'bin', 'sphinx-apidoc'))
-    else:
-        cmd = 'sphinx-apidoc'
-    subprocess.check_call(
-        [cmd, '--force', '-o', docs_dir, root_dir, setup_path, tests_dir])
-
-def setup(app):
-    app.connect('builder-inited', create_apidoc)
 
 # Import __version__ from the correct location.
 with open(version_path, 'r') as version_file:

@@ -34,7 +34,7 @@ Development
    :maxdepth: 2
 
    contributing
-   modules
+   api
 
 Indices and Tables
 ------------------
