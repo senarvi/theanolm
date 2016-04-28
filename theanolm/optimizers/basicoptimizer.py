@@ -197,9 +197,10 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
         alpha = self.learning_rate
         num_words = numpy.count_nonzero(mask)
+        float_type = numpy.dtype(theano.config.floatX).type
         if num_words > 0:
             weights = self._weights[file_ids]
-            alpha *= weights[mask == 1].sum() / num_words
+            alpha *= weights[mask == 1].sum() / float_type(num_words)
         self.model_update_function(alpha)
 
         self.update_duration = time() - update_start_time
