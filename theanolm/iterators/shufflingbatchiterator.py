@@ -138,8 +138,22 @@ class ShufflingBatchIterator(BatchIterator):
         """
 
         self.sentence_pointers = SentencePointers(input_files)
-        self.sampling = sampling
-        self._reset()
+
+# XXX
+        self.order = list(range(len(self.sentence_pointers)))
+        self.order = numpy.asarray(self.order, dtype='int64')
+        numpy.random.shuffle(self.order)
+# XXX
+
+# Random sampling seems to be buggy. It degrades performance even when sampling
+# 100 % of data.
+#        self.sampling = sampling
+#        self._reset()
+#        self.order = list(range(len(self.sentence_pointers)))
+#        self.order = numpy.asarray(self.order, dtype='int64')
+#        numpy.random.shuffle(self.order)
+
+        self.next_line = 0
 
         super().__init__(vocabulary, batch_size, max_sequence_length)
 
@@ -214,21 +228,30 @@ class ShufflingBatchIterator(BatchIterator):
         self.next_line = 0
         if shuffle:
             logging.debug("Generating a random order of input lines.")
-            samples = []
-            fraction_iter = iter(self.sampling)
-            for (start, stop) in self.sentence_pointers.pointer_ranges:
-                population = numpy.arange(start, stop, dtype='int64')
-                fraction = next(fraction_iter, 1.0)
-                sample_size = round(fraction * len(population))
-                # No duplicates, unless we need more sentences than there are
-                # in the file.
-                replace = sample_size > len(population)
-                sample = random.choice(population, sample_size, replace=replace)
-                samples.append(sample)
-            self.order = numpy.concatenate(samples)
-            # Order within a certain file is already random. Shuffle elements
-            # also between files.
-            random.shuffle(self.order)
+
+# XXX
+            numpy.random.shuffle(self.order)
+# XXX
+
+# Random sampling seems to be buggy. It degrades performance even when sampling
+# 100 % of data.
+#            samples = []
+#            fraction_iter = iter(self.sampling)
+#            for (start, stop) in self.sentence_pointers.pointer_ranges:
+#                population = numpy.arange(start, stop, dtype='int64')
+#                fraction = next(fraction_iter, 1.0)
+#                sample_size = round(fraction * len(population))
+#                # No duplicates, unless we need more sentences than there are
+#                # in the file.
+#                replace = sample_size > len(population)
+#                sample = random.choice(population, sample_size, replace=replace) # XXX
+#                assert set(sample) == set(population)
+#                samples.append(sample)
+#            self.order = numpy.concatenate(samples)
+#            # Order within a certain file is already random. Shuffle elements
+#            # also between files.
+#            for _ in range(10):
+#                random.shuffle(self.order)
 
     def _readline(self):
         """Reads the next input line.
