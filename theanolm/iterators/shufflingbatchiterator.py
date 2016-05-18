@@ -146,23 +146,10 @@ class ShufflingBatchIterator(BatchIterator):
             sample_size = round(fraction * (stop - start))
             self.sample_sizes.append(sample_size)
 
-        self.order = numpy.arange(sum(self.sample_sizes))
-        self._reset()
-
-# XXX
-#        self.order = numpy.arange(len(self.sentence_pointers))
-#        self.order = numpy.asarray(self.order, dtype='int64')
-#        random.shuffle(self.order)
-# XXX
-
-# Random sampling seems to be buggy. It degrades performance even when sampling
-# 100 % of data.
-#        self._reset()
-#        self.order = list(range(len(self.sentence_pointers)))
-#        self.order = numpy.asarray(self.order, dtype='int64')
-#        random.shuffle(self.order)
-
         self.next_line = 0
+        self.order = numpy.arange(sum(self.sample_sizes), dtype='int64')
+        self.sample = numpy.arange(sum(self.sample_sizes), dtype='int64')
+        self._reset()
 
         super().__init__(vocabulary, batch_size, max_sequence_length)
 
@@ -237,10 +224,10 @@ class ShufflingBatchIterator(BatchIterator):
         self.next_line = 0
         if shuffle:
             logging.debug("Generating a random order of input lines.")
-            random.shuffle(self.order)
+# 1) order in a separate variable >>>
+#            random.shuffle(self.order)
+# <<<
 
-# Random sampling seems to be buggy. It degrades performance even when sampling
-# 100 % of data.
             samples = []
             for (start, stop), sample_size in \
                 zip(self.sentence_pointers.pointer_ranges, self.sample_sizes):
@@ -250,14 +237,15 @@ class ShufflingBatchIterator(BatchIterator):
                 # in the file.
                 replace = sample_size > len(population)
                 sample = random.choice(population, sample_size, replace=replace)
-                assert set(sample) == set(population) # XXX
-                sample = numpy.sort(sample)
-                numpy.testing.assert_array_equal(sample, population) # XXX
+#                # Just to make the results comparable to previous versions
+#                # that didn't implement sampling.
+#                sample = numpy.sort(sample)
                 samples.append(sample)
             self.sample = numpy.concatenate(samples)
-            numpy.testing.assert_array_equal(self.sample, numpy.arange(sum(self.sample_sizes), dtype='int64')) # XXX
-            assert set(sample) == set(population) # XXX
-            assert len(self.sample) == len(self.order)
+# 2) order and sample are the same variable >>>
+            self.order = self.sample
+            random.shuffle(self.order)
+# <<<
 
     def _readline(self):
         """Reads the next input line.
@@ -270,7 +258,12 @@ class ShufflingBatchIterator(BatchIterator):
         if self.next_line >= self.order.size:
             return ''
 
-        sentence_index = self.sample[self.order[self.next_line]]
+# 1) order in a separate variable >>>
+#        sentence_index = self.sample[self.order[self.next_line]]
+# <<<
+# 2) order and sample are the same variable >>>
+        sentence_index = self.order[self.next_line]
+# <<<
         input_file, position = self.sentence_pointers[sentence_index]
         input_file.seek(position)
         line = input_file.readline()
@@ -288,6 +281,11 @@ class ShufflingBatchIterator(BatchIterator):
         if self.next_line >= self.order.size:
             return 0
 
-        sentence_index = self.sample[self.order[self.next_line]]
+# 1) order in a separate variable >>>
+#        sentence_index = self.sample[self.order[self.next_line]]
+# <<<
+# 2) order and sample are the same variable >>>
+        sentence_index = self.order[self.next_line]
+# <<<
         subset_index, _ = self.sentence_pointers.pointers[sentence_index]
         return subset_index
