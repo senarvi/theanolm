@@ -10,8 +10,6 @@
 # lists the utterance ID contains a postfix -1, -2, etc. to identify the
 # hypotheses.
 
-vocab_format="words"
-
 [ -f ./path.sh ] && source ./path.sh
 . utils/parse_options.sh
 
