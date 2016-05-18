@@ -38,7 +38,7 @@ class Vocabulary(object):
             """
 
             self.id = class_id
-            self.probs = OrderedDict({word_id: prob})
+            self._probs = OrderedDict({word_id: prob})
 
         def add(self, word_id, prob):
             """Adds a word to the class with given probability.
@@ -52,7 +52,7 @@ class Vocabulary(object):
             :param prob: the membership probability of the new word
             """
 
-            self.probs[word_id] = prob
+            self._probs[word_id] = prob
 
         def get_prob(self, word_id):
             """Returns the class membership probability of a word.
@@ -64,15 +64,28 @@ class Vocabulary(object):
             :returns: the class membership probability of the word
             """
 
-            return self.probs[word_id]
+            return self._probs[word_id]
+
+        def set_prob(self, word_id, prob):
+            """Sets the class membership probability of a word. The word will be
+            added to this class, if it doesn't belong to it already.
+
+            :type word_id: int
+            :param word_id: a word ID
+
+            :type prob: float
+            :param prob: class membership probability for the word
+            """
+
+            self._probs[word_id] = prob
 
         def normalize_probs(self):
             """Normalizes the class membership probabilities to sum to one.
             """
 
-            prob_sum = sum(self.probs.values())
-            for word_id in self.probs:
-                self.probs[word_id] /= prob_sum
+            prob_sum = sum(self._probs.values())
+            for word_id in self._probs:
+                self._probs[word_id] /= prob_sum
 
         def sample(self):
             """Samples a word from the membership probability distribution.
@@ -81,8 +94,8 @@ class Vocabulary(object):
             :returns: a random word ID from this class
             """
 
-            word_ids = list(self.probs.keys())
-            probs = list(self.probs.values())
+            word_ids = list(self._probs.keys())
+            probs = list(self._probs.values())
             sample_distribution = numpy.random.multinomial(1, probs)
             indices = numpy.flatnonzero(sample_distribution)
             assert len(indices) == 1
@@ -95,7 +108,18 @@ class Vocabulary(object):
             :returns: the number of words in this class
             """
 
-            return len(self.probs)
+            return len(self._probs)
+
+        def __iter__(self):
+            """A generator for iterating through the words in this class.
+
+            :rtype: generator for (int, float)
+            :returns: generates a tuple containing a word ID and class
+                      membership probability
+            """
+
+            for word_id, prob in self._probs.items():
+                yield word_id, prob
 
         def __eq__(self, other):
             """Tests if another word class is exactly the same.
@@ -119,8 +143,8 @@ class Vocabulary(object):
             if len(self) != len(other):
                 return False
 
-            for word_id, prob in self.probs.items():
-                if not numpy.isclose(prob, other.probs[word_id]):
+            for word_id, prob in self:
+                if not numpy.isclose(prob, other._probs[word_id]):
                     return False
 
             return True
@@ -150,7 +174,7 @@ class Vocabulary(object):
 
             return '{ ' + \
                    ', '.join(str(word_id) + ': ' + str(round(prob, 4))
-                             for word_id, prob in self.probs.items()) + \
+                             for word_id, prob in self) + \
                    ' }'
 
     def __init__(self, id_to_word, word_id_to_class_id, word_classes):
@@ -200,7 +224,7 @@ class Vocabulary(object):
         while True:
             word_class = word_classes[index]
             if len(word_class) == 1:
-                word_id = next(iter(word_class.probs))
+                word_id, _ = next(iter(word_class))
                 if id_to_word[word_id].startswith('<'):
                     index -= 1
                     continue
@@ -294,7 +318,7 @@ class Vocabulary(object):
 
     @classmethod
     def from_word_counts(classname, word_counts, num_classes=None):
-        """Creates a vocabulary and dummy classes from word counts.
+        """Creates a vocabulary and classes from word counts.
 
         :type word_counts: dict
         :param word_counts: dictionary from words to the number of occurrences
@@ -399,11 +423,36 @@ class Vocabulary(object):
                          word_id_to_class_id.tolist(),
                          word_classes)
 
+    def compute_probs(self, input_files):
+        """Recomputes unigram class membership probabilities from text files.
+        Probabilities are updates only for classes whose words occur in the
+        text.
+
+        :type input_files: list of file or mmap objects
+        :param input_files: input text files
+        """
+
+        counts = numpy.zeros(self.num_words(), dtype='int64')
+        for subset_file in input_files:
+            for line in subset_file:
+                for word in line.split():
+                    if word in self.word_to_id:
+                        counts[self.word_to_id[word]] += 1
+
+        for cls in self._word_classes:
+            cls_counts = dict()
+            for word_id, _ in cls:
+                cls_counts[word_id] = counts[word_id]
+            cls_total = sum(cls_counts.values())
+            if cls_total > 0:
+                for word_id, count in cls_counts.items():
+                    cls.set_prob(word_id, float(count) / cls_total)
+
     def get_state(self, state):
         """Saves the vocabulary in a network state file.
 
-        If there already is a vocabulary in the state, it will be replaced, so it
-        has to have the same number of words.
+        If there already is a vocabulary in the state, it will be replaced, so
+        it has to have the same number of words.
 
         :type state: h5py.File
         :param state: HDF5 file for storing the neural network parameters
@@ -509,7 +558,7 @@ class Vocabulary(object):
         """
 
         if len(word_class) == 1:
-            word_id = next(iter(word_class.probs))
+            word_id, _ = next(iter(word_class))
             return self.id_to_word[word_id]
         elif word_class.id is None:
             return 'CLASS'
@@ -548,10 +597,10 @@ class Vocabulary(object):
         return class_ids, get_probs(word_classes, word_ids)
 
     def words(self):
-        """A generator for all the words in the vocabulary.
+        """A generator for iterating through the words in the vocabulary.
 
-        :rtype: generator of str
-        :returns: iterates through the words
+        :rtype: generator for str
+        :returns: generates the next word in the vocabulary
         """
 
         for word in self.word_to_id.keys():

@@ -162,11 +162,11 @@ class BigramOptimizer(object):
         return self._initial_vocabulary.word_to_id[word]
 
     def words(self):
-        """Returns a generator for iterating through the words.
+        """A generator for iterating through the words.
 
         :rtype: generator for (str, int, float)
-        :returns: a generator for tuples containing a word, its class ID, and
-                  unigram class membership probability
+        :returns: generates a tuple containing a word, its class ID, and unigram
+                  class membership probability
         """
 
         for word, word_id in self._initial_vocabulary.word_to_id.items():

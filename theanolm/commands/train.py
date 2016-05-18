@@ -199,6 +199,8 @@ def train(args):
             with open(args.vocabulary, 'rt', encoding='utf-8') as vocab_file:
                 vocabulary = Vocabulary.from_file(vocab_file,
                                                   args.vocabulary_format)
+                if args.vocabulary_format == 'classes':
+                    vocabulary.compute_probs(args.training_set)
             vocabulary.get_state(state)
         print("Number of words in vocabulary:", vocabulary.num_words())
         print("Number of word classes:", vocabulary.num_classes())
