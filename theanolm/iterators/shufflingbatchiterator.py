@@ -244,7 +244,8 @@ class ShufflingBatchIterator(BatchIterator):
             self._sample = numpy.concatenate(samples)
 # 2) order and sample are the same variable >>>
             self._order = self._sample
-            random.shuffle(self._order)
+            for _ in range(10):
+                random.shuffle(self._order)
 # <<<
 
     def _readline(self):
