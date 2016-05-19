@@ -148,7 +148,6 @@ class ShufflingBatchIterator(BatchIterator):
 
         self._next_line = 0
         self._order = numpy.arange(sum(self._sample_sizes), dtype='int64')
-        self._sample = numpy.arange(sum(self._sample_sizes), dtype='int64')
         self._reset()
 
         super().__init__(vocabulary, batch_size, max_sequence_length)
@@ -224,9 +223,6 @@ class ShufflingBatchIterator(BatchIterator):
         self._next_line = 0
         if shuffle:
             logging.debug("Generating a random order of input lines.")
-# 1) order in a separate variable >>>
-#            random.shuffle(self._order)
-# <<<
 
             samples = []
             for (start, stop), sample_size in \
@@ -237,16 +233,10 @@ class ShufflingBatchIterator(BatchIterator):
                 # in the file.
                 replace = sample_size > len(population)
                 sample = random.choice(population, sample_size, replace=replace)
-#                # Just to make the results comparable to previous versions
-#                # that didn't implement sampling.
-#                sample = numpy.sort(sample)
                 samples.append(sample)
-            self._sample = numpy.concatenate(samples)
-# 2) order and sample are the same variable >>>
-            self._order = self._sample
+            self._order = numpy.concatenate(samples)
             for _ in range(10):
                 random.shuffle(self._order)
-# <<<
 
     def _readline(self):
         """Reads the next input line.
@@ -259,12 +249,7 @@ class ShufflingBatchIterator(BatchIterator):
         if self._next_line >= self._order.size:
             return ''
 
-# 1) order in a separate variable >>>
-#        sentence_index = self._sample[self._order[self._next_line]]
-# <<<
-# 2) order and sample are the same variable >>>
         sentence_index = self._order[self._next_line]
-# <<<
         input_file, position = self._sentence_pointers[sentence_index]
         input_file.seek(position)
         line = input_file.readline()
@@ -282,11 +267,6 @@ class ShufflingBatchIterator(BatchIterator):
         if self._next_line >= self._order.size:
             return 0
 
-# 1) order in a separate variable >>>
-#        sentence_index = self._sample[self._order[self._next_line]]
-# <<<
-# 2) order and sample are the same variable >>>
         sentence_index = self._order[self._next_line]
-# <<<
         subset_index, _ = self._sentence_pointers.pointers[sentence_index]
         return subset_index

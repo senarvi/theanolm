@@ -67,14 +67,14 @@ def add_arguments(parser):
         '--batch-size', metavar='N', type=int, default=16,
         help='each mini-batch will contain N sentences (default 16)')
     argument_group.add_argument(
-        '--validation-frequency', metavar='N', type=int, default='8',
-        help='cross-validate for reducing learning rate N times per training '
-             'epoch (default 8)')
+        '--validation-frequency', metavar='N', type=int, default='5',
+        help='cross-validate for reducing learning rate or early stopping N '
+             'times per training epoch (default 5)')
     argument_group.add_argument(
         '--patience', metavar='N', type=int, default=4,
-        help='wait for N validations, before decreasing learning rate, if '
-             'perplexity has not decreased; if less than zero, never decrease '
-             'learning rate (default 4)')
+        help='allow perplexity to increase N consecutive cross-validations, '
+             'before decreasing learning rate; if less than zero, never '
+             'decrease learning rate (default 4)')
     argument_group.add_argument(
         '--random-seed', metavar='N', type=int, default=None,
         help='seed to initialize the random state (default is to seed from a '
@@ -200,6 +200,9 @@ def train(args):
                 vocabulary = Vocabulary.from_file(vocab_file,
                                                   args.vocabulary_format)
                 if args.vocabulary_format == 'classes':
+                    print("Computing class membership probabilities from "
+                          "unigram word counts.")
+                    sys.stdout.flush()
                     vocabulary.compute_probs(args.training_set)
             vocabulary.get_state(state)
         print("Number of words in vocabulary:", vocabulary.num_words())
