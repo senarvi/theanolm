@@ -137,18 +137,18 @@ class ShufflingBatchIterator(BatchIterator):
                                     this
         """
 
-        self.sentence_pointers = SentencePointers(input_files)
+        self._sentence_pointers = SentencePointers(input_files)
 
-        self.sample_sizes = []
+        self._sample_sizes = []
         fraction_iter = iter(sampling)
-        for (start, stop) in self.sentence_pointers.pointer_ranges:
+        for (start, stop) in self._sentence_pointers.pointer_ranges:
             fraction = next(fraction_iter, 1.0)
             sample_size = round(fraction * (stop - start))
-            self.sample_sizes.append(sample_size)
+            self._sample_sizes.append(sample_size)
 
-        self.next_line = 0
-        self.order = numpy.arange(sum(self.sample_sizes), dtype='int64')
-        self.sample = numpy.arange(sum(self.sample_sizes), dtype='int64')
+        self._next_line = 0
+        self._order = numpy.arange(sum(self._sample_sizes), dtype='int64')
+        self._sample = numpy.arange(sum(self._sample_sizes), dtype='int64')
         self._reset()
 
         super().__init__(vocabulary, batch_size, max_sequence_length)
@@ -170,11 +170,11 @@ class ShufflingBatchIterator(BatchIterator):
         h5_iterator = state.require_group('iterator')
 
         if 'order' in h5_iterator:
-            h5_iterator['order'][:] = self.order
+            h5_iterator['order'][:] = self._order
         else:
-            h5_iterator.create_dataset('order', data=self.order)
+            h5_iterator.create_dataset('order', data=self._order)
 
-        h5_iterator.attrs['next_line'] = self.next_line
+        h5_iterator.attrs['next_line'] = self._next_line
 
     def set_state(self, state):
         """Restores the iterator state.
@@ -195,18 +195,18 @@ class ShufflingBatchIterator(BatchIterator):
         if not 'order' in h5_iterator:
             raise IncompatibleStateError("Iteration order is missing from "
                                          "training state.")
-        self.order = h5_iterator['order'].value
-        if self.order.size == 0:
+        self._order = h5_iterator['order'].value
+        if self._order.size == 0:
             raise IncompatibleStateError("Iteration order is empty in training "
                                          "state.")
 
         if not 'next_line' in h5_iterator.attrs:
             raise IncompatibleStateError("Current iteration position is "
                                          "missing from training state.")
-        self.next_line = int(h5_iterator.attrs['next_line'])
+        self._next_line = int(h5_iterator.attrs['next_line'])
         logging.debug("Restored iterator to line %d of %d.",
-                      self.next_line,
-                      self.order.size)
+                      self._next_line,
+                      self._order.size)
 
     def _create_order(self):
         """Creates a random iteration order.
@@ -221,16 +221,16 @@ class ShufflingBatchIterator(BatchIterator):
         :param shuffle: also shuffles the input sentences, unless set to False
         """
 
-        self.next_line = 0
+        self._next_line = 0
         if shuffle:
             logging.debug("Generating a random order of input lines.")
 # 1) order in a separate variable >>>
-#            random.shuffle(self.order)
+#            random.shuffle(self._order)
 # <<<
 
             samples = []
             for (start, stop), sample_size in \
-                zip(self.sentence_pointers.pointer_ranges, self.sample_sizes):
+                zip(self._sentence_pointers.pointer_ranges, self._sample_sizes):
 
                 population = numpy.arange(start, stop, dtype='int64')
                 # No duplicates, unless we need more sentences than there are
@@ -241,10 +241,10 @@ class ShufflingBatchIterator(BatchIterator):
 #                # that didn't implement sampling.
 #                sample = numpy.sort(sample)
                 samples.append(sample)
-            self.sample = numpy.concatenate(samples)
+            self._sample = numpy.concatenate(samples)
 # 2) order and sample are the same variable >>>
-            self.order = self.sample
-            random.shuffle(self.order)
+            self._order = self._sample
+            random.shuffle(self._order)
 # <<<
 
     def _readline(self):
@@ -255,19 +255,19 @@ class ShufflingBatchIterator(BatchIterator):
                   the data set is reached.
         """
 
-        if self.next_line >= self.order.size:
+        if self._next_line >= self._order.size:
             return ''
 
 # 1) order in a separate variable >>>
-#        sentence_index = self.sample[self.order[self.next_line]]
+#        sentence_index = self._sample[self._order[self._next_line]]
 # <<<
 # 2) order and sample are the same variable >>>
-        sentence_index = self.order[self.next_line]
+        sentence_index = self._order[self._next_line]
 # <<<
-        input_file, position = self.sentence_pointers[sentence_index]
+        input_file, position = self._sentence_pointers[sentence_index]
         input_file.seek(position)
         line = input_file.readline()
-        self.next_line += 1
+        self._next_line += 1
         return line
 
     def _file_id(self):
@@ -278,14 +278,14 @@ class ShufflingBatchIterator(BatchIterator):
         :return: current file index
         """
 
-        if self.next_line >= self.order.size:
+        if self._next_line >= self._order.size:
             return 0
 
 # 1) order in a separate variable >>>
-#        sentence_index = self.sample[self.order[self.next_line]]
+#        sentence_index = self._sample[self._order[self._next_line]]
 # <<<
 # 2) order and sample are the same variable >>>
-        sentence_index = self.order[self.next_line]
+        sentence_index = self._order[self._next_line]
 # <<<
-        subset_index, _ = self.sentence_pointers.pointers[sentence_index]
+        subset_index, _ = self._sentence_pointers.pointers[sentence_index]
         return subset_index
