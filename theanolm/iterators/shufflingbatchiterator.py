@@ -137,23 +137,18 @@ class ShufflingBatchIterator(BatchIterator):
                                     this
         """
 
-        self.sentence_pointers = SentencePointers(input_files)
+        self._sentence_pointers = SentencePointers(input_files)
 
-# XXX
-        self.order = list(range(len(self.sentence_pointers)))
-        self.order = numpy.asarray(self.order, dtype='int64')
-        numpy.random.shuffle(self.order)
-# XXX
+        self._sample_sizes = []
+        fraction_iter = iter(sampling)
+        for (start, stop) in self._sentence_pointers.pointer_ranges:
+            fraction = next(fraction_iter, 1.0)
+            sample_size = round(fraction * (stop - start))
+            self._sample_sizes.append(sample_size)
 
-# Random sampling seems to be buggy. It degrades performance even when sampling
-# 100 % of data.
-#        self.sampling = sampling
-#        self._reset()
-#        self.order = list(range(len(self.sentence_pointers)))
-#        self.order = numpy.asarray(self.order, dtype='int64')
-#        numpy.random.shuffle(self.order)
-
-        self.next_line = 0
+        self._next_line = 0
+        self._order = numpy.arange(sum(self._sample_sizes), dtype='int64')
+        self._reset()
 
         super().__init__(vocabulary, batch_size, max_sequence_length)
 
@@ -174,11 +169,11 @@ class ShufflingBatchIterator(BatchIterator):
         h5_iterator = state.require_group('iterator')
 
         if 'order' in h5_iterator:
-            h5_iterator['order'][:] = self.order
+            h5_iterator['order'][:] = self._order
         else:
-            h5_iterator.create_dataset('order', data=self.order)
+            h5_iterator.create_dataset('order', data=self._order)
 
-        h5_iterator.attrs['next_line'] = self.next_line
+        h5_iterator.attrs['next_line'] = self._next_line
 
     def set_state(self, state):
         """Restores the iterator state.
@@ -199,18 +194,18 @@ class ShufflingBatchIterator(BatchIterator):
         if not 'order' in h5_iterator:
             raise IncompatibleStateError("Iteration order is missing from "
                                          "training state.")
-        self.order = h5_iterator['order'].value
-        if self.order.size == 0:
+        self._order = h5_iterator['order'].value
+        if self._order.size == 0:
             raise IncompatibleStateError("Iteration order is empty in training "
                                          "state.")
 
         if not 'next_line' in h5_iterator.attrs:
             raise IncompatibleStateError("Current iteration position is "
                                          "missing from training state.")
-        self.next_line = int(h5_iterator.attrs['next_line'])
+        self._next_line = int(h5_iterator.attrs['next_line'])
         logging.debug("Restored iterator to line %d of %d.",
-                      self.next_line,
-                      self.order.size)
+                      self._next_line,
+                      self._order.size)
 
     def _create_order(self):
         """Creates a random iteration order.
@@ -225,33 +220,23 @@ class ShufflingBatchIterator(BatchIterator):
         :param shuffle: also shuffles the input sentences, unless set to False
         """
 
-        self.next_line = 0
+        self._next_line = 0
         if shuffle:
             logging.debug("Generating a random order of input lines.")
 
-# XXX
-            numpy.random.shuffle(self.order)
-# XXX
+            samples = []
+            for (start, stop), sample_size in \
+                zip(self._sentence_pointers.pointer_ranges, self._sample_sizes):
 
-# Random sampling seems to be buggy. It degrades performance even when sampling
-# 100 % of data.
-#            samples = []
-#            fraction_iter = iter(self.sampling)
-#            for (start, stop) in self.sentence_pointers.pointer_ranges:
-#                population = numpy.arange(start, stop, dtype='int64')
-#                fraction = next(fraction_iter, 1.0)
-#                sample_size = round(fraction * len(population))
-#                # No duplicates, unless we need more sentences than there are
-#                # in the file.
-#                replace = sample_size > len(population)
-#                sample = random.choice(population, sample_size, replace=replace) # XXX
-#                assert set(sample) == set(population)
-#                samples.append(sample)
-#            self.order = numpy.concatenate(samples)
-#            # Order within a certain file is already random. Shuffle elements
-#            # also between files.
-#            for _ in range(10):
-#                random.shuffle(self.order)
+                population = numpy.arange(start, stop, dtype='int64')
+                # No duplicates, unless we need more sentences than there are
+                # in the file.
+                replace = sample_size > len(population)
+                sample = random.choice(population, sample_size, replace=replace)
+                samples.append(sample)
+            self._order = numpy.concatenate(samples)
+            for _ in range(10):
+                random.shuffle(self._order)
 
     def _readline(self):
         """Reads the next input line.
@@ -261,14 +246,14 @@ class ShufflingBatchIterator(BatchIterator):
                   the data set is reached.
         """
 
-        if self.next_line >= self.order.size:
+        if self._next_line >= self._order.size:
             return ''
 
-        sentence_index = self.order[self.next_line]
-        input_file, position = self.sentence_pointers[sentence_index]
+        sentence_index = self._order[self._next_line]
+        input_file, position = self._sentence_pointers[sentence_index]
         input_file.seek(position)
         line = input_file.readline()
-        self.next_line += 1
+        self._next_line += 1
         return line
 
     def _file_id(self):
@@ -279,9 +264,9 @@ class ShufflingBatchIterator(BatchIterator):
         :return: current file index
         """
 
-        if self.next_line >= self.order.size:
+        if self._next_line >= self._order.size:
             return 0
 
-        sentence_index = self.order[self.next_line]
-        subset_index, _ = self.sentence_pointers.pointers[sentence_index]
+        sentence_index = self._order[self._next_line]
+        subset_index, _ = self._sentence_pointers.pointers[sentence_index]
         return subset_index

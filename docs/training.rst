@@ -1,26 +1,34 @@
 Training a language model
 =========================
 
-Dictionary
+Vocabulary
 ----------
 
-A model can be trained using words or word classes. For larger model and data
-sizes word classes are generally necessary to keep the computational cost of
-training and evaluating models reasonable.
+A model can be trained using words or word classes. Vocabulary size has a huge
+impact on training speed. With larger vocabularies and data sizes, word classes
+are generally necessary to keep the computational cost of training and
+evaluating models reasonable.
 
-A dictionary is provided to the training script. If words are used, the
-dictonary is simply a list of words, one per line, and ``--dictionary-format
-words`` argument is given to ``theanolm train`` command. Words that do not
-appear in the dictionary will be mapped to the <unk> token.
+A vocabulary has to be provided for ``theanolm train`` command. If words are
+used, the vocabulary is simply a list of words, one per line, and
+``--vocabulary-format words`` argument should be given. Words that do not
+appear in the vocabulary will be mapped to the <unk> token.
 
-If you want to use word classes, `SRILM format
-<http://www.speech.sri.com/projects/srilm/manpages/classes-format.5.html>`_
-for word class definitions is recommended. Each line in the dictionary contains
-a class name, class membership probability, and a word. ``--dictionary-format
-srilm-classes`` argument is given to ``theanolm train`` command. The program
-also accepts simple ``classes`` format without class membership probabilities,
-but it is not currently able to learn the class membership probabilities from
-the training data.
+TheanoLM does not generate word classes automatically. If you want to use word
+classes, you need another tool such as `Percy Liang's implementation of Brown
+clustering <https://github.com/percyliang/brown-cluster>`_, ``ngram-class`` from
+`SRILM <http://www.speech.sri.com/projects/srilm/>`, ``mkcls`` from `GIZA++
+<https://github.com/moses-smt/giza-pp>`_, or `word2vec
+<https://github.com/dav/word2vec>`_. TheanoLM can read the classes in one of two
+formats, specified by the ``--vocabulary-format`` argument:
+
+* ``classes``: Each line contains a word and an integer class ID. Class
+  membership probability ``p(w | c)`` of each word is computed as the unigram ML
+  estimate from the training data.
+* ``srilm-classes``: Vocabulary file is expected to contain word class
+  definitions in `SRILM format
+  <http://www.speech.sri.com/projects/srilm/manpages/classes-format.5.html>`_.
+  Each line contains a class name, class membership probability, and a word. 
 
 Network structure description
 -----------------------------

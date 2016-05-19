@@ -41,7 +41,9 @@ class TestVocabulary(unittest.TestCase):
 
         self.sentences1_file.seek(0)
         self.sentences2_file.seek(0)
-        vocabulary = Vocabulary.from_corpus([self.sentences1_file, self.sentences2_file], 3)
+        vocabulary = Vocabulary.from_corpus([self.sentences1_file,
+                                             self.sentences2_file],
+                                            3)
         self.assertEqual(vocabulary.num_words(), 10 + 3)
         self.assertEqual(vocabulary.num_classes(), 3 + 3)
 
@@ -70,11 +72,39 @@ class TestVocabulary(unittest.TestCase):
         f = h5py.File('in-memory.h5', driver='core', backing_store=False)
         vocabulary1.get_state(f)
         vocabulary2 = Vocabulary.from_state(f)
-        self.assertTrue(numpy.array_equal(vocabulary1.id_to_word, vocabulary2.id_to_word))
+        self.assertTrue(numpy.array_equal(vocabulary1.id_to_word,
+                                          vocabulary2.id_to_word))
         self.assertDictEqual(vocabulary1.word_to_id, vocabulary2.word_to_id)
-        self.assertTrue(numpy.array_equal(vocabulary1.word_id_to_class_id, vocabulary2.word_id_to_class_id))
+        self.assertTrue(numpy.array_equal(vocabulary1.word_id_to_class_id,
+                                          vocabulary2.word_id_to_class_id))
         self.assertListEqual(list(vocabulary1._word_classes),
                              list(vocabulary2._word_classes))
+
+    def test_compute_probs(self):
+        self.classes_file.seek(0)
+        vocabulary = Vocabulary.from_file(self.classes_file, 'srilm-classes')
+        vocabulary.compute_probs([self.sentences1_file, self.sentences2_file])
+
+        word_id = vocabulary.word_to_id['yksi']
+        self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 1.0)
+        word_id = vocabulary.word_to_id['kaksi']
+        self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 1.0)
+        word_id = vocabulary.word_to_id['kolme']
+        self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 0.5)
+        word_id = vocabulary.word_to_id['neljä']
+        self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 0.5)
+        word_id = vocabulary.word_to_id['viisi']
+        self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 1.0)
+        word_id = vocabulary.word_to_id['kuusi']
+        self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 0.25)
+        word_id = vocabulary.word_to_id['seitsemän']
+        self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 0.25)
+        word_id = vocabulary.word_to_id['kahdeksan']
+        self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 0.25)
+        word_id = vocabulary.word_to_id['yhdeksän']
+        self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 0.25)
+        word_id = vocabulary.word_to_id['kymmenen']
+        self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 1.0)
 
     def test_word_ids_to_names(self):
         self.classes_file.seek(0)
