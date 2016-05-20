@@ -247,10 +247,11 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         if max_norm is None:
             return
 
-        squares = [tensor.sqr(update) for update in updates.values()]
-        sums = [tensor.sum(square) for square in squares]
-        total_sum = sum(sums)  # sum over parameter variables
-        norm = tensor.sqrt(total_sum)
-        target_norm = tensor.clip(norm, 0.0, max_norm)
+#        squares = [tensor.sqr(update) for update in updates.values()]
+#        sums = [tensor.sum(square) for square in squares]
+#        total_sum = sum(sums)  # sum over parameter variables
+#        norm = tensor.sqrt(total_sum)
+#        target_norm = tensor.clip(norm, 0.0, max_norm)
         for name, update in updates.items():
-            updates[name] = update * target_norm / (self._epsilon + norm)
+#            updates[name] = update * target_norm / (self._epsilon + norm)
+            updates[name] = tensor.clip(update, -max_norm, max_norm)
