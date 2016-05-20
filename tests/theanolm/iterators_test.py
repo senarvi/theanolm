@@ -140,10 +140,10 @@ class TestIterators(unittest.TestCase):
         self.assertEqual(len(iterator), 2 + 4)
 
         # Make sure there are no duplicates.
-        self.assertSetEqual(set(iterator.order),
-                            set(numpy.unique(iterator.order)))
-        self.assertEqual(numpy.count_nonzero(iterator.order <= 4), 2)
-        self.assertEqual(numpy.count_nonzero(iterator.order >= 5), 4)
+        self.assertSetEqual(set(iterator._order),
+                            set(numpy.unique(iterator._order)))
+        self.assertEqual(numpy.count_nonzero(iterator._order <= 4), 2)
+        self.assertEqual(numpy.count_nonzero(iterator._order >= 5), 4)
 
     def test_linear_batch_iterator(self):
         iterator = theanolm.LinearBatchIterator(self.sentences1_file,
