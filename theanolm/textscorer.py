@@ -76,7 +76,7 @@ class TextScorer(object):
 
         :type mask: numpy.ndarray of a floating point type
         :param mask: a 2-dimensional matrix, indexed by time step and sequence,
-                     that masks out elements past the sequence ends.
+                     that masks out elements past the sequence ends
 
         :rtype: list of lists
         :returns: logprob of each word in each sequence
@@ -95,6 +95,7 @@ class TextScorer(object):
         # Ignore logprobs predicting a word that is past the sequence end, and
         # possibly also those that are predicting <unk> token.
         if self.ignore_unk:
+            mask = numpy.copy(mask)
             mask[word_ids == self.unk_id] = 0
         for seq_index in range(logprobs.shape[1]):
             seq_logprobs = logprobs[:,seq_index]

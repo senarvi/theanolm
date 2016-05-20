@@ -255,11 +255,10 @@ def train(args):
             'learning_rate': args.learning_rate,
             'weights': weights,
             'momentum': args.momentum,
+            'max_gradient_norm': args.gradient_normalization,
             'ignore_unk': ignore_unk,
             'unk_penalty': unk_penalty
         }
-        if not args.gradient_normalization is None:
-            optimization_options['max_gradient_norm'] = args.gradient_normalization
         logging.debug("OPTIMIZATION OPTIONS")
         for option_name, option_value in optimization_options.items():
             if type(option_value) is list:

@@ -45,44 +45,57 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
         float_type = numpy.dtype(theano.config.floatX).type
 
+        # numerical stability / smoothing term to prevent divide-by-zero
+        if not 'epsilon' in optimization_options:
+            raise ValueError("'epsilon' is not given in optimization options.")
+        self._epsilon = float_type(optimization_options['epsilon'])
+
         # learning rate / step size
         if not 'learning_rate' in optimization_options:
-            raise ValueError("Learning rate is not given in optimization "
+            raise ValueError("'learning_rate' is not given in optimization "
                              "options.")
         self.learning_rate = float_type(optimization_options['learning_rate'])
 
         # weights for training files
         if not 'weights' in optimization_options:
-            raise ValueError("Weights are not given in optimization options.")
+            raise ValueError("'weights' is not given in optimization options.")
         self._weights = optimization_options['weights']
 
-        # numerical stability / smoothing term to prevent divide-by-zero
-        if not 'epsilon' in optimization_options:
-            raise ValueError("Epsilon is not given in optimization options.")
-        self._epsilon = float_type(optimization_options['epsilon'])
-
         # maximum norm for parameter updates
-        if 'max_gradient_norm' in optimization_options:
+        if not 'max_gradient_norm' in optimization_options:
+            raise ValueError("'max_gradient_norm' is not given in optimization "
+                             "options.")
+        else:
             self._max_gradient_norm = float_type(
                 optimization_options['max_gradient_norm'])
-        else:
-            self._max_gradient_norm = None
 
-        # class IDs to ignore when computing the cost
-        if 'classes_to_ignore' in optimization_options:
-            classes_to_ignore = optimization_options['classes_to_ignore']
-        else:
-            classes_to_ignore = []
+        # ignore <unk> tokens?
+        if not 'ignore_unk' in optimization_options:
+            raise ValueError("'ignore_unk' is not given in optimization "
+                             "options.")
+        ignore_unk = optimization_options['ignore_unk']
+
+        # penalty for <unk> tokens
+        if not 'unk_penalty' in optimization_options:
+            raise ValueError("'unk_penalty' is not given in optimization "
+                             "options.")
+        unk_penalty = optimization_options['unk_penalty']
+
+        unk_id = self.network.vocabulary.word_to_id['<unk>']
 
         # Derive the symbolic expression for log probability of each word.
         logprobs = tensor.log(self.network.prediction_probs)
-        # Set the log probability to 0, if the next input word (the one
-        # predicted) is masked out or to be ignored. The mask has to be cast to
-        # floatX, otherwise the result will be float64 and pulled out from the
-        # GPU earlier than necessary.
+        # If requested, predict <unk> with constant score.
+        if not unk_penalty is None:
+            logprobs[self.network.word_input[1:] == unk_id] = self.unk_penalty
+        # Ignore logprobs, when the next input word (the one predicted) is
+        # masked out, and possibly also when  it is the <unk> token. The mask
+        # has to be cast to floatX, otherwise the result will be float64 and
+        # pulled out from the GPU earlier than necessary.
         mask = self.network.mask[1:]
-        for class_id in classes_to_ignore:
-            mask *= tensor.neq(self.network.class_input[1:], class_id)
+        if self.ignore_unk:
+            mask = numpy.copy(mask)
+            mask[self.network.word_input[1:] == unk_id] = 0
         logprobs *= tensor.cast(mask, theano.config.floatX)
         # Cost is the negative log probability normalized by the number of
         # training examples in the mini-batch, so that the gradients will also
