@@ -96,8 +96,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         # pulled out from the GPU earlier than necessary.
         mask = self.network.mask[1:]
         if ignore_unk:
-            mask = numpy.copy(mask)
-            mask *= tensor.neq(self.network.word_input[1:], unk_id)
+            mask = mask * tensor.neq(self.network.word_input[1:], unk_id)
         logprobs *= tensor.cast(mask, theano.config.floatX)
         # Cost is the negative log probability normalized by the number of
         # training examples in the mini-batch, so that the gradients will also
