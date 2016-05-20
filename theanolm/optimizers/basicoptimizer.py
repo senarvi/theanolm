@@ -87,15 +87,17 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         logprobs = tensor.log(self.network.prediction_probs)
         # If requested, predict <unk> with constant score.
         if not unk_penalty is None:
-            logprobs[self.network.word_input[1:] == unk_id] = self.unk_penalty
+            unk_mask = tensor.eq(self.network.word_input[1:], unk_id)
+            unk_indices = unk_mask.nonzero()
+            logprobs = tensor.set_subtensor(logprobs[unk_indices], unk_penalty)
         # Ignore logprobs, when the next input word (the one predicted) is
         # masked out, and possibly also when  it is the <unk> token. The mask
         # has to be cast to floatX, otherwise the result will be float64 and
         # pulled out from the GPU earlier than necessary.
         mask = self.network.mask[1:]
-        if self.ignore_unk:
+        if ignore_unk:
             mask = numpy.copy(mask)
-            mask[self.network.word_input[1:] == unk_id] = 0
+            mask *= tensor.neq(self.network.word_input[1:], unk_id)
         logprobs *= tensor.cast(mask, theano.config.floatX)
         # Cost is the negative log probability normalized by the number of
         # training examples in the mini-batch, so that the gradients will also
