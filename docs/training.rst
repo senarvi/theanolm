@@ -7,24 +7,31 @@ Vocabulary
 A model can be trained using words or word classes. Vocabulary size has a huge
 impact on training speed. With larger vocabularies and data sizes, word classes
 are generally necessary to keep the computational cost of training and
-evaluating models reasonable.
+evaluating models reasonable. Another option is to reduce vocabulary size by
+using subword units.
 
-A vocabulary has to be provided for ``theanolm train`` command. If words are
-used, the vocabulary is simply a list of words, one per line, and
-``--vocabulary-format words`` argument should be given. Words that do not
-appear in the vocabulary will be mapped to the *<unk>* token.
-
-TheanoLM does not generate word classes automatically. If you want to use word
-classes, you need another tool such as `Percy Liang's implementation of Brown
-clustering <https://github.com/percyliang/brown-cluster>`_, *ngram-class* from
-`SRILM <http://www.speech.sri.com/projects/srilm/>`_, *mkcls* from `GIZA++
+TheanoLM is not able to generate word classes automatically. If you want to use
+word classes, you need another tool such as `Percy Liang's implementation of
+Brown clustering <https://github.com/percyliang/brown-cluster>`_, *ngram-class*
+from `SRILM <http://www.speech.sri.com/projects/srilm/>`_, *mkcls* from `GIZA++
 <https://github.com/moses-smt/giza-pp>`_, or `word2vec
-<https://github.com/dav/word2vec>`_. TheanoLM can read the classes in one of two
+<https://github.com/dav/word2vec>`_.
+
+With agglutinative languages, a feasible option is to segment words into
+*statistical morphs* using `Morfessor
+<http://morfessor.readthedocs.io/en/latest/>`_. The vocabulary and training text
+then contain morphs instead of words, and *<w>* token is used to separate words.
+
+A vocabulary has to be provided for ``theanolm train`` command using the
+``--vocabulary`` argument. If classes are not used, the vocabulary is simply a
+list of words, one per line, and ``--vocabulary-format words`` argument should
+be given. Words that do not appear in the vocabulary will be mapped to the
+*<unk>* token. The vocabulary file can also contain classes in one of two
 formats, specified by the ``--vocabulary-format`` argument:
 
 * ``classes``  Each line contains a word and an integer class ID. Class
-  membership probability ``p(w | c)`` of each word is computed as the unigram ML
-  estimate from the training data.
+  membership probabilities ``p(word | class)`` are computed as unigram maximum
+  likelihood estimates from the training data.
 * ``srilm-classes``  Vocabulary file is expected to contain word class
   definitions in `SRILM format
   <http://www.speech.sri.com/projects/srilm/manpages/classes-format.5.html>`_.
