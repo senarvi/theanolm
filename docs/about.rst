@@ -15,10 +15,11 @@ Publications
 ============
 
 Seppo Enarvi and Mikko Kurimo (2016), `TheanoLM — An Extensible Toolkit for
-Neural Network Language Modeling <https://arxiv.org/abs/1605.00942>`. In review.
+Neural Network Language Modeling <https://arxiv.org/abs/1605.00942>`_. In
+review.
 
 License
 =======
 
 TheanoLM is licensed under the `Apache License, Version 2.0
-<https://github.com/senarvi/theanolm/blob/master/LICENSE.txt>`__.
+<https://github.com/senarvi/theanolm/blob/master/LICENSE.txt>`_.
