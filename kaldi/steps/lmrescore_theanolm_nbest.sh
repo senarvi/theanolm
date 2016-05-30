@@ -5,7 +5,6 @@ lm_scale=12
 nnlm_weights="0.5 1.0"
 cmd=run.pl
 use_phi=false
-vocab_format=words
 stage=0
 
 echo "${0} ${@}"  # Print the command line for logging.
@@ -22,7 +21,7 @@ to language model probabilities, so this script first removes the original LM
 scores from the graph scores to obtain the remainder of the probability mass.
 
 Usage:
-  steps/lmrescore_theanolm_nbest.sh [options] <lang-dir> <nnlm> <vocab> \
+  steps/lmrescore_theanolm_nbest.sh [options] <lang-dir> <nnlm> \
                                     <input-decode-dir> <output-decode-dir>
 
 Options:
@@ -52,10 +51,6 @@ Options:
       actually make much difference (if any) to WER, it's more so we know we are
       doing the right thing. (default: false)
 
-  --vocab-format (words|classes|srilm-classes)
-      Format of the TheanoLM vocabulary file. This option will be passed to
-      TheanoLM. (default: words)
-
   --stage N
       Continue execution from stage N. (default: 0)
 EOF
@@ -64,9 +59,8 @@ fi
 
 lang_dir="${1}"
 nnlm="${2}"
-vocab="${3}"
-in_dir="${4}"
-out_dir="${5}"
+in_dir="${3}"
+out_dir="${4}"
 
 script_name=$(basename "${0}")
 int2sym="utils/int2sym.pl"
@@ -234,9 +228,7 @@ then
 
     ${cmd} "JOB=1:${nj}" "${out_dir}/log/theanolm_compute_scores.JOB.log" \
       "${compute_scores}" \
-        --vocab-format "${vocab_format}" \
         "${nnlm}" \
-        "${vocab}" \
         "${archives_dir}/JOB/temp" \
         "${archives_dir}/JOB/words_text" \
         "${archives_dir}/JOB/scores.nnlm"
@@ -256,7 +248,7 @@ then
                 '{ key=$1;
                    remainder=$2;
                    lmscore=$4;
-                   nnlmscore=$6; 
+                   nnlmscore=$6;
                    score = remainder + (nnlmweight * nnlmscore) + ((1 - nnlmweight) * lmscore);
                    print key, score;
                  } ' >"${archives_dir}/${n}/scores.graph.lambda=${nnlm_weight}"

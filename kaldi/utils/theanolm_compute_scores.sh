@@ -1,9 +1,9 @@
 #!/bin/bash -e
 #
-# Compute language model scores using TheanoLM. Takes a TheanoLM model and
-# vocabulary file, location for a temporary directory, a text file with the
-# sentences to score, and an output file location where to put the scores
-# (negated logprobs) of each sentence.
+# Compute language model scores using TheanoLM. Takes a TheanoLM model, location
+# for a temporary directory, a text file with the sentences to score, and an
+# output file location where to put the scores (negated logprobs) of each
+# sentence.
 #
 # This script uses the Kaldi-style "archive" format, so the input and output
 # files will have a first field that corresponds to utterance ID. In N-best
@@ -23,20 +23,19 @@ fi
 
 if [ "${#}" -ne 5 ]
 then
-    echo "Usage: ${script_name} <nnlm> <vocab> <temp-dir> <input-text> <output-scores>"
+    echo "Usage: ${script_name} <nnlm> <temp-dir> <input-text> <output-scores>"
     exit 1
 fi
 
 nnlm="${1}"
-vocab="${2}"
-temp_dir="${3}"
-text_in="${4}"
-scores_out="${5}"
+temp_dir="${2}"
+text_in="${3}"
+scores_out="${4}"
 
 for x in "${nnlm}" "${text_in}"
 do
     if [ ! -f "${x}" ]
-    then 
+    then
         echo "${script_name}: expected file ${x} to exist."
         exit 1
     fi
