@@ -110,8 +110,9 @@ iconv -f UTF-8 -t ISO-8859-15 <"${ref_trn}" >"${ref_trn_iso}"
 
 for wip in ${wi_penalties}
 do
-    for hyp in "${score_dir}/penalty_${wip}"/*.ref
+    for lmwt in $(seq ${min_lm_scale} ${max_lm_scale})
     do
+        hyp="${score_dir}/penalty_${wip}/${lmwt}.ref"
         hyp_trn_iso="${hyp}.iso"
         awk '{ $(NF+1) = "(" $1 ")"; $1 = ""; } sub(FS, "")' "${hyp}" |
           iconv -f UTF-8 -t ISO-8859-15 |
