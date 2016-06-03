@@ -118,6 +118,6 @@ do
           normalize_hyp "${glm}" \
           >"${hyp_trn_iso}"
 
-        sclite -r "${ref_trn_iso}" trn -h "${hyp_trn_iso}" trn -i wsj -o all -o dtl
+        sclite -r "${ref_trn_iso}" trn -h "${hyp_trn_iso}" trn -i rm -o all -o dtl
     done
 done
