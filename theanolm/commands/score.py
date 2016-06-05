@@ -131,7 +131,6 @@ def _score_text(input_file, vocabulary, scorer, output_file,
                 continue
 
             seq_logprobs = [x / base_conversion for x in seq_logprobs]
-            seq_logprob /= base_conversion
             seq_class_names = vocabulary.word_ids_to_names(seq_word_ids)
             output_file.write("# Sentence {0}\n".format(num_sentences))
 
@@ -157,6 +156,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
                         predicted, history, logprob))
             assert logprob_index == len(seq_logprobs)
 
+            # seq_logprob is in natural base.
             output_file.write("Sentence perplexity: {0}\n\n".format(
                 numpy.exp(-seq_logprob / len(seq_logprobs))))
 
