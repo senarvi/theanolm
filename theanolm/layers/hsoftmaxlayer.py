@@ -59,7 +59,7 @@ class HSoftmaxLayer(BasicLayer):
 
         # Combine the first two dimensions so that softmax is taken
         # independently for each location, over the output classes.
-        input = tensor.concatenate(x.output for x in self.input_layers)
+        input = tensor.concatenate([x.output for x in self.input_layers])
         num_time_steps = input.shape[0]
         num_sequences = input.shape[1]
         input_size = input.shape[2]
