@@ -9,7 +9,7 @@ from theanolm.matrixfunctions import get_submatrix
 from theanolm.layers.basiclayer import BasicLayer
 
 class GRULayer(BasicLayer):
-    """Gated Recurrent Unit Layer for Neural Network Language Model
+    """Gated Recurrent Unit Layer
 
     K. Cho et al. (2014)
     Learning Phrase Representations Using RNN Encoder-Decoder for Statistical

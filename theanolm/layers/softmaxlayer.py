@@ -8,7 +8,7 @@ import theano.tensor as tensor
 from theanolm.layers.basiclayer import BasicLayer
 
 class SoftmaxLayer(BasicLayer):
-    """ Output Layer for Neural Network Language Model
+    """Softmax Output Layer
 
     The output layer is a simple softmax layer that outputs the word
     probabilities.
@@ -25,7 +25,9 @@ class SoftmaxLayer(BasicLayer):
         for input_index, input_layer in enumerate(self.input_layers):
             input_size = input_layer.output_size
             param_name = 'input' + str(input_index) + '/W'
-            self._init_random_weight(param_name, input_size, output_size, scale=0.01)
+            self._init_random_weight(param_name,
+                                     (input_size, output_size),
+                                     scale=0.01)
             param_name = 'input' + str(input_index) + '/b'
             self._init_bias(param_name, output_size)
 
@@ -52,10 +54,10 @@ class SoftmaxLayer(BasicLayer):
         # independently for each location, over the output classes.
         num_time_steps = preact.shape[0]
         num_sequences = preact.shape[1]
-        num_classes = preact.shape[2]
+        output_size = preact.shape[2]
         preact = preact.reshape([num_time_steps * num_sequences,
-                                 num_classes])
+                                 output_size])
         self.output = tensor.nnet.softmax(preact)
         self.output = self.output.reshape([num_time_steps,
                                            num_sequences,
-                                           num_classes])
+                                           output_size])

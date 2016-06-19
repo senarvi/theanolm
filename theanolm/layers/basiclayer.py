@@ -79,24 +79,23 @@ class BasicLayer(object):
 
         return self._params[self._param_path(param_name)]
 
-    def _init_random_weight(self, param_name, input_size, output_size, scale=None, count=1):
+    def _init_random_weight(self, param_name, shape, scale=None, count=1):
         """Generates a weight matrix from “standard normal” distribution.
 
-        :type input_size: int
-        :param input_size: size of the input dimension of the weight
-
-        :type output_size: int
-        :param output_size: size of the output dimension of the weight
+        :type shape: tuple of ints
+        :param shape: size of each dimension (typically there are two
+                      dimensions, input and output)
 
         :type scale: float
-        :param scale: if other than None, the matrix will be scaled by this factor
+        :param scale: if other than None, the random numbers will be scaled by
+                      this factor
 
         :rtype: numpy.ndarray
         :returns: the generated weight matrix
         """
 
         self.param_init_values[self._param_path(param_name)] = \
-            numpy.concatenate([random_weight(input_size, output_size, scale=0.01)
+            numpy.concatenate([random_weight(shape, scale=scale)
                                for _ in range(count)],
                               axis=1)
 
@@ -120,7 +119,7 @@ class BasicLayer(object):
                                for _ in range(count)],
                               axis=1)
 
-    def _init_bias(self, param_name, size, value=None):
+    def _init_bias(self, param_name, shape, value=None):
         """Initializes a bias vector with given value.
 
         If ``value`` is not given, initializes the vector with zero value. If
@@ -130,9 +129,10 @@ class BasicLayer(object):
         :type param_name: str
         :param param_name: name for the parameter within the layer
 
-        :type size: int
-        :param size: number of elements in the vector (or in one subvector, in
-                     case ``value`` is a list)
+        :type shape: int or tuple of ints
+        :param shape: size of the vector, or a tuple of the sizes of each
+                      dimension (in case ``value`` is a list, each part will
+                      have this size)
 
         :type value: float or list of floats
         :param value: the value to initialize the elements to, or a list of
@@ -140,16 +140,16 @@ class BasicLayer(object):
         """
 
         values = value if isinstance(value, list) else [value]
-        subvectors = []
-        for subvector_value in values:
-            if subvector_value is None:
-                subvector = numpy.zeros(size).astype(theano.config.floatX)
+        parts = []
+        for part_value in values:
+            if part_value is None:
+                part = numpy.zeros(shape).astype(theano.config.floatX)
             else:
-                subvector = numpy.empty(size).astype(theano.config.floatX)
-                subvector.fill(subvector_value)
-            subvectors.append(subvector)
+                part = numpy.empty(shape).astype(theano.config.floatX)
+                part.fill(part_value)
+            parts.append(part)
         self.param_init_values[self._param_path(param_name)] = \
-            numpy.concatenate(subvectors)
+            numpy.concatenate(parts)
 
     def _tensor_preact(self, input_matrix, param_name):
         """Helper function that creates a pre-activation of ``input_matrix`` by

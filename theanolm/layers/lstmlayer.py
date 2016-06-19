@@ -8,7 +8,7 @@ from theanolm.matrixfunctions import get_submatrix
 from theanolm.layers.basiclayer import BasicLayer
 
 class LSTMLayer(BasicLayer):
-    """Long Short-Term Memory Layer for Neural Network Language Model
+    """Long Short-Term Memory Layer
 
     A. Graves, J. Schmidhuber (2005)
     Framewise phoneme classification with bidirectional LSTM and other neural

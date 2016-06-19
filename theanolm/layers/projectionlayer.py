@@ -8,7 +8,7 @@ import theano.tensor as tensor
 from theanolm.layers.basiclayer import BasicLayer
 
 class ProjectionLayer(BasicLayer):
-    """Projection Layer for Neural Network Language Model
+    """Projection Layer
     """
 
     def __init__(self, *args, **kwargs):

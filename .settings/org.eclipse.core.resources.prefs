@@ -18,6 +18,7 @@ encoding//theanolm/iterators/shufflingbatchiterator.py=utf-8
 encoding//theanolm/layers/basiclayer.py=utf-8
 encoding//theanolm/layers/dropoutlayer.py=utf-8
 encoding//theanolm/layers/grulayer.py=utf-8
+encoding//theanolm/layers/hsoftmaxlayer.py=utf-8
 encoding//theanolm/layers/lstmlayer.py=utf-8
 encoding//theanolm/layers/networkinput.py=utf-8
 encoding//theanolm/layers/projectionlayer.py=utf-8

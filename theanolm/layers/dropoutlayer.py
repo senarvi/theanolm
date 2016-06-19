@@ -9,7 +9,7 @@ import theano.tensor as tensor
 from theanolm.layers.basiclayer import BasicLayer
 
 class DropoutLayer(BasicLayer):
-    """Dropout Layer for Neural Network Language Model
+    """Dropout Layer
 
     A dropout layer is not a regular layer in the sense that it doesn't contain
     any neurons. It simply randomly sets some activations to zero at train time

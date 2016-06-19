@@ -4,6 +4,7 @@ from theanolm.layers.tanhlayer import TanhLayer
 from theanolm.layers.grulayer import GRULayer
 from theanolm.layers.lstmlayer import LSTMLayer
 from theanolm.layers.softmaxlayer import SoftmaxLayer
+from theanolm.layers.hsoftmaxlayer import HSoftmaxLayer
 from theanolm.layers.dropoutlayer import DropoutLayer
 
 def create_layer(layer_options, *args, **kwargs):
@@ -24,6 +25,8 @@ def create_layer(layer_options, *args, **kwargs):
         return GRULayer(layer_options, *args, **kwargs)
     elif layer_type == 'softmax':
         return SoftmaxLayer(layer_options, *args, **kwargs)
+    elif layer_type == 'hsoftmax':
+        return HSoftmaxLayer(layer_options, *args, **kwargs)
     elif layer_type == 'dropout':
         return DropoutLayer(layer_options, *args, **kwargs)
     else:

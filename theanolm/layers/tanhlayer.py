@@ -8,7 +8,7 @@ import theano.tensor as tensor
 from theanolm.layers.basiclayer import BasicLayer
 
 class TanhLayer(BasicLayer):
-    """Hyperbolic Tangent Layer for Neural Network Language Model
+    """Hyperbolic Tangent Activation Layer
 
     A layer that uses hyperbolic tangent activation activation function. If
     multiple inputs are specified, combines them by addition.
@@ -25,7 +25,9 @@ class TanhLayer(BasicLayer):
         for input_index, input_layer in enumerate(self.input_layers):
             input_size = input_layer.output_size
             param_name = 'input' + str(input_index) + '/W'
-            self._init_random_weight(param_name, input_size, output_size, scale=0.01)
+            self._init_random_weight(param_name,
+                                     (input_size, output_size),
+                                     scale=0.01)
             param_name = 'input' + str(input_index) + '/b'
             self._init_bias(param_name, output_size)
 
