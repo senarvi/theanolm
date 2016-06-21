@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from collections import OrderedDict
+import logging
 import numpy
 import theano
 import theano.tensor as tensor
@@ -31,7 +32,7 @@ class HSoftmaxLayer(BasicLayer):
         assert level1_size == level2_size or level1_size == level2_size + 1
         self.level1_size = level1_size
         self.level2_size = level2_size
-        logging.debug("  level1_size=%f, level2_size=%f",
+        logging.debug("  level1_size=%d level2_size=%d",
                       self.level1_size,
                       self.level2_size)
 
