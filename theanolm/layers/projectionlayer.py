@@ -18,7 +18,7 @@ class ProjectionLayer(BasicLayer):
         super().__init__(*args, **kwargs)
 
         # Initialize the parameters.
-        input_size = self.input_layers[0].output_size
+        input_size = sum(x.output_size for x in self.input_layers)
         output_size = self.output_size
         self._init_orthogonal_weight('W', input_size, output_size, scale=0.01)
 
@@ -35,15 +35,16 @@ class ProjectionLayer(BasicLayer):
         ``set_params()``.
         """
 
-        input_matrix = self.input_layers[0].output
-        num_time_steps = input_matrix.shape[0]
-        num_sequences = input_matrix.shape[1]
+        layer_input = tensor.concatenate([x.output for x in self.input_layers],
+                                         axis=2)
+        num_time_steps = layer_input.shape[0]
+        num_sequences = layer_input.shape[1]
 
         # Indexing the word_projection matrix with a word ID returns the
         # self.output_size dimensional projection. Note that indexing the
         # matrix with a vector of all the word IDs gives a concatenation of
         # those projections.
-        projections = self._get_param('W')[input_matrix.flatten()]
+        projections = self._get_param('W')[layer_input.flatten()]
         projections = projections.reshape([num_time_steps,
                                            num_sequences,
                                            self.output_size],

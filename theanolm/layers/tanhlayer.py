@@ -20,16 +20,13 @@ class TanhLayer(BasicLayer):
 
         super().__init__(*args, **kwargs)
 
-        # Create the parameters. Weight matrix and bias for each input.
+        # Create the parameters. Weight matrix and bias for concatenated input.
+        input_size = sum(x.output_size for x in self.input_layers)
         output_size = self.output_size
-        for input_index, input_layer in enumerate(self.input_layers):
-            input_size = input_layer.output_size
-            param_name = 'input' + str(input_index) + '/W'
-            self._init_random_weight(param_name,
-                                     (input_size, output_size),
-                                     scale=0.01)
-            param_name = 'input' + str(input_index) + '/b'
-            self._init_bias(param_name, output_size)
+        self._init_random_weight('input/W',
+                                 (input_size, output_size),
+                                 scale=0.01)
+        self._init_bias('input/b', output_size)
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.
@@ -39,8 +36,7 @@ class TanhLayer(BasicLayer):
         ``set_params()``.
         """
 
-        preacts = []
-        for input_index, input_layer in enumerate(self.input_layers):
-            param_name = 'input' + str(input_index)
-            preacts.append(self._tensor_preact(input_layer.output, param_name))
-        self.output = tensor.tanh(sum(preacts))
+        layer_input = tensor.concatenate([x.output for x in self.input_layers],
+                                         axis=2)
+        preact = self._tensor_preact(layer_input, 'input')
+        self.output = tensor.tanh(preact)

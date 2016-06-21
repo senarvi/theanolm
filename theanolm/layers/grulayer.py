@@ -26,10 +26,10 @@ class GRULayer(BasicLayer):
 
         super().__init__(*args, **kwargs)
 
-        input_size = self.input_layers[0].output_size
+        input_size = sum(x.output_size for x in self.input_layers)
         output_size = self.output_size
 
-        # The number of state variables to be passed between time steps.
+        # Add state variables to be passed between time steps.
         self.hidden_state_index = self.network.add_recurrent_state(output_size)
 
         # Initialize the parameters.
@@ -64,13 +64,14 @@ class GRULayer(BasicLayer):
         ``set_params()``.
         """
 
-        input_matrix = self.input_layers[0].output
-        num_time_steps = input_matrix.shape[0]
-        num_sequences = input_matrix.shape[1]
+        layer_input = tensor.concatenate([x.output for x in self.input_layers],
+                                         axis=2)
+        num_time_steps = layer_input.shape[0]
+        num_sequences = layer_input.shape[1]
 
         # Compute the gate and candidate state pre-activations, which don't
         # depend on the state input from the previous time step.
-        layer_input_preact = self._tensor_preact(input_matrix, 'layer_input')
+        layer_input_preact = self._tensor_preact(layer_input, 'layer_input')
 
         # Weights of the hidden state input of each time step have to be applied
         # inside the loop.

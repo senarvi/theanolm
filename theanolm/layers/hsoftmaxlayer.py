@@ -31,6 +31,9 @@ class HSoftmaxLayer(BasicLayer):
         assert level1_size == level2_size or level1_size == level2_size + 1
         self.level1_size = level1_size
         self.level2_size = level2_size
+        logging.debug("  level1_size=%f, level2_size=%f",
+                      self.level1_size,
+                      self.level2_size)
 
         # Create the parameters. Weight matrix and bias for concatenated input
         # and the second level of the hierarchy.
@@ -59,19 +62,20 @@ class HSoftmaxLayer(BasicLayer):
 
         # Combine the first two dimensions so that softmax is taken
         # independently for each location, over the output classes.
-        input = tensor.concatenate([x.output for x in self.input_layers])
-        num_time_steps = input.shape[0]
-        num_sequences = input.shape[1]
-        input_size = input.shape[2]
-        input = input.reshape([num_time_steps * num_sequences,
-                               input_size])
+        layer_input = tensor.concatenate([x.output for x in self.input_layers],
+                                         axis=2)
+        num_time_steps = layer_input.shape[0]
+        num_sequences = layer_input.shape[1]
+        input_size = layer_input.shape[2]
+        layer_input = layer_input.reshape([num_time_steps * num_sequences,
+                                          input_size])
 
         input_weight = self._params[self._param_path('input/W')]
         input_bias = self._params[self._param_path('input/b')]
         level1_weight = self._params[self._param_path('level1/W')]
         level1_bias = self._params[self._param_path('level1/b')]
 
-        self.output = tensor.nnet.h_softmax(input,
+        self.output = tensor.nnet.h_softmax(layer_input,
                                             num_time_steps * num_sequences,
                                             self.output_size,
                                             self.level1_size,
