@@ -215,8 +215,7 @@ def train(args):
         else:
             with open(args.architecture, 'rt', encoding='utf-8') as arch_file:
                 architecture = Architecture.from_description(arch_file)
-        network = Network(vocabulary, architecture, batch_processing=True,
-                          profile=args.profile)
+        network = Network(vocabulary, architecture, profile=args.profile)
 
         sys.stdout.flush()
         if args.unk_penalty is None:

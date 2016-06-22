@@ -17,7 +17,8 @@ class Network(object):
     A class that stores the neural network architecture and state.
     """
 
-    def __init__(self, vocabulary, architecture, batch_processing=True, profile=False):
+    def __init__(self, vocabulary, architecture,
+                 predict_next_distribution=False, profile=False):
         """Initializes the neural network parameters for all layers, and
         creates Theano shared variables from them.
 
@@ -27,10 +28,10 @@ class Network(object):
         :type architecture: Architecture
         :param architecture: an object that describes the network architecture
 
-        :type batch_processing: bool
-        :param batch_processing: True creates a network for processing
-                                 mini-batches, False creates a network for
-                                 progressing one time step at a time
+        :type predict_next_distribution: bool
+        :param predict_next_distribution: if set to True, creates a network that
+            produces the probability distribution for the next word (instead of
+            of target probabilities for a mini-batch)
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
@@ -38,7 +39,7 @@ class Network(object):
 
         self.vocabulary = vocabulary
         self.architecture = architecture
-        self.batch_processing = batch_processing
+        self.predict_next_distribution = predict_next_distribution
 
         M1 = 2147483647
         M2 = 2147462579
@@ -107,27 +108,18 @@ class Network(object):
         for layer in self.layers.values():
             layer.set_params(self.params)
 
-        if batch_processing:
-            self.create_batch_structure()
-        else:
-            self.create_onestep_structure()
-
-    def create_batch_structure(self):
-        """Creates the network structure for mini-batch processing.
-
-        Creates the symbolic matrix self.output, which describes the output
-        probability of the next input word at each time step and sequence. The
-        shape will be the same as that of self.input, except that it will
-        contain one less time step.
-        """
-
         # mask is used to mask out the rest of the input matrix, when a sequence
         # is shorter than the maximum sequence length. The mask is kept as int8
-        # data type, which is how Tensor stores booleans.
-        self.mask = tensor.matrix('network/mask', dtype='int8')
-        self.mask.tag.test_value = test_value(
-            size=(100, 16),
-            max_value=True)
+        # data type, which is how Tensor stores booleans. When the network is
+        # used to predict the probability distribution of the next word, the
+        # matrix contains only one word ID.
+        if self.predict_next_distribution:
+            self.mask = tensor.alloc(numpy.int8(1), 1, 1)
+        else:
+            self.mask = tensor.matrix('network/mask', dtype='int8')
+            self.mask.tag.test_value = test_value(
+                size=(100, 16),
+                max_value=True)
 
         # Dropout layer needs to know whether we are training or evaluating.
         self.is_training = tensor.scalar('network/is_training', dtype='int8')
@@ -135,44 +127,6 @@ class Network(object):
 
         for layer in self.layers.values():
             layer.create_structure()
-
-        self.output = self.output_layer.output
-
-        # The input at the next time step is what the output (predicted word)
-        # should be.
-#        class_ids = self.class_input[1:].flatten()
-#        output_probs = self.output[:-1].flatten()
-
-        # An index to a flattened input matrix times the vocabulary size can be
-        # used to index the same location in the output matrix. The class ID is
-        # added to index the probability of that word.
-#        target_indices = \
-#            tensor.arange(class_ids.shape[0]) * self.vocabulary.num_classes() \
-#            + class_ids
-#        target_probs = output_probs[target_indices]
-
-        # Reshape to a matrix. Now we have one less time step.
-#        num_time_steps = self.class_input.shape[0] - 1
-#        num_sequences = self.class_input.shape[1]
-#        self.prediction_probs = target_probs.reshape(
-#            [num_time_steps, num_sequences])
-        self.prediction_probs = self.output
-
-    def create_onestep_structure(self):
-        """Creates the network structure for one-step processing.
-        """
-
-        # Create a mask for the case where we have only one word ID.
-        self.mask = tensor.alloc(numpy.int8(1), 1, 1)
-
-        # Dropout layer needs to know whether we are training or evaluating.
-        self.is_training = tensor.scalar('network/is_training', dtype='int8')
-        self.is_training.tag.test_value = 1
-
-        for layer in self.layers.values():
-            layer.create_structure()
-
-        self.output = self.output_layer.output
 
     def get_state(self, state):
         """Pulls parameter values from Theano shared variables.
@@ -240,3 +194,36 @@ class Network(object):
         self.recurrent_state_input.append(variable)
 
         return index
+
+    def output_probs(self):
+        """Returns the output probabilities for the whole vocabulary.
+
+        The network has to have ``predict_next_distribution == True``.
+        """
+
+        if not hasattr(self.output_layer, 'output_probs'):
+            raise RuntimeError("The final layer is not an output layer.")
+        if self.output_layer.output_probs is None
+            raise RuntimeError("Trying to read all output probabilities, while "
+                               "the output layer is configured to produce only "
+                               "target probabilities.")
+        return self.output_layer.target_probs
+
+    def target_probs(self):
+        """Returns the output probabilities for the predicted words, i.e. the
+        following word at each time step.
+
+        The network has to have ``predict_next_distribution == False``.
+
+        :rtype: numpy.ndarray
+        :returns: a 2-dimensional array that contains a probability for each
+                  time step (except the last) and each sequence
+        """
+
+        if not hasattr(self.output_layer, 'target_probs'):
+            raise RuntimeError("The final layer is not an output layer.")
+        if self.output_layer.target_probs is None
+            raise RuntimeError("Trying to read target probabilities, while the "
+                               "output layer is configured to produce all "
+                               "probabilities.")
+        return self.output_layer.target_probs

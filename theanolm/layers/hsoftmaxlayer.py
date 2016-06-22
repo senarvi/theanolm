@@ -61,53 +61,48 @@ class HSoftmaxLayer(BasicLayer):
         ``set_params()``.
         """
 
-        # Combine the first two dimensions so that softmax is taken
-        # independently for each location, over the output classes.
         layer_input = tensor.concatenate([x.output for x in self.input_layers],
                                          axis=2)
-#        num_time_steps = layer_input.shape[0]
-#        num_sequences = layer_input.shape[1]
-#        input_size = layer_input.shape[2]
-#        layer_input = layer_input.reshape([num_time_steps * num_sequences,
-#                                          input_size])
 
-        input_weight = self._params[self._param_path('input/W')]
-        input_bias = self._params[self._param_path('input/b')]
-        level1_weight = self._params[self._param_path('level1/W')]
-        level1_bias = self._params[self._param_path('level1/b')]
+        # If we're only predicting probabilities of the target outputs, the
+        # targets are the words at the next time step and the last time step is
+        # not used as input.
+        if self.network.predict_next_distribution:
+            target_class_ids = None
+        else:
+            layer_input = layer_input[:-1]
+            target_class_ids = self.network.class_input[1:].flatten()
 
-#        self.output = tensor.nnet.h_softmax(layer_input,
-#                                            num_time_steps * num_sequences,
-#                                            self.output_size,
-#                                            self.level1_size,
-#                                            self.level2_size,
-#                                            input_weight,
-#                                            input_bias,
-#                                            level1_weight,
-#                                            level1_bias)
-#        self.output = self.output.reshape([num_time_steps,
-#                                           num_sequences,
-#                                           self.output_size])
-
-        layer_input = layer_input[:-1]
+        # Combine the first two dimensions so that softmax is taken
+        # independently for each location, over the output classes.
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
         input_size = layer_input.shape[2]
         layer_input = layer_input.reshape([num_time_steps * num_sequences,
                                           input_size])
 
-        # Compute the softmax probability for the input at the next time step.
-        target_class_ids = self.network.class_input[1:].flatten()
+        input_weight = self._params[self._param_path('input/W')]
+        input_bias = self._params[self._param_path('input/b')]
+        level1_weight = self._params[self._param_path('level1/W')]
+        level1_bias = self._params[self._param_path('level1/b')]
 
-        self.output = tensor.nnet.h_softmax(layer_input,
-                                            num_time_steps * num_sequences,
-                                            self.output_size,
-                                            self.level1_size,
-                                            self.level2_size,
-                                            input_weight,
-                                            input_bias,
-                                            level1_weight,
-                                            level1_bias,
-                                            target_class_ids)
-        self.output = self.output.reshape([num_time_steps,
-                                           num_sequences])
+        probs = tensor.nnet.h_softmax(layer_input,
+                                      num_time_steps * num_sequences,
+                                      self.output_size,
+                                      self.level1_size,
+                                      self.level2_size,
+                                      input_weight,
+                                      input_bias,
+                                      level1_weight,
+                                      level1_bias,
+                                      target_class_ids)
+
+        if self.network.predict_next_distribution:
+            self.output_probs = probs.reshape([num_time_steps,
+                                               num_sequences,
+                                               self.output_size])
+            self.target_probs = None
+        else:
+            self.output_probs = None
+            self.target_probs = probs.reshape([num_time_steps,
+                                               num_sequences])

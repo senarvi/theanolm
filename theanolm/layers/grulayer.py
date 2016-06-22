@@ -48,13 +48,14 @@ class GRULayer(BasicLayer):
 
         The input is always 3-dimensional: the first dimension is the time step,
         the second dimension are the sequences, and the third dimension is the
-        layer input. If ``self.network.batch_processing`` is ``True``, the
-        function creates the normal mini-batch structure.
+        layer input. If ``self.network.predict_next_distribution`` is ``False``,
+        the function creates the normal mini-batch structure.
 
-        The function can also be used to create a structure for generating text,
-        one word at a time. Then the input is still 3-dimensional, but the size
-        of the first and second dimension is 1, and the state outputs from the
-        previous time step are read from ``self.network.recurrent_state_input``.
+        The function can also be used to create a structure for generating the
+        probability distribution of the next word. Then the input is still
+        3-dimensional, but the size of the first and second dimension is 1, and
+        the state outputs from the previous time step are read from
+        ``self.network.recurrent_state_input``.
 
         Saves the recurrent state in the Network object. There's just one state
         in a GRU layer, h_(t). ``self.output`` will be set to the same hidden
@@ -77,7 +78,7 @@ class GRULayer(BasicLayer):
         # inside the loop.
         hidden_state_weights = self._get_param('step_input/W')
 
-        if self.network.batch_processing:
+        if not self.network.predict_next_distribution:
             sequences = [self.network.mask, layer_input_preact]
             non_sequences = [hidden_state_weights]
             initial_value = numpy.dtype(theano.config.floatX).type(0.0)

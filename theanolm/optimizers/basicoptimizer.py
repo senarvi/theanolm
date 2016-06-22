@@ -84,7 +84,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         unk_id = self.network.vocabulary.word_to_id['<unk>']
 
         # Derive the symbolic expression for log probability of each word.
-        logprobs = tensor.log(self.network.prediction_probs)
+        logprobs = tensor.log(self.network.target_probs())
         # If requested, predict <unk> with constant score.
         if not unk_penalty is None:
             unk_mask = tensor.eq(self.network.word_input[1:], unk_id)

@@ -51,7 +51,8 @@ def sample(args):
         print("Building neural network.")
         sys.stdout.flush()
         architecture = Architecture.from_state(state)
-        network = Network(vocabulary, architecture, batch_processing=False)
+        network = Network(vocabulary, architecture,
+                          predict_next_distribution=True)
         print("Restoring neural network state.")
         network.set_state(state)
 

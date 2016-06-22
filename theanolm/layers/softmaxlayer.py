@@ -46,29 +46,31 @@ class SoftmaxLayer(BasicLayer):
         preact = self._tensor_preact(layer_input, 'input')
 
         # Combine the first two dimensions so that softmax is taken
-        # independently for each location, over the output classes.
+        # independently for each location, over the output classes. This
+        # produces probabilities for the whole vocabulary.
         num_time_steps = preact.shape[0]
         num_sequences = preact.shape[1]
         output_size = preact.shape[2]
         preact = preact.reshape([num_time_steps * num_sequences,
                                  output_size])
-        output_probs = tensor.nnet.softmax(preact)
-        output_probs = output_probs.reshape([num_time_steps,
-                                           num_sequences,
-                                           output_size])
+        self.output_probs = tensor.nnet.softmax(preact)
+        self.output_probs = self.output_probs.reshape([num_time_steps,
+                                                       num_sequences,
+                                                       output_size])
+        if self.network.predict_next_distribution:
+            return
 
-        # The input at the next time step is what the output (predicted word)
-        # should be.
+        # We should predict probabilities of the target outputs, i.e. the words
+        # words at the next time step.
+        output_probs = self.output_probs[:-1].flatten()
         class_ids = self.network.class_input[1:].flatten()
-        output_probs = output_probs[:-1].flatten()
 
         # An index to a flattened input matrix times the vocabulary size can be
         # used to index the same location in the output matrix. The class ID is
         # added to index the probability of that word.
-        target_indices = \
-            tensor.arange(class_ids.shape[0]) * self.network.vocabulary.num_classes() \
-            + class_ids
-        self.output = output_probs[target_indices]
-
-        # Reshape to a matrix. Now we have one less time step.
-        self.output = self.output.reshape([(num_time_steps - 1), num_sequences])
+        minibatch_size = class_ids.shape[0]
+        num_classes = self.network.vocabulary.num_classes()
+        target_indices = tensor.arange(minibatch_size) * num_classes + class_ids
+        self.target_probs = output_probs[target_indices]
+        self.target_probs = self.target_probs.reshape([(num_time_steps - 1),
+                                                       num_sequences])

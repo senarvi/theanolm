@@ -12,7 +12,7 @@ class TextSampler(object):
     """
 
     def __init__(self, network, vocabulary):
-        """Creates the neural network architecture.
+        """Creates a Theano function that samples one word at a time.
 
         Creates the function self.step_function that uses the state of the
         previous time step and the word ID of the current time step, to compute
@@ -30,16 +30,17 @@ class TextSampler(object):
 
         self.network = network
         self.vocabulary = vocabulary
+        self.random = self.network.random
 
         inputs = [self.network.word_input, self.network.class_input]
         inputs.extend(self.network.recurrent_state_input)
 
         # multinomial() is only implemented with dimension < 2, but the matrix
         # contains only one time step anyway.
-        word_probs = self.network.output[0]
-        word_ids = self.network.random.multinomial(pvals=word_probs).argmax(1)
-        word_ids = word_ids.reshape([1, word_ids.shape[0]])
-        outputs = [word_ids]
+        output_probs = self.network.output_probs()[0]
+        class_ids = self.random.multinomial(pvals=output_probs).argmax(1)
+        class_ids = class_ids.reshape([1, class_ids.shape[0]])
+        outputs = [class_ids]
         outputs.extend(self.network.recurrent_state_output)
 
         # Ignore unused input, because is_training is only used by dropout
