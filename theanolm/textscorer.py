@@ -47,7 +47,7 @@ class TextScorer(object):
             [network.word_input,
              network.class_input,
              network.mask],
-            tensor.log(self.network.target_probs()),
+            tensor.log(network.target_probs()),
             givens=[(network.is_training, numpy.int8(0))],
             name='text_scorer',
             on_unused_input='ignore',

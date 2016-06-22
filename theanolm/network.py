@@ -203,7 +203,7 @@ class Network(object):
 
         if not hasattr(self.output_layer, 'output_probs'):
             raise RuntimeError("The final layer is not an output layer.")
-        if self.output_layer.output_probs is None
+        if self.output_layer.output_probs is None:
             raise RuntimeError("Trying to read all output probabilities, while "
                                "the output layer is configured to produce only "
                                "target probabilities.")
@@ -222,7 +222,7 @@ class Network(object):
 
         if not hasattr(self.output_layer, 'target_probs'):
             raise RuntimeError("The final layer is not an output layer.")
-        if self.output_layer.target_probs is None
+        if self.output_layer.target_probs is None:
             raise RuntimeError("Trying to read target probabilities, while the "
                                "output layer is configured to produce all "
                                "probabilities.")

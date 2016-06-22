@@ -8,10 +8,6 @@ from theano import tensor
 from theanolm import Vocabulary, TextScorer
 from numpy.testing import assert_almost_equal
 
-class OutputLayer(object):
-    def __init__(self, network):
-        self.target_probs = network.word_input[1:].astype('float32') / 5
-
 class DummyNetwork(object):
     def __init__(self, vocabulary):
         self.vocabulary = vocabulary
@@ -19,7 +15,9 @@ class DummyNetwork(object):
         self.class_input = tensor.matrix('class_input', dtype='int64')
         self.mask = tensor.matrix('mask', dtype='int64')
         self.is_training = tensor.scalar('network/is_training', dtype='int8')
-        self.output_layer = OutputLayer(self)
+
+    def target_probs(self):
+        return self.word_input[1:].astype('float32') / 5
 
 class TestTextScorer(unittest.TestCase):
     def setUp(self):
