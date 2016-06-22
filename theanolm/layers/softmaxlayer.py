@@ -52,7 +52,23 @@ class SoftmaxLayer(BasicLayer):
         output_size = preact.shape[2]
         preact = preact.reshape([num_time_steps * num_sequences,
                                  output_size])
-        self.output = tensor.nnet.softmax(preact)
-        self.output = self.output.reshape([num_time_steps,
+        output_probs = tensor.nnet.softmax(preact)
+        output_probs = output_probs.reshape([num_time_steps,
                                            num_sequences,
                                            output_size])
+
+        # The input at the next time step is what the output (predicted word)
+        # should be.
+        class_ids = self.network.class_input[1:].flatten()
+        output_probs = output_probs[:-1].flatten()
+
+        # An index to a flattened input matrix times the vocabulary size can be
+        # used to index the same location in the output matrix. The class ID is
+        # added to index the probability of that word.
+        target_indices = \
+            tensor.arange(class_ids.shape[0]) * self.network.vocabulary.num_classes() \
+            + class_ids
+        self.output = output_probs[target_indices]
+
+        # Reshape to a matrix. Now we have one less time step.
+        self.output = self.output.reshape([(num_time_steps - 1), num_sequences])

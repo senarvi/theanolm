@@ -65,16 +65,39 @@ class HSoftmaxLayer(BasicLayer):
         # independently for each location, over the output classes.
         layer_input = tensor.concatenate([x.output for x in self.input_layers],
                                          axis=2)
+#        num_time_steps = layer_input.shape[0]
+#        num_sequences = layer_input.shape[1]
+#        input_size = layer_input.shape[2]
+#        layer_input = layer_input.reshape([num_time_steps * num_sequences,
+#                                          input_size])
+
+        input_weight = self._params[self._param_path('input/W')]
+        input_bias = self._params[self._param_path('input/b')]
+        level1_weight = self._params[self._param_path('level1/W')]
+        level1_bias = self._params[self._param_path('level1/b')]
+
+#        self.output = tensor.nnet.h_softmax(layer_input,
+#                                            num_time_steps * num_sequences,
+#                                            self.output_size,
+#                                            self.level1_size,
+#                                            self.level2_size,
+#                                            input_weight,
+#                                            input_bias,
+#                                            level1_weight,
+#                                            level1_bias)
+#        self.output = self.output.reshape([num_time_steps,
+#                                           num_sequences,
+#                                           self.output_size])
+
+        layer_input = layer_input[:-1]
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
         input_size = layer_input.shape[2]
         layer_input = layer_input.reshape([num_time_steps * num_sequences,
                                           input_size])
 
-        input_weight = self._params[self._param_path('input/W')]
-        input_bias = self._params[self._param_path('input/b')]
-        level1_weight = self._params[self._param_path('level1/W')]
-        level1_bias = self._params[self._param_path('level1/b')]
+        # Compute the softmax probability for the input at the next time step.
+        target_class_ids = self.network.class_input[1:].flatten()
 
         self.output = tensor.nnet.h_softmax(layer_input,
                                             num_time_steps * num_sequences,
@@ -84,7 +107,7 @@ class HSoftmaxLayer(BasicLayer):
                                             input_weight,
                                             input_bias,
                                             level1_weight,
-                                            level1_bias)
+                                            level1_bias,
+                                            target_class_ids)
         self.output = self.output.reshape([num_time_steps,
-                                           num_sequences,
-                                           self.output_size])
+                                           num_sequences])

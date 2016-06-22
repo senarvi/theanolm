@@ -140,22 +140,23 @@ class Network(object):
 
         # The input at the next time step is what the output (predicted word)
         # should be.
-        class_ids = self.class_input[1:].flatten()
-        output_probs = self.output[:-1].flatten()
+#        class_ids = self.class_input[1:].flatten()
+#        output_probs = self.output[:-1].flatten()
 
         # An index to a flattened input matrix times the vocabulary size can be
         # used to index the same location in the output matrix. The class ID is
         # added to index the probability of that word.
-        target_indices = \
-            tensor.arange(class_ids.shape[0]) * self.vocabulary.num_classes() \
-            + class_ids
-        target_probs = output_probs[target_indices]
+#        target_indices = \
+#            tensor.arange(class_ids.shape[0]) * self.vocabulary.num_classes() \
+#            + class_ids
+#        target_probs = output_probs[target_indices]
 
         # Reshape to a matrix. Now we have one less time step.
-        num_time_steps = self.class_input.shape[0] - 1
-        num_sequences = self.class_input.shape[1]
-        self.prediction_probs = target_probs.reshape(
-            [num_time_steps, num_sequences])
+#        num_time_steps = self.class_input.shape[0] - 1
+#        num_sequences = self.class_input.shape[1]
+#        self.prediction_probs = target_probs.reshape(
+#            [num_time_steps, num_sequences])
+        self.prediction_probs = self.output
 
     def create_onestep_structure(self):
         """Creates the network structure for one-step processing.
