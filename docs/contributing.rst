@@ -30,3 +30,14 @@ package to perform the actual parameter update.
 cross-validation during training and by the score command for evaluating text.
 ``theanolm.textsampler.TextSampler`` class is used by the sample command for
 generating text.
+
+Layers
+------
+
+Layers receive a list of input layers. Every layer has ``create_structure()``
+method that describes its output, given the output of its input layers. The
+output is a 3-dimensional tensor variable, a symbolic representation of the
+neural network data at that point of the computation graph. It is important to
+realize that the actual data can have any values and any shape. The first
+dimension is the time step and the second dimension is the sequence of the
+mini-batch. The third dimension is the actual layer output.
