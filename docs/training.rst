@@ -4,23 +4,32 @@ Training a language model
 Vocabulary
 ----------
 
-A model can be trained using words or word classes. Vocabulary size has a huge
-impact on training speed. With larger vocabularies and data sizes, word classes
-are generally necessary to keep the computational cost of training and
-evaluating models reasonable. Another option is to reduce vocabulary size by
-using subword units.
+Because of the softmax normalization performed over the vocabulary at the output
+layer of a neural network, vocabulary size has a huge impact on training speed.
+Vocabulary size can be reduced by clustering words into classes, and estimating
+a language model over the word classes. Another option is to use subword units.
+Training word-based models is also possible even with a large vocabulary, when
+hierarchical softmax is used at the output of the network. These options are
+explained below:
 
-TheanoLM is not able to generate word classes automatically. If you want to use
-word classes, you need another tool such as `Percy Liang's implementation of
-Brown clustering <https://github.com/percyliang/brown-cluster>`_, *ngram-class*
-from `SRILM <http://www.speech.sri.com/projects/srilm/>`_, *mkcls* from `GIZA++
-<https://github.com/moses-smt/giza-pp>`_, or `word2vec
-<https://github.com/dav/word2vec>`_.
-
-With agglutinative languages, a feasible option is to segment words into
-*statistical morphs* using `Morfessor
-<http://morfessor.readthedocs.io/en/latest/>`_. The vocabulary and training text
-then contain morphs instead of words, and *<w>* token is used to separate words.
+* Class-based models are probably the fastest to train and evaluate, because the
+  vocabulary size is usually a few thousand. TheanoLM will use unigram
+  probabilities for words inside the classes. TheanoLM is not able to generate
+  word classes automatically. You can use for example Percy Liang's
+  `brown-cluster`_, *ngram-class* from `SRILM`_, *mkcls* from `GIZA++`_, or
+  `word2vec`_ (with *-classes* switch). Creating the word classes can take a
+  considerable amount of time.
+* A feasible alternative with agglutinative languages is to segment words into
+  subword units. For example, a typical vocabulary created with `Morfessor`_ is
+  of the order of 10,000 statistical morphs. The vocabulary and training text
+  then contain morphs instead of words, and *<w>* token is used to separate
+  words.
+* A vocabulary as large as hundreds of thousands of words is possible, when
+  using hierarchical softmax (*hsoftmax*) output. The output layer is factorized
+  into two levels, both performing normalization over an equal number of
+  choices. Training will be considerably faster than with regular softmax, but
+  the number of parameters will still be large, meaning that the amount of GPU
+  memory may limit the usable vocabulary size.
 
 A vocabulary has to be provided for ``theanolm train`` command using the
 ``--vocabulary`` argument. If classes are not used, the vocabulary is simply a
@@ -36,6 +45,12 @@ formats, specified by the ``--vocabulary-format`` argument:
   definitions in `SRILM format
   <http://www.speech.sri.com/projects/srilm/manpages/classes-format.5.html>`_.
   Each line contains a class name, class membership probability, and a word. 
+
+.. _brown-cluster: https://github.com/percyliang/brown-cluster
+.. _SRILM: http://www.speech.sri.com/projects/srilm/
+.. _GIZA++: https://github.com/moses-smt/giza-pp
+.. _word2vec: https://github.com/dav/word2vec
+.. _Morfessor: http://morfessor.readthedocs.io/en/latest/
 
 Network structure description
 -----------------------------
