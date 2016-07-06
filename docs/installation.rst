@@ -35,13 +35,16 @@ Another easy way to install all the dependencies (except Theano) is to install
 Source Code
 -----------
 
-If you want to develop TheanoLM, it is convenient to use it from a Git
-repository tree. First install Theano and H5py, for example using pip. Then
-clone TheanoLM Git repository to, say, ``$HOME/git/theanolm``, and add that directory
-to ``$PYTHONPATH`` and the ``bin`` subdirectory to ``$PATH``::
+The source code is distributed through `GitHub
+<https://github.com/senarvi/theanolm/>`_. If you want to develop TheanoLM, it is
+convenient to work on a Git repository tree. I would recommend forking the
+repository first on GitHub, so that you can commit changes to your personal copy
+of the repository. Then install Theano and H5py for example using pip. Clone the
+forked repository to, say, ``$HOME/git/theanolm``, and add that directory to
+``$PYTHONPATH`` and the ``bin`` subdirectory to ``$PATH``::
 
     mkdir -p "$HOME/git"
     cd "$HOME/git"
-    git clone https://github.com/senarvi/theanolm.git
+    git clone https://github.com/my-username/theanolm.git
     export PYTHONPATH="$PYTHONPATH:$HOME/git/theanolm"
     export PATH="$PATH:$HOME/git/theanolm/bin"
