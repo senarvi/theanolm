@@ -34,6 +34,7 @@ encoding//theanolm/optimizers/nesterovoptimizer.py=utf-8
 encoding//theanolm/optimizers/rmspropnesterovoptimizer.py=utf-8
 encoding//theanolm/optimizers/rmspropsgdoptimizer.py=utf-8
 encoding//theanolm/optimizers/sgdoptimizer.py=utf-8
+encoding//theanolm/scoring/lattice.py=utf-8
 encoding//theanolm/stoppers/basicstopper.py=utf-8
 encoding//theanolm/textsampler.py=utf-8
 encoding//theanolm/textscorer.py=utf-8
