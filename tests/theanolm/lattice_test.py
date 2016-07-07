@@ -153,6 +153,21 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(lattice._sorted_nodes[7].id, 7)
         self.assertEqual(lattice._sorted_nodes[8].id, 8)
 
+        with open(self.lattice_path, 'r') as lattice_file:
+            lattice.read_slf(lattice_file)
+
+        def reachable(initial_node, node):
+            result = False
+            for link in initial_node.out_links:
+                if link.end_node is node:
+                    result = True
+            return result
+
+        for left_node, right_node in zip(lattice._nodes, lattice._nodes[1:]):
+            if (not left_node.time is None) and (not right_node.time is None):
+                self.assertLessEqual(left_node.time, right_node.time)
+                self.assertFalse(reachable(right_node, left_node))
+
     def test_read_slf(self):
         lattice = Lattice()
         with open(self.lattice_path, 'r') as lattice_file:
