@@ -52,7 +52,7 @@ class TestLattice(unittest.TestCase):
 
     def test_read_slf_node(self):
         lattice = Lattice()
-        lattice._nodes = [Lattice.Node() for _ in range(5)]
+        lattice._nodes = [Lattice.Node(id) for id in range(5)]
         lattice._read_slf_node(0, [])
         lattice._read_slf_node(1, ['t=1.0'])
         lattice._read_slf_node(2, ['time=2.1'])
@@ -68,7 +68,7 @@ class TestLattice(unittest.TestCase):
 
     def test_read_slf_link(self):
         lattice = Lattice()
-        lattice._nodes = [Lattice.Node() for _ in range(4)]
+        lattice._nodes = [Lattice.Node(id) for id in range(4)]
         lattice._links = []
         lattice._read_slf_node(0, ['t=0.0'])
         lattice._read_slf_node(1, ['t=1.0'])
@@ -113,6 +113,45 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(lattice._nodes[2].out_links[0].end_node.time, 3.0)
         self.assertEqual(lattice._nodes[3].in_links[0].start_node.time, 2.0)
         self.assertEqual(lattice._nodes[3].in_links[1].start_node.time, 1.0)
+
+    def test_sort_nodes(self):
+        lattice = Lattice()
+        lattice._nodes = [Lattice.Node(id) for id in range(9)]
+        lattice._nodes[0].time = 0.0
+        lattice._nodes[2].time = 1.0
+        lattice._nodes[4].time = 2.0
+        lattice._nodes[3].time = 3.0
+        lattice._nodes[5].time = 4.0
+        lattice._nodes[1].time = 4.0
+        lattice._nodes[6].time = 5.0
+        lattice._nodes[7].time = None
+        lattice._nodes[8].time = -1.0
+        lattice._add_link(lattice._nodes[0], lattice._nodes[2])
+        lattice._add_link(lattice._nodes[0], lattice._nodes[4])
+        lattice._add_link(lattice._nodes[2], lattice._nodes[3])
+        lattice._add_link(lattice._nodes[4], lattice._nodes[3])
+        lattice._add_link(lattice._nodes[2], lattice._nodes[5])
+        lattice._add_link(lattice._nodes[3], lattice._nodes[5])
+        lattice._add_link(lattice._nodes[5], lattice._nodes[1])
+        lattice._add_link(lattice._nodes[5], lattice._nodes[6])
+        lattice._add_link(lattice._nodes[5], lattice._nodes[7])
+        lattice._add_link(lattice._nodes[1], lattice._nodes[8])
+        lattice._add_link(lattice._nodes[6], lattice._nodes[8])
+        lattice._add_link(lattice._nodes[7], lattice._nodes[8])
+        lattice._initial_node = lattice._nodes[0]
+        lattice._final_node = lattice._nodes[8]
+        lattice._sort_nodes()
+        self.assertEqual(lattice._sorted_nodes[0].id, 0)
+        self.assertEqual(lattice._sorted_nodes[1].id, 2)
+        self.assertEqual(lattice._sorted_nodes[2].id, 4)
+        self.assertEqual(lattice._sorted_nodes[3].id, 3)
+        self.assertEqual(lattice._sorted_nodes[4].id, 5)
+        # Topologically equal nodes will be sorted in ascending time. The nodes
+        # that don't have time will go last.
+        self.assertEqual(lattice._sorted_nodes[5].id, 1)
+        self.assertEqual(lattice._sorted_nodes[6].id, 6)
+        self.assertEqual(lattice._sorted_nodes[7].id, 7)
+        self.assertEqual(lattice._sorted_nodes[8].id, 8)
 
     def test_read_slf(self):
         lattice = Lattice()

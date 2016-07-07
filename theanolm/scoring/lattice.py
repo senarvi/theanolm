@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import logging
 from shlex import shlex
 from theanolm.exceptions import InputError
 
@@ -44,12 +45,18 @@ class Lattice(object):
         nodes in the topology.
         """
 
-        def __init__(self):
+        def __init__(self, id):
             """Constructs a node with no links.
+
+            :type id: int
+            :param id: the ID that can be used to access the node in the node
+                       list
             """
 
+            self.id = id
             self.out_links = []
             self.in_links = []
+            self.time = None
 
     def __init__(self):
         """Constructs an empty lattice.
@@ -80,7 +87,7 @@ class Lattice(object):
             if (not self._num_nodes is None) and (not self._num_links is None):
                 break
 
-        self._nodes = [self.Node() for _ in range(self._num_nodes)]
+        self._nodes = [self.Node(id) for id in range(self._num_nodes)]
         self._links = []
 
         for line in lattice_file:
@@ -120,6 +127,8 @@ class Lattice(object):
                     break
             if self._final_node is None:
                 raise InputError("Could not find final node in SLF lattice.")
+
+        self._sort_nodes()
 
     def _read_slf_header(self, fields):
         """Reads SLF lattice header fields and saves them in member variables.
@@ -264,3 +273,35 @@ class Lattice(object):
         start_node.out_links.append(link)
         end_node.in_links.append(link)
         return link
+
+    def _sort_nodes(self):
+        """Sorts nodes topologically, then by time.
+
+        Creates ``_sorted_nodes``, which contains the nodes in sorted order.
+        Uses the Kahn's algorithm to sort the nodes topologically, but always
+        picks the node from the queue that has the lowest time stamp, if the
+        nodes contain time stamps.
+        """
+
+        self._sorted_nodes = []
+        # A queue of nodes to be visited next:
+        node_queue = [self._initial_node]
+        # The number of incoming links not traversed yet:
+        in_degrees = [len(node.in_links) for node in self._nodes]
+        while node_queue:
+            node = node_queue.pop()
+            self._sorted_nodes.append(node)
+            for link in node.out_links:
+                next_node = link.end_node
+                in_degrees[next_node.id] -= 1
+                if in_degrees[next_node.id] == 0:
+                    node_queue.append(next_node)
+                    node_queue.sort(key=lambda x: (x.time is None, x.time),
+                                    reverse=True)
+                elif in_degrees[next_node.id] < 0:
+                    raise InputError("Word lattice contains a cycle.")
+
+        if len(self._sorted_nodes) < len(self._nodes):
+            logging.warning("Word lattice contains unreachable nodes.")
+        else:
+            assert len(self._sorted_nodes) == len(self._nodes)
