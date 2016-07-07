@@ -4,6 +4,7 @@
 import unittest
 import os
 from theanolm.scoring.lattice import Lattice
+from theanolm.scoring.slflattice import SLFLattice
 
 class TestLattice(unittest.TestCase):
     def setUp(self):
@@ -14,7 +15,7 @@ class TestLattice(unittest.TestCase):
         pass
 
     def test_split_slf_line(self):
-        lattice = Lattice()
+        lattice = SLFLattice()
         fields = lattice._split_slf_line('name=value '
                                          'name="va lue" '
                                          'WORD=\\"QUOTE '
@@ -25,13 +26,13 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(fields[3], "WORD='CAUSE")
 
     def test_split_slf_field(self):
-        lattice = Lattice()
+        lattice = SLFLattice()
         name, value = lattice._split_slf_field("name=va 'lue")
         self.assertEqual(name, 'name')
         self.assertEqual(value, "va 'lue")
 
     def test_read_slf_header(self):
-        lattice = Lattice()
+        lattice = SLFLattice()
         lattice._read_slf_header(['UTTERANCE=utterance #123'])
         self.assertEqual(lattice._utterance_id, 'utterance #123')
         lattice._read_slf_header(['U=utterance #456'])
@@ -51,7 +52,7 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(lattice._num_links, 9)
 
     def test_read_slf_node(self):
-        lattice = Lattice()
+        lattice = SLFLattice()
         lattice._nodes = [Lattice.Node(id) for id in range(5)]
         lattice._read_slf_node(0, [])
         lattice._read_slf_node(1, ['t=1.0'])
@@ -67,7 +68,7 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(lattice._nodes[4].word, 'word')
 
     def test_read_slf_link(self):
-        lattice = Lattice()
+        lattice = SLFLattice()
         lattice._nodes = [Lattice.Node(id) for id in range(4)]
         lattice._links = []
         lattice._read_slf_node(0, ['t=0.0'])
@@ -140,21 +141,23 @@ class TestLattice(unittest.TestCase):
         lattice._add_link(lattice._nodes[7], lattice._nodes[8])
         lattice._initial_node = lattice._nodes[0]
         lattice._final_node = lattice._nodes[8]
-        lattice._sort_nodes()
-        self.assertEqual(lattice._sorted_nodes[0].id, 0)
-        self.assertEqual(lattice._sorted_nodes[1].id, 2)
-        self.assertEqual(lattice._sorted_nodes[2].id, 4)
-        self.assertEqual(lattice._sorted_nodes[3].id, 3)
-        self.assertEqual(lattice._sorted_nodes[4].id, 5)
+
+        sorted_nodes = lattice.sorted_nodes()
+        self.assertEqual(sorted_nodes[0].id, 0)
+        self.assertEqual(sorted_nodes[1].id, 2)
+        self.assertEqual(sorted_nodes[2].id, 4)
+        self.assertEqual(sorted_nodes[3].id, 3)
+        self.assertEqual(sorted_nodes[4].id, 5)
         # Topologically equal nodes will be sorted in ascending time. The nodes
         # that don't have time will go last.
-        self.assertEqual(lattice._sorted_nodes[5].id, 1)
-        self.assertEqual(lattice._sorted_nodes[6].id, 6)
-        self.assertEqual(lattice._sorted_nodes[7].id, 7)
-        self.assertEqual(lattice._sorted_nodes[8].id, 8)
+        self.assertEqual(sorted_nodes[5].id, 1)
+        self.assertEqual(sorted_nodes[6].id, 6)
+        self.assertEqual(sorted_nodes[7].id, 7)
+        self.assertEqual(sorted_nodes[8].id, 8)
 
+        lattice = SLFLattice()
         with open(self.lattice_path, 'r') as lattice_file:
-            lattice.read_slf(lattice_file)
+            lattice.read(lattice_file)
 
         def reachable(initial_node, node):
             result = False
@@ -163,15 +166,16 @@ class TestLattice(unittest.TestCase):
                     result = True
             return result
 
-        for left_node, right_node in zip(lattice._nodes, lattice._nodes[1:]):
+        sorted_nodes = lattice.sorted_nodes()
+        for left_node, right_node in zip(sorted_nodes, sorted_nodes[1:]):
             if (not left_node.time is None) and (not right_node.time is None):
                 self.assertLessEqual(left_node.time, right_node.time)
                 self.assertFalse(reachable(right_node, left_node))
 
-    def test_read_slf(self):
-        lattice = Lattice()
+    def test_read(self):
+        lattice = SLFLattice()
         with open(self.lattice_path, 'r') as lattice_file:
-            lattice.read_slf(lattice_file)
+            lattice.read(lattice_file)
         self.assertEqual(len(lattice._nodes), 24)
         self.assertEqual(len(lattice._links), 39)
 
