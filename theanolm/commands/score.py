@@ -7,8 +7,9 @@ import subprocess
 import numpy
 import h5py
 import theano
-from theanolm import Vocabulary, Architecture, Network, TextScorer
+from theanolm import Vocabulary, Architecture, Network
 from theanolm import LinearBatchIterator
+from theanolm.scoring import TextScorer
 from theanolm.filetypes import TextFileType
 from theanolm.iterators import utterance_from_line
 

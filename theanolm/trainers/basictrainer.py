@@ -28,14 +28,14 @@ class BasicTrainer(object):
         :type optimization_options: dict
         :param optimization_options: a dictionary of optimization options
 
-        :type network: theanolm.Network
+        :type network: Network
         :param network: a neural network to be trained
 
-        :type vocabulary: theanolm.Vocabulary
+        :type vocabulary: Vocabulary
         :param vocabulary: vocabulary that provides mapping between words and
                            word IDs
 
-        :type scorer: theanolm.TextScorer
+        :type scorer: TextScorer
         :param scorer: a text scorer for computing validation set perplexity
 
         :type training_files: list of file objects

@@ -7,9 +7,10 @@ import logging
 import numpy
 import h5py
 import theano
-from theanolm import Vocabulary, Architecture, Network, TextScorer
+from theanolm import Vocabulary, Architecture, Network
 from theanolm import LinearBatchIterator
 from theanolm.trainers import create_trainer
+from theanolm.scoring import TextScorer
 from theanolm.filetypes import TextFileType
 
 def add_arguments(parser):

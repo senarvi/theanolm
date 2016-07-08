@@ -31,8 +31,8 @@ class SLFLattice(Lattice):
             if (not self._num_nodes is None) and (not self._num_links is None):
                 break
 
-        self._nodes = [self.Node(id) for id in range(self._num_nodes)]
-        self._links = []
+        self.nodes = [self.Node(id) for id in range(self._num_nodes)]
+        self.links = []
 
         for line in lattice_file:
             fields = self._split_slf_line(line)
@@ -44,33 +44,35 @@ class SLFLattice(Lattice):
             elif name == 'J':
                 self._read_slf_link(int(value), fields[1:])
 
-        if len(self._links) != self._num_links:
+        if len(self.links) != self._num_links:
             raise InputError("Number of links in SLF lattice doesn't match the "
                              "LINKS field.")
 
         if not self._initial_node_id is None:
-            self._initial_node = self._nodes[self._initial_node_id]
+            self.initial_node = self.nodes[self._initial_node_id]
         else:
             # Find the node with no incoming links.
-            self._initial_node = None
-            for node in self._nodes:
+            self.initial_node = None
+            for node in self.nodes:
                 if len(node.in_links) == 0:
-                    self._initial_node = node
+                    self.initial_node = node
                     break
-            if self._initial_node is None:
+            if self.initial_node is None:
                 raise InputError("Could not find initial node in SLF lattice.")
 
         if not self._final_node_id is None:
-            self._final_node = self._nodes[self._final_node_id]
+            self.final_node = self.nodes[self._final_node_id]
         else:
             # Find the node with no outgoing links.
-            self._final_node = None
-            for node in self._nodes:
+            self.final_node = None
+            for node in self.nodes:
                 if len(node.out_links) == 0:
-                    self._final_node = node
+                    self.final_node = node
                     break
-            if self._final_node is None:
+            if self.final_node is None:
                 raise InputError("Could not find final node in SLF lattice.")
+
+        self._move_words_to_links()
 
     def _read_slf_header(self, fields):
         """Reads SLF lattice header fields and saves them in member variables.
@@ -102,6 +104,9 @@ class SLFLattice(Lattice):
         """Reads SLF lattice node fields and saves the information in the given
         node.
 
+        Some SLF lattices contain word identities in the nodes. They will be
+        saved into the node, but later moved to the links leading to the node.
+
         :type node_id: int
         :param node_id: ID of the node
 
@@ -109,7 +114,7 @@ class SLFLattice(Lattice):
         :param fields: the rest of the node fields after ID
         """
 
-        node = self._nodes[node_id]
+        node = self.nodes[node_id]
         for field in fields:
             name, value = self._split_slf_field(field)
             if (name == 'time') or (name == 't'):
@@ -136,9 +141,9 @@ class SLFLattice(Lattice):
         for field in fields:
             name, value = self._split_slf_field(field)
             if (name == 'START') or (name == 'S'):
-                start_node = self._nodes[int(value)]
+                start_node = self.nodes[int(value)]
             elif (name == 'END') or (name == 'E'):
-                end_node = self._nodes[int(value)]
+                end_node = self.nodes[int(value)]
             elif (name == 'WORD') or (name == 'W'):
                 word = value
             elif (name == 'acoustic') or (name == 'a'):
@@ -196,3 +201,34 @@ class SLFLattice(Lattice):
         name = name_value[0]
         value = name_value[1]
         return name, value
+
+    def _move_words_to_links(self):
+        """Move word identities from nodes to the links leading to the node.
+
+        SLF lattices may contain words either in the nodes or in the links. If
+        they are in the nodes, move them to the link leading to the node. Note
+        that if there's a word in the initial node, it will be discarded. This
+        is in line with what SRILM does.
+        """
+
+        visited = { self.initial_node.id }
+
+        def visit_link(link):
+            end_node = link.end_node
+            if hasattr(end_node, 'word') and isinstance(end_node.word, str):
+                if link.word is None:
+                    link.word = end_node.word
+                else:
+                    raise InputError("SLF lattice contains words both in nodes "
+                                     "and links.")
+            if not end_node.id in visited:
+                visited.add(end_node.id)
+                for next_link in end_node.out_links:
+                    visit_link(next_link)
+
+        for link in self.initial_node.out_links:
+            visit_link(link)
+
+        for node in self.nodes:
+            if hasattr(node, 'word'):
+                del node.word

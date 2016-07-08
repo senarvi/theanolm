@@ -64,8 +64,10 @@ class Lattice(object):
         """Constructs an empty lattice.
         """
 
-        self._nodes = []
-        self._links = []
+        self.nodes = []
+        self.links = []
+        self.initial_node = None
+        self.final_node = None
 
     @abstractmethod
     def read(self, lattice_file):
@@ -90,9 +92,9 @@ class Lattice(object):
 
         result = []
         # A queue of nodes to be visited next:
-        node_queue = [self._initial_node]
+        node_queue = [self.initial_node]
         # The number of incoming links not traversed yet:
-        in_degrees = [len(node.in_links) for node in self._nodes]
+        in_degrees = [len(node.in_links) for node in self.nodes]
         while node_queue:
             node = node_queue.pop()
             result.append(node)
@@ -106,10 +108,10 @@ class Lattice(object):
                 elif in_degrees[next_node.id] < 0:
                     raise InputError("Word lattice contains a cycle.")
 
-        if len(result) < len(self._nodes):
+        if len(result) < len(self.nodes):
             logging.warning("Word lattice contains unreachable nodes.")
         else:
-            assert len(result) == len(self._nodes)
+            assert len(result) == len(self.nodes)
 
         return result
 
@@ -127,7 +129,7 @@ class Lattice(object):
         """
 
         link = self.Link(start_node, end_node)
-        self._links.append(link)
+        self.links.append(link)
         start_node.out_links.append(link)
         end_node.in_links.append(link)
         return link

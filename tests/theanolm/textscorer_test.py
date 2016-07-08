@@ -5,7 +5,8 @@ import unittest
 import os
 import numpy
 from theano import tensor
-from theanolm import Vocabulary, TextScorer
+from theanolm import Vocabulary
+from theanolm.scoring import TextScorer
 from numpy.testing import assert_almost_equal
 
 class DummyNetwork(object):

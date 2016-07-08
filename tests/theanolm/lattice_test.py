@@ -53,24 +53,24 @@ class TestLattice(unittest.TestCase):
 
     def test_read_slf_node(self):
         lattice = SLFLattice()
-        lattice._nodes = [Lattice.Node(id) for id in range(5)]
+        lattice.nodes = [Lattice.Node(id) for id in range(5)]
         lattice._read_slf_node(0, [])
         lattice._read_slf_node(1, ['t=1.0'])
         lattice._read_slf_node(2, ['time=2.1'])
         lattice._read_slf_node(3, ['t=3.0', 'WORD=wo rd'])
         lattice._read_slf_node(4, ['time=4.1', 'W=word'])
 
-        self.assertEqual(lattice._nodes[1].time, 1.0)
-        self.assertEqual(lattice._nodes[2].time, 2.1)
-        self.assertEqual(lattice._nodes[3].time, 3.0)
-        self.assertEqual(lattice._nodes[3].word, 'wo rd')
-        self.assertEqual(lattice._nodes[4].time, 4.1)
-        self.assertEqual(lattice._nodes[4].word, 'word')
+        self.assertEqual(lattice.nodes[1].time, 1.0)
+        self.assertEqual(lattice.nodes[2].time, 2.1)
+        self.assertEqual(lattice.nodes[3].time, 3.0)
+        self.assertEqual(lattice.nodes[3].word, 'wo rd')
+        self.assertEqual(lattice.nodes[4].time, 4.1)
+        self.assertEqual(lattice.nodes[4].word, 'word')
 
     def test_read_slf_link(self):
         lattice = SLFLattice()
-        lattice._nodes = [Lattice.Node(id) for id in range(4)]
-        lattice._links = []
+        lattice.nodes = [Lattice.Node(id) for id in range(4)]
+        lattice.links = []
         lattice._read_slf_node(0, ['t=0.0'])
         lattice._read_slf_node(1, ['t=1.0'])
         lattice._read_slf_node(2, ['t=2.0'])
@@ -80,67 +80,91 @@ class TestLattice(unittest.TestCase):
         lattice._read_slf_link(2, ['S=2', 'E=3', 'W=word', 'a=-0.3', 'l=-0.4'])
         lattice._read_slf_link(3, ['S=1', 'E=3', 'a=-0.5', 'l=-0.6'])
 
-        self.assertTrue(lattice._links[0].start_node is lattice._nodes[0])
-        self.assertTrue(lattice._links[0].end_node is lattice._nodes[1])
-        self.assertTrue(lattice._links[1].start_node is lattice._nodes[1])
-        self.assertTrue(lattice._links[1].end_node is lattice._nodes[2])
-        self.assertEqual(lattice._links[1].word, 'wo rd')
-        self.assertEqual(lattice._links[1].ac_score, -0.1)
-        self.assertEqual(lattice._links[1].lm_score, -0.2)
-        self.assertTrue(lattice._links[2].start_node is lattice._nodes[2])
-        self.assertTrue(lattice._links[2].end_node is lattice._nodes[3])
-        self.assertEqual(lattice._links[2].word, 'word')
-        self.assertEqual(lattice._links[2].ac_score, -0.3)
-        self.assertEqual(lattice._links[2].lm_score, -0.4)
-        self.assertTrue(lattice._links[3].start_node is lattice._nodes[1])
-        self.assertTrue(lattice._links[3].end_node is lattice._nodes[3])
-        self.assertEqual(lattice._links[3].ac_score, -0.5)
-        self.assertEqual(lattice._links[3].lm_score, -0.6)
+        self.assertTrue(lattice.links[0].start_node is lattice.nodes[0])
+        self.assertTrue(lattice.links[0].end_node is lattice.nodes[1])
+        self.assertTrue(lattice.links[1].start_node is lattice.nodes[1])
+        self.assertTrue(lattice.links[1].end_node is lattice.nodes[2])
+        self.assertEqual(lattice.links[1].word, 'wo rd')
+        self.assertEqual(lattice.links[1].ac_score, -0.1)
+        self.assertEqual(lattice.links[1].lm_score, -0.2)
+        self.assertTrue(lattice.links[2].start_node is lattice.nodes[2])
+        self.assertTrue(lattice.links[2].end_node is lattice.nodes[3])
+        self.assertEqual(lattice.links[2].word, 'word')
+        self.assertEqual(lattice.links[2].ac_score, -0.3)
+        self.assertEqual(lattice.links[2].lm_score, -0.4)
+        self.assertTrue(lattice.links[3].start_node is lattice.nodes[1])
+        self.assertTrue(lattice.links[3].end_node is lattice.nodes[3])
+        self.assertEqual(lattice.links[3].ac_score, -0.5)
+        self.assertEqual(lattice.links[3].lm_score, -0.6)
 
-        self.assertEqual(len(lattice._nodes[0].in_links), 0)
-        self.assertEqual(len(lattice._nodes[0].out_links), 1)
-        self.assertEqual(len(lattice._nodes[1].in_links), 1)
-        self.assertEqual(len(lattice._nodes[1].out_links), 2)
-        self.assertEqual(len(lattice._nodes[2].in_links), 1)
-        self.assertEqual(len(lattice._nodes[2].out_links), 1)
-        self.assertEqual(len(lattice._nodes[3].in_links), 2)
-        self.assertEqual(len(lattice._nodes[3].out_links), 0)
+        self.assertEqual(len(lattice.nodes[0].in_links), 0)
+        self.assertEqual(len(lattice.nodes[0].out_links), 1)
+        self.assertEqual(len(lattice.nodes[1].in_links), 1)
+        self.assertEqual(len(lattice.nodes[1].out_links), 2)
+        self.assertEqual(len(lattice.nodes[2].in_links), 1)
+        self.assertEqual(len(lattice.nodes[2].out_links), 1)
+        self.assertEqual(len(lattice.nodes[3].in_links), 2)
+        self.assertEqual(len(lattice.nodes[3].out_links), 0)
 
-        self.assertEqual(lattice._nodes[0].out_links[0].end_node.time, 1.0)
-        self.assertEqual(lattice._nodes[1].in_links[0].start_node.time, 0.0)
-        self.assertEqual(lattice._nodes[1].out_links[0].end_node.time, 2.0)
-        self.assertEqual(lattice._nodes[1].out_links[1].end_node.time, 3.0)
-        self.assertEqual(lattice._nodes[2].in_links[0].start_node.time, 1.0)
-        self.assertEqual(lattice._nodes[2].out_links[0].end_node.time, 3.0)
-        self.assertEqual(lattice._nodes[3].in_links[0].start_node.time, 2.0)
-        self.assertEqual(lattice._nodes[3].in_links[1].start_node.time, 1.0)
+        self.assertEqual(lattice.nodes[0].out_links[0].end_node.time, 1.0)
+        self.assertEqual(lattice.nodes[1].in_links[0].start_node.time, 0.0)
+        self.assertEqual(lattice.nodes[1].out_links[0].end_node.time, 2.0)
+        self.assertEqual(lattice.nodes[1].out_links[1].end_node.time, 3.0)
+        self.assertEqual(lattice.nodes[2].in_links[0].start_node.time, 1.0)
+        self.assertEqual(lattice.nodes[2].out_links[0].end_node.time, 3.0)
+        self.assertEqual(lattice.nodes[3].in_links[0].start_node.time, 2.0)
+        self.assertEqual(lattice.nodes[3].in_links[1].start_node.time, 1.0)
 
-    def test_sort_nodes(self):
+    def test_move_words_to_links(self):
+        lattice = SLFLattice()
+        lattice.nodes = [Lattice.Node(id) for id in range(5)]
+        lattice.nodes[0].word = 'A'
+        lattice.nodes[1].word = 'B'
+        lattice.nodes[2].word = 'C'
+        lattice.nodes[3].word = 'D'
+        lattice.nodes[4].word = 'E'
+        lattice.initial_node = lattice.nodes[0]
+        lattice.final_node = lattice.nodes[4]
+        lattice._add_link(lattice.nodes[0], lattice.nodes[1])
+        lattice._add_link(lattice.nodes[0], lattice.nodes[2])
+        lattice._add_link(lattice.nodes[1], lattice.nodes[3])
+        lattice._add_link(lattice.nodes[2], lattice.nodes[3])
+        lattice._add_link(lattice.nodes[3], lattice.nodes[4])
+        lattice._move_words_to_links()
+        self.assertEqual(lattice.links[0].word, 'B')
+        self.assertEqual(lattice.links[1].word, 'C')
+        self.assertEqual(lattice.links[2].word, 'D')
+        self.assertEqual(lattice.links[3].word, 'D')
+        self.assertEqual(lattice.links[4].word, 'E')
+        for node in lattice.nodes:
+            self.assertFalse(hasattr(node, 'word'))
+
+    def test_sorted_nodes(self):
         lattice = Lattice()
-        lattice._nodes = [Lattice.Node(id) for id in range(9)]
-        lattice._nodes[0].time = 0.0
-        lattice._nodes[2].time = 1.0
-        lattice._nodes[4].time = 2.0
-        lattice._nodes[3].time = 3.0
-        lattice._nodes[5].time = 4.0
-        lattice._nodes[1].time = 4.0
-        lattice._nodes[6].time = 5.0
-        lattice._nodes[7].time = None
-        lattice._nodes[8].time = -1.0
-        lattice._add_link(lattice._nodes[0], lattice._nodes[2])
-        lattice._add_link(lattice._nodes[0], lattice._nodes[4])
-        lattice._add_link(lattice._nodes[2], lattice._nodes[3])
-        lattice._add_link(lattice._nodes[4], lattice._nodes[3])
-        lattice._add_link(lattice._nodes[2], lattice._nodes[5])
-        lattice._add_link(lattice._nodes[3], lattice._nodes[5])
-        lattice._add_link(lattice._nodes[5], lattice._nodes[1])
-        lattice._add_link(lattice._nodes[5], lattice._nodes[6])
-        lattice._add_link(lattice._nodes[5], lattice._nodes[7])
-        lattice._add_link(lattice._nodes[1], lattice._nodes[8])
-        lattice._add_link(lattice._nodes[6], lattice._nodes[8])
-        lattice._add_link(lattice._nodes[7], lattice._nodes[8])
-        lattice._initial_node = lattice._nodes[0]
-        lattice._final_node = lattice._nodes[8]
+        lattice.nodes = [Lattice.Node(id) for id in range(9)]
+        lattice.nodes[0].time = 0.0
+        lattice.nodes[2].time = 1.0
+        lattice.nodes[4].time = 2.0
+        lattice.nodes[3].time = 3.0
+        lattice.nodes[5].time = 4.0
+        lattice.nodes[1].time = 4.0
+        lattice.nodes[6].time = 5.0
+        lattice.nodes[7].time = None
+        lattice.nodes[8].time = -1.0
+        lattice._add_link(lattice.nodes[0], lattice.nodes[2])
+        lattice._add_link(lattice.nodes[0], lattice.nodes[4])
+        lattice._add_link(lattice.nodes[2], lattice.nodes[3])
+        lattice._add_link(lattice.nodes[4], lattice.nodes[3])
+        lattice._add_link(lattice.nodes[2], lattice.nodes[5])
+        lattice._add_link(lattice.nodes[3], lattice.nodes[5])
+        lattice._add_link(lattice.nodes[5], lattice.nodes[1])
+        lattice._add_link(lattice.nodes[5], lattice.nodes[6])
+        lattice._add_link(lattice.nodes[5], lattice.nodes[7])
+        lattice._add_link(lattice.nodes[1], lattice.nodes[8])
+        lattice._add_link(lattice.nodes[6], lattice.nodes[8])
+        lattice._add_link(lattice.nodes[7], lattice.nodes[8])
+        lattice.initial_node = lattice.nodes[0]
+        lattice.final_node = lattice.nodes[8]
 
         sorted_nodes = lattice.sorted_nodes()
         self.assertEqual(sorted_nodes[0].id, 0)
@@ -176,8 +200,8 @@ class TestLattice(unittest.TestCase):
         lattice = SLFLattice()
         with open(self.lattice_path, 'r') as lattice_file:
             lattice.read(lattice_file)
-        self.assertEqual(len(lattice._nodes), 24)
-        self.assertEqual(len(lattice._links), 39)
+        self.assertEqual(len(lattice.nodes), 24)
+        self.assertEqual(len(lattice.links), 39)
 
 if __name__ == '__main__':
     unittest.main()
