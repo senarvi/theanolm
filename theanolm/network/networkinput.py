@@ -6,7 +6,7 @@ import numpy
 import theano
 import theano.tensor as tensor
 from theanolm.matrixfunctions import test_value
-from theanolm.layers.basiclayer import BasicLayer
+from theanolm.network.basiclayer import BasicLayer
 
 class NetworkInput(BasicLayer):
     """Neural Network Input Element

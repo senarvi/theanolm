@@ -6,11 +6,11 @@ import logging
 from theanolm.exceptions import InputError
 
 class Lattice(object):
-    """A word lattice describes a search space for decoding.
+    """Word Lattice
 
-    The word graph is represented as a list of nodes and links. Each node
-    contains pointers to its incoming and outgoing links. Each link contains a
-    pointer to the nodes in both ends.
+    Word lattice describes a search space for decoding. The graph is represented
+    as a list of nodes and links. Each node contains pointers to its incoming
+    and outgoing links. Each link contains a pointer to the nodes in both ends.
     """
 
     class Link(object):

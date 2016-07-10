@@ -6,7 +6,9 @@ from theanolm.exceptions import InputError
 from theanolm.scoring.lattice import Lattice
 
 class SLFLattice(Lattice):
-    """A word lattice that can be read in SLF format.
+    """SLF Format Word Lattice
+
+    A word lattice that can be read in SLF format.
     """
 
     def read(self, lattice_file):
@@ -72,7 +74,14 @@ class SLFLattice(Lattice):
             if self.final_node is None:
                 raise InputError("Could not find final node in SLF lattice.")
 
+        # If word identity information is not present in node definitions then
+        # it must appear in link definitions.
         self._move_words_to_links()
+        for link in self.links:
+            if link.word is None:
+                raise InputError("SLF lattice does not contain word identity "
+                                 "in link %d or in the following node.".format(
+                                 link.id))
 
     def _read_slf_header(self, fields):
         """Reads SLF lattice header fields and saves them in member variables.
@@ -85,6 +94,8 @@ class SLFLattice(Lattice):
             name, value = self._split_slf_field(field)
             if (name == 'UTTERANCE') or (name == 'U'):
                 self._utterance_id = value
+            elif (name == 'SUBLAT') or (name == 'S'):
+                raise InputError("Sub-lattices are not supported.")
             elif name == 'base':
                 self._log_base = float(value)
             elif name == 'lmscale':
@@ -208,7 +219,8 @@ class SLFLattice(Lattice):
         SLF lattices may contain words either in the nodes or in the links. If
         they are in the nodes, move them to the link leading to the node. Note
         that if there's a word in the initial node, it will be discarded. This
-        is in line with what SRILM does.
+        is what SRILM does as well, and the SLF format says that the words are
+        in the end nodes in forward lattices.
         """
 
         visited = { self.initial_node.id }

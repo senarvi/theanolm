@@ -6,7 +6,7 @@ import logging
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.layers.basiclayer import BasicLayer
+from theanolm.network.basiclayer import BasicLayer
 
 class HSoftmaxLayer(BasicLayer):
     """Hierarchical Softmax Output Layer

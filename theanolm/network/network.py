@@ -8,8 +8,40 @@ import theano
 import theano.tensor as tensor
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theanolm.exceptions import IncompatibleStateError, InputError
-from theanolm.layers import create_layer, NetworkInput
+from theanolm.network.networkinput import NetworkInput
+from theanolm.network.projectionlayer import ProjectionLayer
+from theanolm.network.tanhlayer import TanhLayer
+from theanolm.network.grulayer import GRULayer
+from theanolm.network.lstmlayer import LSTMLayer
+from theanolm.network.softmaxlayer import SoftmaxLayer
+from theanolm.network.hsoftmaxlayer import HSoftmaxLayer
+from theanolm.network.dropoutlayer import DropoutLayer
 from theanolm.matrixfunctions import test_value
+
+def create_layer(layer_options, *args, **kwargs):
+    """Constructs one of the Layer classes based on a layer definition.
+
+    :type layer_type: str
+    :param layer_type: a text string describing the layer type
+    """
+
+    layer_type = layer_options['type']
+    if layer_type == 'projection':
+        return ProjectionLayer(layer_options, *args, **kwargs)
+    elif layer_type == 'tanh':
+        return TanhLayer(layer_options, *args, **kwargs)
+    elif layer_type == 'lstm':
+        return LSTMLayer(layer_options, *args, **kwargs)
+    elif layer_type == 'gru':
+        return GRULayer(layer_options, *args, **kwargs)
+    elif layer_type == 'softmax':
+        return SoftmaxLayer(layer_options, *args, **kwargs)
+    elif layer_type == 'hsoftmax':
+        return HSoftmaxLayer(layer_options, *args, **kwargs)
+    elif layer_type == 'dropout':
+        return DropoutLayer(layer_options, *args, **kwargs)
+    else:
+        raise ValueError("Invalid layer type requested: " + layer_type)
 
 class Network(object):
     """Neural Network

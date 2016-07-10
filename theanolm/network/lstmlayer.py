@@ -5,7 +5,7 @@ import numpy
 import theano
 import theano.tensor as tensor
 from theanolm.matrixfunctions import get_submatrix
-from theanolm.layers.basiclayer import BasicLayer
+from theanolm.network.basiclayer import BasicLayer
 
 class LSTMLayer(BasicLayer):
     """Long Short-Term Memory Layer
