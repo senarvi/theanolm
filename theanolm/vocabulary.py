@@ -517,18 +517,19 @@ class Vocabulary(object):
                 result[index] = unk_id
         return result
 
-    def class_id_to_word_id(self, class_id):
+    def class_ids_to_word_ids(self, class_ids):
         """Samples a word from the membership probability distribution of a
         class. (If classes are not used, returns the one word in the class.)
 
-        :type class_id: int
-        :param class_id: a class ID
+        :type class_ids: list of ints
+        :param class_ids: list of class IDs
 
-        :rtype: int
-        :returns: a word from the given class
+        :rtype: list of ints
+        :returns: a word ID from each of the given classes
         """
 
-        return self._word_classes[class_id].sample()
+        return [self._word_classes[class_id].sample()
+                for class_id in class_ids]
 
     def word_ids_to_names(self, word_ids):
         """Translates word IDs into class / word names. If a class contains only

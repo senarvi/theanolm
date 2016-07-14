@@ -61,7 +61,7 @@ class SoftmaxLayer(BasicLayer):
             return
 
         # We should predict probabilities of the target outputs, i.e. the words
-        # words at the next time step.
+        # at the next time step.
         output_probs = self.output_probs[:-1].flatten()
         class_ids = self.network.class_input[1:].flatten()
 

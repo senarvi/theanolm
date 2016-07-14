@@ -94,8 +94,9 @@ class Network(object):
             size=(100, 16),
             max_value=vocabulary.num_classes())
 
-        # Recurrent layers will create these lists, used by TextSampler to
-        # initialize state variables of appropriate sizes.
+        # Recurrent layers will create these lists, used to initialize state
+        # variables of appropriate sizes, for doing forward passes one step at a
+        # time.
         self.recurrent_state_input = []
         self.recurrent_state_size = []
 
@@ -120,7 +121,7 @@ class Network(object):
         self.output_layer = self.layers[architecture.output_layer]
 
         # This list will be filled by the recurrent layers to contain the
-        # recurrent state outputs, required by TextSampler.
+        # recurrent state outputs, for doing forward passes one step at a time.
         self.recurrent_state_output = [None] * len(self.recurrent_state_size)
 
         # Create initial parameter values.
@@ -209,8 +210,8 @@ class Network(object):
         """Adds a recurrent state variable and returns its index.
 
         Used by recurrent layers to add a state variable that has to be passed
-        from one time step to the next, when generating text using one-step
-        processing.
+        from one time step to the next, when generating text or computing
+        lattice probabilities.
         """
 
         index = len(self.recurrent_state_size)
@@ -220,7 +221,7 @@ class Network(object):
         # array) to keep the layer functions general.
         variable = tensor.tensor3('network/recurrent_state_' + str(index),
                                   dtype=theano.config.floatX)
-        variable.tag.test_value = test_value(size=(1, 1, size), max_value=1.0)
+        variable.tag.test_value = test_value(size=(1, 3, size), max_value=1.0)
 
         self.recurrent_state_size.append(size)
         self.recurrent_state_input.append(variable)
@@ -231,6 +232,11 @@ class Network(object):
         """Returns the output probabilities for the whole vocabulary.
 
         The network has to have ``predict_next_distribution == True``.
+
+        :type mask: TensorVariable
+        :param mask: a symbolic 3-dimensional matrix that contains a probability
+                     for each time step (except the last), each sequence, and
+                     each word.
         """
 
         if not hasattr(self.output_layer, 'output_probs'):
@@ -239,7 +245,7 @@ class Network(object):
             raise RuntimeError("Trying to read all output probabilities, while "
                                "the output layer is configured to produce only "
                                "target probabilities.")
-        return self.output_layer.target_probs
+        return self.output_layer.output_probs
 
     def target_probs(self):
         """Returns the output probabilities for the predicted words, i.e. the
@@ -247,9 +253,9 @@ class Network(object):
 
         The network has to have ``predict_next_distribution == False``.
 
-        :rtype: numpy.ndarray
-        :returns: a 2-dimensional array that contains a probability for each
-                  time step (except the last) and each sequence
+        :type mask: TensorVariable
+        :param mask: a symbolic 2-dimensional matrix that contains a probability
+                     for each time step (except the last) and each sequence
         """
 
         if not hasattr(self.output_layer, 'target_probs'):

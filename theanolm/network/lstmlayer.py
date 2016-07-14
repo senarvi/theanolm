@@ -57,8 +57,8 @@ class LSTMLayer(BasicLayer):
 
         The function can also be used to create a structure for generating the
         probability distribution of the next word. Then the input is still
-        3-dimensional, but the size of the first and second dimension is 1, and
-        the state outputs from the previous time step are read from
+        3-dimensional, but the size of the first dimension (time steps) is 1,
+        and the state outputs from the previous time step are read from
         ``self.network.recurrent_state_input``.
 
         Saves the recurrent state in the Network object: cell state C_(t) and

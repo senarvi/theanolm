@@ -58,7 +58,7 @@ def sample(args):
 
     print("Building text sampler.")
     sys.stdout.flush()
-    sampler = TextSampler(network, vocabulary)
+    sampler = TextSampler(network)
 
     for i in range(args.num_sentences):
         words = sampler.generate()
