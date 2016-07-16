@@ -49,18 +49,15 @@ class TextSampler(object):
             name='text_sampler',
             on_unused_input='ignore')
 
-    def generate(self, max_length=30, num_sequences=1):
+    def generate(self, length, num_sequences=1):
         """Generates a text sequence.
 
         Calls self.step_function() repeatedly, reading the word output and
         the state output of the hidden layer and passing the hidden layer state
         output to the next time step.
 
-        Generates at most ``max_length`` words, stopping if a sentence break is
-        generated.
-
-        :type max_length: int
-        :param max_length: maximum number of words in a sequence
+        :type length: int
+        :param length: number of words (tokens) in each sequence
 
         :type num_sequences: int
         :param num_sequences: number of sequences to generate in parallel
@@ -78,10 +75,10 @@ class TextSampler(object):
         class_input = sos_class_id * \
                       numpy.ones(shape=(1, num_sequences)).astype('int64')
         result = sos_id * \
-                 numpy.ones(shape=(max_length, num_sequences)).astype('int64')
+                 numpy.ones(shape=(length, num_sequences)).astype('int64')
         state = RecurrentState(self.network, num_sequences)
 
-        for time_step in range(1, max_length):
+        for time_step in range(1, length):
             # The input is the output from the previous step.
             step_result = self.step_function(word_input,
                                              class_input,

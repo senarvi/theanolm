@@ -60,7 +60,11 @@ def sample(args):
     sys.stdout.flush()
     sampler = TextSampler(network)
 
-    for i in range(args.num_sentences):
-        words = sampler.generate()
-        args.output_file.write('{}: {}\n'.format(
-            i, ' '.join(words)))
+    sequences = sampler.generate(30, args.num_sentences)
+    for sequence in sequences:
+        try:
+            eos_pos = sequence.index('</s>')
+            sequence = sequence[:eos_pos+1]
+        except:
+            pass
+        args.output_file.write(' '.join(sequence) + '\n')
