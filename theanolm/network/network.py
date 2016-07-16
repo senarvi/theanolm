@@ -107,13 +107,8 @@ class Network(object):
             input = NetworkInput(input_options, self)
             self.layers[input.name] = input
         for layer_description in architecture.layers:
-            layer_options = dict()
-            for variable, value in layer_description.items():
-                if variable == 'inputs':
-                    layer_options['input_layers'] = \
-                        [self.layers[x] for x in value]
-                else:
-                    layer_options[variable] = value
+            layer_options = self._layer_options_from_description(
+                layer_description)
             if layer_options['name'] == architecture.output_layer:
                 layer_options['size'] = vocabulary.num_classes()
             layer = create_layer(layer_options, self, profile=profile)
@@ -265,3 +260,31 @@ class Network(object):
                                "output layer is configured to produce all "
                                "probabilities.")
         return self.output_layer.target_probs
+
+    def _layer_options_from_description(self, description):
+        """Creates layer options based on textual architecture description.
+
+        Most of the fields in a layer description are kept as strings. The field
+        ``input_layers`` is converted to a list of actual layers found from
+        ``self.layers``.
+
+        :type description: dict
+        :param description: dictionary of textual layer fields
+
+        :rtype: dict
+        :result: layer options
+        """
+
+        result = dict()
+        for variable, value in description.items():
+            if variable == 'inputs':
+                try:
+                    result['input_layers'] = [self.layers[x] for x in value]
+                except KeyError as e:
+                    raise InputError("Input layer `{}' does not exist, when "
+                                     "creating layer `{}'.".format(
+                                     e.args[0],
+                                     description['name']))
+            else:
+                result[variable] = value
+        return result

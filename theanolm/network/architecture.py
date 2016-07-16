@@ -68,8 +68,9 @@ class Architecture(object):
                 "network state.")
         h5_layers = h5_arch['layers']
         layers = []
-        for layer_id in sorted(h5_layers.keys()):
-            h5_layer = h5_layers[layer_id]
+        layer_ids = [int(x) for x in h5_layers.keys()]
+        for layer_id in sorted(layer_ids):
+            h5_layer = h5_layers[str(layer_id)]
             layers.append(classname._read_h5_dict(h5_layer))
 
         if not 'output_layer' in h5_arch.attrs:
