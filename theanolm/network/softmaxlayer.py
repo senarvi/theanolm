@@ -62,7 +62,7 @@ class SoftmaxLayer(BasicLayer):
 
         # We should predict probabilities of the target outputs, i.e. the words
         # at the next time step.
-        if self.network.mode is Network.Mode.target_words:
+        if self.network.mode.is_target_words():
             output_probs = self.output_probs.flatten()
             target_class_ids = self.network.target_class_ids.flatten()
         else:

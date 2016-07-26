@@ -74,7 +74,7 @@ class Network(object):
         distribution = 2
         target_words = 3
 
-        def is_minibatch():
+        def is_minibatch(self):
             """Checks if the network mode is supposed to process mini-batches,
             as opposed to just one time step.
 
@@ -85,9 +85,10 @@ class Network(object):
 
             return self is self.minibatch
 
-        def is_distribution():
+        def is_distribution(self):
             """Checks if the network mode is supposed to produce a distribution
-            of the entire vocabulary, as opposed to specific words.
+            of the entire vocabulary, as opposed to the probabilities of
+            specific words.
 
             :rtype: bool
             :returns: ``True`` when producing a probability distribution,
@@ -95,6 +96,17 @@ class Network(object):
             """
 
             return self is self.distribution
+
+        def is_target_words(self):
+            """Checks if the network mode is supposed to produce probabilities
+            of target words given in ``target_class_ids``.
+
+            :rtype: bool
+            :returns: ``True`` when producing a probabilities of target words,
+                      ``False`` otherwise.
+            """
+
+            return self is self.target_words
 
     def __init__(self, vocabulary, architecture, mode=Mode.minibatch,
                  profile=False):

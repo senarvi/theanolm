@@ -69,7 +69,7 @@ class HSoftmaxLayer(BasicLayer):
         # not used as input.
         if self.network.mode.is_distribution():
             target_class_ids = None
-        elif self.network.mode is Network.Mode.target_words:
+        elif self.network.mode.is_target_words():
             target_class_ids = self.network.target_class_ids.flatten()
         else:
             layer_input = layer_input[:-1]
