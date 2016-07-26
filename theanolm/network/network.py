@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from enum import Enum, unique
 from collections import OrderedDict
 import logging
 import numpy
@@ -46,11 +47,57 @@ def create_layer(layer_options, *args, **kwargs):
 class Network(object):
     """Neural Network
 
-    A class that stores the neural network architecture and state.
+    A class that creates the actual neural network graph using Theano. Functions
+    that train and apply the neural network can be created by passing the input
+    and output variables to ``theano.function()``.
     """
 
-    def __init__(self, vocabulary, architecture,
-                 predict_next_distribution=False, profile=False):
+    @unique
+    class Mode(Enum):
+        """Network Mode Selection
+
+        Enumeration of options for selecting network mode. This will create a
+        slightly different output for different purposes.
+
+          - ``minibatch``: Process mini-batches with multiple sequences and time
+                           steps. The output is a matrix with one less time
+                           steps containing the probabilities of the words at
+                           the next time step.
+          - ``distribution``: Process only one time step. The output is the
+                              probability distribution of the entire vocabulary.
+          - ``target_words``: Process only one time step. The output is the
+                              probabilities of the target words given in a
+                              separate array.
+        """
+
+        minibatch = 1
+        distribution = 2
+        target_words = 3
+
+        def is_minibatch():
+            """Checks if the network mode is supposed to process mini-batches,
+            as opposed to just one time step.
+
+            :rtype: bool
+            :returns: ``True`` when processing mini-batches, ``False``
+                      otherwise.
+            """
+
+            return self is self.minibatch
+
+        def is_distribution():
+            """Checks if the network mode is supposed to produce a distribution
+            of the entire vocabulary, as opposed to specific words.
+
+            :rtype: bool
+            :returns: ``True`` when producing a probability distribution,
+                      ``False`` otherwise.
+            """
+
+            return self is self.distribution
+
+    def __init__(self, vocabulary, architecture, mode=Mode.minibatch,
+                 profile=False):
         """Initializes the neural network parameters for all layers, and
         creates Theano shared variables from them.
 
@@ -60,8 +107,8 @@ class Network(object):
         :type architecture: Architecture
         :param architecture: an object that describes the network architecture
 
-        :type predict_next_distribution: bool
-        :param predict_next_distribution: if set to True, creates a network that
+        :type mode: Network.Mode
+        :param mode: constructs a variation of the networkif set to True, creates a network that
             produces the probability distribution for the next word (instead of
             of target probabilities for a mini-batch)
 
@@ -71,7 +118,7 @@ class Network(object):
 
         self.vocabulary = vocabulary
         self.architecture = architecture
-        self.predict_next_distribution = predict_next_distribution
+        self.mode = mode
 
         M1 = 2147483647
         M2 = 2147462579
@@ -119,6 +166,14 @@ class Network(object):
         # recurrent state outputs, for doing forward passes one step at a time.
         self.recurrent_state_output = [None] * len(self.recurrent_state_size)
 
+        # When the mode is target_words, this input variable specifies the words
+        # whose probabilities will be computed.
+        self.target_class_ids = tensor.matrix('network/target_class_ids',
+                                             dtype='int64')
+        self.target_class_ids.tag.test_value = test_value(
+            size=(100, 16),
+            max_value=vocabulary.num_classes())
+
         # Create initial parameter values.
         logging.debug("Initializing parameters.")
         self.param_init_values = OrderedDict()
@@ -138,16 +193,14 @@ class Network(object):
 
         # mask is used to mask out the rest of the input matrix, when a sequence
         # is shorter than the maximum sequence length. The mask is kept as int8
-        # data type, which is how Tensor stores booleans. When the network is
-        # used to predict the probability distribution of the next word, the
-        # matrix contains only one word ID.
-        if self.predict_next_distribution:
-            self.mask = tensor.alloc(numpy.int8(1), 1, 1)
-        else:
+        # data type, which is how Tensor stores booleans.
+        if self.mode.is_minibatch():
             self.mask = tensor.matrix('network/mask', dtype='int8')
             self.mask.tag.test_value = test_value(
                 size=(100, 16),
                 max_value=True)
+        else:
+            self.mask = tensor.ones(self.word_input.shape, dtype='int8')
 
         # Dropout layer needs to know whether we are training or evaluating.
         self.is_training = tensor.scalar('network/is_training', dtype='int8')
@@ -226,7 +279,7 @@ class Network(object):
     def output_probs(self):
         """Returns the output probabilities for the whole vocabulary.
 
-        The network has to have ``predict_next_distribution == True``.
+        The network mode has to have ``is_distribution() == True``.
 
         :type mask: TensorVariable
         :param mask: a symbolic 3-dimensional matrix that contains a probability
@@ -243,10 +296,9 @@ class Network(object):
         return self.output_layer.output_probs
 
     def target_probs(self):
-        """Returns the output probabilities for the predicted words, i.e. the
-        following word at each time step.
+        """Returns the output probabilities for the predicted words.
 
-        The network has to have ``predict_next_distribution == False``.
+        The network mode has to have ``is_distribution() == False``.
 
         :type mask: TensorVariable
         :param mask: a symbolic 2-dimensional matrix that contains a probability

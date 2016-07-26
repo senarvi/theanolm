@@ -139,7 +139,7 @@ class BatchIterator(object, metaclass=ABCMeta):
         :param shuffle: also shuffles the input sentences, if supported
         """
 
-        return
+        assert False
 
     def _read_sequence(self):
         """Returns next word sequence. If sequence length is not limited, it
@@ -188,7 +188,7 @@ class BatchIterator(object, metaclass=ABCMeta):
                   the data set is reached.
         """
 
-        return
+        assert False
 
     def _file_id(self):
         """When the data set contains multiple files, returns the index of the

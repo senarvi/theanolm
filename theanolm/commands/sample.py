@@ -14,12 +14,12 @@ def add_arguments(parser):
     argument_group = parser.add_argument_group("files")
     argument_group.add_argument(
         'model_path', metavar='MODEL-FILE', type=str,
-        help='path where the best model state will be saved in numpy .npz '
-             'format')
+        help='the model file that will be used to generate text')
     argument_group.add_argument(
         '--output-file', metavar='FILE', type=TextFileType('w'), default='-',
-        help='where to write the generated sentences (default stdout)')
-    
+        help='where to write the generated sentences (default stdout, will be '
+             'compressed if the name ends in ".gz")')
+
     argument_group = parser.add_argument_group("sampling")
     argument_group.add_argument(
         '--num-sentences', metavar='N', type=int, default=10,
@@ -52,7 +52,7 @@ def sample(args):
         sys.stdout.flush()
         architecture = Architecture.from_state(state)
         network = Network(vocabulary, architecture,
-                          predict_next_distribution=True)
+                          mode=Network.Mode.distribution)
         print("Restoring neural network state.")
         network.set_state(state)
 

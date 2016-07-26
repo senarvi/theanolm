@@ -21,13 +21,18 @@ def main():
     score.add_arguments(score_parser)
     score_parser.set_defaults(command_function=score.score)
 
+    decode_parser = subparsers.add_parser(
+        'decode', help='decode a word lattice using a model')
+    decode.add_arguments(decode_parser)
+    decode_parser.set_defaults(command_function=decode.decode)
+
     sample_parser = subparsers.add_parser(
         'sample', help='generate text using a model')
     sample.add_arguments(sample_parser)
     sample_parser.set_defaults(command_function=sample.sample)
 
     version_parser = subparsers.add_parser(
-        'version', help='display version number and exit')
+        'version', help='display the version number')
     version_parser.set_defaults(command_function=version.version)
 
     args = parser.parse_args()

@@ -67,8 +67,10 @@ class HSoftmaxLayer(BasicLayer):
         # If we're only predicting probabilities of the target outputs, the
         # targets are the words at the next time step and the last time step is
         # not used as input.
-        if self.network.predict_next_distribution:
+        if self.network.mode.is_distribution():
             target_class_ids = None
+        elif self.network.mode is Network.Mode.target_words:
+            target_class_ids = self.network.target_class_ids.flatten()
         else:
             layer_input = layer_input[:-1]
             target_class_ids = self.network.class_input[1:].flatten()
@@ -79,7 +81,7 @@ class HSoftmaxLayer(BasicLayer):
         num_sequences = layer_input.shape[1]
         input_size = layer_input.shape[2]
         layer_input = layer_input.reshape([num_time_steps * num_sequences,
-                                          input_size])
+                                           input_size])
 
         input_weight = self._params[self._param_path('input/W')]
         input_bias = self._params[self._param_path('input/b')]
@@ -97,7 +99,7 @@ class HSoftmaxLayer(BasicLayer):
                                       level1_bias,
                                       target_class_ids)
 
-        if self.network.predict_next_distribution:
+        if self.network.mode.is_distribution():
             self.output_probs = probs.reshape([num_time_steps,
                                                num_sequences,
                                                self.output_size])
