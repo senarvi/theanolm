@@ -14,7 +14,7 @@ class TestRecurrentState(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_constructor(self):
+    def test_init(self):
         state = RecurrentState([200, 100, 300], 3)
         self.assertEqual(len(state.get()), 3)
         self.assertEqual(state.get(0).shape, (1,3,200))

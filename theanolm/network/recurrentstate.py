@@ -7,19 +7,23 @@ import theano
 class RecurrentState:
     """State of Recurrent Layers at Certain Time Step
 
-    When performing a forward pass one time step at a time, the state that has
-    to be passed to the next time step includes the state of any recurrent
-    layers. A state object contains a matrix for each recurrent layer that has
-    the same shape as a mini-batch (first dimension is time step, second
-    dimension is sequence), but the last dimension is a vector of state
-    variables.
+    Recurrent layers contain one or more state variables (vectors). When
+    performing a forward pass one time step at a time, these state variables
+    have to be saved and passed as input to the next time step. A
+    ``RecurrentState`` object contains a matrix for each recurrent
+    state variable.
+
+    Every matrix has the same shape as a mini-batch: First dimension is the time
+    step. Since one time step is processed at a time, the size of the first
+    dimension is one. The second dimension is sequence. Multiple sequences may
+    be processed in parallel. The third dimension is the state vector.
     """
 
-    def __init__(self, sizes, num_sequences=1, layer_states=None):
+    def __init__(self, sizes, num_sequences=1, state_variables=None):
         """Constructs a list of recurrent layer states and initializes them.
 
         This will create state vectors for each layer for each of the sequences
-        that will be processed in parallel. Unless ``layer_states`` is given,
+        that will be processed in parallel. Unless ``state_variables`` is given,
         the vectors will be initialized to zeros.
 
         :type sizes: list of ints
@@ -28,27 +32,28 @@ class RecurrentState:
         :type num_sequences: int
         :param num_sequences: number of sequences to be processed in parallel
 
-        :type layer_states: list of numpy.ndarrays
-        :param layer_states: if set to other than ``None``, sets the initial
-                             recurrent layer states to this instead of zeros
+        :type state_variables: list of numpy.ndarrays
+        :param state_variables: if set to other than ``None``, sets the initial
+                                recurrent layer states to this instead of zeros
         """
 
         self.sizes = sizes
         self.num_sequences = num_sequences
-        if layer_states is None:
+        if state_variables is None:
             self.reset()
         else:
-            self.set(layer_states)
+            self.set(state_variables)
 
     @classmethod
     def combine_sequences(classname, states):
-        """Creates recurrent layer state that combines all the sequences from
-        the given state matrices.
+        """Creates recurrent state variables that combine all the sequences from
+        the given list of state objects.
 
         Takes multiple ``RecurrentState`` objects and creates one that contains
-        a matrix or matrices that combine all the sequences. The resulting state
-        will contain as many sequences as the input states in total, in the same
-        order as in the ``states`` list.
+        a state matrix or matrices that combine all the sequences. The resulting
+        state will contain as many sequences as the input states in total, in
+        the same order as in the ``states`` list. The purpose is to be able to
+        process multiple forward passes in parallel.
 
         :type states: list of RecurrentStates
         :param states: list of recurrent layer states, each containing N1, N2,
@@ -66,18 +71,18 @@ class RecurrentState:
         num_sequences = sum([state.num_sequences for state in states])
 
         sizes = []
-        layer_states = []
-        num_layers = len(states[0].sizes)
-        for layer_index in range(num_layers):
-            layer_state = [state.get(layer_index) for state in states]
-            layer_state = numpy.concatenate(layer_state, axis=1)
-            assert layer_state.shape[0] == 1
-            assert layer_state.shape[1] == num_sequences
-            assert layer_state.shape[2] == states[0].sizes[layer_index]
-            sizes.append(layer_state.shape[2])
-            layer_states.append(layer_state)
+        state_variables = []
+        num_variables = len(states[0].sizes)
+        for index in range(num_variables):
+            state_variable = [state.get(index) for state in states]
+            state_variable = numpy.concatenate(state_variable, axis=1)
+            assert state_variable.shape[0] == 1
+            assert state_variable.shape[1] == num_sequences
+            assert state_variable.shape[2] == states[0].sizes[index]
+            sizes.append(state_variable.shape[2])
+            state_variables.append(state_variable)
 
-        return classname(sizes, num_sequences, layer_states)
+        return classname(sizes, num_sequences, state_variables)
 
     def reset(self):
         """Resets the state of each recurrent layer to zeros.
@@ -88,41 +93,42 @@ class RecurrentState:
         to the next. Thus the first two dimensions have size 1.
         """
 
-        self._layers = []
+        self._state_variables = []
         for size in self.sizes:
             shape = (1, self.num_sequences, size)
             value = numpy.zeros(shape).astype(theano.config.floatX)
-            self._layers.append(value)
+            self._state_variables.append(value)
 
-    def set(self, layer_states):
+    def set(self, state_variables):
         """Sets the state vector of every recurrent layer.
 
-        :type layer_states: list of numpy.ndarrays
-        :param layer_states: a matrix for each recurrent layer that contains the
-                             state vector for each sequence at one time step
+        :type state_variables: list of numpy.ndarrays
+        :param state_variables: a matrix for each recurrent layer that contains
+                                the state vector for each sequence at one time
+                                step
         """
 
-        if len(layer_states) != len(self.sizes):
+        if len(state_variables) != len(self.sizes):
             raise ValueError("Recurrent state should contain as many arrays "
                              "as there are recurrent layers.")
-        for layer_state, layer_size in zip(layer_states, self.sizes):
-            if layer_state.shape[0] != 1:
+        for state_variable, size in zip(state_variables, self.sizes):
+            if state_variable.shape[0] != 1:
                 raise ValueError("Recurrent state should contain only one time "
                                  "step.")
-            if layer_state.shape[1] != self.num_sequences:
+            if state_variable.shape[1] != self.num_sequences:
                 raise ValueError("Recurrent state contains incorrect number of "
                                  "sequences.")
-            if layer_state.shape[2] != layer_size:
+            if state_variable.shape[2] != size:
                 raise ValueError("Recurrent state contains a layer with "
                                  "incorrect size.")
-        self._layers = layer_states
+        self._state_variables = state_variables
 
-    def get(self, layer_index=None):
+    def get(self, index=None):
         """Returns the state matrix of a given layer, or a list of the matrices
         of all layers.
 
-        :type layer_index: int
-        :param layer_index: index of a recurrent layer in the state object; if
+        :type index: int
+        :param index: index of a recurrent layer in the state object; if
                             set to other than ``None``, returns only the matrix
                             for the corresponding layer
 
@@ -131,7 +137,7 @@ class RecurrentState:
                   vector for each sequence at one time step
         """
 
-        if layer_index is not None:
-            return self._layers[layer_index]
+        if index is not None:
+            return self._state_variables[index]
         else:
-            return self._layers
+            return self._state_variables

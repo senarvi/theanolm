@@ -15,7 +15,7 @@ class DummyNetwork(object):
         self.word_input = tensor.matrix('word_input', dtype='int64')
         self.class_input = tensor.matrix('class_input', dtype='int64')
         self.mask = tensor.matrix('mask', dtype='int64')
-        self.is_training = tensor.scalar('network/is_training', dtype='int8')
+        self.is_training = tensor.scalar('is_training', dtype='int8')
 
     def target_probs(self):
         return self.word_input[1:].astype('float32') / 5

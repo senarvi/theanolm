@@ -5,6 +5,8 @@ from copy import deepcopy
 import math
 from decimal import *
 import logging
+import numpy
+import theano
 from theanolm.network import RecurrentState
 
 class LatticeDecoder(object):
@@ -59,6 +61,12 @@ class LatticeDecoder(object):
             The recurrent layer states will not be copied - a pointer will be
             copied instead. There's no need to copy the structure, since we
             never modify the state of a token, but replace it if necessary.
+
+            :type token: LatticeDecoder.Token
+            :param token: a token to copy
+
+            :rtype: LatticeDecoder.Token
+            :returns: a copy of ``token``
             """
 
             return classname(deepcopy(token.history),
@@ -70,6 +78,14 @@ class LatticeDecoder(object):
         def compute_total_logprob(self, nn_lm_weight=1.0, lm_scale=1.0):
             """Computes the total log probability of the token by interpolating
             the LM logprobs, applying LM scale, and adding the acoustic logprob.
+
+            :type nn_lm_weight: float
+            :param nn_lm_weight: weight of the neural network LM probability
+                                 when interpolating with the lattice probability
+
+            :type lm_scale: float
+            :param lm_scale: scaling factor for LM probability when computing
+                             the total probability
             """
 
             lat_lm_prob = math.exp(self.lat_lm_logprob)
@@ -123,11 +139,14 @@ class LatticeDecoder(object):
         self._vocabulary = network.vocabulary
         self._weight = weight
 
+        self._sos_id = self._vocabulary.word_to_id['<s>']
+        self._eos_id = self._vocabulary.word_to_id['</s>']
+
         inputs = [network.word_input, network.class_input]
         inputs.extend(network.recurrent_state_input)
         inputs.append(network.target_class_ids)
 
-        outputs = network.target_probs()
+        outputs = [network.target_probs()]
         outputs.extend(network.recurrent_state_output)
 
         # Ignore unused input, because is_training is only used by dropout
@@ -143,13 +162,22 @@ class LatticeDecoder(object):
         """Propagates tokens through given lattice and returns a list of tokens
         in the final node.
 
+        Propagates tokens at a node to every outgoing link by creating a copy of
+        each token and updating the language model scores according to the link.
+
+        Lattices may contain !NULL, !ENTER, !EXIT, etc. nodes that model e.g.
+        silence or sentence start or end, or for example when the topology is
+        easier to represent with extra nodes. Such null nodes may contain
+        language model scores. Then the function will update the lattice LM
+        score, but will not compute anything with the neural network.
+
         :type lattice: Lattice
         :param lattice: a word lattice to be decoded
         """
 
         tokens = [list() for _ in lattice.nodes]
         initial_state = RecurrentState(self._network.recurrent_state_size)
-        initial_token = Token(history=['<s>'], state=initial_state)
+        initial_token = Token(history=[self._sos_id], state=initial_state)
         tokens[lattice.initial_node.id].append(initial_token)
 
         sorted_nodes = lattice.sorted_nodes()
@@ -157,58 +185,22 @@ class LatticeDecoder(object):
             node_tokens = tokens[node.id]
             assert node_tokens
             if node.id == lattice.final_node.id:
-                return self._propagate_to_eos(node_tokens)
+                new_tokens = [self.Token.copy(token) for token in node_tokens]
+                append_word(new_tokens, self._eos_id)
+                return new_tokens
             for link in node.out_links:
-                new_tokens = self._propagate_to_link(node_tokens, link)
+                new_tokens = [self.Token.copy(token) for token in node_tokens]
+                for token in new_tokens:
+                    token.ac_logprob += link.ac_logprob
+                    token.lat_lm_logprob += link.lm_logprob
+                if not link.word.startswith('!'):
+                    word_id = self._vocabulary.word_to_id[link.word]
+                    append_word(new_tokens, word_id)
                 tokens[link.end_node.id].extend(new_tokens)
 
         raise InputError("Could not reach the final node of word lattice.")
 
-    def _propagate_to_link(self, tokens, link):
-        """Propagates a set of tokens by creating a copy of each token and
-        updating the language model scores according to given link.
-
-        Lattices may contain !NULL, !ENTER, !EXIT, etc. nodes at sentence starts
-        and ends, and for example when the topology is easier to represent with
-        extra nodes. Such null nodes may contain language model scores. Then the
-        function will update the lattice LM score, but will not do anything with
-        the neural network.
-
-        :type tokens: list of LatticeDecoder.Tokens
-        :param tokens: tokens at the input node
-
-        :type link: Lattice.Link
-        :param link: link originating from the input node
-
-        :rtype: list of LatticeDecoder.Tokens
-        :returns: tokens representing the state after passing ``link``
-        """
-
-        new_tokens = [self.Token.copy(token) for token in tokens]
-        for token in new_tokens:
-            token.ac_logprob += link.ac_logprob
-            token.lat_lm_logprob += link.lm_logprob
-        if not link.word.startswith('!'):
-            target_word_id = self._vocabulary.word_to_id[link.word]
-            compute_lm_logprobs(new_tokens, target_word_id)
-        return new_tokens
-
-    def _propagate_to_eos(self, tokens):
-        """Updates tokens as if it they were propagated to an end of sentence.
-
-        :type tokens: list of LatticeDecoder.Tokens
-        :param tokens: input tokens
-
-        :rtype: list of LatticeDecoder.Tokens
-        :returns: tokens representing the state after passing ``</s>``
-        """
-
-        new_tokens = [self.Token.copy(token) for token in tokens]
-        target_word_id = self._vocabulary.word_to_id['</s>']
-        compute_lm_logprobs(new_tokens, target_word_id)
-        return new_tokens
-
-    def compute_lm_logprobs(tokens, target_word_id):
+    def append_word(self, tokens, target_word_id):
         """Appends a word to each of the given tokens, and updates their scores.
 
         :type tokens: list of LatticeDecoder.Tokens
@@ -224,11 +216,11 @@ class LatticeDecoder(object):
         class_input = self._vocabulary.word_id_to_class_id[word_input]
         recurrent_state = [token.state for token in tokens]
         recurrent_state = RecurrentState.combine_sequences(recurrent_state)
-        target_class_ids = numpy.ones(len(tokens)).astype('int64')
+        target_class_ids = numpy.ones(shape=(1, len(tokens))).astype('int64')
         target_class_ids *= self._vocabulary.word_id_to_class_id[target_word_id]
         step_result = self.step_function(word_input,
                                          class_input,
-                                         *recurrent_state,
+                                         *recurrent_state.get(),
                                          target_class_ids)
         output_logprobs = step_result[0]
         output_state = step_result[1:]
