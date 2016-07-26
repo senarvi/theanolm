@@ -13,40 +13,41 @@ class TextSampler(object):
     """
 
     def __init__(self, network):
-        """Creates a Theano function that samples one word at a time.
+        """Creates a Theano function that samples the next word of a set of word
+        sequences.
 
-        Creates the function self.step_function that uses the state of the
-        previous time step and the word ID of the current time step, to compute
-        the output distribution. It samples from the output distribution and
-        returns the sampled word ID along with the output state of this time
-        step.
+        Creates the function self.step_function that takes as input a set of
+        word sequences and the current recurrent states. It uses the previous
+        states and word IDs to compute the output distributions. It samples from
+        the output distributions and returns the sampled word IDs along with the
+        output states of this time step.
 
         :type network: Network
         :param network: the neural network object
         """
 
-        self.network = network
-        self.vocabulary = network.vocabulary
-        self.random = self.network.random
+        self._network = network
+        self._vocabulary = network.vocabulary
+        self._random = network.random
 
-        inputs = [self.network.word_input, self.network.class_input]
-        inputs.extend(self.network.recurrent_state_input)
+        inputs = [network.word_input, network.class_input]
+        inputs.extend(network.recurrent_state_input)
 
-        # multinomial() is only implemented with dimension < 2, but the matrix
+        # multinomial() is only implemented for dimension < 2, but the matrix
         # contains only one time step anyway.
-        output_probs = self.network.output_probs()[0]
-        class_ids = self.random.multinomial(pvals=output_probs).argmax(1)
+        output_probs = network.output_probs()[0]
+        class_ids = self._random.multinomial(pvals=output_probs).argmax(1)
         class_ids = class_ids.reshape([1, class_ids.shape[0]])
         outputs = [class_ids]
-        outputs.extend(self.network.recurrent_state_output)
+        outputs.extend(network.recurrent_state_output)
 
         # Ignore unused input, because is_training is only used by dropout
         # layer.
         self.step_function = theano.function(
             inputs,
             outputs,
-            givens=[(self.network.is_training, numpy.int8(0))],
-            name='text_sampler',
+            givens=[(network.is_training, numpy.int8(0))],
+            name='step_sampler',
             on_unused_input='ignore')
 
     def generate(self, max_length=30, num_sequences=1):
@@ -69,9 +70,9 @@ class TextSampler(object):
         :returns: list of word sequences
         """
 
-        sos_id = self.vocabulary.word_to_id['<s>']
-        sos_class_id = self.vocabulary.word_id_to_class_id[sos_id]
-        eos_id = self.vocabulary.word_to_id['</s>']
+        sos_id = self._vocabulary.word_to_id['<s>']
+        sos_class_id = self._vocabulary.word_id_to_class_id[sos_id]
+        eos_id = self._vocabulary.word_to_id['</s>']
 
         word_input = sos_id * \
                      numpy.ones(shape=(1, num_sequences)).astype('int64')
@@ -79,7 +80,8 @@ class TextSampler(object):
                       numpy.ones(shape=(1, num_sequences)).astype('int64')
         result = sos_id * \
                  numpy.ones(shape=(max_length, num_sequences)).astype('int64')
-        state = RecurrentState(self.network, num_sequences)
+        state = RecurrentState(self._network.recurrent_state_size,
+                               num_sequences)
 
         for time_step in range(1, max_length):
             # The input is the output from the previous step.
@@ -90,10 +92,10 @@ class TextSampler(object):
             # The class IDs from the single time step.
             step_class_ids = class_ids[0]
             step_word_ids = numpy.array(
-                self.vocabulary.class_ids_to_word_ids(step_class_ids))
+                self._vocabulary.class_ids_to_word_ids(step_class_ids))
             result[time_step] = step_word_ids
             word_input = step_word_ids[numpy.newaxis]
             class_input = class_ids
             state.set(step_result[1:])
 
-        return self.vocabulary.id_to_word[result.transpose()].tolist()
+        return self._vocabulary.id_to_word[result.transpose()].tolist()

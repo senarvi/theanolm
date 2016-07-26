@@ -228,7 +228,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         :returns: expressions how to update the gradient variables
         """
 
-        return
+        assert False
 
     @abstractmethod
     def _model_update_exprs(self, alpha):
@@ -242,7 +242,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         :returns: expressions how to update the model parameters
         """
 
-        return
+        assert False
 
     def _normalize(self, updates):
         """Normalizes the norm of a parameter update to given maximum value.

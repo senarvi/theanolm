@@ -17,28 +17,30 @@ def add_arguments(parser):
     argument_group = parser.add_argument_group("files")
     argument_group.add_argument(
         'model_path', metavar='MODEL-FILE', type=str,
-        help='path where the best model state will be saved in numpy .npz '
-             'format')
+        help='path where the best model state will be saved in HDF5 binary '
+             'data format')
     argument_group.add_argument(
         'validation_file', metavar='VALID-FILE', type=TextFileType('r'),
-        help='text or .gz file containing validation data (one sentence per '
-             'line) for early stopping')
+        help='text file containing validation data for early stopping (UTF-8, '
+             'one sentence per line, assumed to be compressed if the name ends '
+             'in ".gz")')
     argument_group.add_argument(
         '--training-set', metavar='FILE', type=TextFileType('r'), nargs='+',
         required=True,
-        help='text or .gz files containing training data (one sentence per '
-             'line)')
+        help='text files containing training data (UTF-8, one sentence per '
+             'line, assumed to be compressed if the name ends in ".gz")')
     argument_group.add_argument(
         '--vocabulary', metavar='FILE', type=str, default=None,
-        help='text or .gz file containing word list or class definitions '
-             '(default is to include all the files from the training set)')
+        help='word or class vocabulary to be used in the neural network input '
+             'and output, in the format specified by the --vocabulary-format '
+             'argument (UTF-8 text, default is to use all the words from the '
+             'training data)')
     argument_group.add_argument(
         '--vocabulary-format', metavar='FORMAT', type=str, default='words',
         help='format of the file specified with --vocabulary argument, one of '
              '"words" (one word per line, default), "classes" (word and class '
              'ID per line), "srilm-classes" (class name, membership '
              'probability, and word per line)')
-
     argument_group = parser.add_argument_group("network architecture")
     argument_group.add_argument(
         '--architecture', metavar='FILE', type=str, default='lstm300',
@@ -118,8 +120,8 @@ def add_arguments(parser):
              "computation; otherwise use constant LOGPROB as <unk> token score "
              "(default is to use the network to predict <unk> probability)")
     argument_group.add_argument(
-        '--weights', metavar='WEIGHT', type=float, nargs='*', default=[],
-        help='scale a mini-batch update by WEIGHT if the data is from the '
+        '--weights', metavar='LAMBDA', type=float, nargs='*', default=[],
+        help='scale a mini-batch update by LAMBDA if the data is from the '
              'corresponding training file (list the weights in the same order '
              'as the training files)')
 

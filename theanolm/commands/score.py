@@ -17,16 +17,16 @@ def add_arguments(parser):
     argument_group = parser.add_argument_group("files")
     argument_group.add_argument(
         'model_path', metavar='MODEL-FILE', type=str,
-        help='path where the best model state will be saved in numpy .npz '
-             'format')
+        help='the model file that will be used to score text')
     argument_group.add_argument(
-        'input_file', metavar='INPUT-FILE', type=TextFileType('r'),
-        help='text or .gz file containing text to be scored (one sentence per '
-             'line)')
+        'input_file', metavar='TEXT-FILE', type=TextFileType('r'),
+        help='text file containing text to be scored (UTF-8, one sentence per '
+             'line, assumed to be compressed if the name ends in ".gz")')
     argument_group.add_argument(
         '--output-file', metavar='FILE', type=TextFileType('w'), default='-',
-        help='where to write the statistics (default stdout)')
-    
+        help='where to write the statistics (default stdout, will be '
+             'compressed if the name ends in ".gz")')
+
     argument_group = parser.add_argument_group("scoring")
     argument_group.add_argument(
         '--output', metavar='DETAIL', type=str, default='text',

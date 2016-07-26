@@ -48,8 +48,8 @@ class GRULayer(BasicLayer):
 
         The input is always 3-dimensional: the first dimension is the time step,
         the second dimension are the sequences, and the third dimension is the
-        layer input. If ``self.network.predict_next_distribution`` is ``False``,
-        the function creates the normal mini-batch structure.
+        layer input. When processing mini-batches, all dimensions can have size
+        greater than one.
 
         The function can also be used to create a structure for generating the
         probability distribution of the next word. Then the input is still
@@ -78,7 +78,7 @@ class GRULayer(BasicLayer):
         # inside the loop.
         hidden_state_weights = self._get_param('step_input/W')
 
-        if not self.network.predict_next_distribution:
+        if self.network.mode.is_minibatch():
             sequences = [self.network.mask, layer_input_preact]
             non_sequences = [hidden_state_weights]
             initial_value = numpy.dtype(theano.config.floatX).type(0.0)

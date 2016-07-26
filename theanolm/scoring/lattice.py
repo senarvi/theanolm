@@ -79,7 +79,7 @@ class Lattice(object):
         :param lattice_file: a lattice file in the correct format
         """
 
-        return
+        assert False
 
     def sorted_nodes(self):
         """Sorts nodes topologically, then by time.

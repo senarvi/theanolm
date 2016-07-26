@@ -57,20 +57,26 @@ class SoftmaxLayer(BasicLayer):
         self.output_probs = self.output_probs.reshape([num_time_steps,
                                                        num_sequences,
                                                        output_size])
-        if self.network.predict_next_distribution:
+        if self.network.mode.is_distribution():
             return
 
         # We should predict probabilities of the target outputs, i.e. the words
         # at the next time step.
-        output_probs = self.output_probs[:-1].flatten()
-        class_ids = self.network.class_input[1:].flatten()
+        if self.network.mode is Network.Mode.target_words:
+            output_probs = self.output_probs.flatten()
+            target_class_ids = self.network.target_class_ids.flatten()
+        else:
+            output_probs = self.output_probs[:-1].flatten()
+            target_class_ids = self.network.class_input[1:].flatten()
+            num_time_steps -= 1
 
         # An index to a flattened input matrix times the vocabulary size can be
         # used to index the same location in the output matrix. The class ID is
         # added to index the probability of that word.
-        minibatch_size = class_ids.shape[0]
+        minibatch_size = target_class_ids.shape[0]
         num_classes = self.network.vocabulary.num_classes()
-        target_indices = tensor.arange(minibatch_size) * num_classes + class_ids
+        target_indices = tensor.arange(minibatch_size) * num_classes
+        target_indices += target_class_ids
         self.target_probs = output_probs[target_indices]
-        self.target_probs = self.target_probs.reshape([(num_time_steps - 1),
+        self.target_probs = self.target_probs.reshape([num_time_steps,
                                                        num_sequences])
