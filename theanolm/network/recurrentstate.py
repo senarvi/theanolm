@@ -9,7 +9,10 @@ class RecurrentState:
 
     When performing a forward pass one time step at a time, the state that has
     to be passed to the next time step includes the state of any recurrent
-    layers.
+    layers. A state object contains a matrix for each recurrent layer that has
+    the same shape as a mini-batch (first dimension is time step, second
+    dimension is sequence), but the last dimension is a vector of state
+    variables.
     """
 
     def __init__(self, sizes, num_sequences=1, layer_states=None):
@@ -66,7 +69,7 @@ class RecurrentState:
         layer_states = []
         num_layers = len(states[0].sizes)
         for layer_index in range(num_layers):
-            layer_state = [state._layers[layer_index] for state in states]
+            layer_state = [state.get(layer_index) for state in states]
             layer_state = numpy.concatenate(layer_state, axis=1)
             assert layer_state.shape[0] == 1
             assert layer_state.shape[1] == num_sequences
@@ -102,21 +105,33 @@ class RecurrentState:
         if len(layer_states) != len(self.sizes):
             raise ValueError("Recurrent state should contain as many arrays "
                              "as there are recurrent layers.")
-        for x in layer_states:
-            if x.shape[0] != 1:
+        for layer_state, layer_size in zip(layer_states, self.sizes):
+            if layer_state.shape[0] != 1:
                 raise ValueError("Recurrent state should contain only one time "
                                  "step.")
-            if x.shape[1] != self.num_sequences:
+            if layer_state.shape[1] != self.num_sequences:
                 raise ValueError("Recurrent state contains incorrect number of "
                                  "sequences.")
+            if layer_state.shape[2] != layer_size:
+                raise ValueError("Recurrent state contains a layer with "
+                                 "incorrect size.")
         self._layers = layer_states
 
-    def get(self):
-        """Returns a list of state vectors, one for every recurrent layer.
+    def get(self, layer_index=None):
+        """Returns the state matrix of a given layer, or a list of the matrices
+        of all layers.
 
-        :rtype: list of numpy.ndarrays
+        :type layer_index: int
+        :param layer_index: index of a recurrent layer in the state object; if
+                            set to other than ``None``, returns only the matrix
+                            for the corresponding layer
+
+        :rtype: numpy.ndarray or list of numpy.ndarrays
         :returns: a matrix for each recurrent layer that contains the state
                   vector for each sequence at one time step
         """
 
-        return self._layers
+        if layer_index is not None:
+            return self._layers[layer_index]
+        else:
+            return self._layers
