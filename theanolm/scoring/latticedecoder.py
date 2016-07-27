@@ -106,6 +106,19 @@ class LatticeDecoder(object):
                 lm_logprob = float(d_lm_prob.ln())
             self.total_logprob = self.ac_logprob + (lm_logprob * lm_scale)
 
+        def __str__(self, vocabulary=None):
+            if vocabulary is None:
+                history = ' '.join(str(x) for x in self.history)
+            else:
+                history = ' '.join(vocabulary.id_to_word[self.history])
+            return '[{}]  acoustic: {:.2f}  lattice LM: {:.2f}  NNLM: ' \
+                   '{:.2f}  total: {:.2f}'.format(
+                   history,
+                   self.ac_logprob,
+                   self.lat_lm_logprob,
+                   self.nn_lm_logprob,
+                   self.total_logprob)
+
     def __init__(self, network, weight=1.0, ignore_unk=False, unk_penalty=None,
                  profile=False):
         """Creates a Theano function that computes the output probabilities for
@@ -173,11 +186,15 @@ class LatticeDecoder(object):
 
         :type lattice: Lattice
         :param lattice: a word lattice to be decoded
+
+        :rtype: list of LatticeDecoder.Tokens
+        :returns: the final tokens sorted by total log probability in descending
+                  order
         """
 
         tokens = [list() for _ in lattice.nodes]
         initial_state = RecurrentState(self._network.recurrent_state_size)
-        initial_token = Token(history=[self._sos_id], state=initial_state)
+        initial_token = self.Token(history=[self._sos_id], state=initial_state)
         tokens[lattice.initial_node.id].append(initial_token)
 
         sorted_nodes = lattice.sorted_nodes()
@@ -186,8 +203,10 @@ class LatticeDecoder(object):
             assert node_tokens
             if node.id == lattice.final_node.id:
                 new_tokens = [self.Token.copy(token) for token in node_tokens]
-                append_word(new_tokens, self._eos_id)
-                return new_tokens
+                self.append_word(new_tokens, self._eos_id)
+                return sorted(new_tokens,
+                              key=lambda token: token.total_logprob,
+                              reverse=True)
             for link in node.out_links:
                 new_tokens = [self.Token.copy(token) for token in node_tokens]
                 for token in new_tokens:
@@ -195,7 +214,7 @@ class LatticeDecoder(object):
                     token.lat_lm_logprob += link.lm_logprob
                 if not link.word.startswith('!'):
                     word_id = self._vocabulary.word_to_id[link.word]
-                    append_word(new_tokens, word_id)
+                    self.append_word(new_tokens, word_id)
                 tokens[link.end_node.id].extend(new_tokens)
 
         raise InputError("Could not reach the final node of word lattice.")

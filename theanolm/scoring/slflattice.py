@@ -146,8 +146,8 @@ class SLFLattice(Lattice):
         start_node = None
         end_node = None
         word = None
-        ac_score = None
-        lm_score = None
+        ac_logprob = None
+        lm_logprob = None
 
         for field in fields:
             name, value = self._split_slf_field(field)
@@ -158,9 +158,9 @@ class SLFLattice(Lattice):
             elif (name == 'WORD') or (name == 'W'):
                 word = value
             elif (name == 'acoustic') or (name == 'a'):
-                ac_score = float(value)
+                ac_logprob = float(value)
             elif (name == 'language') or (name == 'l'):
-                lm_score = float(value)
+                lm_logprob = float(value)
 
         if start_node is None:
             raise InputError("Start node is not specified for link %d.".format(
@@ -170,8 +170,8 @@ class SLFLattice(Lattice):
                              link_id))
         link = self._add_link(start_node, end_node)
         link.word = word
-        link.ac_score = ac_score
-        link.lm_score = lm_score
+        link.ac_logprob = ac_logprob
+        link.lm_logprob = lm_logprob
 
     def _split_slf_line(self, line):
         """Parses a list of fields from an SLF lattice line.
@@ -207,7 +207,7 @@ class SLFLattice(Lattice):
         
         name_value = field.split('=', 1)
         if len(name_value) != 2:
-            raise InputError("Expected '=' in SLF lattice field: '%s'".format(
+            raise InputError("Expected '=' in SLF lattice field: '{}'".format(
                              field))
         name = name_value[0]
         value = name_value[1]

@@ -35,8 +35,8 @@ class Lattice(object):
             self.start_node = start_node
             self.end_node = end_node
             self.word = None
-            self.ac_score = None
-            self.lm_score = None
+            self.ac_logprob = None
+            self.lm_logprob = None
 
     class Node(object):
         """A node in the graph.
