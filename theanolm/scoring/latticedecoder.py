@@ -179,9 +179,10 @@ class LatticeDecoder(object):
         self._sos_id = self._vocabulary.word_to_id['<s>']
         self._eos_id = self._vocabulary.word_to_id['</s>']
 
-        inputs = [network.word_input, network.class_input]
+        inputs = [network.word_input,
+                  network.class_input,
+                  network.target_class_ids]
         inputs.extend(network.recurrent_state_input)
-        inputs.append(network.target_class_ids)
 
         outputs = [network.target_probs()]
         outputs.extend(network.recurrent_state_output)
@@ -284,8 +285,8 @@ class LatticeDecoder(object):
         target_class_ids *= self._vocabulary.word_id_to_class_id[target_word_id]
         step_result = self.step_function(word_input,
                                          class_input,
-                                         *recurrent_state.get(),
-                                         target_class_ids)
+                                         target_class_ids,
+                                         *recurrent_state.get())
         output_logprobs = step_result[0]
         output_state = step_result[1:]
 

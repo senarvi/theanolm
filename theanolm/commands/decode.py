@@ -89,7 +89,7 @@ def decode(args):
     decoder = LatticeDecoder(network,
                              nnlm_weight=args.nnlm_weight,
                              lm_scale=args.lm_scale,
-                             wi_penalty=wi_penalty
+                             wi_penalty=wi_penalty,
                              ignore_unk=ignore_unk,
                              unk_penalty=unk_penalty)
 
@@ -101,4 +101,4 @@ def decode(args):
         best_token = tokens[0]
         logprob = best_token.total_logprob / log_scale
         words = vocabulary.id_to_word[token.history]
-        output_file.write("{} {}\n".format(logprob, ' '.join(words))
+        output_file.write("{} {}\n".format(logprob, ' '.join(words)))
