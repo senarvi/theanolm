@@ -75,7 +75,7 @@ class LatticeDecoder(object):
                              token.lat_lm_logprob,
                              token.nn_lm_logprob)
 
-        def compute_total_logprob(self, nn_lm_weight=1.0, lm_scale=1.0):
+        def compute_total_logprob(self, nn_lm_weight, lm_scale, wi_penalty):
             """Computes the total log probability of the token by interpolating
             the LM logprobs, applying LM scale, and adding the acoustic logprob.
 
@@ -86,6 +86,10 @@ class LatticeDecoder(object):
             :type lm_scale: float
             :param lm_scale: scaling factor for LM probability when computing
                              the total probability
+
+            :type wi_penalty: float
+            :param wi_penalty: penalize each word in the history by adding this
+                               value as many times as there are words
             """
 
             lat_lm_prob = math.exp(self.lat_lm_logprob)
@@ -104,7 +108,10 @@ class LatticeDecoder(object):
                 d_lm_prob = d_inv_nn_lm_weight * d_lat_lm_logprob.exp()
                 d_lm_prob += d_nn_lm_weight * d_nn_lm_logprob.exp()
                 lm_logprob = float(d_lm_prob.ln())
-            self.total_logprob = self.ac_logprob + (lm_logprob * lm_scale)
+
+            self.total_logprob = self.ac_logprob
+            self.total_logprob += lm_logprob * lm_scale
+            self.total_logprob += wi_penalty * len(self.history)
 
         def __str__(self, vocabulary=None):
             if vocabulary is None:
@@ -119,8 +126,8 @@ class LatticeDecoder(object):
                    self.nn_lm_logprob,
                    self.total_logprob)
 
-    def __init__(self, network, weight=1.0, ignore_unk=False, unk_penalty=None,
-                 profile=False):
+    def __init__(self, network, nnlm_weight=1.0, lm_scale=None, wi_penalty=None,
+                 ignore_unk=False, unk_penalty=None, profile=False):
         """Creates a Theano function that computes the output probabilities for
         a single time step.
 
@@ -129,12 +136,27 @@ class LatticeDecoder(object):
         states and word IDs to compute the output distributions, and computes
         the probabilities of the target words.
 
+        All invocations of ``decode()`` will use the given NNLM weight and LM
+        scale when computing the total probability. If LM scale is not given,
+        uses the value provided in the lattice files. If it's not provided in a
+        lattice file either, performs no scaling of LM log probabilities.
+
         :type network: Network
         :param network: the neural network object
 
-        :type weight: float
-        :param weight: weight of the neural network probabilities when
-                       interpolating with the lattice probabilities
+        :type nnlm_weight: float
+        :param nnlm_weight: weight of the neural network probabilities when
+                            interpolating with the lattice probabilities
+
+        :type lm_scale: float
+        :param lm_scale: if other than ``None``, the decoder will scale language
+                         model log probabilities by this factor; otherwise the
+                         scaling factor will be read from the lattice file
+
+        :type wi_penalty: float
+        :param wi_penalty: penalize word insertion by adding this value to the
+                           total log probability of a token as many times as
+                           there are words
 
         :type ignore_unk: bool
         :param ignore_unk: if set to True, <unk> tokens are excluded from
@@ -150,7 +172,9 @@ class LatticeDecoder(object):
 
         self._network = network
         self._vocabulary = network.vocabulary
-        self._weight = weight
+        self._nnlm_weight = nnlm_weight
+        self._lm_scale = lm_scale
+        self._wi_penalty = wi_penalty
 
         self._sos_id = self._vocabulary.word_to_id['<s>']
         self._eos_id = self._vocabulary.word_to_id['</s>']
@@ -192,6 +216,20 @@ class LatticeDecoder(object):
                   order
         """
 
+        if not self._lm_scale is None:
+            lm_scale = self._lm_scale
+        elif not lattice.lm_scale is None:
+            lm_scale = lattice.lm_scale
+        else:
+            lm_scale = 1.0
+
+        if not self._wi_penalty is None:
+            wi_penalty = self._wi_penalty
+        if not lattice.wi_penalty is None:
+            wi_penalty = lattice.wi_penalty
+        else:
+            wi_penalty = 0.0
+
         tokens = [list() for _ in lattice.nodes]
         initial_state = RecurrentState(self._network.recurrent_state_size)
         initial_token = self.Token(history=[self._sos_id], state=initial_state)
@@ -203,7 +241,7 @@ class LatticeDecoder(object):
             assert node_tokens
             if node.id == lattice.final_node.id:
                 new_tokens = [self.Token.copy(token) for token in node_tokens]
-                self.append_word(new_tokens, self._eos_id)
+                self.append_word(new_tokens, self._eos_id, lm_scale, wi_penalty)
                 return sorted(new_tokens,
                               key=lambda token: token.total_logprob,
                               reverse=True)
@@ -214,12 +252,12 @@ class LatticeDecoder(object):
                     token.lat_lm_logprob += link.lm_logprob
                 if not link.word.startswith('!'):
                     word_id = self._vocabulary.word_to_id[link.word]
-                    self.append_word(new_tokens, word_id)
+                    self.append_word(new_tokens, word_id, lm_scale, wi_penalty)
                 tokens[link.end_node.id].extend(new_tokens)
 
         raise InputError("Could not reach the final node of word lattice.")
 
-    def append_word(self, tokens, target_word_id):
+    def append_word(self, tokens, target_word_id, lm_scale, wi_penalty):
         """Appends a word to each of the given tokens, and updates their scores.
 
         :type tokens: list of LatticeDecoder.Tokens
@@ -228,6 +266,13 @@ class LatticeDecoder(object):
         :type target_word_id: int
         :param target_word_id: word ID to be appended to the existing history of
                                each input token
+
+        :type lm_scale: float
+        :param lm_scale: scale language model log probabilities by this factor
+
+        :type wi_penalty: float
+        :param wi_penalty: penalize word insertion by adding this value to the
+                           total log probability of the token
         """
 
         word_input = [[token.history[-1] for token in tokens]]
@@ -252,4 +297,4 @@ class LatticeDecoder(object):
                              for layer_state in output_state])
             # The matrix contains only one time step.
             token.nn_lm_logprob += output_logprobs[0,index]
-            token.compute_total_logprob(self._weight)
+            token.compute_total_logprob(self._nnlm_weight, lm_scale, wi_penalty)

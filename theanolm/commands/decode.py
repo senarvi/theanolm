@@ -30,15 +30,26 @@ def add_arguments(parser):
     argument_group = parser.add_argument_group("decoding")
     argument_group.add_argument(
         '--nnlm-weight', metavar='LAMBDA', type=float, default=1.0,
-        help='language model probabilities given by the model read from '
-             'MODEL-FILE will be weighted by LAMBDA, when interpolating with '
-             'the language model probabilities in the lattice (default is 1.0, '
-             'meaning that the LM probabilities in the lattice will be '
-             'ignored)')
+        help="language model probabilities given by the model read from "
+             "MODEL-FILE will be weighted by LAMBDA, when interpolating with "
+             "the language model probabilities in the lattice (default is 1.0, "
+             "meaning that the LM probabilities in the lattice will be "
+             "ignored)")
+    argument_group.add_argument(
+        '--lm-scale', metavar='LMSCALE', type=float, default=None,
+        help="scale language model log probabilities by LMSCALE when computing "
+             "the total probability of a path (default is to use the LM scale "
+             "specified in the lattice file, or 1.0 if not specified)")
+    argument_group.add_argument(
+        '--wi-penalty', metavar='WIP', type=float, default=None,
+        help="penalize word insertion by adding WIP to the total log "
+             "probability as many times as there are words in the path "
+             "(without scaling WIP by LMSCALE)")
     argument_group.add_argument(
         '--log-base', metavar='B', type=int, default=None,
-        help='convert output log probabilities to base B (default is the '
-             'natural logarithm)')
+        help="convert output log probabilities to base B and WIP from base B "
+             "(default is natural logarithm; this does not affect reading "
+             "lattices, since they specify their internal log base)")
     argument_group.add_argument(
         '--unk-penalty', metavar='LOGPROB', type=float, default=None,
         help="if LOGPROB is zero, do not include <unk> tokens in perplexity "
@@ -61,6 +72,8 @@ def decode(args):
         sys.stdout.flush()
         network.set_state(state)
 
+    log_scale = 1.0 if log_base is None else numpy.log(args.log_base)
+
     print("Building word lattice decoder.")
     sys.stdout.flush()
     if args.unk_penalty is None:
@@ -72,25 +85,20 @@ def decode(args):
     else:
         ignore_unk = False
         unk_penalty = args.unk_penalty
-    decoder = LatticeDecoder(network, args.nnlm_weight, ignore_unk, unk_penalty)
-
-    base_conversion = 1 if log_base is None else numpy.log(log_base)
-    unk_id = vocabulary.word_to_id['<unk>']
+    wi_penalty = args.wi_penalty * log_scale
+    decoder = LatticeDecoder(network,
+                             nnlm_weight=args.nnlm_weight,
+                             lm_scale=args.lm_scale,
+                             wi_penalty=wi_penalty
+                             ignore_unk=ignore_unk,
+                             unk_penalty=unk_penalty)
 
     for lattice_file in args.lattices:
         print("Reading word lattice.")
-        lattice = SLFLattice()
-        lattice.read(lattice_file)
+        lattice = SLFLattice(lattice_file)
         print("Decoding word lattice.")
-        decoder.decode(lattice)
-        class_ids, membership_probs = vocabulary.get_class_memberships(word_ids)
-        seq_logprobs = [x / base_conversion for x in seq_logprobs]
-        seq_class_names = vocabulary.word_ids_to_names(seq_word_ids)
-        # seq_logprob is in natural base.
-        output_file.write("Sentence perplexity: {0}\n\n".format(
-            numpy.exp(-seq_logprob / len(seq_logprobs))))
-        if not log_base is None:
-            cross_entropy /= base_conversion
-            output_file.write("Cross entropy (base {1}): {0}\n".format(
-                cross_entropy, log_base))
-        output_file.write("Perplexity: {0}\n".format(perplexity))
+        tokens = decoder.decode(lattice)
+        best_token = tokens[0]
+        logprob = best_token.total_logprob / log_scale
+        words = vocabulary.id_to_word[token.history]
+        output_file.write("{} {}\n".format(logprob, ' '.join(words))

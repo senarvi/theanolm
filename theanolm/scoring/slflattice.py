@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import math
 from shlex import shlex
 from theanolm.exceptions import InputError
 from theanolm.scoring.lattice import Lattice
@@ -11,30 +12,45 @@ class SLFLattice(Lattice):
     A word lattice that can be read in SLF format.
     """
 
-    def read(self, lattice_file):
+    def __init__(self, lattice_file):
         """Reads an SLF lattice file.
+
+        If ``lattice_file`` is ``None``, creates an empty lattice (useful for
+        testing).
 
         :type lattice_file: file object
         :param lattice_file: a file in SLF lattice format
         """
 
-        self._utterance_id = None
-        self._log_base = None
-        self._lm_scale = 1.0
-        self._wi_penalty = 0.0
-        self._num_nodes = None
-        self._num_links = None
+        super().__init__()
+
+        # No log conversion by default. "None" means the lattice file uses
+        # linear probabilities.
+        self._log_scale = 1.0
+
         self._initial_node_id = None
         self._final_node_id = None
 
+        if lattice_file is None:
+            self._num_nodes = 0
+            self._num_links = 0
+            return
+
+        self._num_nodes = None
+        self._num_links = None
         for line in lattice_file:
             fields = self._split_slf_line(line)
             self._read_slf_header(fields)
             if (not self._num_nodes is None) and (not self._num_links is None):
                 break
 
+        if not self.wi_penalty is None:
+            if self._log_scale is None:
+                self.wi_penalty = math.log(self.wi_penalty)
+            else:
+                self.wi_penalty *= self._log_scale
+
         self.nodes = [self.Node(id) for id in range(self._num_nodes)]
-        self.links = []
 
         for line in lattice_file:
             fields = self._split_slf_line(line)
@@ -93,15 +109,19 @@ class SLFLattice(Lattice):
         for field in fields:
             name, value = self._split_slf_field(field)
             if (name == 'UTTERANCE') or (name == 'U'):
-                self._utterance_id = value
+                self.utterance_id = value
             elif (name == 'SUBLAT') or (name == 'S'):
                 raise InputError("Sub-lattices are not supported.")
             elif name == 'base':
-                self._log_base = float(value)
+                value = float(value)
+                if value == 0.0:
+                    self._log_scale = None
+                else:
+                    self._log_scale = math.log(value)
             elif name == 'lmscale':
-                self._lm_scale = float(value)
+                self.lm_scale = float(value)
             elif name == 'wdpenalty':
-                self._wi_penalty = float(value)
+                self.wi_penalty = float(value)
             elif name == 'start':
                 self._initial_node_id = int(value)
             elif name == 'end':
@@ -158,9 +178,15 @@ class SLFLattice(Lattice):
             elif (name == 'WORD') or (name == 'W'):
                 word = value
             elif (name == 'acoustic') or (name == 'a'):
-                ac_logprob = float(value)
+                if self._log_scale is None:
+                    ac_logprob = math.log(float(value))
+                else:
+                    ac_logprob = float(value) * self._log_scale
             elif (name == 'language') or (name == 'l'):
-                lm_logprob = float(value)
+                if self._log_scale is None:
+                    lm_logprob = math.log(float(value))
+                else:
+                    lm_logprob = float(value) * self._log_scale
 
         if start_node is None:
             raise InputError("Start node is not specified for link %d.".format(

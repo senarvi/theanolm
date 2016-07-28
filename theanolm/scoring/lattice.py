@@ -68,6 +68,9 @@ class Lattice(object):
         self.links = []
         self.initial_node = None
         self.final_node = None
+        self.utterance_id = None
+        self.lm_scale = None
+        self.wi_penalty = None
 
     @abstractmethod
     def read(self, lattice_file):

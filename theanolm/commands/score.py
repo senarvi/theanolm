@@ -110,10 +110,10 @@ def _score_text(input_file, vocabulary, scorer, output_file,
     """
 
     validation_iter = LinearBatchIterator(input_file, vocabulary)
-    base_conversion = 1 if log_base is None else numpy.log(log_base)
+    log_scale = 1.0 if log_base is None else numpy.log(log_base)
     unk_id = vocabulary.word_to_id['<unk>']
 
-    total_logprob = 0
+    total_logprob = 0.0
     num_sentences = 0
     num_words = 0
     num_probs = 0
@@ -131,8 +131,8 @@ def _score_text(input_file, vocabulary, scorer, output_file,
             if not word_level:
                 continue
 
-            seq_logprobs = [x / base_conversion for x in seq_logprobs]
-            seq_class_names = vocabulary.word_ids_to_names(seq_word_ids)
+            seq_logprobs = [x / log_scale for x in seq_logprobs]
+            seq_words = vocabulary.id_to_word[seq_word_ids]
             output_file.write("# Sentence {0}\n".format(num_sentences))
 
             # In case some word IDs are ignored, seq_word_ids may contain more
@@ -140,12 +140,12 @@ def _score_text(input_file, vocabulary, scorer, output_file,
             logprob_index = 0
             for word_index, word_id in enumerate(seq_word_ids[1:]):
                 if word_index - 2 > 0:
-                    history = seq_class_names[word_index:word_index - 3:-1]
+                    history = seq_words[word_index:word_index - 3:-1]
                     history.append('...')
                 else:
-                    history = seq_class_names[word_index::-1]
+                    history = seq_words[word_index::-1]
                 history = ', '.join(history)
-                predicted = seq_class_names[word_index + 1]
+                predicted = seq_words[word_index + 1]
 
                 if scorer.ignore_unk and word_id == unk_id:
                     output_file.write("p({0} | {1}) is not predicted\n".format(
@@ -169,7 +169,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
         perplexity = numpy.exp(cross_entropy)
         output_file.write("Cross entropy (base e): {0}\n".format(cross_entropy))
         if not log_base is None:
-            cross_entropy /= base_conversion
+            cross_entropy /= log_scale
             output_file.write("Cross entropy (base {1}): {0}\n".format(
                 cross_entropy, log_base))
         output_file.write("Perplexity: {0}\n".format(perplexity))
@@ -204,7 +204,7 @@ def _score_utterances(input_file, vocabulary, scorer, output_file,
                      this base
     """
 
-    base_conversion = 1 if log_base is None else numpy.log(log_base)
+    log_scale = 1.0 if log_base is None else numpy.log(log_base)
 
     unk_id = vocabulary.word_to_id['<unk>']
     num_words = 0
@@ -223,7 +223,7 @@ def _score_utterances(input_file, vocabulary, scorer, output_file,
                  for word_id in word_ids]
 
         lm_score = scorer.score_sequence(word_ids, class_ids, probs)
-        lm_score /= base_conversion
+        lm_score /= log_scale
         output_file.write(str(lm_score) + '\n')
 
         if (line_num + 1) % 1000 == 0:

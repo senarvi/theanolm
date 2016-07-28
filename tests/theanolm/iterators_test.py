@@ -77,7 +77,7 @@ class TestIterators(unittest.TestCase):
                 sequence_class_ids = class_ids[sequence_mask != 0,sequence]
                 sequence_file_ids = file_ids[sequence_mask != 0,sequence]
                 assert_equal(sequence_word_ids, sequence_class_ids)
-                sentences1.append(' '.join(self.vocabulary.word_ids_to_names(sequence_word_ids)))
+                sentences1.append(' '.join(self.vocabulary.id_to_word[sequence_word_ids]))
                 files1.extend(sequence_file_ids)
         self.assertEqual(files1.count(0), 20)
         self.assertEqual(files1.count(1), 20)
@@ -106,7 +106,7 @@ class TestIterators(unittest.TestCase):
                 sequence_class_ids = class_ids[sequence_mask != 0,sequence]
                 sequence_file_ids = file_ids[sequence_mask != 0,sequence]
                 assert_equal(sequence_word_ids, sequence_class_ids)
-                sentences2.append(' '.join(self.vocabulary.word_ids_to_names(sequence_word_ids)))
+                sentences2.append(' '.join(self.vocabulary.id_to_word[sequence_word_ids]))
                 files2.extend(sequence_file_ids)
         self.assertCountEqual(sentences1, sentences2)
         self.assertCountEqual(files1, files2)
@@ -150,7 +150,7 @@ class TestIterators(unittest.TestCase):
                                                 self.vocabulary,
                                                 batch_size=2,
                                                 max_sequence_length=5)
-        word_names = []
+        words = []
         for word_ids, file_ids, mask in iterator:
             class_ids = self.vocabulary.word_id_to_class_id[word_ids]
             assert_equal(word_ids, class_ids)
@@ -158,8 +158,8 @@ class TestIterators(unittest.TestCase):
             for sequence in range(mask.shape[1]):
                 sequence_mask = mask[:,sequence]
                 sequence_word_ids = word_ids[sequence_mask != 0,sequence]
-                word_names.extend(self.vocabulary.word_ids_to_names(sequence_word_ids))
-        corpus = ' '.join(word_names)
+                words.extend(self.vocabulary.id_to_word[sequence_word_ids])
+        corpus = ' '.join(words)
         self.assertEqual(corpus,
                          '<s> yksi kaksi </s> '
                          '<s> kolme neljä viisi </s> '

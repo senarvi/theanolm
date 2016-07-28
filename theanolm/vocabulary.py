@@ -531,41 +531,6 @@ class Vocabulary(object):
         return [self._word_classes[class_id].sample()
                 for class_id in class_ids]
 
-    def word_ids_to_names(self, word_ids):
-        """Translates word IDs into class / word names. If a class contains only
-        one word, the name will be the word. Otherwise the name will be
-        CLASS-12345, where 12345 is the internal class ID.
-
-        :type word_ids: list of ints
-        :param word_ids: a list of word IDs
-
-        :rtype: list of strings
-        :returns: a list of corresponding class / word names
-        """
-
-        class_ids = self.word_id_to_class_id[word_ids]
-        return [self._class_name(self._word_classes[class_id])
-                for class_id in class_ids]
-
-    def _class_name(self, word_class):
-        """If given class contains only one word, returns the word. Otherwicse
-        returns CLASS-12345, where 12345 is the internal class ID.
-
-        :type word_class: WordClass
-        :param word_class: a word class object
-
-        :rtype: str
-        :returns: a name for the class
-        """
-
-        if len(word_class) == 1:
-            word_id, _ = next(iter(word_class))
-            return self.id_to_word[word_id]
-        elif word_class.id is None:
-            return 'CLASS'
-        else:
-            return 'CLASS-{:05d}'.format(word_class.id)
-
     def get_word_prob(self, word_id):
         """Returns the class membership probability of a word.
 

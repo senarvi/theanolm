@@ -3,6 +3,7 @@
 
 import unittest
 import os
+import math
 from theanolm.scoring.lattice import Lattice
 from theanolm.scoring.slflattice import SLFLattice
 
@@ -15,7 +16,7 @@ class TestLattice(unittest.TestCase):
         pass
 
     def test_split_slf_line(self):
-        lattice = SLFLattice()
+        lattice = SLFLattice(None)
         fields = lattice._split_slf_line('name=value '
                                          'name="va lue" '
                                          'WORD=\\"QUOTE '
@@ -26,21 +27,21 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(fields[3], "WORD='CAUSE")
 
     def test_split_slf_field(self):
-        lattice = SLFLattice()
+        lattice = SLFLattice(None)
         name, value = lattice._split_slf_field("name=va 'lue")
         self.assertEqual(name, 'name')
         self.assertEqual(value, "va 'lue")
 
     def test_read_slf_header(self):
-        lattice = SLFLattice()
+        lattice = SLFLattice(None)
         lattice._read_slf_header(['UTTERANCE=utterance #123'])
-        self.assertEqual(lattice._utterance_id, 'utterance #123')
+        self.assertEqual(lattice.utterance_id, 'utterance #123')
         lattice._read_slf_header(['U=utterance #456'])
-        self.assertEqual(lattice._utterance_id, 'utterance #456')
-        lattice._read_slf_header(['base=1.1', 'lmscale=1.2', 'wdpenalty=1.3'])
-        self.assertEqual(lattice._log_base, 1.1)
-        self.assertEqual(lattice._lm_scale, 1.2)
-        self.assertEqual(lattice._wi_penalty, 1.3)
+        self.assertEqual(lattice.utterance_id, 'utterance #456')
+        lattice._read_slf_header(['base=10', 'lmscale=1.2', 'wdpenalty=1.3'])
+        self.assertEqual(math.log(0.1, 10.0) * lattice._log_scale, math.log(0.1))
+        self.assertEqual(lattice.lm_scale, 1.2)
+        self.assertEqual(lattice.wi_penalty, 1.3)
         lattice._read_slf_header(['start=2', 'end=3'])
         self.assertEqual(lattice._initial_node_id, 2)
         self.assertEqual(lattice._final_node_id, 3)
@@ -52,7 +53,7 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(lattice._num_links, 9)
 
     def test_read_slf_node(self):
-        lattice = SLFLattice()
+        lattice = SLFLattice(None)
         lattice.nodes = [Lattice.Node(id) for id in range(5)]
         lattice._read_slf_node(0, [])
         lattice._read_slf_node(1, ['t=1.0'])
@@ -68,7 +69,7 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(lattice.nodes[4].word, 'word')
 
     def test_read_slf_link(self):
-        lattice = SLFLattice()
+        lattice = SLFLattice(None)
         lattice.nodes = [Lattice.Node(id) for id in range(4)]
         lattice.links = []
         lattice._read_slf_node(0, ['t=0.0'])
@@ -116,7 +117,7 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(lattice.nodes[3].in_links[1].start_node.time, 1.0)
 
     def test_move_words_to_links(self):
-        lattice = SLFLattice()
+        lattice = SLFLattice(None)
         lattice.nodes = [Lattice.Node(id) for id in range(5)]
         lattice.nodes[0].word = 'A'
         lattice.nodes[1].word = 'B'
@@ -179,9 +180,8 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(sorted_nodes[7].id, 7)
         self.assertEqual(sorted_nodes[8].id, 8)
 
-        lattice = SLFLattice()
         with open(self.lattice_path, 'r') as lattice_file:
-            lattice.read(lattice_file)
+            lattice = SLFLattice(lattice_file)
 
         def reachable(initial_node, node):
             result = False
@@ -196,10 +196,9 @@ class TestLattice(unittest.TestCase):
                 self.assertLessEqual(left_node.time, right_node.time)
                 self.assertFalse(reachable(right_node, left_node))
 
-    def test_read(self):
-        lattice = SLFLattice()
+    def test_init(self):
         with open(self.lattice_path, 'r') as lattice_file:
-            lattice.read(lattice_file)
+            lattice = SLFLattice(lattice_file)
         self.assertEqual(len(lattice.nodes), 24)
         self.assertEqual(len(lattice.links), 39)
 
