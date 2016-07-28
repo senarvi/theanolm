@@ -83,7 +83,7 @@ class Network(object):
                       otherwise.
             """
 
-            return self is self.minibatch
+            return self is Network.Mode.minibatch
 
         def is_distribution(self):
             """Checks if the network mode is supposed to produce a distribution
@@ -95,7 +95,7 @@ class Network(object):
                       ``False`` otherwise.
             """
 
-            return self is self.distribution
+            return self is Network.Mode.distribution
 
         def is_target_words(self):
             """Checks if the network mode is supposed to produce probabilities
@@ -106,7 +106,7 @@ class Network(object):
                       ``False`` otherwise.
             """
 
-            return self is self.target_words
+            return self is Network.Mode.target_words
 
     def __init__(self, vocabulary, architecture, mode=Mode.minibatch,
                  profile=False):

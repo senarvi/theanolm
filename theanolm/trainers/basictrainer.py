@@ -108,7 +108,7 @@ class BasicTrainer(object):
     def set_logging(self, interval):
         self.log_update_interval = interval
 
-    def run(self):
+    def train(self):
         while self.stopper.start_new_epoch():
             for word_ids, file_ids, mask in self.training_iter:
                 self.update_number += 1

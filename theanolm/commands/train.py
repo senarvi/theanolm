@@ -299,10 +299,11 @@ def train(args):
 
         print("Training neural network.")
         sys.stdout.flush()
-        trainer.run()
+        trainer.train()
 
-        if not state.keys():
-            print("The model has not been trained.")
+        if not 'layers' in state.keys():
+            print("The model has not been trained. No cross-validations were "
+                  "performed or training did not improve the model.")
         else:
             network.set_state(state)
             perplexity = scorer.compute_perplexity(validation_iter)
