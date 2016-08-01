@@ -35,7 +35,7 @@ def add_arguments(parser):
         '--num-jobs', metavar='N', type=int, default=1,
         help='divide the set of lattice files into N distinct batches, and '
              'process only batch I')
-    argument_group.add_option(
+    argument_group.add_argument(
         '--job', metavar='I', type=int, default=0,
         help='the index of the batch that this job should process, between 0 '
              'and N-1')
@@ -151,7 +151,7 @@ def decode(args):
     lattices.extend(args.lattice_list.readlines())
     lattices = [path.strip() for path in lattices]
     # Ignore empty lines in the lattice list.
-    lattices = filter(None, lattices)
+    lattices = list(filter(None, lattices))
     # Pick every Ith lattice, if --num-jobs is specified and > 1.
     if args.num_jobs < 1:
         print("Invalid number of jobs specified:", args.num_jobs)
