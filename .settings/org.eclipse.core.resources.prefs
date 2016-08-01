@@ -5,6 +5,7 @@ encoding//tests/theanolm/iterators_test.py=utf-8
 encoding//tests/theanolm/textscorer_test.py=utf-8
 encoding//tests/theanolm/vocabulary_test.py=utf-8
 encoding//tests/wordclasses/bigramoptimizer_test.py=utf-8
+encoding//theanolm/commands/decode.py=utf-8
 encoding//theanolm/commands/sample.py=utf-8
 encoding//theanolm/commands/score.py=utf-8
 encoding//theanolm/commands/train.py=utf-8

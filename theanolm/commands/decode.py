@@ -31,6 +31,14 @@ def add_arguments(parser):
         '--output-file', metavar='FILE', type=TextFileType('w'), default='-',
         help='where to write the best paths through the lattices (default '
              'stdout, will be compressed if the name ends in ".gz")')
+    argument_group.add_argument(
+        '--num-jobs', metavar='N', type=int, default=1,
+        help='divide the set of lattice files into N distinct batches, and '
+             'process only batch I')
+    argument_group.add_option(
+        '--job', metavar='I', type=int, default=0,
+        help='the index of the batch that this job should process, between 0 '
+             'and N-1')
 
     argument_group = parser.add_argument_group("decoding")
     argument_group.add_argument(
@@ -84,7 +92,8 @@ def decode(args):
     log_file = args.log_file
     log_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(log_level, int):
-        raise ValueError("Invalid logging level requested: " + args.log_level)
+        print("Invalid logging level requested:", args.log_level)
+        sys.exit(1)
     log_format = '%(asctime)s %(funcName)s: %(message)s'
     if args.log_file == '-':
         logging.basicConfig(stream=sys.stdout, format=log_format, level=log_level)
@@ -137,16 +146,24 @@ def decode(args):
                              ignore_unk=ignore_unk,
                              unk_penalty=unk_penalty)
 
+    # Combine paths from command line and lattice list.
     lattices = args.lattices
     lattices.extend(args.lattice_list.readlines())
-    file_type = TextFileType('r')
-    for path in lattices:
-        path = path.strip()
-        # Allow empty lines in the lattice list.
-        if not path:
-            continue
+    lattices = [path.strip() for path in lattices]
+    # Ignore empty lines in the lattice list.
+    lattices = filter(None, lattices)
+    # Pick every Ith lattice, if --num-jobs is specified and > 1.
+    if args.num_jobs < 1:
+        print("Invalid number of jobs specified:", args.num_jobs)
+        sys.exit(1)
+    if (args.job < 0) or (args.job > args.num_jobs - 1):
+        print("Invalid job specified:", args.job)
+        sys.exit(1)
+    lattices = lattices[args.job::args.num_jobs]
 
-        logging.info("Reading word lattice: " + path)
+    file_type = TextFileType('r')
+    for index, path in enumerate(lattices):
+        logging.info("Reading word lattice: %s", path)
         lattice_file = file_type(path)
         lattice = SLFLattice(lattice_file)
 
@@ -154,9 +171,13 @@ def decode(args):
             utterance_id = lattice.utterance_id
         else:
             utterance_id = os.path.basename(lattice_file.name)
-
-        logging.info("Decoding utterance: " + utterance_id)
+        logging.info("Utterance `%s' -- %d/%d of job %d",
+                     utterance_id,
+                     index + 1,
+                     len(lattices),
+                     args.job)
         tokens = decoder.decode(lattice)
+
         best_token = tokens[0]
         words = vocabulary.id_to_word[best_token.history]
         logprob = best_token.total_logprob / log_scale
@@ -168,4 +189,5 @@ def decode(args):
             args.output_file.write("{} {} {} {}\n".format(
                 utterance_id, logprob, len(words), ' '.join(words)))
         else:
-            raise ValueError("Invalid output format requested: " + args.output)
+            print("Invalid output format requested:", args.output)
+            sys.exit(1)

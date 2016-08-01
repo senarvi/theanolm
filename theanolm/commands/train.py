@@ -169,7 +169,8 @@ def train(args):
     log_file = args.log_file
     log_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(log_level, int):
-        raise ValueError("Invalid logging level requested: " + args.log_level)
+        print("Invalid logging level requested:", args.log_level)
+        sys.exit(1)
     log_format = '%(asctime)s %(funcName)s: %(message)s'
     if args.log_file == '-':
         logging.basicConfig(stream=sys.stdout, format=log_format, level=log_level)
