@@ -28,6 +28,10 @@ class LatticeDecoder(object):
                      nn_lm_logprob=0.0):
             """Constructs a token with given recurrent state and logprobs.
 
+            The constructor won't compute the total logprob. The user is
+            responsible for computing it when necessary, to avoid unnecessary
+            overhead.
+
             :type history: list of ints
             :param history: word IDs that the token has passed
 
@@ -53,6 +57,7 @@ class LatticeDecoder(object):
             self.ac_logprob = ac_logprob
             self.lat_lm_logprob = lat_lm_logprob
             self.nn_lm_logprob = nn_lm_logprob
+            self.total_logprob = None
 
         @classmethod
         def copy(classname, token):
@@ -61,6 +66,8 @@ class LatticeDecoder(object):
             The recurrent layer states will not be copied - a pointer will be
             copied instead. There's no need to copy the structure, since we
             never modify the state of a token, but replace it if necessary.
+
+            Total log probability will not be copied.
 
             :type token: LatticeDecoder.Token
             :param token: a token to copy
@@ -114,17 +121,36 @@ class LatticeDecoder(object):
             self.total_logprob += wi_penalty * len(self.history)
 
         def __str__(self, vocabulary=None):
+            """Creates a string representation of the token.
+
+            :type vocabulary: Vocabulary
+            :param vocabulary: if a vocabulary is given, uses it to decode
+                               history word names from word IDs
+
+            :rtype: str
+            :returns: a string that includes all the attributes in one line
+            """
+
             if vocabulary is None:
                 history = ' '.join(str(x) for x in self.history)
             else:
                 history = ' '.join(vocabulary.id_to_word[self.history])
-            return '[{}]  acoustic: {:.2f}  lattice LM: {:.2f}  NNLM: ' \
-                   '{:.2f}  total: {:.2f}'.format(
-                   history,
-                   self.ac_logprob,
-                   self.lat_lm_logprob,
-                   self.nn_lm_logprob,
-                   self.total_logprob)
+
+            if self.total_logprob is None:
+                return '[{}]  acoustic: {:.2f}  lattice LM: {:.2f}  NNLM: ' \
+                       '{:.2f}'.format(
+                           history,
+                           self.ac_logprob,
+                           self.lat_lm_logprob,
+                           self.nn_lm_logprob)
+            else:
+                return '[{}]  acoustic: {:.2f}  lattice LM: {:.2f}  NNLM: ' \
+                       '{:.2f}  total: {:.2f}'.format(
+                           history,
+                           self.ac_logprob,
+                           self.lat_lm_logprob,
+                           self.nn_lm_logprob,
+                           self.total_logprob)
 
     def __init__(self, network, nnlm_weight=1.0, lm_scale=None, wi_penalty=None,
                  ignore_unk=False, unk_penalty=None, profile=False):
@@ -203,12 +229,6 @@ class LatticeDecoder(object):
         Propagates tokens at a node to every outgoing link by creating a copy of
         each token and updating the language model scores according to the link.
 
-        Lattices may contain !NULL, !ENTER, !EXIT, etc. nodes that model e.g.
-        silence or sentence start or end, or for example when the topology is
-        easier to represent with extra nodes. Such null nodes may contain
-        language model scores. Then the function will update the lattice LM
-        score, but will not compute anything with the neural network.
-
         :type lattice: Lattice
         :param lattice: a word lattice to be decoded
 
@@ -234,31 +254,90 @@ class LatticeDecoder(object):
         tokens = [list() for _ in lattice.nodes]
         initial_state = RecurrentState(self._network.recurrent_state_size)
         initial_token = self.Token(history=[self._sos_id], state=initial_state)
+        initial_token.compute_total_logprob(self._nnlm_weight,
+                                            lm_scale,
+                                            wi_penalty)
         tokens[lattice.initial_node.id].append(initial_token)
 
         sorted_nodes = lattice.sorted_nodes()
+        nodes_processed = 0
         for node in sorted_nodes:
             node_tokens = tokens[node.id]
             assert node_tokens
+
             if node.id == lattice.final_node.id:
-                new_tokens = [self.Token.copy(token) for token in node_tokens]
-                self.append_word(new_tokens, self._eos_id, lm_scale, wi_penalty)
+                new_tokens = self._propagate(
+                    node_tokens, None, lm_scale, wi_penalty)
                 return sorted(new_tokens,
                               key=lambda token: token.total_logprob,
                               reverse=True)
             for link in node.out_links:
-                new_tokens = [self.Token.copy(token) for token in node_tokens]
-                for token in new_tokens:
-                    token.ac_logprob += link.ac_logprob
-                    token.lat_lm_logprob += link.lm_logprob
-                if not link.word.startswith('!'):
-                    word_id = self._vocabulary.word_to_id[link.word]
-                    self.append_word(new_tokens, word_id, lm_scale, wi_penalty)
+                new_tokens = self._propagate(
+                    node_tokens, link, lm_scale, wi_penalty)
                 tokens[link.end_node.id].extend(new_tokens)
+                # Leave only 100 best tokens at each node.
+                tokens[link.end_node.id].sort(
+                    key=lambda token: token.total_logprob,
+                    reverse=True)
+                tokens[link.end_node.id][100:] = []
+
+            nodes_processed += 1
+            if nodes_processed % math.ceil(len(sorted_nodes) / 20) == 0:
+                logging.debug("[%d] (%.2f %%) -- tokens = %d",
+                              nodes_processed,
+                              nodes_processed / len(sorted_nodes) * 100,
+                              len(node_tokens))
 
         raise InputError("Could not reach the final node of word lattice.")
 
-    def append_word(self, tokens, target_word_id, lm_scale, wi_penalty):
+    def _propagate(self, tokens, link, lm_scale, wi_penalty):
+        """Propagates tokens to given link or to end of sentence.
+
+        Lattices may contain !NULL, !ENTER, !EXIT, etc. nodes that model e.g.
+        silence or sentence start or end, or for example when the topology is
+        easier to represent with extra nodes. Such null nodes may contain
+        language model scores. Then the function will update the acoustic and
+        lattice LM score, but will not compute anything with the neural network.
+
+        :type tokens: list of LatticeDecoder.Tokens
+        :param tokens: input tokens
+
+        :type link: Lattice.Link
+        :param link: if other than ``None``, propagates the tokens to this link;
+                     if ``None``, just updates the LM logprobs as if the tokens
+                     were propagated to an end of sentence
+
+        :type lm_scale: float
+        :param lm_scale: scale language model log probabilities by this factor
+
+        :type wi_penalty: float
+        :param wi_penalty: penalize word insertion by adding this value to the
+                           total log probability of the token
+
+        :rtype: list of LatticeDecoder.Tokens
+        :returns: the propagated tokens
+        """
+
+        new_tokens = [self.Token.copy(token) for token in tokens]
+
+        if link is None:
+            self._append_word(new_tokens, self._eos_id)
+        else:
+            for token in new_tokens:
+                token.ac_logprob += link.ac_logprob
+                token.lat_lm_logprob += link.lm_logprob
+            if not link.word.startswith('!'):
+                word_id = self._vocabulary.word_to_id[link.word]
+                self._append_word(new_tokens, word_id)
+
+        for token in new_tokens:
+            token.compute_total_logprob(self._nnlm_weight,
+                                        lm_scale,
+                                        wi_penalty)
+
+        return new_tokens
+
+    def _append_word(self, tokens, target_word_id):
         """Appends a word to each of the given tokens, and updates their scores.
 
         :type tokens: list of LatticeDecoder.Tokens
@@ -267,13 +346,6 @@ class LatticeDecoder(object):
         :type target_word_id: int
         :param target_word_id: word ID to be appended to the existing history of
                                each input token
-
-        :type lm_scale: float
-        :param lm_scale: scale language model log probabilities by this factor
-
-        :type wi_penalty: float
-        :param wi_penalty: penalize word insertion by adding this value to the
-                           total log probability of the token
         """
 
         word_input = [[token.history[-1] for token in tokens]]
@@ -298,4 +370,3 @@ class LatticeDecoder(object):
                              for layer_state in output_state])
             # The matrix contains only one time step.
             token.nn_lm_logprob += output_logprobs[0,index]
-            token.compute_total_logprob(self._nnlm_weight, lm_scale, wi_penalty)

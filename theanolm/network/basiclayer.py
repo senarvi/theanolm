@@ -155,13 +155,26 @@ class BasicLayer(object):
         """Helper function that creates a pre-activation of ``input_matrix`` by
         multiplying it by a weight matrix and adding a bias.
 
+        ``input_matrix`` and the result normally have the shape of a mini-batch:
+        the first dimension is the time step and the second dimension is the
+        sequence. The last dimension is always the data vector. The size of the
+        input data vector should equal to the first dimension of the weight
+        vector, and the second dimension of the weight vector defines the size
+        of the output data vector.
+
         :type input_matrix: TensorVariable
-        :param input_matrix: input tensor matrix whose preactivation will be
-                             computed.
+        :param input_matrix: the preactivations will be computed by multiplying
+                             the data vectors (the last dimension of this
+                             matrix) by the weight matrix, and adding bias
 
         :type param_name: str
         :param param_name: name of a parameter group that contains a weight
                            matrix and a bias vector
+
+        :rtype: TensorVariable
+        :returns: a matrix tha has the same number of dimensions as
+                  ``input_matrix``, but the data vectors (the last dimension of
+                  this matrix) are the preactivations
         """
 
         weight = self._params[self._param_path(param_name) + '/W']

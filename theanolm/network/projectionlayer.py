@@ -27,16 +27,15 @@ class ProjectionLayer(BasicLayer):
 
         The input is always 2-dimensional: the first dimension is the time step
         (index of word in a sequence) and the second dimension are the
-        sequences. When generating text, there's just one sequence and one time
-        step in the input.
+        sequences.
 
         Sets self.output to a symbolic matrix that describes the output of this
         layer. Assumes that the shared variables have been passed using
         ``set_params()``.
         """
 
-        layer_input = tensor.concatenate([x.output for x in self.input_layers],
-                                         axis=2)
+        assert len(self.input_layers) == 1
+        layer_input = self.input_layers[0].output
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
 

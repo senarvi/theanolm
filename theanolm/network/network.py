@@ -145,13 +145,21 @@ class Network(object):
 
         # Word and class inputs will be available to NetworkInput layers.
         self.word_input = tensor.matrix('network/word_input', dtype='int64')
-        self.word_input.tag.test_value = test_value(
-            size=(100, 16),
-            max_value=vocabulary.num_words())
         self.class_input = tensor.matrix('network/class_input', dtype='int64')
-        self.class_input.tag.test_value = test_value(
-            size=(100, 16),
-            max_value=vocabulary.num_classes())
+        if self.mode.is_minibatch():
+            self.word_input.tag.test_value = test_value(
+                size=(100, 16),
+                max_value=vocabulary.num_words())
+            self.class_input.tag.test_value = test_value(
+                size=(100, 16),
+                max_value=vocabulary.num_classes())
+        else:
+            self.word_input.tag.test_value = test_value(
+                size=(1, 16),
+                max_value=vocabulary.num_words())
+            self.class_input.tag.test_value = test_value(
+                size=(1, 16),
+                max_value=vocabulary.num_classes())
 
         # Recurrent layers will create these lists, used to initialize state
         # variables of appropriate sizes, for doing forward passes one step at a
@@ -183,7 +191,7 @@ class Network(object):
         self.target_class_ids = tensor.matrix('network/target_class_ids',
                                              dtype='int64')
         self.target_class_ids.tag.test_value = test_value(
-            size=(100, 16),
+            size=(1, 16),
             max_value=vocabulary.num_classes())
 
         # Create initial parameter values.
@@ -281,7 +289,7 @@ class Network(object):
         # array) to keep the layer functions general.
         variable = tensor.tensor3('network/recurrent_state_' + str(index),
                                   dtype=theano.config.floatX)
-        variable.tag.test_value = test_value(size=(1, 3, size), max_value=1.0)
+        variable.tag.test_value = test_value(size=(1, 16, size), max_value=1.0)
 
         self.recurrent_state_size.append(size)
         self.recurrent_state_input.append(variable)

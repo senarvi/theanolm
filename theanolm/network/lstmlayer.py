@@ -100,37 +100,56 @@ class LSTMLayer(BasicLayer):
                 n_steps=num_time_steps,
                 profile=self._profile,
                 strict=True)
-            self.network.recurrent_state_output[self.cell_state_index] = \
-                state_outputs[0]
-            self.network.recurrent_state_output[self.hidden_state_index] = \
-                state_outputs[1]
+
+            self.output = state_outputs[1]
         else:
             cell_state_input = \
                 self.network.recurrent_state_input[self.cell_state_index]
             hidden_state_input = \
                 self.network.recurrent_state_input[self.hidden_state_index]
 
-            state_outputs = self._create_time_step(
-                self.network.mask,
-                layer_input_preact,
-                cell_state_input,
-                hidden_state_input,
-                hidden_state_weights)
-            self.network.recurrent_state_output[self.cell_state_index] = \
-                state_outputs[0]
-            self.network.recurrent_state_output[self.hidden_state_index] = \
-                state_outputs[1]
+            assert_op = tensor.opt.Assert(
+                "When processing a single time step, a matrix with an "
+                "unexpected shape was encountered.")
+            mask = assert_op(
+                self.network.mask, tensor.eq(self.network.mask.shape[0], 1))
+            layer_input_preact = assert_op(
+                layer_input_preact, tensor.eq(layer_input_preact.shape[0], 1))
+            cell_state_input = assert_op(
+                cell_state_input, tensor.eq(cell_state_input.shape[0], 1))
+            hidden_state_input = assert_op(
+                hidden_state_input, tensor.eq(hidden_state_input.shape[0], 1))
 
-        self.output = state_outputs[1]
+            state_outputs = self._create_time_step(
+                mask[0],
+                layer_input_preact[0],
+                cell_state_input[0],
+                hidden_state_input[0],
+                hidden_state_weights)
+
+            # Create a new axis for time step with size 1.
+            cell_state_output = assert_op(
+                state_outputs[0], tensor.eq(state_outputs[0].ndim, 2))
+            hidden_state_output = assert_op(
+                state_outputs[1], tensor.eq(state_outputs[1].ndim, 2))
+            cell_state_output = cell_state_output[None,:,:]
+            hidden_state_output = hidden_state_output[None,:,:]
+
+            self.network.recurrent_state_output[self.cell_state_index] = \
+                cell_state_output
+            self.network.recurrent_state_output[self.hidden_state_index] = \
+                hidden_state_output
+            self.output = hidden_state_output
 
     def _create_time_step(self, mask, x_preact, C_in, h_in, h_weights):
         """The LSTM step function for theano.scan(). Creates the structure of
         one time step.
 
-        The inputs ``mask`` and ``x_preact`` contain only one time step, but
-        possibly multiple sequences. There may, or may not be the first
-        dimension of size 1 - it won't affect the computations, because
-        broadcasting works by aligning the last dimensions.
+        The inputs do not contain the time step dimension. ``mask`` is a vector
+        containing a boolean mask for each sequence. ``x_preact`` is a matrix
+        containing the preactivations for each sequence. ``C_in`` and ``h_in``,
+        as well as the outputs, are matrices containing the state vectors for
+        each sequence.
 
         The required affine transformations have already been applied to the
         input prior to creating the loop. The transformed inputs and the mask
@@ -148,7 +167,7 @@ class LSTMLayer(BasicLayer):
                          biases
 
         :type C_in: TensorVariable
-        :param C_in: C_(t-1), cell state output from the previous time step
+        :param C_in: C_(t-1), cell state output of the previous time step
 
         :type h_in: TensorVariable
         :param h_in: h_(t-1), hidden state output of the previous time step

@@ -3,12 +3,13 @@
 
 import sys
 import os
+import logging
 import subprocess
 import numpy
 import h5py
 import theano
 from theanolm import Vocabulary, Architecture, Network
-from theanolm.scoring import LatticeDecoder
+from theanolm.scoring import LatticeDecoder, SLFLattice
 from theanolm.filetypes import TextFileType
 from theanolm.iterators import utterance_from_line
 
@@ -18,16 +19,24 @@ def add_arguments(parser):
         'model_path', metavar='MODEL-FILE', type=str,
         help='the model file that will be used to decode the lattice')
     argument_group.add_argument(
-        '--lattices', metavar='FILE', type=TextFileType('r'), nargs='+',
-        required=True,
+        '--lattices', metavar='FILE', type=str, nargs='*', default=[],
         help='word lattices to be decoded (SLF, assumed to be compressed if '
              'the name ends in ".gz")')
+    argument_group.add_argument(
+        '--lattice-list', metavar='FILE', type=TextFileType('r'),
+        help='text file containing a list of word lattices to be decoded (one '
+             'path to an SLF file per line, the list and the SLF files are '
+             'assumed to be compressed if the name ends in ".gz")')
     argument_group.add_argument(
         '--output-file', metavar='FILE', type=TextFileType('w'), default='-',
         help='where to write the best paths through the lattices (default '
              'stdout, will be compressed if the name ends in ".gz")')
 
     argument_group = parser.add_argument_group("decoding")
+    argument_group.add_argument(
+        '--output', metavar='FORMAT', type=str, default='ref',
+        help='what to output, one of "ref", "trn", "n-best" '
+             '(default "ref")')
     argument_group.add_argument(
         '--nnlm-weight', metavar='LAMBDA', type=float, default=1.0,
         help="language model probabilities given by the model read from "
@@ -56,7 +65,39 @@ def add_arguments(parser):
              "computation; otherwise use constant LOGPROB as <unk> token score "
              "(default is to use the network to predict <unk> probability)")
 
+    argument_group = parser.add_argument_group("logging and debugging")
+    argument_group.add_argument(
+        '--log-file', metavar='FILE', type=str, default='-',
+        help='path where to write log file (default is standard output)')
+    argument_group.add_argument(
+        '--log-level', metavar='LEVEL', type=str, default='info',
+        help='minimum level of events to log, one of "debug", "info", "warn" '
+             '(default "info")')
+    argument_group.add_argument(
+        '--debug', action="store_true",
+        help='enables debugging Theano errors')
+    argument_group.add_argument(
+        '--profile', action="store_true",
+        help='enables profiling Theano functions')
+
 def decode(args):
+    log_file = args.log_file
+    log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(log_level, int):
+        raise ValueError("Invalid logging level requested: " + args.log_level)
+    log_format = '%(asctime)s %(funcName)s: %(message)s'
+    if args.log_file == '-':
+        logging.basicConfig(stream=sys.stdout, format=log_format, level=log_level)
+    else:
+        logging.basicConfig(filename=log_file, format=log_format, level=log_level)
+
+    if args.debug:
+        theano.config.compute_test_value = 'warn'
+    else:
+        theano.config.compute_test_value = 'off'
+    theano.config.profile = args.profile
+    theano.config.profile_memory = args.profile
+
     with h5py.File(args.model_path, 'r') as state:
         print("Reading vocabulary from network state.")
         sys.stdout.flush()
@@ -72,7 +113,7 @@ def decode(args):
         sys.stdout.flush()
         network.set_state(state)
 
-    log_scale = 1.0 if log_base is None else numpy.log(args.log_base)
+    log_scale = 1.0 if args.log_base is None else numpy.log(args.log_base)
 
     print("Building word lattice decoder.")
     sys.stdout.flush()
@@ -85,7 +126,10 @@ def decode(args):
     else:
         ignore_unk = False
         unk_penalty = args.unk_penalty
-    wi_penalty = args.wi_penalty * log_scale
+    if args.wi_penalty is None:
+        wi_penalty = None
+    else:
+        wi_penalty = args.wi_penalty * log_scale
     decoder = LatticeDecoder(network,
                              nnlm_weight=args.nnlm_weight,
                              lm_scale=args.lm_scale,
@@ -93,12 +137,35 @@ def decode(args):
                              ignore_unk=ignore_unk,
                              unk_penalty=unk_penalty)
 
-    for lattice_file in args.lattices:
-        print("Reading word lattice.")
+    lattices = args.lattices
+    lattices.extend(args.lattice_list.readlines())
+    file_type = TextFileType('r')
+    for path in lattices:
+        path = path.strip()
+        # Allow empty lines in the lattice list.
+        if not path:
+            continue
+
+        logging.info("Reading word lattice: " + path)
+        lattice_file = file_type(path)
         lattice = SLFLattice(lattice_file)
-        print("Decoding word lattice.")
+
+        if not lattice.utterance_id is None:
+            utterance_id = lattice.utterance_id
+        else:
+            utterance_id = os.path.basename(lattice_file.name)
+
+        logging.info("Decoding utterance: " + utterance_id)
         tokens = decoder.decode(lattice)
         best_token = tokens[0]
+        words = vocabulary.id_to_word[best_token.history]
         logprob = best_token.total_logprob / log_scale
-        words = vocabulary.id_to_word[token.history]
-        output_file.write("{} {}\n".format(logprob, ' '.join(words)))
+        if args.output == 'ref':
+            args.output_file.write("{} {}\n".format(utterance_id, ' '.join(words)))
+        elif args.output == 'trn':
+            args.output_file.write("{} ({})\n".format(' '.join(words), utterance_id))
+        elif args.output == 'n-best':
+            args.output_file.write("{} {} {} {}\n".format(
+                utterance_id, logprob, len(words), ' '.join(words)))
+        else:
+            raise ValueError("Invalid output format requested: " + args.output)
