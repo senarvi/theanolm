@@ -82,9 +82,14 @@ class LatticeDecoder(object):
                              token.lat_lm_logprob,
                              token.nn_lm_logprob)
 
-        def compute_total_logprob(self, nn_lm_weight, lm_scale, wi_penalty):
-            """Computes the total log probability of the token by interpolating
-            the LM logprobs, applying LM scale, and adding the acoustic logprob.
+        def interpolate(self, nn_lm_weight, lm_scale, wi_penalty):
+            """Computes the interpolated language model log probability and
+            the total log probability.
+
+            The interpolated LM log probability is saved in ``self.lm_logprob``.
+            The total log probability is computed by applying LM scale factor
+            and and adding the acoustic log probability and word insertion
+            penalty.
 
             :type nn_lm_weight: float
             :param nn_lm_weight: weight of the neural network LM probability
@@ -104,7 +109,7 @@ class LatticeDecoder(object):
             if (lat_lm_prob > 0) and (nn_lm_prob > 0):
                 lm_prob = (1.0 - nn_lm_weight) * lat_lm_prob
                 lm_prob += nn_lm_weight * nn_lm_prob
-                lm_logprob = math.log(lm_prob)
+                self.lm_logprob = math.log(lm_prob)
             else:
                 # An exp() resulted in an underflow. Use the decimal library.
                 getcontext().prec = 16
@@ -114,10 +119,10 @@ class LatticeDecoder(object):
                 d_nn_lm_logprob = Decimal(self.nn_lm_logprob)
                 d_lm_prob = d_inv_nn_lm_weight * d_lat_lm_logprob.exp()
                 d_lm_prob += d_nn_lm_weight * d_nn_lm_logprob.exp()
-                lm_logprob = float(d_lm_prob.ln())
+                self.lm_logprob = float(d_lm_prob.ln())
 
             self.total_logprob = self.ac_logprob
-            self.total_logprob += lm_logprob * lm_scale
+            self.total_logprob += self.lm_logprob * lm_scale
             self.total_logprob += wi_penalty * len(self.history)
 
         def __str__(self, vocabulary=None):
@@ -254,9 +259,7 @@ class LatticeDecoder(object):
         tokens = [list() for _ in lattice.nodes]
         initial_state = RecurrentState(self._network.recurrent_state_size)
         initial_token = self.Token(history=[self._sos_id], state=initial_state)
-        initial_token.compute_total_logprob(self._nnlm_weight,
-                                            lm_scale,
-                                            wi_penalty)
+        initial_token.interpolate(self._nnlm_weight, lm_scale, wi_penalty)
         tokens[lattice.initial_node.id].append(initial_token)
 
         sorted_nodes = lattice.sorted_nodes()
@@ -331,9 +334,7 @@ class LatticeDecoder(object):
                 self._append_word(new_tokens, word_id)
 
         for token in new_tokens:
-            token.compute_total_logprob(self._nnlm_weight,
-                                        lm_scale,
-                                        wi_penalty)
+            token.interpolate(self._nnlm_weight, lm_scale, wi_penalty)
 
         return new_tokens
 

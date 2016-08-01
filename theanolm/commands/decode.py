@@ -180,12 +180,13 @@ def decode(args):
 
         best_token = tokens[0]
         words = vocabulary.id_to_word[best_token.history]
-        logprob = best_token.total_logprob / log_scale
         if args.output == 'ref':
             args.output_file.write("{} {}\n".format(utterance_id, ' '.join(words)))
         elif args.output == 'trn':
             args.output_file.write("{} ({})\n".format(' '.join(words), utterance_id))
         elif args.output == 'n-best':
+            ac_logprob = best_token.ac_logprob / log_scale
+            lm_logprob = best_token.ac_logprob / log_scale
             args.output_file.write("{} {} {} {}\n".format(
                 utterance_id, logprob, len(words), ' '.join(words)))
         else:

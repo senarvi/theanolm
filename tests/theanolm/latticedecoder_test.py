@@ -71,22 +71,25 @@ class TestLatticeDecoder(unittest.TestCase):
         self.assertSequenceEqual(token1.history, [1, 2, 3])
         self.assertSequenceEqual(token2.history, [1, 2, 3, 4])
 
-    def test_compute_total_logprob(self):
+    def test_interpolate(self):
         token = LatticeDecoder.Token(history=[1, 2],
                                      ac_logprob=math.log(0.1),
                                      lat_lm_logprob=math.log(0.2),
                                      nn_lm_logprob=math.log(0.3))
-        token.compute_total_logprob(0.25, 1.0, 0.0)
+        token.interpolate(0.25, 1.0, 0.0)
+        assert_almost_equal(token.lm_logprob, math.log(0.25 * 0.3 + 0.75 * 0.2))
         assert_almost_equal(token.total_logprob, math.log(0.1 * (0.25 * 0.3 + 0.75 * 0.2)))
-        token.compute_total_logprob(0.25, 10.0, 0.0)
+        token.interpolate(0.25, 10.0, 0.0)
+        assert_almost_equal(token.lm_logprob, math.log(0.25 * 0.3 + 0.75 * 0.2))
         assert_almost_equal(token.total_logprob, math.log(0.1) + math.log(0.25 * 0.3 + 0.75 * 0.2) * 10.0)
-        token.compute_total_logprob(0.25, 10.0, -20.0)
+        token.interpolate(0.25, 10.0, -20.0)
+        assert_almost_equal(token.lm_logprob, math.log(0.25 * 0.3 + 0.75 * 0.2))
         assert_almost_equal(token.total_logprob, math.log(0.1) + math.log(0.25 * 0.3 + 0.75 * 0.2) * 10.0 - 40.0)
         token = LatticeDecoder.Token(history=[1, 2],
                                      ac_logprob=-1000,
                                      lat_lm_logprob=-1001,
                                      nn_lm_logprob=-1002)
-        token.compute_total_logprob(0.75, 1.0, 0.0)
+        token.interpolate(0.75, 1.0, 0.0)
         # ln(exp(-1000) * (0.75 * exp(-1002) + 0.25 * exp(-1001)))
         assert_almost_equal(token.total_logprob, -2001.64263, decimal=4)
 
@@ -103,7 +106,7 @@ class TestLatticeDecoder(unittest.TestCase):
         self.assertEqual(token1.nn_lm_logprob, 0.0)
         self.assertEqual(token2.nn_lm_logprob, 0.0)
 
-        decoder.append_word([token1, token2], self.kaksi_id, 1.0, 0.0)
+        decoder._append_word([token1, token2], self.kaksi_id)
         self.assertSequenceEqual(token1.history, [self.sos_id, self.kaksi_id])
         self.assertSequenceEqual(token2.history, [self.sos_id, self.yksi_id, self.kaksi_id])
         assert_equal(token1.state.get(0), numpy.ones(shape=(1,1,3)).astype(theano.config.floatX))
@@ -111,13 +114,16 @@ class TestLatticeDecoder(unittest.TestCase):
         self.assertAlmostEqual(token1.nn_lm_logprob, 0.1 + 0.3)
         self.assertAlmostEqual(token2.nn_lm_logprob, 0.2 + 0.3)
 
-        decoder.append_word([token1, token2], self.eos_id, 2.0, -0.01)
+        decoder._append_word([token1, token2], self.eos_id)
         self.assertSequenceEqual(token1.history, [self.sos_id, self.kaksi_id, self.eos_id])
         self.assertSequenceEqual(token2.history, [self.sos_id, self.yksi_id, self.kaksi_id, self.eos_id])
         assert_equal(token1.state.get(0), numpy.ones(shape=(1,1,3)).astype(theano.config.floatX) * 2)
         assert_equal(token2.state.get(0), numpy.ones(shape=(1,1,3)).astype(theano.config.floatX) * 2)
         self.assertAlmostEqual(token1.nn_lm_logprob, 0.1 + 0.3 + 0.3 + 0.4)
         self.assertAlmostEqual(token2.nn_lm_logprob, 0.2 + 0.3 + 0.3 + 0.4)
+
+        token1.interpolate(1.0, 2.0, -0.01)
+        token2.interpolate(1.0, 2.0, -0.01)
         self.assertAlmostEqual(token1.total_logprob, (0.1 + 0.3 + 0.3 + 0.4) * 2.0 - 0.03)
         self.assertAlmostEqual(token2.total_logprob, (0.2 + 0.3 + 0.3 + 0.4) * 2.0 - 0.04)
 
