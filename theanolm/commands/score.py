@@ -140,7 +140,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
             logprob_index = 0
             for word_index, word_id in enumerate(seq_word_ids[1:]):
                 if word_index - 2 > 0:
-                    history = seq_words[word_index:word_index - 3:-1]
+                    history = list(seq_words[word_index:word_index - 3:-1])
                     history.append('...')
                 else:
                     history = seq_words[word_index::-1]
