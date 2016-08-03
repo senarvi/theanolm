@@ -153,7 +153,8 @@ class Architecture(object):
         :returns: an object describing the network architecture
         """
 
-        package_dir = os.path.abspath(os.path.dirname(__file__))
+        file_dir = os.path.abspath(os.path.dirname(__file__))
+        package_dir = os.path.dirname(file_dir)
         description_path = os.path.join(package_dir,
                                         'architectures',
                                         name + '.arch')

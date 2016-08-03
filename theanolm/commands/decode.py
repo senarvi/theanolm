@@ -32,19 +32,24 @@ def add_arguments(parser):
         help='where to write the best paths through the lattices (default '
              'stdout, will be compressed if the name ends in ".gz")')
     argument_group.add_argument(
-        '--num-jobs', metavar='N', type=int, default=1,
-        help='divide the set of lattice files into N distinct batches, and '
+        '--num-jobs', metavar='J', type=int, default=1,
+        help='divide the set of lattice files into J distinct batches, and '
              'process only batch I')
     argument_group.add_argument(
         '--job', metavar='I', type=int, default=0,
         help='the index of the batch that this job should process, between 0 '
-             'and N-1')
+             'and J-1')
 
     argument_group = parser.add_argument_group("decoding")
     argument_group.add_argument(
         '--output', metavar='FORMAT', type=str, default='ref',
-        help='what to output, one of "ref", "trn", "n-best" '
-             '(default "ref")')
+        help='format of the output, one of "ref" (default, utterance ID '
+             'followed by words), "trn" (words followed by utterance ID in '
+             'parentheses), "full" (utterance ID, acoustic score, language '
+             'score, and number of words, followed by words)')
+    argument_group.add_argument(
+        '--n-best', metavar='N', type=int, default=1,
+        help='print N best paths of each lattice (default 1)')
     argument_group.add_argument(
         '--nnlm-weight', metavar='LAMBDA', type=float, default=1.0,
         help="language model probabilities given by the model read from "
@@ -72,6 +77,12 @@ def add_arguments(parser):
         help="if LOGPROB is zero, do not include <unk> tokens in perplexity "
              "computation; otherwise use constant LOGPROB as <unk> token score "
              "(default is to use the network to predict <unk> probability)")
+
+    argument_group = parser.add_argument_group("pruning")
+    argument_group.add_argument(
+        '--max-tokens-per-node', metavar='T', type=int, default=100,
+        help="keep only at most T tokens at each node when decoding a lattice "
+             "(default 100)")
 
     argument_group = parser.add_argument_group("logging and debugging")
     argument_group.add_argument(
@@ -144,7 +155,8 @@ def decode(args):
                              lm_scale=args.lm_scale,
                              wi_penalty=wi_penalty,
                              ignore_unk=ignore_unk,
-                             unk_penalty=unk_penalty)
+                             unk_penalty=unk_penalty,
+                             max_tokens_per_node=args.max_tokens_per_node)
 
     # Combine paths from command line and lattice list.
     lattices = args.lattices
@@ -178,17 +190,30 @@ def decode(args):
                      args.job)
         tokens = decoder.decode(lattice)
 
-        best_token = tokens[0]
-        words = vocabulary.id_to_word[best_token.history]
-        if args.output == 'ref':
-            args.output_file.write("{} {}\n".format(utterance_id, ' '.join(words)))
-        elif args.output == 'trn':
-            args.output_file.write("{} ({})\n".format(' '.join(words), utterance_id))
-        elif args.output == 'n-best':
-            ac_logprob = best_token.ac_logprob / log_scale
-            lm_logprob = best_token.ac_logprob / log_scale
-            args.output_file.write("{} {} {} {}\n".format(
-                utterance_id, logprob, len(words), ' '.join(words)))
-        else:
-            print("Invalid output format requested:", args.output)
-            sys.exit(1)
+        for index in range(min(args.n_best, len(tokens))):
+            line = format_token(tokens[index],
+                                utterance_id,
+                                vocabulary,
+                                log_scale,
+                                args.output)
+            args.output_file.write(line + "\n")
+
+def format_token(token, utterance_id, vocabulary, log_scale, format):
+    """Formats an output line from a token and an utterance ID.
+    """
+
+    words = vocabulary.id_to_word[token.history]
+    if format == 'ref':
+        return "{} {}".format(utterance_id, ' '.join(words))
+    elif format == 'trn':
+        return "{} ({})".format(' '.join(words), utterance_id)
+    elif format == 'full':
+        return "{} {} {} {} {}".format(
+            utterance_id,
+            token.ac_logprob / log_scale,
+            token.lm_logprob / log_scale,
+            len(words),
+            ' '.join(words))
+    else:
+        print("Invalid output format requested:", args.output)
+        sys.exit(1)

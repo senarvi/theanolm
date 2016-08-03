@@ -158,7 +158,8 @@ class LatticeDecoder(object):
                            self.total_logprob)
 
     def __init__(self, network, nnlm_weight=1.0, lm_scale=None, wi_penalty=None,
-                 ignore_unk=False, unk_penalty=None, profile=False):
+                 ignore_unk=False, unk_penalty=None, max_tokens_per_node=None,
+                 profile=False):
         """Creates a Theano function that computes the output probabilities for
         a single time step.
 
@@ -197,6 +198,10 @@ class LatticeDecoder(object):
         :param unk_penalty: if set to othern than None, used as <unk> token
                             score
 
+        :type max_tokens_per_node: int
+        :param max_tokens_per_node: if set to othern than None, leave only this
+                                    many tokens at each node
+
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
         """
@@ -206,6 +211,7 @@ class LatticeDecoder(object):
         self._nnlm_weight = nnlm_weight
         self._lm_scale = lm_scale
         self._wi_penalty = wi_penalty
+        self._max_tokens_per_node = max_tokens_per_node
 
         self._sos_id = self._vocabulary.word_to_id['<s>']
         self._eos_id = self._vocabulary.word_to_id['</s>']
@@ -278,11 +284,11 @@ class LatticeDecoder(object):
                 new_tokens = self._propagate(
                     node_tokens, link, lm_scale, wi_penalty)
                 tokens[link.end_node.id].extend(new_tokens)
-                # Leave only 100 best tokens at each node.
+                # Enforce limit on number of tokens at each node.
                 tokens[link.end_node.id].sort(
                     key=lambda token: token.total_logprob,
                     reverse=True)
-                tokens[link.end_node.id][100:] = []
+                tokens[link.end_node.id][self._max_tokens_per_node:] = []
 
             nodes_processed += 1
             if nodes_processed % math.ceil(len(sorted_nodes) / 20) == 0:
