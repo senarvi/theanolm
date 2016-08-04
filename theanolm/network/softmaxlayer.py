@@ -63,18 +63,32 @@ class SoftmaxLayer(BasicLayer):
         # We should predict probabilities of the target outputs, i.e. the words
         # at the next time step.
         if self.network.mode.is_target_words():
-            output_probs = self.output_probs.flatten()
-            target_class_ids = self.network.target_class_ids.flatten()
+            output_probs = self.output_probs
+            target_class_ids = self.network.target_class_ids
         else:
-            output_probs = self.output_probs[:-1].flatten()
-            target_class_ids = self.network.class_input[1:].flatten()
+            output_probs = self.output_probs[:-1]
+            target_class_ids = self.network.class_input[1:]
             num_time_steps -= 1
+
+        assert_op = tensor.opt.Assert(
+            "Mismatch in mini-batch and target classes shape.")
+        target_class_ids = assert_op(
+            target_class_ids,
+            tensor.eq(target_class_ids.shape[0], output_probs.shape[0]))
+        target_class_ids = assert_op(
+            target_class_ids,
+            tensor.eq(target_class_ids.shape[1], output_probs.shape[1]))
 
         # An index to a flattened input matrix times the vocabulary size can be
         # used to index the same location in the output matrix. The class ID is
         # added to index the probability of that word.
+        output_probs = output_probs.flatten()
+        target_class_ids = target_class_ids.flatten()
         minibatch_size = target_class_ids.shape[0]
         num_classes = self.network.vocabulary.num_classes()
+        output_probs = assert_op(
+            output_probs,
+            tensor.eq(output_probs.shape[0], minibatch_size * num_classes))
         target_indices = tensor.arange(minibatch_size) * num_classes
         target_indices += target_class_ids
         self.target_probs = output_probs[target_indices]

@@ -7,6 +7,7 @@ from decimal import *
 import logging
 import numpy
 import theano
+from theano import tensor
 from theanolm.network import RecurrentState
 
 class LatticeDecoder(object):
@@ -221,7 +222,7 @@ class LatticeDecoder(object):
                   network.target_class_ids]
         inputs.extend(network.recurrent_state_input)
 
-        outputs = [network.target_probs()]
+        outputs = [tensor.log(network.target_probs())]
         outputs.extend(network.recurrent_state_output)
 
         # Ignore unused input, because is_training is only used by dropout
