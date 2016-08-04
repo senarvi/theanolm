@@ -285,11 +285,12 @@ class LatticeDecoder(object):
                 new_tokens = self._propagate(
                     node_tokens, link, lm_scale, wi_penalty)
                 tokens[link.end_node.id].extend(new_tokens)
-                # Enforce limit on number of tokens at each node.
-                tokens[link.end_node.id].sort(
-                    key=lambda token: token.total_logprob,
-                    reverse=True)
-                tokens[link.end_node.id][self._max_tokens_per_node:] = []
+                if not self._max_tokens_per_node is None:
+                    # Enforce limit on number of tokens at each node.
+                    tokens[link.end_node.id].sort(
+                        key=lambda token: token.total_logprob,
+                        reverse=True)
+                    tokens[link.end_node.id][self._max_tokens_per_node:] = []
 
             nodes_processed += 1
             if nodes_processed % math.ceil(len(sorted_nodes) / 20) == 0:
