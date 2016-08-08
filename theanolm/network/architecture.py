@@ -103,18 +103,34 @@ class Architecture(object):
             if fields[0] == 'input':
                 input_description = dict()
                 for field in fields[1:]:
-                    variable, value = field.split('=')
+                    parts = field.split('=', 1)
+                    if len(parts) != 2:
+                        raise InputError(
+                            "'field=value' expected but '{}' found in an input "
+                            "description in '{}'."
+                            .format(field, description_file.name))
+                    variable, value = parts
                     input_description[variable] = value
                 if not 'type' in input_description:
-                    raise InputError("'type' is not given in an input description.")
+                    raise InputError(
+                        "'type' is not given in an input description in '{}'."
+                        .format(description_file.name))
                 if not 'name' in input_description:
-                    raise InputError("'name' is not given in an input description.")
+                    raise InputError(
+                        "'name' is not given in an input description in '{}'."
+                        .format(description_file.name))
                 inputs.append(input_description)
 
             elif fields[0] == 'layer':
                 layer_description = {'inputs': []}
                 for field in fields[1:]:
-                    variable, value = field.split('=')
+                    parts = field.split('=', 1)
+                    if len(parts) != 2:
+                        raise InputError(
+                            "'field=value' expected but '{}' found in a layer "
+                            "description in '{}'."
+                            .format(field, description_file.name))
+                    variable, value = parts
                     if variable == 'size':
                         layer_description[variable] = int(value)
                     elif variable == 'input':
@@ -122,11 +138,17 @@ class Architecture(object):
                     else:
                         layer_description[variable] = value
                 if not 'type' in layer_description:
-                    raise InputError("'type' is not given in a layer description.")
+                    raise InputError(
+                        "'type' is not given in a layer description in '{}'."
+                        .format(description_file.name))
                 if not 'name' in layer_description:
-                    raise InputError("'name' is not given in a layer description.")
+                    raise InputError(
+                        "'name' is not given in a layer description in '{}'."
+                        .format(description_file.name))
                 if not layer_description['inputs']:
-                    raise InputError("'input' is not given in a layer description.")
+                    raise InputError(
+                        "'input' is not given in a layer description in '{}'."
+                        .format(description_file.name))
                 layers.append(layer_description)
 
             else:
