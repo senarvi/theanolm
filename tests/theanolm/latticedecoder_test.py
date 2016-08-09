@@ -50,10 +50,14 @@ class TestLatticeDecoder(unittest.TestCase):
 
         projection_vector = tensor.zeros(shape=(self.vocabulary.num_words(),),
                                          dtype=theano.config.floatX)
-        projection_vector = tensor.set_subtensor(projection_vector[self.sos_id], 0.1)
-        projection_vector = tensor.set_subtensor(projection_vector[self.yksi_id], 0.2)
-        projection_vector = tensor.set_subtensor(projection_vector[self.kaksi_id], 0.3)
-        projection_vector = tensor.set_subtensor(projection_vector[self.eos_id], 0.4)
+        self.sos_prob = 0.1
+        projection_vector = tensor.set_subtensor(projection_vector[self.sos_id], self.sos_prob)
+        self.yksi_prob = 0.2
+        projection_vector = tensor.set_subtensor(projection_vector[self.yksi_id], self.yksi_prob)
+        self.kaksi_prob = 0.3
+        projection_vector = tensor.set_subtensor(projection_vector[self.kaksi_id], self.kaksi_prob)
+        self.eos_prob = 0.4
+        projection_vector = tensor.set_subtensor(projection_vector[self.eos_id], self.eos_prob)
         self.network = DummyNetwork(self.vocabulary, projection_vector)
 
         lattice_path = os.path.join(script_path, 'lattice.slf')
@@ -111,21 +115,26 @@ class TestLatticeDecoder(unittest.TestCase):
         self.assertSequenceEqual(token2.history, [self.sos_id, self.yksi_id, self.kaksi_id])
         assert_equal(token1.state.get(0), numpy.ones(shape=(1,1,3)).astype(theano.config.floatX))
         assert_equal(token2.state.get(0), numpy.ones(shape=(1,1,3)).astype(theano.config.floatX))
-        self.assertAlmostEqual(token1.nn_lm_logprob, 0.1 + 0.3)
-        self.assertAlmostEqual(token2.nn_lm_logprob, 0.2 + 0.3)
+        token1_nn_lm_logprob = math.log(self.sos_prob + self.kaksi_prob)
+        token2_nn_lm_logprob = math.log(self.yksi_prob + self.kaksi_prob)
+        self.assertAlmostEqual(token1.nn_lm_logprob, token1_nn_lm_logprob)
+        self.assertAlmostEqual(token2.nn_lm_logprob, token2_nn_lm_logprob)
 
         decoder._append_word([token1, token2], self.eos_id)
         self.assertSequenceEqual(token1.history, [self.sos_id, self.kaksi_id, self.eos_id])
         self.assertSequenceEqual(token2.history, [self.sos_id, self.yksi_id, self.kaksi_id, self.eos_id])
         assert_equal(token1.state.get(0), numpy.ones(shape=(1,1,3)).astype(theano.config.floatX) * 2)
         assert_equal(token2.state.get(0), numpy.ones(shape=(1,1,3)).astype(theano.config.floatX) * 2)
-        self.assertAlmostEqual(token1.nn_lm_logprob, 0.1 + 0.3 + 0.3 + 0.4)
-        self.assertAlmostEqual(token2.nn_lm_logprob, 0.2 + 0.3 + 0.3 + 0.4)
+        token1_nn_lm_logprob += math.log(self.kaksi_prob + self.eos_prob)
+        token2_nn_lm_logprob += math.log(self.kaksi_prob + self.eos_prob)
+        self.assertAlmostEqual(token1.nn_lm_logprob, token1_nn_lm_logprob)
+        self.assertAlmostEqual(token2.nn_lm_logprob, token2_nn_lm_logprob)
 
-        token1.interpolate(1.0, 2.0, -0.01)
-        token2.interpolate(1.0, 2.0, -0.01)
-        self.assertAlmostEqual(token1.total_logprob, (0.1 + 0.3 + 0.3 + 0.4) * 2.0 - 0.03)
-        self.assertAlmostEqual(token2.total_logprob, (0.2 + 0.3 + 0.3 + 0.4) * 2.0 - 0.04)
+        lm_scale = 2.0
+        token1.interpolate(1.0, lm_scale, -0.01)
+        token2.interpolate(1.0, lm_scale, -0.01)
+        self.assertAlmostEqual(token1.total_logprob, token1_nn_lm_logprob * lm_scale - 0.03)
+        self.assertAlmostEqual(token2.total_logprob, token2_nn_lm_logprob * lm_scale - 0.04)
 
     def test_decode(self):
         vocabulary = Vocabulary.from_word_counts({
@@ -141,8 +150,9 @@ class TestLatticeDecoder(unittest.TestCase):
             'E.': 1,
             "DIDN'T": 1,
             'ELABORATE': 1})
-        projection_vector = tensor.zeros(shape=(vocabulary.num_words(),),
-                                         dtype=theano.config.floatX)
+        projection_vector = tensor.ones(shape=(vocabulary.num_words(),),
+                                        dtype=theano.config.floatX)
+        projection_vector *= 0.05
         network = DummyNetwork(vocabulary, projection_vector)
         decoder = LatticeDecoder(network, nnlm_weight=0.0)
         tokens = decoder.decode(self.lattice)
@@ -171,7 +181,7 @@ class TestLatticeDecoder(unittest.TestCase):
         self.assertSequenceEqual(history, "<s> IT DIDN'T ELABORATE </s>")
         self.assertAlmostEqual(token.ac_logprob / log_scale, -8686.28, places=2)
         self.assertAlmostEqual(token.lat_lm_logprob / log_scale, -94.3896, places=2)
-        self.assertAlmostEqual(token.nn_lm_logprob / log_scale, 0.0)
+        self.assertAlmostEqual(token.nn_lm_logprob, math.log(0.1) * 4)
 
         for token in tokens:
             history = ' '.join(vocabulary.id_to_word[token.history])
@@ -180,7 +190,7 @@ class TestLatticeDecoder(unittest.TestCase):
         self.assertSequenceEqual(history, "<s> BUT IT DIDN'T ELABORATE </s>")
         self.assertAlmostEqual(token.ac_logprob / log_scale, -8743.96, places=2)
         self.assertAlmostEqual(token.lat_lm_logprob / log_scale, -111.488, places=2)
-        self.assertAlmostEqual(token.nn_lm_logprob / log_scale, 0.0)
+        self.assertAlmostEqual(token.nn_lm_logprob, math.log(0.1) * 5)
 
         for token in tokens:
             history = ' '.join(vocabulary.id_to_word[token.history])
@@ -188,7 +198,7 @@ class TestLatticeDecoder(unittest.TestCase):
                 break
         self.assertAlmostEqual(token.ac_logprob / log_scale, -8696.26, places=2)
         self.assertAlmostEqual(token.lat_lm_logprob / log_scale, -178.00, places=2)
-        self.assertAlmostEqual(token.nn_lm_logprob / log_scale, 0.0)
+        self.assertAlmostEqual(token.nn_lm_logprob, math.log(0.1) * 5)
 
 if __name__ == '__main__':
     unittest.main()
