@@ -359,7 +359,8 @@ class LatticeDecoder(object):
 
         word_input = [[token.history[-1] for token in tokens]]
         word_input = numpy.asarray(word_input).astype('int64')
-        class_input = self._vocabulary.word_id_to_class_id[word_input]
+        class_input, membership_probs = \
+            self._vocabulary.get_class_memberships(word_input)
         recurrent_state = [token.state for token in tokens]
         recurrent_state = RecurrentState.combine_sequences(recurrent_state)
         target_class_ids = numpy.ones(shape=(1, len(tokens))).astype('int64')
@@ -368,7 +369,9 @@ class LatticeDecoder(object):
                                          class_input,
                                          target_class_ids,
                                          *recurrent_state.get())
-        output_logprobs = step_result[0]
+        logprobs = step_result[0]
+        # Add logprobs from the class membership of the predicted words.
+        logprobs += numpy.log(membership_probs)
         output_state = step_result[1:]
 
         for index, token in enumerate(tokens):
@@ -378,4 +381,4 @@ class LatticeDecoder(object):
             token.state.set([layer_state[:,index:index+1]
                              for layer_state in output_state])
             # The matrix contains only one time step.
-            token.nn_lm_logprob += output_logprobs[0,index]
+            token.nn_lm_logprob += logprobs[0,index]
