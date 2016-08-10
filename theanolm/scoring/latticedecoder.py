@@ -3,12 +3,12 @@
 
 from copy import deepcopy
 import math
-from decimal import *
 import logging
 import numpy
 import theano
 from theano import tensor
 from theanolm.network import RecurrentState
+from theanolm.probfunctions import interpolate_linear, interpolate_loglinear
 
 class LatticeDecoder(object):
     """Word Lattice Decoding Using a Neural Network Language Model
@@ -83,14 +83,14 @@ class LatticeDecoder(object):
                              token.lat_lm_logprob,
                              token.nn_lm_logprob)
 
-        def interpolate(self, nn_lm_weight, lm_scale, wi_penalty):
+        def recompute_total(self, nn_lm_weight, lm_scale, wi_penalty,
+                            loglinear=False):
             """Computes the interpolated language model log probability and
             the total log probability.
 
             The interpolated LM log probability is saved in ``self.lm_logprob``.
             The total log probability is computed by applying LM scale factor
-            and and adding the acoustic log probability and word insertion
-            penalty.
+            and adding the acoustic log probability and word insertion penalty.
 
             :type nn_lm_weight: float
             :param nn_lm_weight: weight of the neural network LM probability
@@ -103,25 +103,18 @@ class LatticeDecoder(object):
             :type wi_penalty: float
             :param wi_penalty: penalize each word in the history by adding this
                                value as many times as there are words
+
+            :type loglinear: bool
+            :param loglinear: if set to ``True`` performs log-linear
+                              interpolation instead of linear
             """
 
-            lat_lm_prob = math.exp(self.lat_lm_logprob)
-            nn_lm_prob = math.exp(self.nn_lm_logprob)
-            if (lat_lm_prob > 0) and (nn_lm_prob > 0):
-                lm_prob = (1.0 - nn_lm_weight) * lat_lm_prob
-                lm_prob += nn_lm_weight * nn_lm_prob
-                self.lm_logprob = math.log(lm_prob)
+            if loglinear:
+                self.lm_logprob = interpolate_loglinear(
+                    self.nn_lm_logprob, self.lat_lm_logprop, nn_lm_weight)
             else:
-                # An exp() resulted in an underflow. Use the decimal library.
-                getcontext().prec = 16
-                d_nn_lm_weight = Decimal(nn_lm_weight)
-                d_inv_nn_lm_weight = Decimal(1.0) - d_nn_lm_weight
-                d_lat_lm_logprob = Decimal(self.lat_lm_logprob)
-                d_nn_lm_logprob = Decimal(self.nn_lm_logprob)
-                d_lm_prob = d_inv_nn_lm_weight * d_lat_lm_logprob.exp()
-                d_lm_prob += d_nn_lm_weight * d_nn_lm_logprob.exp()
-                self.lm_logprob = float(d_lm_prob.ln())
-
+                self.lm_logprob = interpolate_linear(
+                    self.nn_lm_logprob, self.lat_lm_logprop, nn_lm_weight)
             self.total_logprob = self.ac_logprob
             self.total_logprob += self.lm_logprob * lm_scale
             self.total_logprob += wi_penalty * len(self.history)
@@ -158,9 +151,7 @@ class LatticeDecoder(object):
                            self.nn_lm_logprob,
                            self.total_logprob)
 
-    def __init__(self, network, nnlm_weight=1.0, lm_scale=None, wi_penalty=None,
-                 ignore_unk=False, unk_penalty=None, max_tokens_per_node=None,
-                 profile=False):
+    def __init__(self, network, decoding_options, profile=False):
         """Creates a Theano function that computes the output probabilities for
         a single time step.
 
@@ -174,34 +165,40 @@ class LatticeDecoder(object):
         uses the value provided in the lattice files. If it's not provided in a
         lattice file either, performs no scaling of LM log probabilities.
 
+        ``decoding_options`` should countain the following elements::
+
+        ``nnlm_weight`` (float)
+          weight of the neural network probabilities when interpolating with the
+          lattice probabilities
+
+        ``lm_scale`` (float)
+          if other than ``None``, the decoder will scale language model log
+          probabilities by this factor; otherwise the scaling factor will be
+          read from the lattice file
+
+        ``wi_penalty`` (float)
+          penalize word insertion by adding this value to the total log
+          probability of a token as many times as there are words
+
+        ``ignore_unk`` (bool)
+          if set to ``True``, <unk> tokens are excluded from perplexity
+          computation
+
+        ``unk_penalty`` (float)
+          if set to othern than None, used as <unk> token score
+
+        ``loglinear`` (bool)
+          if set to ``True``, use log-linear instead of linear interpolation of
+          language model probabilities
+
+        ``max_tokens_per_node`` (int)
+          if set to othern than None, leave only this many tokens at each node
+
         :type network: Network
         :param network: the neural network object
 
-        :type nnlm_weight: float
-        :param nnlm_weight: weight of the neural network probabilities when
-                            interpolating with the lattice probabilities
-
-        :type lm_scale: float
-        :param lm_scale: if other than ``None``, the decoder will scale language
-                         model log probabilities by this factor; otherwise the
-                         scaling factor will be read from the lattice file
-
-        :type wi_penalty: float
-        :param wi_penalty: penalize word insertion by adding this value to the
-                           total log probability of a token as many times as
-                           there are words
-
-        :type ignore_unk: bool
-        :param ignore_unk: if set to True, <unk> tokens are excluded from
-                           perplexity computation
-
-        :type unk_penalty: float
-        :param unk_penalty: if set to othern than None, used as <unk> token
-                            score
-
-        :type max_tokens_per_node: int
-        :param max_tokens_per_node: if set to othern than None, leave only this
-                                    many tokens at each node
+        :type decoding_options: dict
+        :param decoding_options: a dictionary of decoding options (see above)
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
@@ -209,10 +206,11 @@ class LatticeDecoder(object):
 
         self._network = network
         self._vocabulary = network.vocabulary
-        self._nnlm_weight = nnlm_weight
-        self._lm_scale = lm_scale
-        self._wi_penalty = wi_penalty
-        self._max_tokens_per_node = max_tokens_per_node
+        self._nnlm_weight = decoding_options['nnlm_weight']
+        self._lm_scale = decoding_options['lm_scale']
+        self._wi_penalty = decoding_options['wi_penalty']
+        self._loglinear = decoding_options['loglinear']
+        self._max_tokens_per_node = decoding_options['max_tokens_per_node']
 
         self._sos_id = self._vocabulary.word_to_id['<s>']
         self._eos_id = self._vocabulary.word_to_id['</s>']
@@ -266,7 +264,8 @@ class LatticeDecoder(object):
         tokens = [list() for _ in lattice.nodes]
         initial_state = RecurrentState(self._network.recurrent_state_size)
         initial_token = self.Token(history=[self._sos_id], state=initial_state)
-        initial_token.interpolate(self._nnlm_weight, lm_scale, wi_penalty)
+        initial_token.recompute_total(self._nnlm_weight, lm_scale, wi_penalty,
+                                      self._loglinear)
         tokens[lattice.initial_node.id].append(initial_token)
 
         sorted_nodes = lattice.sorted_nodes()
@@ -342,7 +341,8 @@ class LatticeDecoder(object):
                 self._append_word(new_tokens, word_id)
 
         for token in new_tokens:
-            token.interpolate(self._nnlm_weight, lm_scale, wi_penalty)
+            token.recompute_total(self._nnlm_weight, lm_scale, wi_penalty,
+                                  self._loglinear)
 
         return new_tokens
 

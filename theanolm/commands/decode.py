@@ -77,6 +77,10 @@ def add_arguments(parser):
         help="if LOGPROB is zero, do not include <unk> tokens in perplexity "
              "computation; otherwise use constant LOGPROB as <unk> token score "
              "(default is to use the network to predict <unk> probability)")
+    argument_group.add_argument(
+        '--log-linear', action="store_true",
+        help="use (pseudo) log-linear interpolation of language model "
+             "probabilities, instead of linear")
 
     argument_group = parser.add_argument_group("pruning")
     argument_group.add_argument(
@@ -135,8 +139,10 @@ def decode(args):
 
     log_scale = 1.0 if args.log_base is None else numpy.log(args.log_base)
 
-    print("Building word lattice decoder.")
-    sys.stdout.flush()
+    if args.wi_penalty is None:
+        wi_penalty = None
+    else:
+        wi_penalty = args.wi_penalty * log_scale
     if args.unk_penalty is None:
         ignore_unk = False  
         unk_penalty = None
@@ -146,17 +152,22 @@ def decode(args):
     else:
         ignore_unk = False
         unk_penalty = args.unk_penalty
-    if args.wi_penalty is None:
-        wi_penalty = None
-    else:
-        wi_penalty = args.wi_penalty * log_scale
-    decoder = LatticeDecoder(network,
-                             nnlm_weight=args.nnlm_weight,
-                             lm_scale=args.lm_scale,
-                             wi_penalty=wi_penalty,
-                             ignore_unk=ignore_unk,
-                             unk_penalty=unk_penalty,
-                             max_tokens_per_node=args.max_tokens_per_node)
+    decoding_options = {
+        'nnlm_weight': args.nnlm_weight,
+        'lm_scale': args.lm_scale,
+        'wi_penalty': wi_penalty,
+        'ignore_unk': ignore_unk,
+        'unk_penalty': unk_penalty,
+        'loglinear': args.log_linear,
+        'max_tokens_per_node': args.max_tokens_per_node
+    }
+    logging.debug("DECODING OPTIONS")
+    for option_name, option_value in decoding_options.items():
+        logging.debug("%s: %s", option_name, str(option_value))
+
+    print("Building word lattice decoder.")
+    sys.stdout.flush()
+    decoder = LatticeDecoder(network, decoding_options)
 
     # Combine paths from command line and lattice list.
     lattices = args.lattices
