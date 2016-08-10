@@ -75,33 +75,65 @@ class TestLatticeDecoder(unittest.TestCase):
         self.assertSequenceEqual(token1.history, [1, 2, 3])
         self.assertSequenceEqual(token2.history, [1, 2, 3, 4])
 
-    def test_interpolate(self):
+    def test_recompute_total(self):
         token = LatticeDecoder.Token(history=[1, 2],
                                      ac_logprob=math.log(0.1),
                                      lat_lm_logprob=math.log(0.2),
                                      nn_lm_logprob=math.log(0.3))
-        token.interpolate(0.25, 1.0, 0.0)
-        assert_almost_equal(token.lm_logprob, math.log(0.25 * 0.3 + 0.75 * 0.2))
-        assert_almost_equal(token.total_logprob, math.log(0.1 * (0.25 * 0.3 + 0.75 * 0.2)))
-        token.interpolate(0.25, 10.0, 0.0)
-        assert_almost_equal(token.lm_logprob, math.log(0.25 * 0.3 + 0.75 * 0.2))
-        assert_almost_equal(token.total_logprob, math.log(0.1) + math.log(0.25 * 0.3 + 0.75 * 0.2) * 10.0)
-        token.interpolate(0.25, 10.0, -20.0)
-        assert_almost_equal(token.lm_logprob, math.log(0.25 * 0.3 + 0.75 * 0.2))
-        assert_almost_equal(token.total_logprob, math.log(0.1) + math.log(0.25 * 0.3 + 0.75 * 0.2) * 10.0 - 40.0)
+        token.recompute_total(0.25, 1.0, 0.0, False)
+        assert_almost_equal(token.lm_logprob,
+                            math.log(0.25 * 0.3 + 0.75 * 0.2))
+        assert_almost_equal(token.total_logprob,
+                            math.log(0.1 * (0.25 * 0.3 + 0.75 * 0.2)))
+        token.recompute_total(0.25, 1.0, 0.0, True)
+        assert_almost_equal(token.lm_logprob,
+                            0.25 * math.log(0.3) + 0.75 * math.log(0.2))
+        assert_almost_equal(token.total_logprob,
+                            math.log(0.1) + 0.25 * math.log(0.3) + 0.75 * math.log(0.2))
+        token.recompute_total(0.25, 10.0, 0.0, False)
+        assert_almost_equal(token.lm_logprob,
+                            math.log(0.25 * 0.3 + 0.75 * 0.2))
+        assert_almost_equal(token.total_logprob,
+                            math.log(0.1) + math.log(0.25 * 0.3 + 0.75 * 0.2) * 10.0)
+        token.recompute_total(0.25, 10.0, 0.0, True)
+        assert_almost_equal(token.lm_logprob,
+                            0.25 * math.log(0.3) + 0.75 * math.log(0.2))
+        assert_almost_equal(token.total_logprob,
+                            math.log(0.1) + (0.25 * math.log(0.3) + 0.75 * math.log(0.2)) * 10.0)
+        token.recompute_total(0.25, 10.0, -20.0, False)
+        assert_almost_equal(token.lm_logprob,
+                            math.log(0.25 * 0.3 + 0.75 * 0.2))
+        assert_almost_equal(token.total_logprob,
+                            math.log(0.1) + math.log(0.25 * 0.3 + 0.75 * 0.2) * 10.0 - 40.0)
+        token.recompute_total(0.25, 10.0, -20.0, True)
+        assert_almost_equal(token.lm_logprob,
+                            0.25 * math.log(0.3) + 0.75 * math.log(0.2))
+        assert_almost_equal(token.total_logprob,
+                            math.log(0.1) + (0.25 * math.log(0.3) + 0.75 * math.log(0.2)) * 10.0 - 40.0)
+
         token = LatticeDecoder.Token(history=[1, 2],
                                      ac_logprob=-1000,
                                      lat_lm_logprob=-1001,
                                      nn_lm_logprob=-1002)
-        token.interpolate(0.75, 1.0, 0.0)
+        token.recompute_total(0.75, 1.0, 0.0)
         # ln(exp(-1000) * (0.75 * exp(-1002) + 0.25 * exp(-1001)))
         assert_almost_equal(token.total_logprob, -2001.64263, decimal=4)
 
     def test_append_word(self):
+        decoding_options = {
+            'nnlm_weight': 1.0,
+            'lm_scale': 1.0,
+            'wi_penalty': 0.0,
+            'ignore_unk': False,
+            'unk_penalty': -5.0,
+            'loglinear': True,
+            'max_tokens_per_node': 10
+        }
+
         initial_state = RecurrentState(self.network.recurrent_state_size)
         token1 = LatticeDecoder.Token(history=[self.sos_id], state=initial_state)
         token2 = LatticeDecoder.Token(history=[self.sos_id, self.yksi_id], state=initial_state)
-        decoder = LatticeDecoder(self.network)
+        decoder = LatticeDecoder(self.network, decoding_options)
 
         self.assertSequenceEqual(token1.history, [self.sos_id])
         self.assertSequenceEqual(token2.history, [self.sos_id, self.yksi_id])
@@ -131,8 +163,8 @@ class TestLatticeDecoder(unittest.TestCase):
         self.assertAlmostEqual(token2.nn_lm_logprob, token2_nn_lm_logprob)
 
         lm_scale = 2.0
-        token1.interpolate(1.0, lm_scale, -0.01)
-        token2.interpolate(1.0, lm_scale, -0.01)
+        token1.recompute_total(1.0, lm_scale, -0.01)
+        token2.recompute_total(1.0, lm_scale, -0.01)
         self.assertAlmostEqual(token1.total_logprob, token1_nn_lm_logprob * lm_scale - 0.03)
         self.assertAlmostEqual(token2.total_logprob, token2_nn_lm_logprob * lm_scale - 0.04)
 
@@ -154,8 +186,28 @@ class TestLatticeDecoder(unittest.TestCase):
                                         dtype=theano.config.floatX)
         projection_vector *= 0.05
         network = DummyNetwork(vocabulary, projection_vector)
-        decoder = LatticeDecoder(network, nnlm_weight=0.0)
+
+        decoding_options = {
+            'nnlm_weight': 0.0,
+            'lm_scale': None,
+            'wi_penalty': None,
+            'ignore_unk': False,
+            'unk_penalty': None,
+            'loglinear': False,
+            'max_tokens_per_node': None
+        }
+        decoder = LatticeDecoder(network, decoding_options)
         tokens = decoder.decode(self.lattice)
+
+        # Compare tokens to n-best list given by SRILM lattice-tool.
+        log_scale = math.log(10)
+
+        print()
+        for token in tokens:
+            print(token.ac_logprob / log_scale,
+                  token.lat_lm_logprob / log_scale,
+                  token.total_logprob / log_scale,
+                  ' '.join(vocabulary.id_to_word[token.history]))
 
         all_paths = set(["<s> IT DIDN'T ELABORATE </s>",
                          "<s> BUT IT DIDN'T ELABORATE </s>",
@@ -172,9 +224,6 @@ class TestLatticeDecoder(unittest.TestCase):
         paths = set([' '.join(vocabulary.id_to_word[token.history])
                      for token in tokens])
         self.assertSetEqual(paths, all_paths)
-
-        # Compare tokens to n-best list given by SRILM lattice-tool.
-        log_scale = math.log(10)
 
         token = tokens[0]
         history = ' '.join(vocabulary.id_to_word[token.history])

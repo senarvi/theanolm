@@ -111,10 +111,12 @@ class LatticeDecoder(object):
 
             if loglinear:
                 self.lm_logprob = interpolate_loglinear(
-                    self.nn_lm_logprob, self.lat_lm_logprop, nn_lm_weight)
+                    self.nn_lm_logprob, self.lat_lm_logprob,
+                    nn_lm_weight, (1.0 - nn_lm_weight))
             else:
                 self.lm_logprob = interpolate_linear(
-                    self.nn_lm_logprob, self.lat_lm_logprop, nn_lm_weight)
+                    self.nn_lm_logprob, self.lat_lm_logprob,
+                    nn_lm_weight)
             self.total_logprob = self.ac_logprob
             self.total_logprob += self.lm_logprob * lm_scale
             self.total_logprob += wi_penalty * len(self.history)

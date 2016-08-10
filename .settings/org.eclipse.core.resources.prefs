@@ -2,6 +2,7 @@ eclipse.preferences.version=1
 encoding//bin/theanolm=utf-8
 encoding//bin/wctool=utf-8
 encoding//tests/theanolm/iterators_test.py=utf-8
+encoding//tests/theanolm/latticedecoder_test.py=utf-8
 encoding//tests/theanolm/textscorer_test.py=utf-8
 encoding//tests/theanolm/vocabulary_test.py=utf-8
 encoding//tests/wordclasses/bigramoptimizer_test.py=utf-8
