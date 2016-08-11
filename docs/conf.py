@@ -14,7 +14,7 @@
 # serve to show the default.
 
 import sys
-from os import path
+from os import path, environ
 import subprocess
 from unittest.mock import MagicMock
 
@@ -60,6 +60,8 @@ def create_apidoc(_):
         cmd = path.abspath(path.join(sys.prefix, 'bin', 'sphinx-apidoc'))
     else:
         cmd = 'sphinx-apidoc'
+    environ['SPHINX_APIDOC_OPTIONS'] = \
+        'members,special-members,private-members,undoc-members,show-inheritance'
     subprocess.check_call(
         [cmd, '--force', '--no-toc', '-o', docs_dir, root_dir, setup_path,
          tests_dir])

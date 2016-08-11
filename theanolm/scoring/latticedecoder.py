@@ -167,33 +167,33 @@ class LatticeDecoder(object):
         uses the value provided in the lattice files. If it's not provided in a
         lattice file either, performs no scaling of LM log probabilities.
 
-        ``decoding_options`` should countain the following elements::
+        ``decoding_options`` should countain the following elements:
 
-        ``nnlm_weight`` : float
+        nnlm_weight : float
           weight of the neural network probabilities when interpolating with the
           lattice probabilities
 
-        ``lm_scale`` : float
+        lm_scale : float
           if other than ``None``, the decoder will scale language model log
           probabilities by this factor; otherwise the scaling factor will be
           read from the lattice file
 
-        ``wi_penalty`` : float
+        wi_penalty : float
           penalize word insertion by adding this value to the total log
           probability of a token as many times as there are words
 
-        ``ignore_unk`` : bool
+        ignore_unk : bool
           if set to ``True``, <unk> tokens are excluded from perplexity
           computation
 
-        ``unk_penalty`` : float
+        unk_penalty : float
           if set to othern than None, used as <unk> token score
 
-        ``linear_interpolation`` : bool
+        linear_interpolation : bool
           if set to ``True``, use linear instead of (pseudo) log-linear
           interpolation of language model probabilities
 
-        ``max_tokens_per_node`` : int
+        max_tokens_per_node : int
           if set to other than None, leave only this many tokens at each node
 
         :type network: Network

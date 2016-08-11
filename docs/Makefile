@@ -4,7 +4,7 @@
 # You can set these variables from the command line.
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
-SPHINXAPIDOC  = sphinx-apidoc
+SPHINXAPIDOC  = SPHINX_APIDOC_OPTIONS='members,special-members,private-members,undoc-members,show-inheritance' sphinx-apidoc
 PAPER         =
 BUILDDIR      = _build
 

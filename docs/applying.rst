@@ -13,16 +13,16 @@ not needed in the beginning and end of each utterance, except when one wants to
 compute the probability of the empty sentence ``<s> </s>``.
 
 What the command prints can be controlled by the ``--output`` parameter. The
-value can be one of::
+value can be one of:
 
-``perplexity``
+perplexity
   Compute perplexity and other statistics of the entire corpus.
 
-``word-scores``
+word-scores
   Display log probability scores of each word, in addition to sentence and
   corpus perplexities.
 
-``utterances-scores``
+utterances-scores
   Write just the log probability score of each utterance, one per line. This can
   be used for rescoring n-best lists.
 

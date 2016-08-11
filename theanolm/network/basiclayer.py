@@ -123,7 +123,7 @@ class BasicLayer(object):
         """Initializes a bias vector with given value.
 
         If ``value`` is not given, initializes the vector with zero value. If
-        ``value``is a list, creates a concatenation of as many vectors as there
+        ``value`` is a list, creates a concatenation of as many vectors as there
         are elements in the list.
 
         :type param_name: str
