@@ -84,7 +84,7 @@ class LatticeDecoder(object):
                              token.nn_lm_logprob)
 
         def recompute_total(self, nn_lm_weight, lm_scale, wi_penalty,
-                            loglinear=False):
+                            linear=False):
             """Computes the interpolated language model log probability and
             the total log probability.
 
@@ -104,19 +104,19 @@ class LatticeDecoder(object):
             :param wi_penalty: penalize each word in the history by adding this
                                value as many times as there are words
 
-            :type loglinear: bool
-            :param loglinear: if set to ``True`` performs log-linear
-                              interpolation instead of linear
+            :type linear: bool
+            :param linear: if set to ``True`` performs linear interpolation
+                           instead of (pseudo) log-linear
             """
 
-            if loglinear:
-                self.lm_logprob = interpolate_loglinear(
-                    self.nn_lm_logprob, self.lat_lm_logprob,
-                    nn_lm_weight, (1.0 - nn_lm_weight))
-            else:
+            if linear:
                 self.lm_logprob = interpolate_linear(
                     self.nn_lm_logprob, self.lat_lm_logprob,
                     nn_lm_weight)
+            else:
+                self.lm_logprob = interpolate_loglinear(
+                    self.nn_lm_logprob, self.lat_lm_logprob,
+                    nn_lm_weight, (1.0 - nn_lm_weight))
             self.total_logprob = self.ac_logprob
             self.total_logprob += self.lm_logprob * lm_scale
             self.total_logprob += wi_penalty * len(self.history)
@@ -169,32 +169,32 @@ class LatticeDecoder(object):
 
         ``decoding_options`` should countain the following elements::
 
-        ``nnlm_weight`` (float)
+        ``nnlm_weight`` : float
           weight of the neural network probabilities when interpolating with the
           lattice probabilities
 
-        ``lm_scale`` (float)
+        ``lm_scale`` : float
           if other than ``None``, the decoder will scale language model log
           probabilities by this factor; otherwise the scaling factor will be
           read from the lattice file
 
-        ``wi_penalty`` (float)
+        ``wi_penalty`` : float
           penalize word insertion by adding this value to the total log
           probability of a token as many times as there are words
 
-        ``ignore_unk`` (bool)
+        ``ignore_unk`` : bool
           if set to ``True``, <unk> tokens are excluded from perplexity
           computation
 
-        ``unk_penalty`` (float)
+        ``unk_penalty`` : float
           if set to othern than None, used as <unk> token score
 
-        ``loglinear`` (bool)
-          if set to ``True``, use log-linear instead of linear interpolation of
-          language model probabilities
+        ``linear_interpolation`` : bool
+          if set to ``True``, use linear instead of (pseudo) log-linear
+          interpolation of language model probabilities
 
-        ``max_tokens_per_node`` (int)
-          if set to othern than None, leave only this many tokens at each node
+        ``max_tokens_per_node`` : int
+          if set to other than None, leave only this many tokens at each node
 
         :type network: Network
         :param network: the neural network object
@@ -211,7 +211,7 @@ class LatticeDecoder(object):
         self._nnlm_weight = decoding_options['nnlm_weight']
         self._lm_scale = decoding_options['lm_scale']
         self._wi_penalty = decoding_options['wi_penalty']
-        self._loglinear = decoding_options['loglinear']
+        self._linear_interpolation = decoding_options['linear_interpolation']
         self._max_tokens_per_node = decoding_options['max_tokens_per_node']
 
         self._sos_id = self._vocabulary.word_to_id['<s>']
@@ -267,7 +267,7 @@ class LatticeDecoder(object):
         initial_state = RecurrentState(self._network.recurrent_state_size)
         initial_token = self.Token(history=[self._sos_id], state=initial_state)
         initial_token.recompute_total(self._nnlm_weight, lm_scale, wi_penalty,
-                                      self._loglinear)
+                                      self._linear_interpolation)
         tokens[lattice.initial_node.id].append(initial_token)
 
         sorted_nodes = lattice.sorted_nodes()
@@ -344,7 +344,7 @@ class LatticeDecoder(object):
 
         for token in new_tokens:
             token.recompute_total(self._nnlm_weight, lm_scale, wi_penalty,
-                                  self._loglinear)
+                                  self._linear_interpolation)
 
         return new_tokens
 

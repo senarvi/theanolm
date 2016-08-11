@@ -78,9 +78,9 @@ def add_arguments(parser):
              "computation; otherwise use constant LOGPROB as <unk> token score "
              "(default is to use the network to predict <unk> probability)")
     argument_group.add_argument(
-        '--log-linear', action="store_true",
-        help="use (pseudo) log-linear interpolation of language model "
-             "probabilities, instead of linear")
+        '--linear-interpolation', action="store_true",
+        help="use linear interpolation of language model probabilities, "
+             "instead of (pseudo) log-linear")
 
     argument_group = parser.add_argument_group("pruning")
     argument_group.add_argument(
@@ -158,7 +158,7 @@ def decode(args):
         'wi_penalty': wi_penalty,
         'ignore_unk': ignore_unk,
         'unk_penalty': unk_penalty,
-        'loglinear': args.log_linear,
+        'linear_interpolation': args.linear_interpolation,
         'max_tokens_per_node': args.max_tokens_per_node
     }
     logging.debug("DECODING OPTIONS")
