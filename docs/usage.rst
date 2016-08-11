@@ -3,12 +3,22 @@ Basic Usage
 
 ``theanolm`` command recognizes several subcommands:
 
-* ``theanolm train`` trains a neural network language model.
-* ``theanolm score`` performs text scoring and perplexity computation using a
-  neural network language model.
-* ``theanolm sample`` generates sentences by sampling words from a neural
-  network language model.
-* ``theanolm version`` displays the version number and exits.
+theanolm train
+  Trains a neural network language model.
+
+theanolm score
+  Performs text scoring and perplexity computation using a neural network
+  language model.
+
+theanolm decode
+  Decodes a word lattice using a neural network to compute the language model
+  probabilities.
+
+theanolm sample
+  Generates sentences by sampling words from a neural network language model.
+
+theanolm version
+  Displays the version number and exits.
 
 The complete list of command line options available for each subcommand can be
 displayed with the ``--help`` argument, e.g.::

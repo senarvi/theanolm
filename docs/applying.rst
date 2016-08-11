@@ -4,13 +4,14 @@ Applying a language model
 Scoring a text corpus
 ---------------------
 
-Score command can be used to compute the perplexity of evaluation data, or to
-rescore an n-best list by computing the probability of each sentence. It takes
-two positional arguments. These specify the path to the TheanoLM model and the
-text to be evaluated. Evaluation data is processed identically to training and
-validation data, i.e. explicit start-of-sentence and end-of-sentence tags are
-not needed in the beginning and end of each utterance, except when one wants to
-compute the probability of the empty sentence ``<s> </s>``.
+``theanolm score`` command can be used to compute the perplexity of evaluation
+data, or to rescore an n-best list by computing the probability of each
+sentence. It takes two positional arguments. These specify the path to the
+TheanoLM model and the text to be evaluated. Evaluation data is processed
+identically to training and validation data, i.e. explicit start-of-sentence and
+end-of-sentence tags are not needed in the beginning and end of each utterance,
+except when one wants to compute the probability of the empty sentence
+``<s> </s>``.
 
 What the command prints can be controlled by the ``--output`` parameter. The
 value can be one of:
@@ -22,7 +23,7 @@ word-scores
   Display log probability scores of each word, in addition to sentence and
   corpus perplexities.
 
-utterances-scores
+utterance-scores
   Write just the log probability score of each utterance, one per line. This can
   be used for rescoring n-best lists.
 
@@ -81,8 +82,9 @@ needs only the sentences. You should use ``--log-base 10`` if you're rescoring
 an n-best list generated using SRILM::
 
     cut -d' ' -f5- <nbest-all.txt >sentences.txt
-    theanolm score model.h5 sentences.txt --output-file scores.txt \
-             --output utterance-scores --log-base 10
+    theanolm score model.h5 sentences.txt \
+        --output-file scores.txt --output utterance-scores \
+        --log-base 10
 
 The resulting file ``scores.txt`` contains one log probability on each line.
 These can be simply inserted into the original n-best list, or interpolated with
@@ -108,6 +110,41 @@ of words::
     sort -k1,1 -k2,2gr |
     awk '$1 != id { id = $1; $2 = ""; print }' |
     awk '{ $1=$1; print }' >1best.ref
+
+Decoding word lattices
+----------------------
+
+``theanolm decode`` command can be used to decode the best paths directly from
+word lattices using neural network language model probabilities. This is more
+efficient than creating an intermediate n-best list and rescoring every
+sentence::
+
+    theanolm decode model.h5 \
+        --lattice-list lattices.txt \
+        --output-file 1best.ref --output ref \
+        --nnlm-weight 0.5 --lm-scale 14.0
+
+Because the context length is not limited in recurrent neural networks,
+exhaustive search of word lattices would be too expensive. The parameter
+``--max-tokens-per-node`` can be used to specify how many best tokens (partial
+paths) to retain after traversing a node. Higher values mean higher probability
+of finding the best path, but also higher computational cost.
+
+The work can be divided to several jobs for a compute cluster, each processing
+the same number of lattices. For example, the following SLURM job script would
+create an array of 50 jobs. Each would run its own TheanoLM process and decode
+its own set of lattices, limiting the number of tokens at each node to 10::
+
+    #!/bin/sh
+    #SBATCH --gres=gpu:1
+    #SBATCH --array=0-49
+
+    srun --gres=gpu:1 theanolm decode model.h5 \
+        --lattice-list lattices.txt \
+        --output-file "${SLURM_ARRAY_TASK_ID}.ref" --output ref \
+        --nnlm-weight 0.5 --lm-scale 14.0 \
+        --max-tokens-per-node 10 \
+        --num-jobs 50 --job "${SLURM_ARRAY_TASK_ID}"
 
 Generating text
 ---------------
