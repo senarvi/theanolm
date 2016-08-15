@@ -8,7 +8,7 @@ import numpy
 import theano
 from theano import tensor
 from theanolm.network import RecurrentState
-from theanolm.probfunctions import interpolate_linear, interpolate_loglinear
+from theanolm.probfunctions import *
 
 class LatticeDecoder(object):
     """Word Lattice Decoding Using a Neural Network Language Model
@@ -24,9 +24,9 @@ class LatticeDecoder(object):
         def __init__(self,
                      history=[],
                      state=[],
-                     ac_logprob=0.0,
-                     lat_lm_logprob=0.0,
-                     nn_lm_logprob=0.0):
+                     ac_logprob=logprob_type(0.0),
+                     lat_lm_logprob=logprob_type(0.0),
+                     nn_lm_logprob=logprob_type(0.0)):
             """Constructs a token with given recurrent state and logprobs.
 
             The constructor won't compute the total logprob. The user is
@@ -40,15 +40,15 @@ class LatticeDecoder(object):
             :param state: the state of the recurrent layers for a single
                           sequence
 
-            :type ac_logprob: float
+            :type ac_logprob: logprob_type
             :param ac_logprob: sum of the acoustic log probabilities of the
                                lattice links
 
-            :type lat_lm_logprob: float
+            :type lat_lm_logprob: logprob_type
             :param lat_lm_logprob: sum of the LM log probabilities of the
                                    lattice links
 
-            :type nn_lm_logprob: float
+            :type nn_lm_logprob: logprob_type
             :param nn_lm_logprob: sum of the NNLM log probabilities of the
                                   lattice links
             """
@@ -92,15 +92,15 @@ class LatticeDecoder(object):
             The total log probability is computed by applying LM scale factor
             and adding the acoustic log probability and word insertion penalty.
 
-            :type nn_lm_weight: float
+            :type nn_lm_weight: logprob_type
             :param nn_lm_weight: weight of the neural network LM probability
                                  when interpolating with the lattice probability
 
-            :type lm_scale: float
+            :type lm_scale: logprob_type
             :param lm_scale: scaling factor for LM probability when computing
                              the total probability
 
-            :type wi_penalty: float
+            :type wi_penalty: logprob_type
             :param wi_penalty: penalize each word in the history by adding this
                                value as many times as there are words
 
@@ -196,6 +196,10 @@ class LatticeDecoder(object):
         max_tokens_per_node : int
           if set to other than None, leave only this many tokens at each node
 
+        beam : float
+          if set to other than None, prune tokens whose total log probability is
+          further than this from the best token at each point in time
+
         :type network: Network
         :param network: the neural network object
 
@@ -208,11 +212,14 @@ class LatticeDecoder(object):
 
         self._network = network
         self._vocabulary = network.vocabulary
-        self._nnlm_weight = decoding_options['nnlm_weight']
+        self._nnlm_weight = logprob_type(decoding_options['nnlm_weight'])
         self._lm_scale = decoding_options['lm_scale']
         self._wi_penalty = decoding_options['wi_penalty']
         self._linear_interpolation = decoding_options['linear_interpolation']
         self._max_tokens_per_node = decoding_options['max_tokens_per_node']
+        self._beam = decoding_options['beam']
+        if not self._beam is None:
+            self._beam = logprob_type(self._beam)
 
         self._sos_id = self._vocabulary.word_to_id['<s>']
         self._eos_id = self._vocabulary.word_to_id['</s>']
@@ -250,30 +257,30 @@ class LatticeDecoder(object):
         """
 
         if not self._lm_scale is None:
-            lm_scale = self._lm_scale
+            lm_scale = logprob_type(self._lm_scale)
         elif not lattice.lm_scale is None:
-            lm_scale = lattice.lm_scale
+            lm_scale = logprob_type(lattice.lm_scale)
         else:
-            lm_scale = 1.0
+            lm_scale = logprob_type(1.0)
 
         if not self._wi_penalty is None:
-            wi_penalty = self._wi_penalty
+            wi_penalty = logprob_type(self._wi_penalty)
         if not lattice.wi_penalty is None:
-            wi_penalty = lattice.wi_penalty
+            wi_penalty = logprob_type(lattice.wi_penalty)
         else:
-            wi_penalty = 0.0
+            wi_penalty = logprob_type(0.0)
 
-        tokens = [list() for _ in lattice.nodes]
+        self._tokens = [list() for _ in lattice.nodes]
         initial_state = RecurrentState(self._network.recurrent_state_size)
         initial_token = self.Token(history=[self._sos_id], state=initial_state)
         initial_token.recompute_total(self._nnlm_weight, lm_scale, wi_penalty,
                                       self._linear_interpolation)
-        tokens[lattice.initial_node.id].append(initial_token)
+        self._tokens[lattice.initial_node.id].append(initial_token)
 
-        sorted_nodes = lattice.sorted_nodes()
+        self._sorted_nodes = lattice.sorted_nodes()
         nodes_processed = 0
-        for node in sorted_nodes:
-            node_tokens = tokens[node.id]
+        for node in self._sorted_nodes:
+            node_tokens = self._tokens[node.id]
             assert node_tokens
 
             if node.id == lattice.final_node.id:
@@ -282,23 +289,26 @@ class LatticeDecoder(object):
                 return sorted(new_tokens,
                               key=lambda token: token.total_logprob,
                               reverse=True)
+
+            num_new_tokens = 0
+            num_pruned_tokens = 0
             for link in node.out_links:
                 new_tokens = self._propagate(
                     node_tokens, link, lm_scale, wi_penalty)
-                tokens[link.end_node.id].extend(new_tokens)
-                if not self._max_tokens_per_node is None:
-                    # Enforce limit on number of tokens at each node.
-                    tokens[link.end_node.id].sort(
-                        key=lambda token: token.total_logprob,
-                        reverse=True)
-                    tokens[link.end_node.id][self._max_tokens_per_node:] = []
+                num_new_tokens += len(new_tokens)
+                self._tokens[link.end_node.id].extend(new_tokens)
+                num_pruned_tokens += len(self._tokens[link.end_node.id])
+#                self._prune(link.end_node)
+                num_pruned_tokens -= len(self._tokens[link.end_node.id])
 
             nodes_processed += 1
-            if nodes_processed % math.ceil(len(sorted_nodes) / 20) == 0:
-                logging.debug("[%d] (%.2f %%) -- tokens = %d",
+            if nodes_processed % math.ceil(len(self._sorted_nodes) / 20) == 0:
+                logging.debug("[%d] (%.2f %%) -- tokens = %d + %d - %d",
                               nodes_processed,
-                              nodes_processed / len(sorted_nodes) * 100,
-                              len(node_tokens))
+                              nodes_processed / len(self._sorted_nodes) * 100,
+                              len(node_tokens),
+                              num_new_tokens,
+                              num_pruned_tokens)
 
         raise InputError("Could not reach the final node of word lattice.")
 
@@ -311,6 +321,9 @@ class LatticeDecoder(object):
         language model scores. Then the function will update the acoustic and
         lattice LM score, but will not compute anything with the neural network.
 
+        Also updates ``best_logprob`` of the end node, so that beam pruning
+        threshold can be obtained efficiently.
+
         :type tokens: list of LatticeDecoder.Tokens
         :param tokens: input tokens
 
@@ -319,10 +332,10 @@ class LatticeDecoder(object):
                      if ``None``, just updates the LM logprobs as if the tokens
                      were propagated to an end of sentence
 
-        :type lm_scale: float
+        :type lm_scale: logprob_type
         :param lm_scale: scale language model log probabilities by this factor
 
-        :type wi_penalty: float
+        :type wi_penalty: logprob_type
         :param wi_penalty: penalize word insertion by adding this value to the
                            total log probability of the token
 
@@ -345,8 +358,51 @@ class LatticeDecoder(object):
         for token in new_tokens:
             token.recompute_total(self._nnlm_weight, lm_scale, wi_penalty,
                                   self._linear_interpolation)
+            if not link is None:
+                if (link.end_node.best_logprob is None) or \
+                   (token.total_logprob > link.end_node.best_logprob):
+                    link.end_node.best_logprob = token.total_logprob
 
         return new_tokens
+
+    def _prune(self, node):
+        """Prunes tokens from a node according to beam and the maximum number of
+        tokens.
+
+        :type node: Lattice.Node
+        :param node: perform pruning on this node
+        """
+
+        node_tokens = self._tokens[node.id]
+
+        # Keep the tokens sorted by descending log probability.
+        node_tokens.sort(key=lambda token: token.total_logprob, reverse=True)
+
+        # Compare to the best probability at the same or later time.
+        if not self._beam is None:
+            if node.time is None:
+                node_ids = [iter_node.id for iter_node in self._sorted_nodes]
+                time_begin = node_ids.index(node.id)
+            else:
+                for time_begin, iter_node in enumerate(self._sorted_nodes):
+                    if (not iter_node.time is None) and \
+                       (iter_node.time >= node.time):
+                        break
+
+            best_logprob = max(iter_node.best_logprob
+                               for iter_node in self._sorted_nodes[time_begin:]
+                               if not iter_node.best_logprob is None)
+            assert not best_logprob is None
+            threshold = best_logprob - self._beam
+            token_index = len(node_tokens) - 1
+            while (token_index >= 0) and \
+                  (node_tokens[token_index].total_logprob <= threshold):
+                del node_tokens[index]
+                index -= 1
+
+        # Enforce limit on number of tokens at each node.
+        if not self._max_tokens_per_node is None:
+            node_tokens[self._max_tokens_per_node:] = []
 
     def _append_word(self, tokens, target_word_id):
         """Appends a word to each of the given tokens, and updates their scores.

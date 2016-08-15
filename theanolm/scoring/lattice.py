@@ -57,6 +57,7 @@ class Lattice(object):
             self.out_links = []
             self.in_links = []
             self.time = None
+            self.best_logprob = None
 
     __metaclass__ = ABCMeta
 

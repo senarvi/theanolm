@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import math
+import numpy
 from shlex import shlex
 from theanolm.exceptions import InputError
+from theanolm.probfunctions import logprob_type
 from theanolm.scoring.lattice import Lattice
 
 class SLFLattice(Lattice):
@@ -26,7 +27,7 @@ class SLFLattice(Lattice):
 
         # No log conversion by default. "None" means the lattice file uses
         # linear probabilities.
-        self._log_scale = 1.0
+        self._log_scale = logprob_type(1.0)
 
         self._initial_node_id = None
         self._final_node_id = None
@@ -46,7 +47,7 @@ class SLFLattice(Lattice):
 
         if not self.wi_penalty is None:
             if self._log_scale is None:
-                self.wi_penalty = math.log(self.wi_penalty)
+                self.wi_penalty = numpy.log(self.wi_penalty)
             else:
                 self.wi_penalty *= self._log_scale
 
@@ -113,15 +114,15 @@ class SLFLattice(Lattice):
             elif (name == 'SUBLAT') or (name == 'S'):
                 raise InputError("Sub-lattices are not supported.")
             elif name == 'base':
-                value = float(value)
+                value = numpy.float64(value)
                 if value == 0.0:
                     self._log_scale = None
                 else:
-                    self._log_scale = math.log(value)
+                    self._log_scale = logprob_type(numpy.log(value))
             elif name == 'lmscale':
-                self.lm_scale = float(value)
+                self.lm_scale = logprob_type(value)
             elif name == 'wdpenalty':
-                self.wi_penalty = float(value)
+                self.wi_penalty = logprob_type(value)
             elif name == 'start':
                 self._initial_node_id = int(value)
             elif name == 'end':
@@ -179,14 +180,14 @@ class SLFLattice(Lattice):
                 word = value
             elif (name == 'acoustic') or (name == 'a'):
                 if self._log_scale is None:
-                    ac_logprob = math.log(float(value))
+                    ac_logprob = logprob_type(numpy.log(numpy.float64(value)))
                 else:
-                    ac_logprob = float(value) * self._log_scale
+                    ac_logprob = logprob_type(value) * self._log_scale
             elif (name == 'language') or (name == 'l'):
                 if self._log_scale is None:
-                    lm_logprob = math.log(float(value))
+                    lm_logprob = logprob_type(numpy.log(numpy.float64(value)))
                 else:
-                    lm_logprob = float(value) * self._log_scale
+                    lm_logprob = logprob_type(value) * self._log_scale
 
         if start_node is None:
             raise InputError("Start node is not specified for link %d.".format(

@@ -127,7 +127,8 @@ class TestLatticeDecoder(unittest.TestCase):
             'ignore_unk': False,
             'unk_penalty': 0.0,
             'linear_interpolation': False,
-            'max_tokens_per_node': 10
+            'max_tokens_per_node': 10,
+            'beam': None
         }
 
         initial_state = RecurrentState(self.network.recurrent_state_size)
@@ -194,7 +195,8 @@ class TestLatticeDecoder(unittest.TestCase):
             'ignore_unk': False,
             'unk_penalty': None,
             'linear_interpolation': True,
-            'max_tokens_per_node': None
+            'max_tokens_per_node': None,
+            'beam': None
         }
         decoder = LatticeDecoder(network, decoding_options)
         tokens = decoder.decode(self.lattice)

@@ -84,9 +84,14 @@ def add_arguments(parser):
 
     argument_group = parser.add_argument_group("pruning")
     argument_group.add_argument(
-        '--max-tokens-per-node', metavar='T', type=int, default=100,
+        '--max-tokens-per-node', metavar='T', type=int, default=None,
         help="keep only at most T tokens at each node when decoding a lattice "
-             "(default 100)")
+             "(default is no limit)")
+    argument_group.add_argument(
+        '--beam', metavar='B', type=float, default=None,
+        help="prune tokens whose log probability is at least B smaller than "
+             "the log probability of the best token at any given time (default "
+             "is no beam pruning)")
 
     argument_group = parser.add_argument_group("logging and debugging")
     argument_group.add_argument(
@@ -159,7 +164,8 @@ def decode(args):
         'ignore_unk': ignore_unk,
         'unk_penalty': unk_penalty,
         'linear_interpolation': args.linear_interpolation,
-        'max_tokens_per_node': args.max_tokens_per_node
+        'max_tokens_per_node': args.max_tokens_per_node,
+        'beam': args.beam
     }
     logging.debug("DECODING OPTIONS")
     for option_name, option_value in decoding_options.items():
