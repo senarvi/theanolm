@@ -301,7 +301,7 @@ class LatticeDecoder(object):
                 num_new_tokens += len(new_tokens)
                 self._tokens[link.end_node.id].extend(new_tokens)
                 num_pruned_tokens += len(self._tokens[link.end_node.id])
-#                self._prune(link.end_node)
+                self._prune(link.end_node)
                 num_pruned_tokens -= len(self._tokens[link.end_node.id])
 
             nodes_processed += 1
@@ -398,13 +398,12 @@ class LatticeDecoder(object):
             best_logprob = max(iter_node.best_logprob
                                for iter_node in self._sorted_nodes[time_begin:]
                                if not iter_node.best_logprob is None)
-            assert not best_logprob is None
             threshold = best_logprob - self._beam
             token_index = len(node_tokens) - 1
-            while (token_index >= 0) and \
+            while (token_index >= 1) and \
                   (node_tokens[token_index].total_logprob <= threshold):
-                del node_tokens[index]
-                index -= 1
+                del node_tokens[token_index]
+                token_index -= 1
 
         # Enforce limit on number of tokens at each node.
         if not self._max_tokens_per_node is None:

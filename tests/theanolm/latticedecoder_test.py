@@ -11,6 +11,7 @@ from theano import tensor
 from theanolm import Vocabulary
 from theanolm.network import RecurrentState
 from theanolm.scoring import LatticeDecoder, SLFLattice
+from theanolm.scoring.lattice import Lattice
 
 class DummyNetwork(object):
     def __init__(self, vocabulary, projection_vector):
@@ -34,6 +35,30 @@ class DummyNetwork(object):
                                  num_sequences],
                                 ndim=2)
         return result
+
+class DummyLatticeDecoder(LatticeDecoder):
+    def __init__(self):
+        self._sorted_nodes = [Lattice.Node(id) for id in range(5)]
+        self._sorted_nodes[0].time = 0.0
+        self._sorted_nodes[1].time = 1.0
+        self._sorted_nodes[2].time = 1.0
+        self._sorted_nodes[3].time = None
+        self._sorted_nodes[4].time = 3.0
+        self._tokens = [[LatticeDecoder.Token()],
+                        [LatticeDecoder.Token()],
+                        [LatticeDecoder.Token(), LatticeDecoder.Token(), LatticeDecoder.Token()],
+                        [LatticeDecoder.Token()],
+                        []]
+        self._tokens[0][0].total_logprob = -10.0
+        self._sorted_nodes[0].best_logprob = -10.0
+        self._tokens[1][0].total_logprob = -20.0
+        self._sorted_nodes[1].best_logprob = -20.0
+        self._tokens[2][0].total_logprob = -30.0
+        self._tokens[2][1].total_logprob = -50.0
+        self._tokens[2][2].total_logprob = -70.0
+        self._sorted_nodes[2].best_logprob = -30.0
+        self._tokens[3][0].total_logprob = -100.0
+        self._sorted_nodes[3].best_logprob = -100.0
 
 class TestLatticeDecoder(unittest.TestCase):
     def setUp(self):
@@ -168,6 +193,53 @@ class TestLatticeDecoder(unittest.TestCase):
         token2.recompute_total(1.0, lm_scale, -0.01)
         self.assertAlmostEqual(token1.total_logprob, token1_nn_lm_logprob * lm_scale - 0.03)
         self.assertAlmostEqual(token2.total_logprob, token2_nn_lm_logprob * lm_scale - 0.04)
+
+    def test_prune(self):
+        decoder = DummyLatticeDecoder()
+        decoder._max_tokens_per_node = None
+        # best_logprob = -20
+        decoder._beam = 60
+        decoder._prune(decoder._sorted_nodes[2])
+        self.assertEqual(len(decoder._tokens[2]), 3)
+        self.assertEqual(decoder._tokens[2][0].total_logprob, -30)
+        self.assertEqual(decoder._tokens[2][1].total_logprob, -50)
+        self.assertEqual(decoder._tokens[2][2].total_logprob, -70)
+        decoder._beam = 50
+        decoder._prune(decoder._sorted_nodes[2])
+        self.assertEqual(len(decoder._tokens[2]), 2)
+        self.assertEqual(decoder._tokens[2][0].total_logprob, -30)
+        self.assertEqual(decoder._tokens[2][1].total_logprob, -50)
+        decoder._beam = 31
+        decoder._prune(decoder._sorted_nodes[2])
+        self.assertEqual(len(decoder._tokens[2]), 2)
+        self.assertEqual(decoder._tokens[2][0].total_logprob, -30)
+        self.assertEqual(decoder._tokens[2][1].total_logprob, -50)
+        decoder._beam = 15
+        decoder._prune(decoder._sorted_nodes[2])
+        self.assertEqual(len(decoder._tokens[2]), 1)
+        self.assertEqual(decoder._tokens[2][0].total_logprob, -30)
+        decoder._beam = 0
+        decoder._prune(decoder._sorted_nodes[2])
+        self.assertEqual(len(decoder._tokens[2]), 1)
+        self.assertEqual(decoder._tokens[2][0].total_logprob, -30)
+
+        decoder = DummyLatticeDecoder()
+        decoder._beam = None
+        decoder._max_tokens_per_node = 3
+        decoder._prune(decoder._sorted_nodes[2])
+        self.assertEqual(len(decoder._tokens[2]), 3)
+        self.assertEqual(decoder._tokens[2][0].total_logprob, -30)
+        self.assertEqual(decoder._tokens[2][1].total_logprob, -50)
+        self.assertEqual(decoder._tokens[2][2].total_logprob, -70)
+        decoder._max_tokens_per_node = 2
+        decoder._prune(decoder._sorted_nodes[2])
+        self.assertEqual(len(decoder._tokens[2]), 2)
+        self.assertEqual(decoder._tokens[2][0].total_logprob, -30)
+        self.assertEqual(decoder._tokens[2][1].total_logprob, -50)
+        decoder._max_tokens_per_node = 1
+        decoder._prune(decoder._sorted_nodes[2])
+        self.assertEqual(len(decoder._tokens[2]), 1)
+        self.assertEqual(decoder._tokens[2][0].total_logprob, -30)
 
     def test_decode(self):
         vocabulary = Vocabulary.from_word_counts({
