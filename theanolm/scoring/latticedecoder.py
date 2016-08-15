@@ -215,6 +215,8 @@ class LatticeDecoder(object):
         self._nnlm_weight = logprob_type(decoding_options['nnlm_weight'])
         self._lm_scale = decoding_options['lm_scale']
         self._wi_penalty = decoding_options['wi_penalty']
+        self._ignore_unk = decoding_options['ignore_unk']
+        self._unk_penalty = decoding_options['unk_penalty']
         self._linear_interpolation = decoding_options['linear_interpolation']
         self._max_tokens_per_node = decoding_options['max_tokens_per_node']
         self._beam = decoding_options['beam']
@@ -223,6 +225,7 @@ class LatticeDecoder(object):
 
         self._sos_id = self._vocabulary.word_to_id['<s>']
         self._eos_id = self._vocabulary.word_to_id['</s>']
+        self._unk_id = self._vocabulary.word_to_id['<unk>']
 
         inputs = [network.word_input,
                   network.class_input,
@@ -352,7 +355,10 @@ class LatticeDecoder(object):
                 token.ac_logprob += link.ac_logprob
                 token.lat_lm_logprob += link.lm_logprob
             if not link.word.startswith('!'):
-                word_id = self._vocabulary.word_to_id[link.word]
+                try:
+                    word_id = self._vocabulary.word_to_id[link.word]
+                except KeyError:
+                    word_id = self._unk_id
                 self._append_word(new_tokens, word_id)
 
         for token in new_tokens:
@@ -438,5 +444,12 @@ class LatticeDecoder(object):
             # Slice the sequence that corresponds to this token.
             token.state.set([layer_state[:,index:index+1]
                              for layer_state in output_state])
-            # The matrix contains only one time step.
+
+            if target_word_id == self._unk_id:
+                if self._ignore_unk:
+                    continue
+                if not self._unk_penalty is None:
+                    token.nn_lm_logprob += self._unk_penalty
+                    continue
+            # logprobs matrix contains only one time step.
             token.nn_lm_logprob += logprobs[0,index]
