@@ -33,6 +33,9 @@ class LatticeDecoder(object):
             responsible for computing it when necessary, to avoid unnecessary
             overhead.
 
+            New tokens will not have recombination hash and total log
+            probability set.
+
             :type history: list of ints
             :param history: word IDs that the token has passed
 
@@ -58,6 +61,7 @@ class LatticeDecoder(object):
             self.ac_logprob = ac_logprob
             self.lat_lm_logprob = lat_lm_logprob
             self.nn_lm_logprob = nn_lm_logprob
+            self.recombination_hash = None
             self.total_logprob = None
 
         @classmethod
@@ -68,7 +72,7 @@ class LatticeDecoder(object):
             copied instead. There's no need to copy the structure, since we
             never modify the state of a token, but replace it if necessary.
 
-            Total log probability will not be copied.
+            Recombination hash and total log probability will not be copied.
 
             :type token: LatticeDecoder.Token
             :param token: a token to copy
@@ -82,6 +86,21 @@ class LatticeDecoder(object):
                              token.ac_logprob,
                              token.lat_lm_logprob,
                              token.nn_lm_logprob)
+
+        def recompute_hash(self, recombination_order):
+            """Computes the hash that will be used to decide if two tokens
+            should be recombined.
+
+            :type recombination_order: int
+            :param recombination_order: number of words to consider when
+                recombining tokens, or ``None`` for the entire history
+            """
+
+            if recombination_order is None:
+                limited_history = self.history
+            else:
+                limited_history = self.history[-recombination_order:]
+            self.recombination_hash = hash(tuple(limited_history))
 
         def recompute_total(self, nn_lm_weight, lm_scale, wi_penalty,
                             linear=False):
@@ -200,6 +219,10 @@ class LatticeDecoder(object):
           if set to other than None, prune tokens whose total log probability is
           further than this from the best token at each point in time
 
+        recombination_order : int
+          number of words to consider when deciding whether two tokens should be
+          recombined, or ``None`` for the entire word history
+
         :type network: Network
         :param network: the neural network object
 
@@ -222,6 +245,7 @@ class LatticeDecoder(object):
         self._beam = decoding_options['beam']
         if not self._beam is None:
             self._beam = logprob_type(self._beam)
+        self._recombination_order = decoding_options['recombination_order']
 
         self._sos_id = self._vocabulary.word_to_id['<s>']
         self._eos_id = self._vocabulary.word_to_id['</s>']
@@ -276,6 +300,7 @@ class LatticeDecoder(object):
         self._tokens = [list() for _ in lattice.nodes]
         initial_state = RecurrentState(self._network.recurrent_state_size)
         initial_token = self.Token(history=[self._sos_id], state=initial_state)
+        initial_token.recompute_hash(self._recombination_order)
         initial_token.recompute_total(self._nnlm_weight, lm_scale, wi_penalty,
                                       self._linear_interpolation)
         self._tokens[lattice.initial_node.id].append(initial_token)
@@ -285,6 +310,11 @@ class LatticeDecoder(object):
         for node in self._sorted_nodes:
             node_tokens = self._tokens[node.id]
             assert node_tokens
+            num_pruned_tokens = len(node_tokens)
+            self._prune(node)
+            node_tokens = self._tokens[node.id]
+            assert node_tokens
+            num_pruned_tokens -= len(node_tokens)
 
             if node.id == lattice.final_node.id:
                 new_tokens = self._propagate(
@@ -294,19 +324,15 @@ class LatticeDecoder(object):
                               reverse=True)
 
             num_new_tokens = 0
-            num_pruned_tokens = 0
             for link in node.out_links:
                 new_tokens = self._propagate(
                     node_tokens, link, lm_scale, wi_penalty)
-                num_new_tokens += len(new_tokens)
                 self._tokens[link.end_node.id].extend(new_tokens)
-                num_pruned_tokens += len(self._tokens[link.end_node.id])
-                self._prune(link.end_node)
-                num_pruned_tokens -= len(self._tokens[link.end_node.id])
+                num_new_tokens += len(new_tokens)
 
             nodes_processed += 1
             if nodes_processed % math.ceil(len(self._sorted_nodes) / 20) == 0:
-                logging.debug("[%d] (%.2f %%) -- tokens = %d + %d - %d",
+                logging.debug("[%d] (%.2f %%) -- tokens = %d +%d -%d",
                               nodes_processed,
                               nodes_processed / len(self._sorted_nodes) * 100,
                               len(node_tokens),
@@ -362,6 +388,7 @@ class LatticeDecoder(object):
                 self._append_word(new_tokens, word_id)
 
         for token in new_tokens:
+            token.recompute_hash(self._recombination_order)
             token.recompute_total(self._nnlm_weight, lm_scale, wi_penalty,
                                   self._linear_interpolation)
             if not link is None:
@@ -379,10 +406,16 @@ class LatticeDecoder(object):
         :param node: perform pruning on this node
         """
 
-        node_tokens = self._tokens[node.id]
+        new_tokens = dict()
+        for token in self._tokens[node.id]:
+            key = token.recombination_hash
+            if (not key in new_tokens) or \
+               (token.total_logprob > new_tokens[key].total_logprob):
+                new_tokens[key] = token
 
-        # Keep the tokens sorted by descending log probability.
-        node_tokens.sort(key=lambda token: token.total_logprob, reverse=True)
+        # Sort the tokens by descending log probability.
+        new_tokens = sorted(new_tokens.values(),
+                            key=lambda token: token.total_logprob, reverse=True)
 
         # Compare to the best probability at the same or later time.
         if not self._beam is None:
@@ -399,15 +432,17 @@ class LatticeDecoder(object):
                                for iter_node in self._sorted_nodes[time_begin:]
                                if not iter_node.best_logprob is None)
             threshold = best_logprob - self._beam
-            token_index = len(node_tokens) - 1
+            token_index = len(new_tokens) - 1
             while (token_index >= 1) and \
-                  (node_tokens[token_index].total_logprob <= threshold):
-                del node_tokens[token_index]
+                  (new_tokens[token_index].total_logprob <= threshold):
+                del new_tokens[token_index]
                 token_index -= 1
 
         # Enforce limit on number of tokens at each node.
         if not self._max_tokens_per_node is None:
-            node_tokens[self._max_tokens_per_node:] = []
+            new_tokens[self._max_tokens_per_node:] = []
+
+        self._tokens[node.id] = new_tokens
 
     def _append_word(self, tokens, target_word_id):
         """Appends a word to each of the given tokens, and updates their scores.
