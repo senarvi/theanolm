@@ -50,14 +50,20 @@ class DummyLatticeDecoder(LatticeDecoder):
                         [LatticeDecoder.Token()],
                         []]
         self._tokens[0][0].total_logprob = -10.0
+        self._tokens[0][0].recombination_hash = 1
         self._sorted_nodes[0].best_logprob = -10.0
         self._tokens[1][0].total_logprob = -20.0
+        self._tokens[1][0].recombination_hash = 1
         self._sorted_nodes[1].best_logprob = -20.0
         self._tokens[2][0].total_logprob = -30.0
+        self._tokens[2][0].recombination_hash = 1
         self._tokens[2][1].total_logprob = -50.0
+        self._tokens[2][1].recombination_hash = 2
         self._tokens[2][2].total_logprob = -70.0
+        self._tokens[2][2].recombination_hash = 3
         self._sorted_nodes[2].best_logprob = -30.0
         self._tokens[3][0].total_logprob = -100.0
+        self._tokens[3][0].recombination_hash = 1
         self._sorted_nodes[3].best_logprob = -100.0
 
 class TestLatticeDecoder(unittest.TestCase):
@@ -196,8 +202,25 @@ class TestLatticeDecoder(unittest.TestCase):
         self.assertAlmostEqual(token2.total_logprob, token2_nn_lm_logprob * lm_scale - 0.04)
 
     def test_prune(self):
+        # token recombination
         decoder = DummyLatticeDecoder()
         decoder._max_tokens_per_node = None
+        decoder._beam = None
+        decoder._recombination_order = 3  # Not used.
+        decoder._tokens[2][0].recombination_hash = 2
+        decoder._tokens[2][1].recombination_hash = 2
+        decoder._tokens[2][2].recombination_hash = 3
+        decoder._prune(decoder._sorted_nodes[2])
+        self.assertEqual(len(decoder._tokens[2]), 2)
+        decoder._tokens[2][0].recombination_hash = 4
+        decoder._tokens[2][1].recombination_hash = 4
+        decoder._prune(decoder._sorted_nodes[2])
+        self.assertEqual(len(decoder._tokens[2]), 1)
+
+        # beam pruning
+        decoder = DummyLatticeDecoder()
+        decoder._max_tokens_per_node = None
+        decoder._recombination_order = None
         # best_logprob = -20
         decoder._beam = 60
         decoder._prune(decoder._sorted_nodes[2])
@@ -224,8 +247,10 @@ class TestLatticeDecoder(unittest.TestCase):
         self.assertEqual(len(decoder._tokens[2]), 1)
         self.assertEqual(decoder._tokens[2][0].total_logprob, -30)
 
+        # max tokens per node
         decoder = DummyLatticeDecoder()
         decoder._beam = None
+        decoder._recombination_order = None
         decoder._max_tokens_per_node = 3
         decoder._prune(decoder._sorted_nodes[2])
         self.assertEqual(len(decoder._tokens[2]), 3)
@@ -285,42 +310,34 @@ class TestLatticeDecoder(unittest.TestCase):
                   token.total_logprob / log_scale,
                   ' '.join(vocabulary.id_to_word[token.history]))
 
-        all_paths = set(["<s> IT DIDN'T ELABORATE </s>",
-                         "<s> BUT IT DIDN'T ELABORATE </s>",
-                         "<s> THE DIDN'T ELABORATE </s>",
-                         "<s> AND IT DIDN'T ELABORATE </s>",
-                         "<s> E. DIDN'T ELABORATE </s>",
-                         "<s> IN IT DIDN'T ELABORATE </s>",
-                         "<s> A DIDN'T ELABORATE </s>",
-                         "<s> AT IT DIDN'T ELABORATE </s>",
-                         "<s> IT IT DIDN'T ELABORATE </s>",
-                         "<s> TO IT DIDN'T ELABORATE </s>",
-                         "<s> A. IT DIDN'T ELABORATE </s>",
-                         "<s> A IT DIDN'T ELABORATE </s>"])
-        paths = set([' '.join(vocabulary.id_to_word[token.history])
-                     for token in tokens])
-        self.assertSetEqual(paths, all_paths)
+        all_paths = ["<s> IT DIDN'T ELABORATE </s>",
+                     "<s> BUT IT DIDN'T ELABORATE </s>",
+                     "<s> THE DIDN'T ELABORATE </s>",
+                     "<s> AND IT DIDN'T ELABORATE </s>",
+                     "<s> E. DIDN'T ELABORATE </s>",
+                     "<s> IN IT DIDN'T ELABORATE </s>",
+                     "<s> A DIDN'T ELABORATE </s>",
+                     "<s> AT IT DIDN'T ELABORATE </s>",
+                     "<s> IT IT DIDN'T ELABORATE </s>",
+                     "<s> TO IT DIDN'T ELABORATE </s>",
+                     "<s> A. IT DIDN'T ELABORATE </s>",
+                     "<s> A IT DIDN'T ELABORATE </s>"]
+        paths = [' '.join(vocabulary.id_to_word[token.history])
+                 for token in tokens]
+        self.assertListEqual(paths, all_paths)
 
         token = tokens[0]
         history = ' '.join(vocabulary.id_to_word[token.history])
-        self.assertSequenceEqual(history, "<s> IT DIDN'T ELABORATE </s>")
         self.assertAlmostEqual(token.ac_logprob / log_scale, -8686.28, places=2)
         self.assertAlmostEqual(token.lat_lm_logprob / log_scale, -94.3896, places=2)
         self.assertAlmostEqual(token.nn_lm_logprob, math.log(0.1) * 4)
 
-        for token in tokens:
-            history = ' '.join(vocabulary.id_to_word[token.history])
-            if history != "<s> IT DIDN'T ELABORATE </s>":
-                break
-        self.assertSequenceEqual(history, "<s> BUT IT DIDN'T ELABORATE </s>")
+        token = tokens[1]
         self.assertAlmostEqual(token.ac_logprob / log_scale, -8743.96, places=2)
         self.assertAlmostEqual(token.lat_lm_logprob / log_scale, -111.488, places=2)
         self.assertAlmostEqual(token.nn_lm_logprob, math.log(0.1) * 5)
 
-        for token in tokens:
-            history = ' '.join(vocabulary.id_to_word[token.history])
-            if history == "<s> A IT DIDN'T ELABORATE </s>":
-                break
+        token = tokens[-1]
         self.assertAlmostEqual(token.ac_logprob / log_scale, -8696.26, places=2)
         self.assertAlmostEqual(token.lat_lm_logprob / log_scale, -178.00, places=2)
         self.assertAlmostEqual(token.nn_lm_logprob, math.log(0.1) * 5)
