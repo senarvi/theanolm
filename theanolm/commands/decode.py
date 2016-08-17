@@ -169,7 +169,8 @@ def decode(args):
         'unk_penalty': unk_penalty,
         'linear_interpolation': args.linear_interpolation,
         'max_tokens_per_node': args.max_tokens_per_node,
-        'beam': args.beam
+        'beam': args.beam,
+        'recombination_order': args.recombination_order
     }
     logging.debug("DECODING OPTIONS")
     for option_name, option_value in decoding_options.items():
