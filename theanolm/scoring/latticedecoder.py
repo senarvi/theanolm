@@ -304,6 +304,7 @@ class LatticeDecoder(object):
         initial_token.recompute_total(self._nnlm_weight, lm_scale, wi_penalty,
                                       self._linear_interpolation)
         self._tokens[lattice.initial_node.id].append(initial_token)
+        lattice.initial_node.best_logprob = initial_token.total_logprob
 
         self._sorted_nodes = lattice.sorted_nodes()
         nodes_processed = 0
@@ -427,6 +428,7 @@ class LatticeDecoder(object):
                     if (not iter_node.time is None) and \
                        (iter_node.time >= node.time):
                         break
+            assert time_begin < len(self._sorted_nodes)
 
             best_logprob = max(iter_node.best_logprob
                                for iter_node in self._sorted_nodes[time_begin:]
