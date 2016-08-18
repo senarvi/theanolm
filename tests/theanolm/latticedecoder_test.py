@@ -106,6 +106,19 @@ class TestLatticeDecoder(unittest.TestCase):
         self.assertSequenceEqual(token1.history, [1, 2, 3])
         self.assertSequenceEqual(token2.history, [1, 2, 3, 4])
 
+    def test_recompute_hash(self):
+        token1 = LatticeDecoder.Token(history=[1, 12, 203, 3004, 23455])
+        token2 = LatticeDecoder.Token(history=[2, 12, 203, 3004, 23455])
+        token1.recompute_hash(None)
+        token2.recompute_hash(None)
+        self.assertNotEqual(token1.recombination_hash, token2.recombination_hash)
+        token1.recompute_hash(5)
+        token2.recompute_hash(5)
+        self.assertNotEqual(token1.recombination_hash, token2.recombination_hash)
+        token1.recompute_hash(4)
+        token2.recompute_hash(4)
+        self.assertEqual(token1.recombination_hash, token2.recombination_hash)
+
     def test_recompute_total(self):
         token = LatticeDecoder.Token(history=[1, 2],
                                      ac_logprob=math.log(0.1),
