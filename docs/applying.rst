@@ -124,11 +124,28 @@ sentence::
         --output-file 1best.ref --output ref \
         --nnlm-weight 0.5 --lm-scale 14.0
 
-Because the context length is not limited in recurrent neural networks,
-exhaustive search of word lattices would be too expensive. The parameter
-``--max-tokens-per-node`` can be used to specify how many best tokens (partial
-paths) to retain after traversing a node. Higher values mean higher probability
-of finding the best path, but also higher computational cost.
+In principle, the context length is not limited in recurrent neural networks, so
+an exhaustive search of word lattices would be too expensive. There are three
+parameters that constrain the search space by pruning unlikely tokens (partial
+hypotheses). These are:
+
+--max-tokens-per-node : N
+  Retain at most N tokens at each node. Limiting the number of tokens is very
+  effective in cutting the computational cost. Higher values mean higher
+  probability of finding the best path, but also higher computational cost. A
+  good starting point is 64.
+
+--beam : logprob
+  Specifies the maximum log probability difference to the best token at a given
+  time. Beam pruning starts to have effect when the beam is smaller than 1000,
+  but the effect on word error rate is small before the beam is smaller than
+  500.
+
+--recombination-order : N
+  When two tokens have identical history up to N previous words, keep only the
+  best token. This means effectively that we assume that the influence of a word
+  is limited to the probability of the next N words. Recombination seems to have
+  little effect on word error rate before N is closer to 20.
 
 The work can be divided to several jobs for a compute cluster, each processing
 the same number of lattices. For example, the following SLURM job script would
@@ -143,7 +160,7 @@ its own set of lattices, limiting the number of tokens at each node to 10::
         --lattice-list lattices.txt \
         --output-file "${SLURM_ARRAY_TASK_ID}.ref" --output ref \
         --nnlm-weight 0.5 --lm-scale 14.0 \
-        --max-tokens-per-node 10 \
+        --max-tokens-per-node 64 --beam 500 --recombination-order 20 \
         --num-jobs 50 --job "${SLURM_ARRAY_TASK_ID}"
 
 Generating text

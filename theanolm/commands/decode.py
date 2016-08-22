@@ -95,7 +95,8 @@ def add_arguments(parser):
     argument_group.add_argument(
         '--recombination-order', metavar='O', type=int, default=None,
         help="keep only the best token, when at least O previous words are "
-             "identical (default is to never recombine tokens)")
+             "identical (default is to recombine tokens only if the entire "
+             "word history matches)")
 
     argument_group = parser.add_argument_group("logging and debugging")
     argument_group.add_argument(
