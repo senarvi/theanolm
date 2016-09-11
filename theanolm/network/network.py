@@ -35,6 +35,8 @@ def create_layer(layer_options, *args, **kwargs):
         return LSTMLayer(layer_options, *args, **kwargs)
     elif layer_type == 'gru':
         return GRULayer(layer_options, *args, **kwargs)
+    elif layer_type == 'highwaytanh':
+        return HighwayTanhLayer(layer_options, *args, **kwargs)
     elif layer_type == 'softmax':
         return SoftmaxLayer(layer_options, *args, **kwargs)
     elif layer_type == 'hsoftmax':
