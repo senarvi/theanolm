@@ -14,6 +14,7 @@ from theanolm.network.projectionlayer import ProjectionLayer
 from theanolm.network.tanhlayer import TanhLayer
 from theanolm.network.grulayer import GRULayer
 from theanolm.network.lstmlayer import LSTMLayer
+from theanolm.network.highwaytanhlayer import HighwayTanhLayer
 from theanolm.network.softmaxlayer import SoftmaxLayer
 from theanolm.network.hsoftmaxlayer import HSoftmaxLayer
 from theanolm.network.dropoutlayer import DropoutLayer

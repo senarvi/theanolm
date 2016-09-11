@@ -8,7 +8,7 @@ import theano.tensor as tensor
 from theanolm.matrixfunctions import get_submatrix
 from theanolm.network.basiclayer import BasicLayer
 
-class TanhLayer(BasicLayer):
+class HighwayTanhLayer(BasicLayer):
     """Highway Network Layer with Hyperbolic Tangent Activation
 
     R. K. Srivastava (2015)
@@ -22,12 +22,17 @@ class TanhLayer(BasicLayer):
 
         super().__init__(*args, **kwargs)
 
+        # Make sure the user hasn't tried to change the number of connections.
+        input_size = sum(x.output_size for x in self.input_layers)
+        output_size = self.output_size
+        if input_size != output_size:
+            raise ValueError("Highway network layer cannot change the number "
+                             "of connections.")
+
         # Create the parameters. Normal weight matrix and bias are concatenated
         # with those of the transform gate. Transform gate bias is initialized
         # to a negative value, so that the network is initially biased towards
         # carrying the input without transformation.
-        input_size = sum(x.output_size for x in self.input_layers)
-        output_size = self.output_size
         self._init_orthogonal_weight('input/W', input_size, output_size,
                                      scale=0.01, count=2)
         self._init_bias('input/b', output_size, [0.0, -1.0])

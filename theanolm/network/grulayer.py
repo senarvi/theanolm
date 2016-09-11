@@ -148,14 +148,17 @@ class GRULayer(BasicLayer):
         :type x_preact: TensorVariable
         :param x_preact: concatenation of the input x_(t) pre-activations
                          computed using the gate and candidate state weights and
-                         biases
+                         biases; shape is (the number of sequences, state size *
+                         3)
 
         :type h_in: TensorVariable
-        :param h_in: h_(t-1), hidden state output of the previous time step
+        :param h_in: h_(t-1), hidden state output of the previous time step;
+                     shape is (the number of sequences, state size)
 
         :type h_weights: TensorVariable
         :param h_weights: concatenation of the gate and candidate state weights
-                          to be applied to h_(t-1)
+                          to be applied to h_(t-1); shape is (state size, state
+                          size * 3)
 
         :rtype: TensorVariable
         :returns: h_(t), the hidden state output
