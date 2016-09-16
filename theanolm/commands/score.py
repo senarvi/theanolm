@@ -29,7 +29,7 @@ def add_arguments(parser):
 
     argument_group = parser.add_argument_group("scoring")
     argument_group.add_argument(
-        '--output', metavar='DETAIL', type=str, default='text',
+        '--output', metavar='DETAIL', type=str, default='perplexity',
         help='what to output, one of "perplexity", "utterance-scores", '
              '"word-scores" (default "perplexity")')
     argument_group.add_argument(
