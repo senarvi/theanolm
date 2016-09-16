@@ -5,23 +5,22 @@ import numpy
 import theano
 from theano.compile.debugmode import InvalidValueError
 
-def random_weight(in_size, out_size, scale=None):
+def random_weight(shape, scale=None):
     """Generates a weight matrix from “standard normal” distribution.
 
-    :type in_size: int
-    :param in_size: size of the input dimension of the weight
-
-    :type out_size: int
-    :param out_size: size of the output dimension of the weight
+    :type shape: tuple of ints
+    :param shape: size of each dimension (typically there are two dimensions,
+                  input and output)
 
     :type scale: float
-    :param scale: if other than None, the matrix will be scaled by this factor
+    :param scale: if other than None, the random numbers will be scaled by this
+                  factor
 
     :rtype: numpy.ndarray
     :returns: the generated weight matrix
     """
 
-    result = numpy.random.randn(in_size, out_size)
+    result = numpy.random.randn(*shape)
     if scale is not None:
         result = scale * result
     return result.astype(theano.config.floatX)
@@ -42,7 +41,7 @@ def orthogonal_weight(in_size, out_size, scale=None):
     """
 
     if in_size != out_size:
-        return random_weight(in_size, out_size, scale)
+        return random_weight((in_size, out_size), scale)
 
     nonorthogonal_matrix = numpy.random.randn(in_size, out_size)
     result, _, _ = numpy.linalg.svd(nonorthogonal_matrix)
@@ -81,14 +80,14 @@ def get_submatrix(matrices, index, size, end_index=None):
     """Returns a submatrix of a concatenation of 2 or 3 dimensional
     matrices.
 
-    :type matrices: theano.tensor.var.TensorVariable
+    :type matrices: TensorVariable
     :param matrices: symbolic 2 or 3 dimensional matrix formed by
                      concatenating matrices of length size
 
     :type index: int
     :param index: index of the matrix to be returned
 
-    :type size: theano.tensor.var.TensorVariable
+    :type size: TensorVariable
     :param size: size of the last dimension of one submatrix
 
     :type end_index: int

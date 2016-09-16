@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import abc
 import logging
 import numpy
 from wordclasses.functions import byte_size
@@ -40,7 +39,7 @@ class BigramOptimizer(object):
         word_id = self.get_word_id(word)
         old_class_id = self.get_word_class(word_id)
         if self._class_size(old_class_id) < 2:
-            logging.debug('Less than two word in class %d. Not moving word %s.',
+            logging.debug('Less than two words in class %d. Not moving word %s.',
                           old_class_id, word)
             return False
 
@@ -120,7 +119,6 @@ class BigramOptimizer(object):
 
         return best_ll_diff, best_class_id
 
-    @abc.abstractmethod
     def _evaluate(self, word_id, new_class_id):
         """Evaluates how much moving a word to another class would change the
         log likelihood.
@@ -138,7 +136,6 @@ class BigramOptimizer(object):
         raise NotImplementedError("BigramOptimizer._evaluate() has to be "
                                   "implemented by the subclass.")
 
-    @abc.abstractmethod
     def _move(self, word_id, new_class_id):
         """Moves a word to another class.
 
@@ -165,11 +162,11 @@ class BigramOptimizer(object):
         return self._initial_vocabulary.word_to_id[word]
 
     def words(self):
-        """Returns a generator for iterating through the words.
+        """A generator for iterating through the words.
 
         :rtype: generator for (str, int, float)
-        :returns: a generator for tuples containing a word, its class ID, and
-                  unigram class membership probability
+        :returns: generates a tuple containing a word, its class ID, and unigram
+                  class membership probability
         """
 
         for word, word_id in self._initial_vocabulary.word_to_id.items():
@@ -177,7 +174,6 @@ class BigramOptimizer(object):
             prob = self.get_word_prob(word_id)
             yield word, class_id, prob
 
-    @abc.abstractmethod
     def get_word_class(self, word_id):
         """Returns the class the given word is currently assigned to.
 
@@ -191,7 +187,6 @@ class BigramOptimizer(object):
         raise NotImplementedError("BigramOptimizer.get_word_class() has to be "
                                   "implemented by the subclass.")
 
-    @abc.abstractmethod
     def get_word_prob(self, word_id):
         """Returns the unigram probability of a word within its class.
 
@@ -205,21 +200,6 @@ class BigramOptimizer(object):
         raise NotImplementedError("BigramOptimizer.get_word_prob() has to be "
                                   "implemented by the subclass.")
 
-    @abc.abstractmethod
-    def get_class_words(self, class_id):
-        """Returns the words that are assigned to given class.
-
-        :type class_id: int
-        :param class_id: ID of the word
-
-        :rtype: set
-        :returns: IDs of the words that are assigned to the given class
-        """
-
-        raise NotImplementedError("BigramOptimizer.get_class_words() has to be "
-                                  "implemented by the subclass.")
-
-    @abc.abstractmethod
     def log_likelihood(self):
         """Computes the log likelihood that a bigram model would give to the
         corpus.
@@ -231,7 +211,6 @@ class BigramOptimizer(object):
         raise NotImplementedError("BigramOptimizer.log_likelihood() has to be "
                                   "implemented by the subclass.")
 
-    @abc.abstractmethod
     def _class_size(self, class_id):
         """Calculates the number of words in a class.
 

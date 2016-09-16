@@ -1,14 +1,20 @@
 #!/usr/bin/env python3
 
-import os
+import sys
+from os import path
 import subprocess
 from glob import glob
+import re
 from setuptools import setup, find_packages
 
-script_dir = os.path.dirname(os.path.realpath(__file__))
-version = subprocess.check_output(['git', 'describe'], cwd=script_dir)
-version = version.decode('utf-8').rstrip()[1:]
-scripts = glob(os.path.join(script_dir, 'bin', '*'))
+script_dir = path.dirname(path.realpath(__file__))
+version_path = path.join(script_dir, 'theanolm', 'version.py')
+scripts = glob(path.join(script_dir, 'bin', '*'))
+
+# Don't import theanolm, as the user may not have the dependencies installed
+# yet. This will import __version__.
+with open(version_path, 'r') as version_file:
+    exec(version_file.read())
 
 long_description = 'TheanoLM is a recurrent neural network language modeling ' \
                    'toolkit implemented using Theano. Theano allows the user ' \
@@ -28,17 +34,18 @@ classifiers = ['Development Status :: 4 - Beta',
                'Topic :: Scientific/Engineering']
 
 setup(name='TheanoLM',
-      version=version,
+      version=__version__,
       author='Seppo Enarvi',
       author_email='seppo2016@marjaniemi.com',
       url='https://github.com/senarvi/theanolm',
+      download_url='https://github.com/senarvi/theanolm/tarball/v' + __version__,
       description='Toolkit for neural network language modeling using Theano',
       long_description=long_description,
       license='Apache License, Version 2.0',
       keywords=keywords,
       classifiers=classifiers,
-      packages=find_packages(),
+      packages=find_packages(exclude=['tests']),
       package_data={'theanolm': ['architectures/*.arch']},
-      scripts=scripts,
-      install_requires=['numpy', 'scipy', 'theano', 'h5py'],
+      scripts=['bin/theanolm', 'bin/wctool'],
+      install_requires=['numpy', 'scipy', 'Theano', 'h5py'],
       test_suite='tests')

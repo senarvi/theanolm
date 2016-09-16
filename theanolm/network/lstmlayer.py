@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from collections import OrderedDict
 import numpy
 import theano
 import theano.tensor as tensor
 from theanolm.matrixfunctions import get_submatrix
-from theanolm.layers.basiclayer import BasicLayer
+from theanolm.network.basiclayer import BasicLayer
 
 class LSTMLayer(BasicLayer):
-    """Long Short-Term Memory Layer for Neural Network Language Model
+    """Long Short-Term Memory Layer
 
     A. Graves, J. Schmidhuber (2005)
     Framewise phoneme classification with bidirectional LSTM and other neural
@@ -30,10 +29,10 @@ class LSTMLayer(BasicLayer):
 
         super().__init__(*args, **kwargs)
 
-        input_size = self.input_layers[0].output_size
+        input_size = sum(x.output_size for x in self.input_layers)
         output_size = self.output_size
 
-        # The number of state variables to be passed between time steps.
+        # Add state variables to be passed between time steps.
         self.cell_state_index = self.network.add_recurrent_state(output_size)
         self.hidden_state_index = self.network.add_recurrent_state(output_size)
 
@@ -53,13 +52,14 @@ class LSTMLayer(BasicLayer):
 
         The input is always 3-dimensional: the first dimension is the time step,
         the second dimension are the sequences, and the third dimension is the
-        layer input. If ``self.network.batch_processing`` is ``True``, the
-        function creates the normal mini-batch structure.
+        layer input. When processing mini-batches, all dimensions can have size
+        greater than one.
 
-        The function can also be used to create a structure for generating text,
-        one word at a time. Then the input is still 3-dimensional, but the size
-        of the first and second dimension is 1, and the state outputs from the
-        previous time step are read from ``self.network.recurrent_state_input``.
+        The function can also be used to create a structure for generating the
+        probability distribution of the next word. Then the input is still
+        3-dimensional, but the size of the first dimension (time steps) is 1,
+        and the state outputs from the previous time step are read from
+        ``self.network.recurrent_state_input``.
 
         Saves the recurrent state in the Network object: cell state C_(t) and
         hidden state h_(t). ``self.output`` will be set to the hidden state
@@ -69,19 +69,20 @@ class LSTMLayer(BasicLayer):
         ``set_params()``.
         """
 
-        input_matrix = self.input_layers[0].output
-        num_time_steps = input_matrix.shape[0]
-        num_sequences = input_matrix.shape[1]
+        layer_input = tensor.concatenate([x.output for x in self.input_layers],
+                                         axis=2)
+        num_time_steps = layer_input.shape[0]
+        num_sequences = layer_input.shape[1]
 
         # Compute the gate and candidate state pre-activations, which don't
         # depend on the state input from the previous time step.
-        layer_input_preact = self._tensor_preact(input_matrix, 'layer_input')
+        layer_input_preact = self._tensor_preact(layer_input, 'layer_input')
 
         # Weights of the hidden state input of each time step have to be applied
         # inside the loop.
         hidden_state_weights = self._get_param('step_input/W')
 
-        if self.network.batch_processing:
+        if self.network.mode.is_minibatch():
             sequences = [self.network.mask, layer_input_preact]
             non_sequences = [hidden_state_weights]
             initial_value = numpy.dtype(theano.config.floatX).type(0.0)
@@ -99,37 +100,56 @@ class LSTMLayer(BasicLayer):
                 n_steps=num_time_steps,
                 profile=self._profile,
                 strict=True)
-            self.network.recurrent_state_output[self.cell_state_index] = \
-                state_outputs[0]
-            self.network.recurrent_state_output[self.hidden_state_index] = \
-                state_outputs[1]
+
+            self.output = state_outputs[1]
         else:
             cell_state_input = \
                 self.network.recurrent_state_input[self.cell_state_index]
             hidden_state_input = \
                 self.network.recurrent_state_input[self.hidden_state_index]
 
-            state_outputs = self._create_time_step(
-                self.network.mask,
-                layer_input_preact,
-                cell_state_input,
-                hidden_state_input,
-                hidden_state_weights)
-            self.network.recurrent_state_output[self.cell_state_index] = \
-                state_outputs[0]
-            self.network.recurrent_state_output[self.hidden_state_index] = \
-                state_outputs[1]
+            assert_op = tensor.opt.Assert(
+                "When processing a single time step, a matrix with an "
+                "unexpected shape was encountered.")
+            mask = assert_op(
+                self.network.mask, tensor.eq(self.network.mask.shape[0], 1))
+            layer_input_preact = assert_op(
+                layer_input_preact, tensor.eq(layer_input_preact.shape[0], 1))
+            cell_state_input = assert_op(
+                cell_state_input, tensor.eq(cell_state_input.shape[0], 1))
+            hidden_state_input = assert_op(
+                hidden_state_input, tensor.eq(hidden_state_input.shape[0], 1))
 
-        self.output = state_outputs[1]
+            state_outputs = self._create_time_step(
+                mask[0],
+                layer_input_preact[0],
+                cell_state_input[0],
+                hidden_state_input[0],
+                hidden_state_weights)
+
+            # Create a new axis for time step with size 1.
+            cell_state_output = assert_op(
+                state_outputs[0], tensor.eq(state_outputs[0].ndim, 2))
+            hidden_state_output = assert_op(
+                state_outputs[1], tensor.eq(state_outputs[1].ndim, 2))
+            cell_state_output = cell_state_output[None,:,:]
+            hidden_state_output = hidden_state_output[None,:,:]
+
+            self.network.recurrent_state_output[self.cell_state_index] = \
+                cell_state_output
+            self.network.recurrent_state_output[self.hidden_state_index] = \
+                hidden_state_output
+            self.output = hidden_state_output
 
     def _create_time_step(self, mask, x_preact, C_in, h_in, h_weights):
         """The LSTM step function for theano.scan(). Creates the structure of
         one time step.
 
-        The inputs ``mask`` and ``x_preact`` contain only one time step, but
-        possibly multiple sequences. There may, or may not be the first
-        dimension of size 1 - it won't affect the computations, because
-        broadcasting works by aligning the last dimensions.
+        The inputs do not contain the time step dimension. ``mask`` is a vector
+        containing a boolean mask for each sequence. ``x_preact`` is a matrix
+        containing the preactivations for each sequence. ``C_in`` and ``h_in``,
+        as well as the outputs, are matrices containing the state vectors for
+        each sequence.
 
         The required affine transformations have already been applied to the
         input prior to creating the loop. The transformed inputs and the mask
@@ -137,26 +157,26 @@ class LSTMLayer(BasicLayer):
         mini-batch - each value corresponds to the same time step in a different
         sequence.
 
-        :type mask: theano.tensor.var.TensorVariable
+        :type mask: TensorVariable
         :param mask: a symbolic vector that masks out sequences that are past
                      the last word
 
-        :type x_preact: theano.tensor.var.TensorVariable
+        :type x_preact: TensorVariable
         :param x_preact: concatenation of the input x_(t) pre-activations
                          computed using the gate and candidate state weights and
                          biases
 
-        :type C_in: theano.tensor.var.TensorVariable
-        :param C_in: C_(t-1), cell state output from the previous time step
+        :type C_in: TensorVariable
+        :param C_in: C_(t-1), cell state output of the previous time step
 
-        :type h_in: theano.tensor.var.TensorVariable
+        :type h_in: TensorVariable
         :param h_in: h_(t-1), hidden state output of the previous time step
 
-        :type h_weights: theano.tensor.var.TensorVariable
+        :type h_weights: TensorVariable
         :param h_weights: concatenation of the gate and candidate state weights
                           to be applied to h_(t-1)
 
-        :rtype: a tuple of two theano.tensor.var.TensorVariables
+        :rtype: a tuple of two TensorVariables
         :returns: C_(t) and h_(t), the cell state and hidden state outputs
         """
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import abc
 import numpy
 from scipy.sparse import dok_matrix
 
@@ -39,5 +38,6 @@ class WordStatistics(object):
                 sentence.append(eos_id)
                 for word_id in sentence:
                     self.unigram_counts[word_id] += 1
-                for left_word_id, right_word_id in zip(sentence[:-1], sentence[1:]):
+                for left_word_id, right_word_id in zip(sentence[:-1],
+                                                       sentence[1:]):
                     self.bigram_counts[left_word_id,right_word_id] += 1

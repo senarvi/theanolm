@@ -47,10 +47,10 @@ class Architecture(object):
         :param state: HDF5 file that contains the architecture parameters
         """
 
-        if not 'arch' in state:
+        if not 'architecture' in state:
             raise IncompatibleStateError(
                 "Architecture is missing from neural network state.")
-        h5_arch = state['arch']
+        h5_arch = state['architecture']
 
         if not 'inputs' in h5_arch:
             raise IncompatibleStateError(
@@ -68,8 +68,9 @@ class Architecture(object):
                 "network state.")
         h5_layers = h5_arch['layers']
         layers = []
-        for layer_id in sorted(h5_layers.keys()):
-            h5_layer = h5_layers[layer_id]
+        layer_ids = [int(x) for x in h5_layers.keys()]
+        for layer_id in sorted(layer_ids):
+            h5_layer = h5_layers[str(layer_id)]
             layers.append(classname._read_h5_dict(h5_layer))
 
         if not 'output_layer' in h5_arch.attrs:
@@ -102,18 +103,34 @@ class Architecture(object):
             if fields[0] == 'input':
                 input_description = dict()
                 for field in fields[1:]:
-                    variable, value = field.split('=')
+                    parts = field.split('=', 1)
+                    if len(parts) != 2:
+                        raise InputError(
+                            "'field=value' expected but '{}' found in an input "
+                            "description in '{}'."
+                            .format(field, description_file.name))
+                    variable, value = parts
                     input_description[variable] = value
                 if not 'type' in input_description:
-                    raise InputError("'type' is not given in an input description.")
+                    raise InputError(
+                        "'type' is not given in an input description in '{}'."
+                        .format(description_file.name))
                 if not 'name' in input_description:
-                    raise InputError("'name' is not given in an input description.")
+                    raise InputError(
+                        "'name' is not given in an input description in '{}'."
+                        .format(description_file.name))
                 inputs.append(input_description)
 
             elif fields[0] == 'layer':
                 layer_description = {'inputs': []}
                 for field in fields[1:]:
-                    variable, value = field.split('=')
+                    parts = field.split('=', 1)
+                    if len(parts) != 2:
+                        raise InputError(
+                            "'field=value' expected but '{}' found in a layer "
+                            "description in '{}'."
+                            .format(field, description_file.name))
+                    variable, value = parts
                     if variable == 'size':
                         layer_description[variable] = int(value)
                     elif variable == 'input':
@@ -121,11 +138,17 @@ class Architecture(object):
                     else:
                         layer_description[variable] = value
                 if not 'type' in layer_description:
-                    raise InputError("'type' is not given in a layer description.")
+                    raise InputError(
+                        "'type' is not given in a layer description in '{}'."
+                        .format(description_file.name))
                 if not 'name' in layer_description:
-                    raise InputError("'name' is not given in a layer description.")
+                    raise InputError(
+                        "'name' is not given in a layer description in '{}'."
+                        .format(description_file.name))
                 if not layer_description['inputs']:
-                    raise InputError("'input' is not given in a layer description.")
+                    raise InputError(
+                        "'input' is not given in a layer description in '{}'."
+                        .format(description_file.name))
                 layers.append(layer_description)
 
             else:
@@ -152,7 +175,8 @@ class Architecture(object):
         :returns: an object describing the network architecture
         """
 
-        package_dir = os.path.abspath(os.path.dirname(__file__))
+        file_dir = os.path.abspath(os.path.dirname(__file__))
+        package_dir = os.path.dirname(file_dir)
         description_path = os.path.join(package_dir,
                                         'architectures',
                                         name + '.arch')
@@ -170,7 +194,7 @@ class Architecture(object):
         :param state: HDF5 file for storing the architecture parameters
         """
 
-        h5_arch = state.require_group('arch')
+        h5_arch = state.require_group('architecture')
 
         h5_inputs = h5_arch.require_group('inputs')
         for input_id, input in enumerate(self.inputs):
@@ -193,10 +217,10 @@ class Architecture(object):
         :param state: HDF5 file that contains the architecture parameters
         """
 
-        if not 'arch' in state:
+        if not 'architecture' in state:
             raise IncompatibleStateError(
                 "Architecture is missing from neural network state.")
-        h5_arch = state['arch']
+        h5_arch = state['architecture']
 
         if not 'inputs' in h5_arch:
             raise IncompatibleStateError(

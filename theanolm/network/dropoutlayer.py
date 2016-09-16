@@ -6,10 +6,10 @@ import logging
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.layers.basiclayer import BasicLayer
+from theanolm.network.basiclayer import BasicLayer
 
 class DropoutLayer(BasicLayer):
-    """Dropout Layer for Neural Network Language Model
+    """Dropout Layer
 
     A dropout layer is not a regular layer in the sense that it doesn't contain
     any neurons. It simply randomly sets some activations to zero at train time
@@ -36,7 +36,7 @@ class DropoutLayer(BasicLayer):
         logging.debug("  dropout_rate=%f", self.dropout_rate)
 
         # Make sure the user hasn't tried to change the number of connections.
-        input_size = self.input_layers[0].output_size
+        input_size = sum(x.output_size for x in self.input_layers)
         output_size = self.output_size
         if input_size != output_size:
             raise ValueError("Dropout layer cannot change the number of connections.")
@@ -49,7 +49,8 @@ class DropoutLayer(BasicLayer):
         ``set_params()``.
         """
 
-        layer_input = self.input_layers[0].output
+        layer_input = tensor.concatenate([x.output for x in self.input_layers],
+                                         axis=2)
         # Pass rate is the probability of not dropping a unit.
         pass_rate = 1.0 - self.dropout_rate
         mask = self.network.random.binomial(

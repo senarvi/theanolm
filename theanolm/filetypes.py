@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-#
-# Author: Seppo Enarvi
-# http://users.marjaniemi.com/seppo/
 
 import io
 import sys

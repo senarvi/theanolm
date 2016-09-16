@@ -20,7 +20,7 @@ class NumpyBigramOptimizer(BigramOptimizer):
         :param vocabulary: words to include in the optimization and initial classes
         """
 
-	# count_nonzero() and any() seem to fail on the sparse matrix.
+        # count_nonzero() and any() seem to fail on the sparse matrix.
         if not statistics.unigram_counts.any():
             raise ValueError("Empty word unigram statistics.")
         if statistics.bigram_counts.nnz == 0:

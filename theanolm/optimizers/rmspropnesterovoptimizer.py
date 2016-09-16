@@ -42,16 +42,6 @@ class RMSPropNesterovOptimizer(BasicOptimizer):
         """
 
         self.param_init_values = dict()
-
-        # Learning rate / step size will change during the iterations, so we'll
-        # make it a shared variable.
-        if not 'learning_rate' in optimization_options:
-            raise ValueError("Learning rate is not given in optimization "
-                             "options.")
-        self.param_init_values['optimizer/learning_rate'] = \
-            numpy.dtype(theano.config.floatX).type(
-                optimization_options['learning_rate'])
-
         for name, param in network.params.items():
             self.param_init_values[name + '_gradient'] = \
                 numpy.zeros_like(param.get_value())
@@ -75,7 +65,7 @@ class RMSPropNesterovOptimizer(BasicOptimizer):
 
         super().__init__(optimization_options, network, *args, **kwargs)
 
-    def _get_gradient_updates(self):
+    def _gradient_update_exprs(self):
         result = []
         for name, gradient_new in zip(self.network.params,
                                       self._gradient_exprs):
@@ -88,9 +78,7 @@ class RMSPropNesterovOptimizer(BasicOptimizer):
             result.append((ms_gradient, ms_gradient_new))
         return result
 
-    def _get_model_updates(self):
-        alpha = self.params['optimizer/learning_rate']
-
+    def _model_update_exprs(self, alpha):
         updates = dict()
         for name, param in self.network.params.items():
             gradient = self.params[name + '_gradient']

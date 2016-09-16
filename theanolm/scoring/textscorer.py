@@ -10,7 +10,8 @@ class TextScorer(object):
     """Text Scoring Using a Neural Network Language Model
     """
 
-    def __init__(self, network, classes_to_ignore=[], profile=False):
+    def __init__(self, network, ignore_unk=False, unk_penalty=None,
+                 profile=False):
         """Creates a Theano function self.score_function that computes the
         log probabilities predicted by the neural network for the words in a
         mini-batch.
@@ -23,15 +24,22 @@ class TextScorer(object):
         :type network: Network
         :param network: the neural network object
 
-        :type classes_to_ignore: list of ints
-        :param classes_to_ignore: list of class IDs that will be ignored when
-                                  computing the cost
+        :type ignore_unk: bool
+        :param ignore_unk: if set to True, <unk> tokens are excluded from
+                           perplexity computation
+
+        :type unk_penalty: float
+        :param unk_penalty: if set to othern than None, used as <unk> token
+                            score
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
         """
 
-        self.classes_to_ignore = classes_to_ignore
+        self.ignore_unk = ignore_unk
+        self.unk_penalty = unk_penalty
+        self.vocabulary = network.vocabulary
+        self.unk_id = network.vocabulary.word_to_id['<unk>']
 
         # Ignore unused input variables, because is_training is only used by
         # dropout layer.
@@ -39,7 +47,7 @@ class TextScorer(object):
             [network.word_input,
              network.class_input,
              network.mask],
-            tensor.log(network.prediction_probs),
+            tensor.log(network.target_probs()),
             givens=[(network.is_training, numpy.int8(0))],
             name='text_scorer',
             on_unused_input='ignore',
@@ -48,6 +56,10 @@ class TextScorer(object):
     def score_batch(self, word_ids, class_ids, membership_probs, mask):
         """Computes the log probabilities predicted by the neural network for
         the words in a mini-batch.
+
+        Indices in the resulting list of lists will be a transpose of those of
+        the input matrices matrices, so that the first index is the sequence,
+        not the time step.
 
         :type word_ids: numpy.ndarray of an integer type
         :param word_ids: a 2-dimensional matrix, indexed by time step and
@@ -64,7 +76,7 @@ class TextScorer(object):
 
         :type mask: numpy.ndarray of a floating point type
         :param mask: a 2-dimensional matrix, indexed by time step and sequence,
-                     that masks out elements past the sequence ends.
+                     that masks out elements past the sequence ends
 
         :rtype: list of lists
         :returns: logprob of each word in each sequence
@@ -77,10 +89,14 @@ class TextScorer(object):
         # Add logprobs from the class membership of the predicted word at each
         # time step of each sequence.
         logprobs += numpy.log(membership_probs[1:])
-        # Ignore logprobs predicting a word that is past the sequence end or one
-        # of the words to be ignored.
-        for word_id in self.classes_to_ignore:
-            mask[word_ids == word_id] = 0
+        # If requested, predict <unk> with constant score.
+        if not self.unk_penalty is None:
+            logprobs[word_ids[1:] == self.unk_id] = self.unk_penalty
+        # Ignore logprobs predicting a word that is past the sequence end, and
+        # possibly also those that are predicting <unk> token.
+        if self.ignore_unk:
+            mask = numpy.copy(mask)
+            mask[word_ids == self.unk_id] = 0
         for seq_index in range(logprobs.shape[1]):
             seq_logprobs = logprobs[:,seq_index]
             seq_mask = mask[1:,seq_index]
@@ -95,9 +111,8 @@ class TextScorer(object):
         """Computes the perplexity of text read using the given iterator.
 
         ``batch_iter`` is an iterator to the input data. On each call it creates
-        a tuple of three 2-dimensional matrices, all indexed by time step and
-        sequence. The first matrix contains the word IDs, the second one
-        contains class membership probabilities, and the third one masks out
+        a two 2-dimensional matrices, both indexed by time step and sequence.
+        The first matrix contains the word IDs, the second one masks out
         elements past the sequence ends.
 
         :type batch_iter: BatchIterator
@@ -112,7 +127,9 @@ class TextScorer(object):
         total_logprob = 0
         num_words = 0
 
-        for word_ids, class_ids, membership_probs, mask in batch_iter:
+        for word_ids, _, mask in batch_iter:
+            class_ids, membership_probs = \
+                self.vocabulary.get_class_memberships(word_ids)
             logprobs = self.score_batch(word_ids, class_ids, membership_probs,
                                         mask)
             for seq_logprobs in logprobs:
@@ -124,8 +141,8 @@ class TextScorer(object):
     def score_sequence(self, word_ids, class_ids, membership_probs):
         """Computes the log probability of a word sequence.
 
-        :type word_ids: list of ints
-        :param word_ids: list of word IDs
+        :type word_ids: ndarray
+        :param word_ids: a vector of word IDs
 
         :type class_ids: list of ints
         :param class_ids: corresponding class IDs
@@ -139,10 +156,10 @@ class TextScorer(object):
 
         # Create 2-dimensional matrices representing the transposes of the
         # vectors.
-        word_ids = numpy.array([ [x] for x in word_ids ], numpy.int64)
-        class_ids = numpy.array([ [x] for x in class_ids ], numpy.int64)
+        word_ids = numpy.transpose(word_ids[numpy.newaxis])
+        class_ids = numpy.array([[x] for x in class_ids], numpy.int64)
         membership_probs = numpy.array(
-            [ [x] for x in membership_probs ]).astype(theano.config.floatX)
+            [[x] for x in membership_probs]).astype(theano.config.floatX)
         # Mask used by the network is all ones.
         mask = numpy.ones(word_ids.shape, numpy.int8)
 
@@ -150,13 +167,14 @@ class TextScorer(object):
         # Add logprobs from the class membership of the predicted word at each
         # time step of each sequence.
         logprobs += numpy.log(membership_probs[1:])
-        # Zero out logprobs predicting a word to be ignored. Numpy preserves the
-        # data type when multiplying by an int8.
-        for word_id in self.classes_to_ignore:
-            mask[word_ids == word_id] = 0
-        logprobs *= mask[1:]
-        logprob = logprobs.sum()
+        # If requested, predict <unk> with constant score.
+        if not self.unk_penalty is None:
+            logprobs[word_ids[1:] == self.unk_id] = self.unk_penalty
+        # If requested, zero out logprobs predicting <unk> token.
+        if self.ignore_unk:
+            logprobs[word_ids[1:] == self.unk_id] = 0
 
+        logprob = logprobs.sum()
         if numpy.isnan(logprob):
             raise NumberError("Sentence logprob has NaN value.")
         return logprob

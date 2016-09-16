@@ -2,55 +2,62 @@
 # -*- coding: utf-8 -*-
 
 import sys
-import os
 import mmap
 import logging
 import numpy
 import h5py
 import theano
-from theanolm import Vocabulary, Architecture, Network, TextScorer
+from theanolm import Vocabulary, Architecture, Network
 from theanolm import LinearBatchIterator
 from theanolm.trainers import create_trainer
+from theanolm.scoring import TextScorer
 from theanolm.filetypes import TextFileType
 
 def add_arguments(parser):
     argument_group = parser.add_argument_group("files")
     argument_group.add_argument(
         'model_path', metavar='MODEL-FILE', type=str,
-        help='path where the best model state will be saved in numpy .npz '
-             'format')
+        help='path where the best model state will be saved in HDF5 binary '
+             'data format')
     argument_group.add_argument(
         'validation_file', metavar='VALID-FILE', type=TextFileType('r'),
-        help='text or .gz file containing validation data (one sentence per '
-             'line) for early stopping')
+        help='text file containing validation data for early stopping (UTF-8, '
+             'one sentence per line, assumed to be compressed if the name ends '
+             'in ".gz")')
     argument_group.add_argument(
-        '--training-set', metavar='FILE', type=TextFileType('r'),
-        nargs='+', required=True,
-        help='text or .gz files containing training data (one sentence per '
-             'line)')
+        '--training-set', metavar='FILE', type=TextFileType('r'), nargs='+',
+        required=True,
+        help='text files containing training data (UTF-8, one sentence per '
+             'line, assumed to be compressed if the name ends in ".gz")')
     argument_group.add_argument(
         '--vocabulary', metavar='FILE', type=str, default=None,
-        help='text or .gz file containing word list or class definitions '
-             '(default is to include all the files from the training set)')
+        help='word or class vocabulary to be used in the neural network input '
+             'and output, in the format specified by the --vocabulary-format '
+             'argument (UTF-8 text, default is to use all the words from the '
+             'training data)')
     argument_group.add_argument(
         '--vocabulary-format', metavar='FORMAT', type=str, default='words',
         help='format of the file specified with --vocabulary argument, one of '
              '"words" (one word per line, default), "classes" (word and class '
              'ID per line), "srilm-classes" (class name, membership '
              'probability, and word per line)')
+    argument_group = parser.add_argument_group("network architecture")
+    argument_group.add_argument(
+        '--architecture', metavar='FILE', type=str, default='lstm300',
+        help='path to neural network architecture description, or a standard '
+             'architecture name, "lstm300" or "lstm1500" (default "lstm300")')
     argument_group.add_argument(
         '--num-classes', metavar='N', type=int, default=None,
         help='generate N classes using a simple word frequency based algorithm '
              'when --vocabulary argument is not given (default is to not use '
              'word classes)')
 
-    argument_group = parser.add_argument_group("network architecture")
-    argument_group.add_argument(
-        '--architecture', metavar='FILE', type=str,
-        help='path to neural network architecture description, or a standard '
-             'architecture name, "lstm300" or "lstm1500" (default "lstm300")')
-
     argument_group = parser.add_argument_group("training process")
+    argument_group.add_argument(
+        '--sampling', metavar='FRACTION', type=float, nargs='*', default=[],
+        help='randomly sample only FRACTION of each training file on each '
+             'epoch (list the fractions in the same order as the training '
+             'files)')
     argument_group.add_argument(
         '--training-strategy', metavar='NAME', type=str, default='local-mean',
         help='selects a training and validation strategy, one of "basic", '
@@ -63,17 +70,14 @@ def add_arguments(parser):
         '--batch-size', metavar='N', type=int, default=16,
         help='each mini-batch will contain N sentences (default 16)')
     argument_group.add_argument(
-        '--validation-frequency', metavar='N', type=int, default='8',
-        help='cross-validate for reducing learning rate N times per training '
-             'epoch (default 8)')
+        '--validation-frequency', metavar='N', type=int, default='5',
+        help='cross-validate for reducing learning rate or early stopping N '
+             'times per training epoch (default 5)')
     argument_group.add_argument(
         '--patience', metavar='N', type=int, default=4,
-        help='wait for N validations, before decreasing learning rate, if '
-             'perplexity has not decreased; if less than zero, never decrease '
-             'learning rate (default 4)')
-    argument_group.add_argument(
-        '--reset-when-annealing', action="store_true",
-        help='reset the optimizer timestep when decreasing learning rate')
+        help='allow perplexity to increase N consecutive cross-validations, '
+             'before decreasing learning rate; if less than zero, never '
+             'decrease learning rate (default 4)')
     argument_group.add_argument(
         '--random-seed', metavar='N', type=int, default=None,
         help='seed to initialize the random state (default is to seed from a '
@@ -111,8 +115,15 @@ def add_arguments(parser):
              '(normalized by mini-batch size) will not exceed THRESHOLD '
              '(default 5)')
     argument_group.add_argument(
-        '--ignore-unk', action="store_true",
-        help="don't include the probability of unknown words in the cost")
+        '--unk-penalty', metavar='LOGPROB', type=float, default=None,
+        help="if LOGPROB is zero, do not include <unk> tokens in perplexity "
+             "computation; otherwise use constant LOGPROB as <unk> token score "
+             "(default is to use the network to predict <unk> probability)")
+    argument_group.add_argument(
+        '--weights', metavar='LAMBDA', type=float, nargs='*', default=[],
+        help='scale a mini-batch update by LAMBDA if the data is from the '
+             'corresponding training file (list the weights in the same order '
+             'as the training files)')
 
     argument_group = parser.add_argument_group("early stopping")
     argument_group.add_argument(
@@ -158,7 +169,8 @@ def train(args):
     log_file = args.log_file
     log_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(log_level, int):
-        raise ValueError("Invalid logging level requested: " + args.log_level)
+        print("Invalid logging level requested:", args.log_level)
+        sys.exit(1)
     log_format = '%(asctime)s %(funcName)s: %(message)s'
     if args.log_file == '-':
         logging.basicConfig(stream=sys.stdout, format=log_format, level=log_level)
@@ -191,6 +203,11 @@ def train(args):
             with open(args.vocabulary, 'rt', encoding='utf-8') as vocab_file:
                 vocabulary = Vocabulary.from_file(vocab_file,
                                                   args.vocabulary_format)
+                if args.vocabulary_format == 'classes':
+                    print("Computing class membership probabilities from "
+                          "unigram word counts.")
+                    sys.stdout.flush()
+                    vocabulary.compute_probs(args.training_set)
             vocabulary.get_state(state)
         print("Number of words in vocabulary:", vocabulary.num_words())
         print("Number of word classes:", vocabulary.num_classes())
@@ -202,15 +219,29 @@ def train(args):
         else:
             with open(args.architecture, 'rt', encoding='utf-8') as arch_file:
                 architecture = Architecture.from_description(arch_file)
-        network = Network(vocabulary, architecture, batch_processing=True,
-                          profile=args.profile)
+        network = Network(vocabulary, architecture, profile=args.profile)
+
+        sys.stdout.flush()
+        if args.unk_penalty is None:
+            ignore_unk = False
+            unk_penalty = None
+        elif args.unk_penalty == 0:
+            ignore_unk = True
+            unk_penalty = None
+        else:
+            ignore_unk = False
+            unk_penalty = args.unk_penalty
+
+        num_training_files = len(args.training_set)
+        if len(args.weights) > num_training_files:
+            print("You specified more weights than training files.")
+            sys.exit(1)
+        weights = numpy.ones(num_training_files).astype(theano.config.floatX)
+        for index, weight in enumerate(args.weights):
+            weights[index] = weight
 
         print("Building text scorer.")
-        sys.stdout.flush()
-        classes_to_ignore = []
-        if args.ignore_unk:
-            classes_to_ignore.append(vocabulary.word_to_class_id('<unk>'))
-        scorer = TextScorer(network, classes_to_ignore, args.profile)
+        scorer = TextScorer(network, ignore_unk, unk_penalty, args.profile)
 
         validation_mmap = mmap.mmap(args.validation_file.fileno(),
                                     0,
@@ -225,10 +256,12 @@ def train(args):
             'gradient_decay_rate': args.gradient_decay_rate,
             'sqr_gradient_decay_rate': args.sqr_gradient_decay_rate,
             'learning_rate': args.learning_rate,
+            'weights': weights,
             'momentum': args.momentum,
-            'classes_to_ignore': classes_to_ignore}
-        if not args.gradient_normalization is None:
-            optimization_options['max_gradient_norm'] = args.gradient_normalization
+            'max_gradient_norm': args.gradient_normalization,
+            'ignore_unk': ignore_unk,
+            'unk_penalty': unk_penalty
+        }
         logging.debug("OPTIMIZATION OPTIONS")
         for option_name, option_value in optimization_options.items():
             if type(option_value) is list:
@@ -243,30 +276,35 @@ def train(args):
             'sequence_length': args.sequence_length,
             'validation_frequency': args.validation_frequency,
             'patience': args.patience,
-            'reset_when_annealing': args.reset_when_annealing,
             'stopping_criterion': args.stopping_criterion,
             'max_epochs': args.max_epochs,
             'min_epochs': args.min_epochs,
-            'max_annealing_count': args.max_annealing_count}
+            'max_annealing_count': args.max_annealing_count
+        }
         logging.debug("TRAINING OPTIONS")
         for option_name, option_value in training_options.items():
             logging.debug("%s: %s", option_name, str(option_value))
 
         print("Building neural network trainer.")
         sys.stdout.flush()
+        if len(args.sampling) > len(args.training_set):
+            print("You specified more sampling coefficients than training "
+                  "files.")
+            sys.exit(1)
         trainer = create_trainer(
             training_options, optimization_options,
             network, vocabulary, scorer,
-            args.training_set, validation_iter,
+            args.training_set, args.sampling, validation_iter,
             state, args.profile)
         trainer.set_logging(args.log_interval)
 
         print("Training neural network.")
         sys.stdout.flush()
-        trainer.run()
+        trainer.train()
 
-        if not state.keys():
-            print("The model has not been trained.")
+        if not 'layers' in state.keys():
+            print("The model has not been trained. No cross-validations were "
+                  "performed or training did not improve the model.")
         else:
             network.set_state(state)
             perplexity = scorer.compute_perplexity(validation_iter)

@@ -18,7 +18,7 @@ class BasicTrainer(object):
 
     def __init__(self, training_options, optimization_options,
                  network, vocabulary, scorer,
-                 training_files, validation_iter, state,
+                 training_files, sampling, validation_iter, state,
                  profile=False):
         """Creates the optimizer and initializes the training process.
 
@@ -28,18 +28,22 @@ class BasicTrainer(object):
         :type optimization_options: dict
         :param optimization_options: a dictionary of optimization options
 
-        :type network: theanolm.Network
+        :type network: Network
         :param network: a neural network to be trained
 
-        :type vocabulary: theanolm.Vocabulary
+        :type vocabulary: Vocabulary
         :param vocabulary: vocabulary that provides mapping between words and
                            word IDs
 
-        :type scorer: theanolm.TextScorer
+        :type scorer: TextScorer
         :param scorer: a text scorer for computing validation set perplexity
 
         :type training_files: list of file objects
         :param training_files: list of files to be used as training data
+
+        :type sampling: list of floats
+        :param sampling: specifies a fraction for each training file, how much
+                         to sample on each epoch
 
         :type validation_iter: theanolm.BatchIterator
         :param validation_iter: an iterator for computing validation set
@@ -54,6 +58,7 @@ class BasicTrainer(object):
         """
 
         self.network = network
+        self.vocabulary = vocabulary
         self.scorer = scorer
         self.validation_iter = validation_iter
 
@@ -63,6 +68,7 @@ class BasicTrainer(object):
 
         self.training_iter = ShufflingBatchIterator(
             training_files,
+            sampling,
             vocabulary,
             batch_size=training_options['batch_size'],
             max_sequence_length=training_options['sequence_length'])
@@ -102,13 +108,14 @@ class BasicTrainer(object):
     def set_logging(self, interval):
         self.log_update_interval = interval
 
-    def run(self):
+    def train(self):
         while self.stopper.start_new_epoch():
-            for word_ids, class_ids, _, mask in self.training_iter:
+            for word_ids, file_ids, mask in self.training_iter:
                 self.update_number += 1
                 self.total_updates += 1
 
-                self.optimizer.update_minibatch(word_ids, class_ids, mask)
+                class_ids = self.vocabulary.word_id_to_class_id[word_ids]
+                self.optimizer.update_minibatch(word_ids, class_ids, file_ids, mask)
 
                 if (self.log_update_interval >= 1) and \
                    (self.total_updates % self.log_update_interval == 0):
@@ -117,8 +124,9 @@ class BasicTrainer(object):
                 if self._is_scheduled(self.options['validation_frequency']):
                     perplexity = self.scorer.compute_perplexity(self.validation_iter)
                     if numpy.isnan(perplexity) or numpy.isinf(perplexity):
-                        raise NumberError("Validation set perplexity computation resulted "
-                                          "in a numerical error.")
+                        raise NumberError(
+                            "Validation set perplexity computation resulted "
+                            "in a numerical error.")
                 else:
                     perplexity = None
                 self._validate(perplexity)
@@ -126,10 +134,17 @@ class BasicTrainer(object):
                 if not self.stopper.start_new_minibatch():
                     break
 
+            message = "Finished training epoch {}.".format(self.epoch_number)
+            best_cost = self.candidate_cost()
+            if not best_cost is None:
+                message += " Best validation perplexity {:.2f}.".format(
+                    best_cost)
+            print(message)
+
             self.epoch_number += 1
             self.update_number = 0
 
-        logging.info("Training finished.")
+        print("Training finished.")
 
     def get_state(self, state):
         """Pulls parameter values from Theano shared variables and updates a
@@ -250,22 +265,21 @@ class BasicTrainer(object):
         """Called when the validation set cost stops decreasing.
         """
 
-        logging.debug("Performance on validation set has ceased to improve.")
-
-        # Current learning rate might be smaller than that stored in the state.
-        old_value = self.optimizer.get_learning_rate()
+        # Current learning rate might be smaller than the one stored in the
+        # state, so set the new value after restoring optimizer to the old
+        # state.
+        old_value = self.optimizer.learning_rate
         new_value = old_value / 2
-
         self._reset_state()
         self.stopper.improvement_ceased()
-        self.optimizer.set_learning_rate(new_value)
+        self.optimizer.learning_rate = new_value
 
-        # The learning rate might not change if the optimizer doesn't need it.
-        new_value = self.optimizer.get_learning_rate()
-        logging.info("Learning rate updated from %g to %g.",
-                     old_value, new_value)
-        if self.options['reset_when_annealing']:
-            self.optimizer.reset()
+        print("Model performance stopped improving. Decreasing learning rate "
+              "from {} to {} and resetting state to {:.0f} % of epoch {}."
+              .format(old_value,
+                      new_value,
+                      self.update_number / self.updates_per_epoch * 100,
+                      self.epoch_number))
 
     def _has_improved(self):
         """Tests whether the previously computed validation set cost was
@@ -296,7 +310,7 @@ class BasicTrainer(object):
                      self.update_number,
                      self.update_number / self.updates_per_epoch * 100,
                      self.epoch_number,
-                     self.optimizer.get_learning_rate(),
+                     self.optimizer.learning_rate,
                      self.optimizer.update_cost,
                      self.optimizer.update_duration * 100)
 
