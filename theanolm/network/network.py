@@ -79,7 +79,8 @@ class Network(object):
 
         def is_minibatch(self):
             """Checks if the network mode is supposed to process mini-batches,
-            as opposed to just one time step.
+            as opposed to just one time step. The word at the next time step is
+            the target word.
 
             :rtype: bool
             :returns: ``True`` when processing mini-batches, ``False``
@@ -91,7 +92,7 @@ class Network(object):
         def is_distribution(self):
             """Checks if the network mode is supposed to produce a distribution
             of the entire vocabulary, as opposed to the probabilities of
-            specific words.
+            specific words. Used for generating text.
 
             :rtype: bool
             :returns: ``True`` when producing a probability distribution,
