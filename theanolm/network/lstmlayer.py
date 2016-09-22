@@ -164,17 +164,21 @@ class LSTMLayer(BasicLayer):
         :type x_preact: TensorVariable
         :param x_preact: concatenation of the input x_(t) pre-activations
                          computed using the gate and candidate state weights and
-                         biases
+                         biases; shape is (the number of sequences, state size *
+                         4)
 
         :type C_in: TensorVariable
-        :param C_in: C_(t-1), cell state output of the previous time step
+        :param C_in: C_(t-1), cell state output of the previous time step; shape
+                     is (the number of sequences, state size)
 
         :type h_in: TensorVariable
-        :param h_in: h_(t-1), hidden state output of the previous time step
+        :param h_in: h_(t-1), hidden state output of the previous time step;
+                     shape is (the number of sequences, state size)
 
         :type h_weights: TensorVariable
         :param h_weights: concatenation of the gate and candidate state weights
-                          to be applied to h_(t-1)
+                          to be applied to h_(t-1); shape is (state size, state
+                          size * 4)
 
         :rtype: a tuple of two TensorVariables
         :returns: C_(t) and h_(t), the cell state and hidden state outputs

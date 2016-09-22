@@ -8,10 +8,9 @@ import theano.tensor as tensor
 from theanolm.network.basiclayer import BasicLayer
 
 class TanhLayer(BasicLayer):
-    """Hyperbolic Tangent Activation Layer
+    """Layer with Hyperbolic Tangent Activation
 
-    A layer that uses hyperbolic tangent activation activation function. If
-    multiple inputs are specified, combines them by addition.
+    A layer that uses hyperbolic tangent activation function.
     """
 
     def __init__(self, *args, **kwargs):

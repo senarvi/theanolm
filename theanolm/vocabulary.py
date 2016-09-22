@@ -294,6 +294,10 @@ class Vocabulary(object):
             else:
                 raise InputError("%d fields on one line of vocabulary file: %s" % (len(fields), line))
 
+            if word in ('<s>', '</s>', '<unk>'):
+                # These special symbols are automatically added
+                continue
+
             if word in words:
                 raise InputError("Word `%s' appears more than once in the vocabulary file." % word)
             words.add(word)
