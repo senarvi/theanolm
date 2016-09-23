@@ -47,17 +47,11 @@ class SoftmaxLayer(BasicLayer):
         layer_input = tensor.concatenate([x.output for x in self.input_layers],
                                          axis=2)
 
-        if self.network.mode.is_distribution():
+        if self.network.target_class_ids is None:
             self.output_probs = self._get_softmax(layer_input)
             return
 
-        # We should predict probabilities of the target outputs. If the target
-        # class IDs are not explicitly specified, they are the words at the
-        # following time step.
-        if self.network.mode.is_target_words():
-            target_class_ids = self.network.target_class_ids
-        else:
-            target_class_ids = self.network.class_input[1:]
+        target_class_ids = self.network.target_class_ids
 
         if self._use_nce:
             self.target_probs = self._get_sigmoid(layer_input, target_class_ids)
@@ -74,9 +68,6 @@ class SoftmaxLayer(BasicLayer):
             return
 
         output_probs = self._get_softmax(layer_input)
-        if not self.network.mode.is_target_words():
-            output_probs = output_probs[:-1]
-            target_class_ids = target_class_ids[1:]
 
         assert_op = tensor.opt.Assert(
             "Mismatch in mini-batch and target classes shape.")

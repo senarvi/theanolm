@@ -46,6 +46,7 @@ class TextScorer(object):
         self.score_function = theano.function(
             [network.word_input,
              network.class_input,
+             network.target_class_ids,
              network.mask],
             tensor.log(network.target_probs()),
             givens=[(network.is_training, numpy.int8(0))],
@@ -84,8 +85,12 @@ class TextScorer(object):
 
         result = []
 
-        # A matrix of neural network logprobs of each word in each sequence.
-        logprobs = self.score_function(word_ids, class_ids, mask)
+        # We should predict probabilities of the words at the following time
+        # step.
+        logprobs = self.score_function(word_ids[:-1],
+                                       class_ids[:-1],
+                                       class_ids[1:],
+                                       mask)
         # Add logprobs from the class membership of the predicted word at each
         # time step of each sequence.
         logprobs += numpy.log(membership_probs[1:])
@@ -163,7 +168,12 @@ class TextScorer(object):
         # Mask used by the network is all ones.
         mask = numpy.ones(word_ids.shape, numpy.int8)
 
-        logprobs = self.score_function(word_ids, class_ids, mask)
+        # We should predict probabilities of the words at the following time
+        # step.
+        logprobs = self.score_function(word_ids[:-1],
+                                       class_ids[:-1],
+                                       class_ids[1:],
+                                       mask[:-1])
         # Add logprobs from the class membership of the predicted word at each
         # time step of each sequence.
         logprobs += numpy.log(membership_probs[1:])
