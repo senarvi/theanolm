@@ -66,16 +66,10 @@ class Network(object):
                            steps. The output is a matrix with one less time
                            steps containing the probabilities of the words at
                            the next time step.
-          - ``distribution``: Process only one time step. The output is the
-                              probability distribution of the entire vocabulary.
-          - ``target_words``: Process only one time step. The output is the
-                              probabilities of the target words given in a
-                              separate array.
         """
 
         minibatch = 1
-        distribution = 2
-        target_words = 3
+        step = 2
 
         def is_minibatch(self):
             """Checks if the network mode is supposed to process mini-batches,
@@ -87,29 +81,6 @@ class Network(object):
             """
 
             return self is Network.Mode.minibatch
-
-        def is_distribution(self):
-            """Checks if the network mode is supposed to produce a distribution
-            of the entire vocabulary, as opposed to the probabilities of
-            specific words.
-
-            :rtype: bool
-            :returns: ``True`` when producing a probability distribution,
-                      ``False`` otherwise.
-            """
-
-            return self is Network.Mode.distribution
-
-        def is_target_words(self):
-            """Checks if the network mode is supposed to produce probabilities
-            of target words given in ``target_class_ids``.
-
-            :rtype: bool
-            :returns: ``True`` when producing a probabilities of target words,
-                      ``False`` otherwise.
-            """
-
-            return self is Network.Mode.target_words
 
     def __init__(self, vocabulary, architecture, mode=Mode.minibatch,
                  profile=False):
@@ -123,9 +94,7 @@ class Network(object):
         :param architecture: an object that describes the network architecture
 
         :type mode: Network.Mode
-        :param mode: constructs a variation of the networkif set to True, creates a network that
-            produces the probability distribution for the next word (instead of
-            of target probabilities for a mini-batch)
+        :param mode: selects mini-batch or single time step processing
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
@@ -302,7 +271,7 @@ class Network(object):
     def output_probs(self):
         """Returns the output probabilities for the whole vocabulary.
 
-        The network mode has to have ``is_distribution() == True``.
+        Only computed when target_class_ids is not given.
 
         :type mask: TensorVariable
         :param mask: a symbolic 3-dimensional matrix that contains a probability
@@ -313,15 +282,15 @@ class Network(object):
         if not hasattr(self.output_layer, 'output_probs'):
             raise RuntimeError("The final layer is not an output layer.")
         if self.output_layer.output_probs is None:
-            raise RuntimeError("Trying to read all output probabilities, while "
-                               "the output layer is configured to produce only "
-                               "target probabilities.")
+            raise RuntimeError("Trying to read output distribution, while the "
+                               "output layer has produced only target class "
+                               "probabilities.")
         return self.output_layer.output_probs
 
     def target_probs(self):
         """Returns the output probabilities for the predicted words.
 
-        The network mode has to have ``is_distribution() == False``.
+        Only computed when target_class_ids is given.
 
         :type mask: TensorVariable
         :param mask: a symbolic 2-dimensional matrix that contains a probability
@@ -331,9 +300,9 @@ class Network(object):
         if not hasattr(self.output_layer, 'target_probs'):
             raise RuntimeError("The final layer is not an output layer.")
         if self.output_layer.target_probs is None:
-            raise RuntimeError("Trying to read target probabilities, while the "
-                               "output layer is configured to produce all "
-                               "probabilities.")
+            raise RuntimeError("Trying to read target class probabilities, "
+                               "while the output layer has produced the "
+                               "distribution.")
         return self.output_layer.target_probs
 
     def _layer_options_from_description(self, description):

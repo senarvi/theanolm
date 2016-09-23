@@ -141,8 +141,7 @@ def decode(args):
         print("Building neural network.")
         sys.stdout.flush()
         architecture = Architecture.from_state(state)
-        network = Network(vocabulary, architecture,
-                          mode=Network.Mode.target_words)
+        network = Network(vocabulary, architecture, mode=Network.Mode.step)
         print("Restoring neural network state.")
         sys.stdout.flush()
         network.set_state(state)

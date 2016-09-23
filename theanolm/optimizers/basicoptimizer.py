@@ -113,6 +113,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         self.gradient_update_function = theano.function(
             [self.network.word_input,
              self.network.class_input,
+             self.network.target_class_ids,
              self.network.mask],
             cost,
             givens=[(self.network.is_training, numpy.int8(1))],
@@ -203,8 +204,12 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
         update_start_time = time()
 
-        self.update_cost = self.gradient_update_function(word_ids, class_ids,
-                                                         mask)
+        # We should predict probabilities of the words at the following time
+        # step.
+        self.update_cost = self.gradient_update_function(word_ids[:-1],
+                                                         class_ids[:-1],
+                                                         class_ids[1:],
+                                                         mask[:-1])
         if numpy.isnan(self.update_cost) or numpy.isinf(self.update_cost):
             raise NumberError("Mini-batch cost computation resulted in a "
                               "numerical error.")
