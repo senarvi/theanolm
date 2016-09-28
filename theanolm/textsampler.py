@@ -30,7 +30,7 @@ class TextSampler(object):
         self._vocabulary = network.vocabulary
         self._random = network.random
 
-        inputs = [network.word_input, network.class_input]
+        inputs = [network.input_word_ids, network.input_class_ids]
         inputs.extend(network.recurrent_state_input)
 
         # multinomial() is only implemented for dimension < 2, but the matrix
@@ -71,10 +71,10 @@ class TextSampler(object):
         sos_class_id = self._vocabulary.word_id_to_class_id[sos_id]
         eos_id = self._vocabulary.word_to_id['</s>']
 
-        word_input = sos_id * \
-                     numpy.ones(shape=(1, num_sequences)).astype('int64')
-        class_input = sos_class_id * \
-                      numpy.ones(shape=(1, num_sequences)).astype('int64')
+        input_word_ids = sos_id * \
+                         numpy.ones(shape=(1, num_sequences)).astype('int64')
+        input_class_ids = sos_class_id * \
+                          numpy.ones(shape=(1, num_sequences)).astype('int64')
         result = sos_id * \
                  numpy.ones(shape=(length, num_sequences)).astype('int64')
         state = RecurrentState(self._network.recurrent_state_size,
@@ -82,8 +82,8 @@ class TextSampler(object):
 
         for time_step in range(1, length):
             # The input is the output from the previous step.
-            step_result = self.step_function(word_input,
-                                             class_input,
+            step_result = self.step_function(input_word_ids,
+                                             input_class_ids,
                                              *state.get())
             class_ids = step_result[0]
             # The class IDs from the single time step.
@@ -91,8 +91,8 @@ class TextSampler(object):
             step_word_ids = numpy.array(
                 self._vocabulary.class_ids_to_word_ids(step_class_ids))
             result[time_step] = step_word_ids
-            word_input = step_word_ids[numpy.newaxis]
-            class_input = class_ids
+            input_word_ids = step_word_ids[numpy.newaxis]
+            input_class_ids = class_ids
             state.set(step_result[1:])
 
         return self._vocabulary.id_to_word[result.transpose()].tolist()

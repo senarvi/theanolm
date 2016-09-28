@@ -44,8 +44,8 @@ class TextScorer(object):
         # Ignore unused input variables, because is_training is only used by
         # dropout layer.
         self.score_function = theano.function(
-            [network.word_input,
-             network.class_input,
+            [network.input_word_ids,
+             network.input_class_ids,
              network.target_class_ids,
              network.mask],
             tensor.log(network.target_probs()),
@@ -87,24 +87,29 @@ class TextScorer(object):
 
         # We should predict probabilities of the words at the following time
         # step.
-        logprobs = self.score_function(word_ids[:-1],
-                                       class_ids[:-1],
-                                       class_ids[1:],
+        input_word_ids = word_ids[:-1]
+        input_class_ids = class_ids[:-1]
+        target_word_ids = word_ids[1:]
+        target_class_ids = class_ids[1:]
+        mask = mask[1:]
+        logprobs = self.score_function(input_word_ids,
+                                       input_class_ids,
+                                       target_class_ids,
                                        mask)
         # Add logprobs from the class membership of the predicted word at each
         # time step of each sequence.
         logprobs += numpy.log(membership_probs[1:])
         # If requested, predict <unk> with constant score.
         if not self.unk_penalty is None:
-            logprobs[word_ids[1:] == self.unk_id] = self.unk_penalty
+            logprobs[target_word_ids == self.unk_id] = self.unk_penalty
         # Ignore logprobs predicting a word that is past the sequence end, and
         # possibly also those that are predicting <unk> token.
         if self.ignore_unk:
             mask = numpy.copy(mask)
-            mask[word_ids == self.unk_id] = 0
+            mask[target_word_ids == self.unk_id] = 0
         for seq_index in range(logprobs.shape[1]):
             seq_logprobs = logprobs[:,seq_index]
-            seq_mask = mask[1:,seq_index]
+            seq_mask = mask[:,seq_index]
             seq_logprobs = seq_logprobs[seq_mask == 1]
             if numpy.isnan(sum(seq_logprobs)):
                 raise NumberError("Sequence logprob has NaN value.")
@@ -173,7 +178,7 @@ class TextScorer(object):
         logprobs = self.score_function(word_ids[:-1],
                                        class_ids[:-1],
                                        class_ids[1:],
-                                       mask[:-1])
+                                       mask[1:])
         # Add logprobs from the class membership of the predicted word at each
         # time step of each sequence.
         logprobs += numpy.log(membership_probs[1:])

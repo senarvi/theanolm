@@ -13,7 +13,7 @@ class DropoutLayer(BasicLayer):
 
     A dropout layer is not a regular layer in the sense that it doesn't contain
     any neurons. It simply randomly sets some activations to zero at train time
-    to prevent overfitting.    
+    to prevent overfitting.
 
     N. Srivastava et al. (2014)
     Dropout: A Simple Way to Prevent Neural Networks from Overfitting

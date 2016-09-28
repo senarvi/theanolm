@@ -251,8 +251,8 @@ class LatticeDecoder(object):
         self._eos_id = self._vocabulary.word_to_id['</s>']
         self._unk_id = self._vocabulary.word_to_id['<unk>']
 
-        inputs = [network.word_input,
-                  network.class_input,
+        inputs = [network.input_word_ids,
+                  network.input_class_ids,
                   network.target_class_ids]
         inputs.extend(network.recurrent_state_input)
 
@@ -457,16 +457,16 @@ class LatticeDecoder(object):
                                each input token
         """
 
-        word_input = [[token.history[-1] for token in tokens]]
-        word_input = numpy.asarray(word_input).astype('int64')
-        class_input, membership_probs = \
-            self._vocabulary.get_class_memberships(word_input)
+        input_word_ids = [[token.history[-1] for token in tokens]]
+        input_word_ids = numpy.asarray(input_word_ids).astype('int64')
+        input_class_ids, membership_probs = \
+            self._vocabulary.get_class_memberships(input_word_ids)
         recurrent_state = [token.state for token in tokens]
         recurrent_state = RecurrentState.combine_sequences(recurrent_state)
         target_class_ids = numpy.ones(shape=(1, len(tokens))).astype('int64')
         target_class_ids *= self._vocabulary.word_id_to_class_id[target_word_id]
-        step_result = self.step_function(word_input,
-                                         class_input,
+        step_result = self.step_function(input_word_ids,
+                                         input_class_ids,
                                          target_class_ids,
                                          *recurrent_state.get())
         logprobs = step_result[0]

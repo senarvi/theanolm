@@ -55,8 +55,7 @@ class Network(object):
     and output variables to ``theano.function()``.
     """
 
-    @unique
-    class Mode(Enum):
+    class Mode():
         """Network Mode Selection
 
         Enumeration of options for selecting network mode. This will create a
@@ -67,24 +66,11 @@ class Network(object):
                            steps containing the probabilities of the words at
                            the next time step.
         """
+        def __init__(self, minibatch=True, nce=False):
+            self.minibatch = minibatch
+            self.nce = nce
 
-        minibatch = 1
-        step = 2
-
-        def is_minibatch(self):
-            """Checks if the network mode is supposed to process mini-batches,
-            as opposed to just one time step. The word at the next time step is
-            the target word.
-
-            :rtype: bool
-            :returns: ``True`` when processing mini-batches, ``False``
-                      otherwise.
-            """
-
-            return self is Network.Mode.minibatch
-
-    def __init__(self, vocabulary, architecture, mode=Mode.minibatch,
-                 profile=False):
+    def __init__(self, vocabulary, architecture, mode=None, profile=False):
         """Initializes the neural network parameters for all layers, and
         creates Theano shared variables from them.
 
@@ -103,7 +89,7 @@ class Network(object):
 
         self.vocabulary = vocabulary
         self.architecture = architecture
-        self.mode = mode
+        self.mode = self.Mode() if mode is None else mode
 
         M1 = 2147483647
         M2 = 2147462579
@@ -117,20 +103,20 @@ class Network(object):
         self.random = RandomStreams(random_seed)
 
         # Word and class inputs will be available to NetworkInput layers.
-        self.word_input = tensor.matrix('network/word_input', dtype='int64')
-        self.class_input = tensor.matrix('network/class_input', dtype='int64')
-        if self.mode.is_minibatch():
-            self.word_input.tag.test_value = test_value(
+        self.input_word_ids = tensor.matrix('network/input_word_ids', dtype='int64')
+        self.input_class_ids = tensor.matrix('network/input_class_ids', dtype='int64')
+        if self.mode.minibatch:
+            self.input_word_ids.tag.test_value = test_value(
                 size=(100, 16),
                 max_value=vocabulary.num_words())
-            self.class_input.tag.test_value = test_value(
+            self.input_class_ids.tag.test_value = test_value(
                 size=(100, 16),
                 max_value=vocabulary.num_classes())
         else:
-            self.word_input.tag.test_value = test_value(
+            self.input_word_ids.tag.test_value = test_value(
                 size=(1, 16),
                 max_value=vocabulary.num_words())
-            self.class_input.tag.test_value = test_value(
+            self.input_class_ids.tag.test_value = test_value(
                 size=(1, 16),
                 max_value=vocabulary.num_classes())
 
@@ -159,13 +145,30 @@ class Network(object):
         # recurrent state outputs, for doing forward passes one step at a time.
         self.recurrent_state_output = [None] * len(self.recurrent_state_size)
 
-        # When the mode is target_words, this input variable specifies the words
-        # whose probabilities will be computed.
+        # This input variable can be used to specify the classes whose
+        # probabilities will be computed, instead of the whole distribution.
         self.target_class_ids = tensor.matrix('network/target_class_ids',
+                                              dtype='int64')
+        if self.mode.minibatch:
+            self.target_class_ids.tag.test_value = test_value(
+                size=(100, 16),
+                max_value=vocabulary.num_classes())
+        else:
+            self.target_class_ids.tag.test_value = test_value(
+                size=(1, 16),
+                max_value=vocabulary.num_classes())
+
+        # This input variable is used only for detecting <unk> target words.
+        self.target_word_ids = tensor.matrix('network/target_word_ids',
                                              dtype='int64')
-        self.target_class_ids.tag.test_value = test_value(
-            size=(1, 16),
-            max_value=vocabulary.num_classes())
+        if self.mode.minibatch:
+            self.target_word_ids.tag.test_value = test_value(
+                size=(100, 16),
+                max_value=vocabulary.num_words())
+        else:
+            self.target_word_ids.tag.test_value = test_value(
+                size=(1, 16),
+                max_value=vocabulary.num_words())
 
         # Create initial parameter values.
         logging.debug("Initializing parameters.")
@@ -187,13 +190,13 @@ class Network(object):
         # mask is used to mask out the rest of the input matrix, when a sequence
         # is shorter than the maximum sequence length. The mask is kept as int8
         # data type, which is how Tensor stores booleans.
-        if self.mode.is_minibatch():
+        if self.mode.minibatch:
             self.mask = tensor.matrix('network/mask', dtype='int8')
             self.mask.tag.test_value = test_value(
                 size=(100, 16),
                 max_value=True)
         else:
-            self.mask = tensor.ones(self.word_input.shape, dtype='int8')
+            self.mask = tensor.ones(self.input_word_ids.shape, dtype='int8')
 
         # Dropout layer needs to know whether we are training or evaluating.
         self.is_training = tensor.scalar('network/is_training', dtype='int8')

@@ -73,7 +73,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         if not 'ignore_unk' in optimization_options:
             raise ValueError("'ignore_unk' is not given in optimization "
                              "options.")
-        ignore_unk = optimization_options['ignore_unk']
+        self.ignore_unk = optimization_options['ignore_unk']
 
         # penalty for <unk> tokens
         if not 'unk_penalty' in optimization_options:
@@ -87,16 +87,15 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         logprobs = tensor.log(self.network.target_probs())
         # If requested, predict <unk> with constant score.
         if not unk_penalty is None:
-            unk_mask = tensor.eq(self.network.word_input[1:], unk_id)
+            unk_mask = tensor.eq(self.network.target_word_ids, unk_id)
             unk_indices = unk_mask.nonzero()
             logprobs = tensor.set_subtensor(logprobs[unk_indices], unk_penalty)
-        # Ignore logprobs, when the next input word (the one predicted) is
-        # masked out, and possibly also when  it is the <unk> token. The mask
-        # has to be cast to floatX, otherwise the result will be float64 and
-        # pulled out from the GPU earlier than necessary.
-        mask = self.network.mask[1:]
-        if ignore_unk:
-            mask = mask * tensor.neq(self.network.word_input[1:], unk_id)
+        # Do not predict masked and possibly <unk> tokens. The mask has to be
+        # cast to floatX, otherwise the result will be float64 and pulled out
+        # from the GPU earlier than necessary.
+        mask = self.network.mask
+        if self.ignore_unk:
+            mask = mask * tensor.neq(self.network.target_word_ids, unk_id)
         logprobs *= tensor.cast(mask, theano.config.floatX)
         # Cost is the negative log probability normalized by the number of
         # training examples in the mini-batch, so that the gradients will also
@@ -111,8 +110,9 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         # Ignore unused input, because is_training is only used by dropout
         # layer.
         self.gradient_update_function = theano.function(
-            [self.network.word_input,
-             self.network.class_input,
+            [self.network.input_word_ids,
+             self.network.input_class_ids,
+             self.network.target_word_ids,
              self.network.target_class_ids,
              self.network.mask],
             cost,
@@ -124,6 +124,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
         alpha = tensor.scalar('optimizer/update_weight',
                               dtype=theano.config.floatX)
+        alpha.tag.test_value = 0.1
         self.model_update_function = theano.function(
             [alpha],
             [],
@@ -152,7 +153,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
     def set_state(self, state):
         """Sets the values of Theano shared variables.
-        
+
         Requires that ``state`` contains values for all the optimization
         parameters.
 
@@ -206,18 +207,27 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
         # We should predict probabilities of the words at the following time
         # step.
-        self.update_cost = self.gradient_update_function(word_ids[:-1],
-                                                         class_ids[:-1],
-                                                         class_ids[1:],
-                                                         mask[:-1])
+        input_word_ids = word_ids[:-1]
+        input_class_ids = class_ids[:-1]
+        target_word_ids = word_ids[1:]
+        target_class_ids = class_ids[1:]
+        mask = mask[1:]
+        self.update_cost = self.gradient_update_function(input_word_ids,
+                                                         input_class_ids,
+                                                         target_word_ids,
+                                                         target_class_ids,
+                                                         mask)
         if numpy.isnan(self.update_cost) or numpy.isinf(self.update_cost):
             raise NumberError("Mini-batch cost computation resulted in a "
                               "numerical error.")
 
         alpha = self.learning_rate
+        if self.ignore_unk:
+            mask = mask * tensor.neq(target_word_ids, unk_id)
         num_words = numpy.count_nonzero(mask)
         float_type = numpy.dtype(theano.config.floatX).type
         if num_words > 0:
+            file_ids = file_ids[:-1]
             weights = self._weights[file_ids]
             alpha *= weights[mask == 1].sum() / float_type(num_words)
         self.model_update_function(alpha)

@@ -141,7 +141,7 @@ def decode(args):
         print("Building neural network.")
         sys.stdout.flush()
         architecture = Architecture.from_state(state)
-        network = Network(vocabulary, architecture, mode=Network.Mode.step)
+        network = Network(vocabulary, architecture, mode=Network.Mode(minibatch=False))
         print("Restoring neural network state.")
         sys.stdout.flush()
         network.set_state(state)
@@ -153,7 +153,7 @@ def decode(args):
     else:
         wi_penalty = args.wi_penalty * log_scale
     if args.unk_penalty is None:
-        ignore_unk = False  
+        ignore_unk = False
         unk_penalty = None
     elif args.unk_penalty == 0:
         ignore_unk = True

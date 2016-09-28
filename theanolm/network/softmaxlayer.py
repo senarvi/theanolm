@@ -6,6 +6,7 @@ import numpy
 import theano
 import theano.tensor as tensor
 from theanolm.network.basiclayer import BasicLayer
+from theanolm.debugfunctions import *
 
 class SoftmaxLayer(BasicLayer):
     """Softmax Output Layer
@@ -53,7 +54,7 @@ class SoftmaxLayer(BasicLayer):
 
         target_class_ids = self.network.target_class_ids
 
-        if self._use_nce:
+        if self.network.mode.nce:
             self.target_probs = self._get_sigmoid(layer_input, target_class_ids)
             # Generate one word for each training word as a negative sample.
             sample_class_ids = self.random.uniform(self.target_probs.shape)
@@ -92,7 +93,8 @@ class SoftmaxLayer(BasicLayer):
         target_indices = tensor.arange(minibatch_size) * num_classes
         target_indices += target_class_ids
         self.target_probs = output_probs[target_indices]
-        self.target_probs.reshape([num_time_steps, num_sequences])
+        self.target_probs = self.target_probs.reshape([num_time_steps,
+                                                       num_sequences])
 
     def _get_softmax(self, layer_input):
         preact = self._tensor_preact(layer_input, 'input')

@@ -46,8 +46,8 @@ class NetworkInput(BasicLayer):
         """
 
         if self.input_type == 'word':
-            self.output = self.network.word_input
+            self.output = self.network.input_word_ids
         elif self.input_type == 'class':
-            self.output = self.network.class_input
+            self.output = self.network.input_class_ids
         else:
             assert False

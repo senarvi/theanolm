@@ -78,7 +78,7 @@ class GRULayer(BasicLayer):
         # inside the loop.
         hidden_state_weights = self._get_param('step_input/W')
 
-        if self.network.mode.is_minibatch():
+        if self.network.mode.minibatch:
             sequences = [self.network.mask, layer_input_preact]
             non_sequences = [hidden_state_weights]
             initial_value = numpy.dtype(theano.config.floatX).type(0.0)
@@ -99,7 +99,7 @@ class GRULayer(BasicLayer):
         else:
             hidden_state_input = \
                 self.network.recurrent_state_input[self.hidden_state_index]
-    
+
             assert_op = tensor.opt.Assert(
                 "When processing a single time step, a matrix with an "
                 "unexpected shape was encountered.")

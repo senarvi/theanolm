@@ -28,7 +28,7 @@ def add_arguments(parser):
         '--random-seed', metavar='N', type=int, default=None,
         help='seed to initialize the random state (default is to seed from a '
              'random source provided by the oprating system)')
-    
+
     argument_group = parser.add_argument_group("debugging")
     argument_group.add_argument(
         '--debug', action="store_true",
@@ -51,7 +51,7 @@ def sample(args):
         print("Building neural network.")
         sys.stdout.flush()
         architecture = Architecture.from_state(state)
-        network = Network(vocabulary, architecture, mode=Network.Mode.step)
+        network = Network(vocabulary, architecture, mode=Network.Mode(minibatch=False))
         print("Restoring neural network state.")
         network.set_state(state)
 

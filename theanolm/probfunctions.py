@@ -1,8 +1,5 @@
-'''
-Created on Aug 10, 2016
-
-@author: senarvi
-'''
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 import numpy
 import theano

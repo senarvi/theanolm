@@ -82,7 +82,7 @@ class LSTMLayer(BasicLayer):
         # inside the loop.
         hidden_state_weights = self._get_param('step_input/W')
 
-        if self.network.mode.is_minibatch():
+        if self.network.mode.minibatch:
             sequences = [self.network.mask, layer_input_preact]
             non_sequences = [hidden_state_weights]
             initial_value = numpy.dtype(theano.config.floatX).type(0.0)
