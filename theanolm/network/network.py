@@ -309,6 +309,45 @@ class Network(object):
                                "distribution.")
         return self.output_layer.target_probs
 
+    def unnormalized_probs(self):
+        """Returns the unnormalized probabilities for the predicted words.
+
+        Only computed when target_class_ids is given and using softmax output.
+
+        :type mask: TensorVariable
+        :param mask: a symbolic 2-dimensional matrix that contains a probability
+                     for each time step (except the last) and each sequence
+        """
+
+        if not hasattr(self.output_layer, 'unnormalized_probs'):
+            raise RuntimeError("The final layer is not a softmax layer, and "
+                               "unnormalized probabilities are needed.")
+        if self.output_layer.unnormalized_probs is None:
+            raise RuntimeError("Trying to read target class probabilities, "
+                               "while the output layer has produced the "
+                               "distribution.")
+        return self.output_layer.unnormalized_probs
+
+    def sampled_probs(self):
+        """Returns the probabilities for the words sampled from a noise
+        distribution.
+
+        Only computed when target_class_ids is given and using softmax output.
+
+        :type mask: TensorVariable
+        :param mask: a symbolic 2-dimensional matrix that contains a probability
+                     for each time step (except the last) and each sequence
+        """
+
+        if not hasattr(self.output_layer, 'sampled_probs'):
+            raise RuntimeError("The final layer is not a softmax layer, and "
+                               "noise probabilities are needed.")
+        if self.output_layer.sampled_probs is None:
+            raise RuntimeError("Trying to read target class probabilities, "
+                               "while the output layer has produced the "
+                               "distribution.")
+        return self.output_layer.sampled_probs
+
     def _layer_options_from_description(self, description):
         """Creates layer options based on textual architecture description.
 

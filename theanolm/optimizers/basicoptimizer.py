@@ -69,6 +69,13 @@ class BasicOptimizer(object, metaclass=ABCMeta):
             self._max_gradient_norm = float_type(
                 optimization_options['max_gradient_norm'])
 
+        # cost function
+        if not 'cost_function' in optimization_options:
+            raise ValueError("'cost_function' is not given in optimization "
+                             "options.")
+        else:
+            cost_function = optimization_options['cost_function']
+
         # ignore <unk> tokens?
         if not 'ignore_unk' in optimization_options:
             raise ValueError("'ignore_unk' is not given in optimization "
@@ -83,8 +90,20 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
         unk_id = self.network.vocabulary.word_to_id['<unk>']
 
-        # Derive the symbolic expression for log probability of each word.
-        logprobs = tensor.log(self.network.target_probs())
+        if cost_function == 'cross-entropy':
+            # Derive the symbolic expression for log probability of each word.
+            logprobs = tensor.log(self.network.target_probs())
+        elif cost_function == 'nce':
+            target_probs = self.network.unnormalized_probs()
+            noise_probs = self.network.sampled_probs()
+            minibatch_size = noise_probs.shape[0] * noise_probs.shape[1]
+            minibatch_size = tensor.cast(minibatch_size, theano.config.floatX)
+            logprobs = -tensor.log(target_probs)
+            logprobs -= minibatch_size * tensor.log(1.0 - noise_probs)
+        else:
+            raise ValueError("Invalid cost function requested: `{}'".format(
+                             cost_function))
+
         # If requested, predict <unk> with constant score.
         if not unk_penalty is None:
             unk_mask = tensor.eq(self.network.target_word_ids, unk_id)

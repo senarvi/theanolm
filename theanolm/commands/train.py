@@ -82,7 +82,7 @@ def add_arguments(parser):
         '--random-seed', metavar='N', type=int, default=None,
         help='seed to initialize the random state (default is to seed from a '
              'random source provided by the oprating system)')
-    
+
     argument_group = parser.add_argument_group("optimization")
     argument_group.add_argument(
         '--optimization-method', metavar='NAME', type=str, default='adagrad',
@@ -115,6 +115,10 @@ def add_arguments(parser):
              '(normalized by mini-batch size) will not exceed THRESHOLD '
              '(default 5)')
     argument_group.add_argument(
+        '--cost', metavar='C', type=str, default='cross-entropy',
+        help='cost function, one of "cross-entropy" (default), "nce" '
+             'noise-contrastive estimation)')
+    argument_group.add_argument(
         '--unk-penalty', metavar='LOGPROB', type=float, default=None,
         help="if LOGPROB is zero, do not include <unk> tokens in perplexity "
              "computation; otherwise use constant LOGPROB as <unk> token score "
@@ -143,7 +147,7 @@ def add_arguments(parser):
         '--max-annealing-count', metavar='N', type=int, default=0,
         help='when using annealing-count stopping criterion, continue training '
              'after decreasing learning rate at most N times (default 0)')
-    
+
     argument_group = parser.add_argument_group("logging and debugging")
     argument_group.add_argument(
         '--log-file', metavar='FILE', type=str, default='-',
@@ -259,6 +263,7 @@ def train(args):
             'weights': weights,
             'momentum': args.momentum,
             'max_gradient_norm': args.gradient_normalization,
+            'cost_function': args.cost,
             'ignore_unk': ignore_unk,
             'unk_penalty': unk_penalty
         }

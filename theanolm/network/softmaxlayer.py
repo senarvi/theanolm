@@ -48,27 +48,15 @@ class SoftmaxLayer(BasicLayer):
         layer_input = tensor.concatenate([x.output for x in self.input_layers],
                                          axis=2)
 
+        self.output_probs = self._get_softmax(layer_input)
         if self.network.target_class_ids is None:
-            self.output_probs = self._get_softmax(layer_input)
+            self.target_probs = None
+            self.unnormalized_probs = None
+            self.sampled_probs = None
             return
 
+        output_probs = self.output_probs
         target_class_ids = self.network.target_class_ids
-
-        if self.network.mode.nce:
-            self.target_probs = self._get_sigmoid(layer_input, target_class_ids)
-            # Generate one word for each training word as a negative sample.
-            sample_class_ids = self.random.uniform(self.target_probs.shape)
-            sample_class_ids *= num_classes
-            sample_class_ids = tensor.cast(sample_class_ids, 'int64')
-            self.negative_probs = self._get_sigmoid(layer_input,
-                                                    sample_class_ids)
-            # minibatch_size = self.negative_probs.shape[0] * self.negative_probs.shape[1]
-            # minibatch_size = tensor.cast(minibatch_size, theano.config.floatX)
-            # cost = -tensor.log(self.target_probs)
-            # cost -= minibatch_size * tensor.log(1.0 - self.negative_probs)
-            return
-
-        output_probs = self._get_softmax(layer_input)
 
         assert_op = tensor.opt.Assert(
             "Mismatch in mini-batch and target classes shape.")
@@ -78,6 +66,17 @@ class SoftmaxLayer(BasicLayer):
         target_class_ids = assert_op(
             target_class_ids,
             tensor.eq(target_class_ids.shape[1], output_probs.shape[1]))
+
+        # Unnormalized probabilities and noise probabilities are specified for
+        # noise-contrastive estimation.
+        self.unnormalized_probs = self._get_sigmoid(layer_input,
+                                                    target_class_ids)
+        # Generate one word for each training word as a negative sample.
+        sample_class_ids = \
+            self.network.random.uniform(self.unnormalized_probs.shape)
+        sample_class_ids *= num_classes
+        sample_class_ids = tensor.cast(sample_class_ids, 'int64')
+        self.sampled_probs = self._get_sigmoid(layer_input, sample_class_ids)
 
         # An index to a flattened input matrix times the vocabulary size can be
         # used to index the same location in the output matrix. The class ID is
@@ -111,8 +110,8 @@ class SoftmaxLayer(BasicLayer):
         return result.reshape([num_time_steps, num_sequences, output_size])
 
     def _get_sigmoid(self, layer_input, target_class_ids):
-        weight = self._params['input/W']
-        bias = self._params['input/b']
+        weight = self._params[self._param_path('input/W')]
+        bias = self._params[self._param_path('input/b')]
 
         # Combine the first two dimensions so that sigmoid is taken
         # independently for each preactivation.
