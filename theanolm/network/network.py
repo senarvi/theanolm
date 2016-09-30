@@ -309,8 +309,12 @@ class Network(object):
                                "distribution.")
         return self.output_layer.target_probs
 
-    def unnormalized_probs(self):
-        """Returns the unnormalized probabilities for the predicted words.
+    def unnormalized_logprobs(self):
+        """Returns the unnormalized log probabilities for the predicted words.
+
+        These are the preactivations of the output layer, before softmax. As the
+        softmax output is exponential, these can be seen as the unnormalized log
+        probabilities.
 
         Only computed when target_class_ids is given and using softmax output.
 
@@ -319,17 +323,17 @@ class Network(object):
                      for each time step (except the last) and each sequence
         """
 
-        if not hasattr(self.output_layer, 'unnormalized_probs'):
+        if not hasattr(self.output_layer, 'unnormalized_logprobs'):
             raise RuntimeError("The final layer is not a softmax layer, and "
                                "unnormalized probabilities are needed.")
-        if self.output_layer.unnormalized_probs is None:
+        if self.output_layer.unnormalized_logprobs is None:
             raise RuntimeError("Trying to read target class probabilities, "
                                "while the output layer has produced the "
                                "distribution.")
-        return self.output_layer.unnormalized_probs
+        return self.output_layer.unnormalized_logprobs
 
-    def sampled_probs(self):
-        """Returns the probabilities for the words sampled from a noise
+    def sampled_logprobs(self):
+        """Returns the log probabilities for the words sampled from a noise
         distribution.
 
         Only computed when target_class_ids is given and using softmax output.
@@ -339,14 +343,14 @@ class Network(object):
                      for each time step (except the last) and each sequence
         """
 
-        if not hasattr(self.output_layer, 'sampled_probs'):
+        if not hasattr(self.output_layer, 'sampled_logprobs'):
             raise RuntimeError("The final layer is not a softmax layer, and "
                                "noise probabilities are needed.")
-        if self.output_layer.sampled_probs is None:
+        if self.output_layer.sampled_logprobs is None:
             raise RuntimeError("Trying to read target class probabilities, "
                                "while the output layer has produced the "
                                "distribution.")
-        return self.output_layer.sampled_probs
+        return self.output_layer.sampled_logprobs
 
     def _layer_options_from_description(self, description):
         """Creates layer options based on textual architecture description.

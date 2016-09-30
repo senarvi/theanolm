@@ -6,7 +6,6 @@ import numpy
 import theano
 import theano.tensor as tensor
 from theanolm.network.basiclayer import BasicLayer
-from theanolm.debugfunctions import *
 
 class SoftmaxLayer(BasicLayer):
     """Softmax Output Layer
@@ -51,8 +50,8 @@ class SoftmaxLayer(BasicLayer):
         self.output_probs = self._get_softmax(layer_input)
         if self.network.target_class_ids is None:
             self.target_probs = None
-            self.unnormalized_probs = None
-            self.sampled_probs = None
+            self.unnormalized_logprobs = None
+            self.sampled_logprobs = None
             return
 
         output_probs = self.output_probs
@@ -67,16 +66,19 @@ class SoftmaxLayer(BasicLayer):
             target_class_ids,
             tensor.eq(target_class_ids.shape[1], output_probs.shape[1]))
 
-        # Unnormalized probabilities and noise probabilities are specified for
-        # noise-contrastive estimation.
-        self.unnormalized_probs = self._get_sigmoid(layer_input,
-                                                    target_class_ids)
-        # Generate one word for each training word as a negative sample.
+        # Unnormalized probabilities and noise probabilities are used by noise-
+        # contrastive estimation. Softmax output is exponential, so the
+        # preactivations can be seen as unnormalized log probabilities.
+        self.unnormalized_logprobs = \
+            self._get_target_preact(layer_input, target_class_ids)
+        # Generate one word for each training word as a negative sample. The
+        # sample is drawn from uniform distribution.
         sample_class_ids = \
-            self.network.random.uniform(self.unnormalized_probs.shape)
+            self.network.random.uniform(self.unnormalized_logprobs.shape)
         sample_class_ids *= num_classes
         sample_class_ids = tensor.cast(sample_class_ids, 'int64')
-        self.sampled_probs = self._get_sigmoid(layer_input, sample_class_ids)
+        self.sampled_logprobs = \
+            self._get_target_preact(layer_input, sample_class_ids)
 
         # An index to a flattened input matrix times the vocabulary size can be
         # used to index the same location in the output matrix. The class ID is
@@ -109,7 +111,7 @@ class SoftmaxLayer(BasicLayer):
         result = tensor.nnet.softmax(preact)
         return result.reshape([num_time_steps, num_sequences, output_size])
 
-    def _get_sigmoid(self, layer_input, target_class_ids):
+    def _get_target_preact(self, layer_input, target_class_ids):
         weight = self._params[self._param_path('input/W')]
         bias = self._params[self._param_path('input/b')]
 
@@ -118,13 +120,20 @@ class SoftmaxLayer(BasicLayer):
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
         input_size = layer_input.shape[2]
-        layer_input = layer_input.reshape([num_time_steps * num_sequences,
-                                           input_size])
+        minibatch_size = num_time_steps * num_sequences
+        layer_input = layer_input.reshape([minibatch_size, input_size])
 
         # Create preactivation for only the target outputs.
         target_class_ids = target_class_ids.flatten()
         weight = weight[:, target_class_ids]
         bias = bias[target_class_ids]
-        preact = (weight.T * layer_input).sum(1) + bias
-        result = tensor.nnet.sigmoid(preact)
-        return result.reshape([num_time_steps, num_sequences])
+
+        # number of targets = minibatch size
+        assert_op = tensor.opt.Assert(
+            "The number of targets is not equal to the minibatch size.")
+        layer_input = assert_op(
+            layer_input,
+            tensor.eq(layer_input.shape[0], weight.shape[1]))
+
+        preact = (layer_input * weight.T).sum(1) + bias
+        return preact.reshape([num_time_steps, num_sequences])

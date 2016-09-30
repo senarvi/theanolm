@@ -94,12 +94,21 @@ class BasicOptimizer(object, metaclass=ABCMeta):
             # Derive the symbolic expression for log probability of each word.
             logprobs = tensor.log(self.network.target_probs())
         elif cost_function == 'nce':
-            target_probs = self.network.unnormalized_probs()
-            noise_probs = self.network.sampled_probs()
-            minibatch_size = noise_probs.shape[0] * noise_probs.shape[1]
-            minibatch_size = tensor.cast(minibatch_size, theano.config.floatX)
-            logprobs = -tensor.log(target_probs)
-            logprobs -= minibatch_size * tensor.log(1.0 - noise_probs)
+            # The noise sample is taken from uniform distribution. The
+            # probability of a single word is 1/N.
+            word_prob = 1.0 / self.network.vocabulary.num_classes()
+            word_logprob = numpy.log(word_prob)
+            word_logprob = 0.0
+            target_logprobs = self.network.unnormalized_logprobs()
+            # In the article, h = 1 / (1 + e^-G). log(h) can be expressed using
+            # the softplus function: log(h) = -log(1 + e^-G)
+            target_log_h = -tensor.nnet.softplus(-(target_logprobs - word_logprob))
+            sample_logprobs = self.network.sampled_logprobs()
+            # log(1 - h) = log(1 - e^G / (e^G + 1))
+            #            = log((e^G + 1 - e^G) / (e^G + 1))
+            #            = log(1) - log(e^G + 1)
+            sample_log_one_minus_h = -tensor.nnet.softplus(sample_logprobs - word_logprob)
+            logprobs = (target_log_h + sample_log_one_minus_h) / 2
         else:
             raise ValueError("Invalid cost function requested: `{}'".format(
                              cost_function))
@@ -114,7 +123,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         # from the GPU earlier than necessary.
         mask = self.network.mask
         if self.ignore_unk:
-            mask = mask * tensor.neq(self.network.target_word_ids, unk_id)
+            mask *= tensor.neq(self.network.target_word_ids, unk_id)
         logprobs *= tensor.cast(mask, theano.config.floatX)
         # Cost is the negative log probability normalized by the number of
         # training examples in the mini-batch, so that the gradients will also
@@ -242,7 +251,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
         alpha = self.learning_rate
         if self.ignore_unk:
-            mask = mask * tensor.neq(target_word_ids, unk_id)
+            mask *= tensor.neq(target_word_ids, unk_id)
         num_words = numpy.count_nonzero(mask)
         float_type = numpy.dtype(theano.config.floatX).type
         if num_words > 0:
