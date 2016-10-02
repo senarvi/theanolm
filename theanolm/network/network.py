@@ -202,6 +202,12 @@ class Network(object):
         self.is_training = tensor.scalar('network/is_training', dtype='int8')
         self.is_training.tag.test_value = 1
 
+        # Softmax layer needs to know how many noise words to sample for noise-
+        # contrastive estimation.
+        self.num_noise_samples = tensor.scalar('network/num_noise_samples',
+                                               dtype='int64')
+        self.num_noise_samples.tag.test_value = 100
+
         for layer in self.layers.values():
             layer.create_structure()
 
@@ -277,10 +283,9 @@ class Network(object):
 
         Only computed when target_class_ids is not given.
 
-        :type mask: TensorVariable
-        :param mask: a symbolic 3-dimensional matrix that contains a probability
-                     for each time step (except the last), each sequence, and
-                     each word.
+        :rtype: TensorVariable
+        :returns: a symbolic 3-dimensional matrix that contains a probability
+                  for each time step, each sequence, and each output class
         """
 
         if not hasattr(self.output_layer, 'output_probs'):
@@ -296,9 +301,9 @@ class Network(object):
 
         Only computed when target_class_ids is given.
 
-        :type mask: TensorVariable
-        :param mask: a symbolic 2-dimensional matrix that contains a probability
-                     for each time step (except the last) and each sequence
+        :rtype: TensorVariable
+        :returns: a symbolic 2-dimensional matrix that contains the target word
+                  probability for each time step and each sequence
         """
 
         if not hasattr(self.output_layer, 'target_probs'):
@@ -318,9 +323,9 @@ class Network(object):
 
         Only computed when target_class_ids is given and using softmax output.
 
-        :type mask: TensorVariable
-        :param mask: a symbolic 2-dimensional matrix that contains a probability
-                     for each time step (except the last) and each sequence
+        :rtype: TensorVariable
+        :returns: a symbolic 2-dimensional matrix that contains the unnormalized
+                  target word probability for each time step and each sequence
         """
 
         if not hasattr(self.output_layer, 'unnormalized_logprobs'):
@@ -332,25 +337,45 @@ class Network(object):
                                "distribution.")
         return self.output_layer.unnormalized_logprobs
 
-    def sampled_logprobs(self):
-        """Returns the log probabilities for the words sampled from a noise
-        distribution.
+    def sample_logprobs(self):
+        """Returns the log probabilities of words sampled from a noise
+        distribution, one for each training word in the mini-batch.
+
+        Only computed when target_class_ids is given and using softmax output.
+
+        :rtype: TensorVariable
+        :returns: a symbolic 2-dimensional matrix that has the same shape as the
+                  mini-batch, and contains probabilities for random words
+        """
+
+        if not hasattr(self.output_layer, 'sample_logprobs'):
+            raise RuntimeError("The final layer is not a softmax layer, and "
+                               "noise probabilities are needed.")
+        if self.output_layer.sample_logprobs is None:
+            raise RuntimeError("Trying to read target class probabilities, "
+                               "while the output layer has produced the "
+                               "distribution.")
+        return self.output_layer.sample_logprobs
+
+    def shared_sample_logprobs(self):
+        """Returns the log probabilities of words sampled from a noise
+        distribution. The sampled words are shared across mini-batch.
 
         Only computed when target_class_ids is given and using softmax output.
 
         :type mask: TensorVariable
-        :param mask: a symbolic 2-dimensional matrix that contains a probability
+        :param mask: a symbolic 3-dimensional matrix that contains a probability
                      for each time step (except the last) and each sequence
         """
 
-        if not hasattr(self.output_layer, 'sampled_logprobs'):
+        if not hasattr(self.output_layer, 'shared_sample_logprobs'):
             raise RuntimeError("The final layer is not a softmax layer, and "
                                "noise probabilities are needed.")
-        if self.output_layer.sampled_logprobs is None:
+        if self.output_layer.shared_sample_logprobs is None:
             raise RuntimeError("Trying to read target class probabilities, "
                                "while the output layer has produced the "
                                "distribution.")
-        return self.output_layer.sampled_logprobs
+        return self.output_layer.shared_sample_logprobs
 
     def _layer_options_from_description(self, description):
         """Creates layer options based on textual architecture description.

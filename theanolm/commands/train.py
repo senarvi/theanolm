@@ -115,9 +115,14 @@ def add_arguments(parser):
              '(normalized by mini-batch size) will not exceed THRESHOLD '
              '(default 5)')
     argument_group.add_argument(
-        '--cost', metavar='C', type=str, default='cross-entropy',
+        '--cost', metavar='NAME', type=str, default='cross-entropy',
         help='cost function, one of "cross-entropy" (default), "nce" '
-             'noise-contrastive estimation)')
+             '(noise-contrastive estimation), "nce-shared" (noise samples are '
+             'shared across mini-batch)')
+    argument_group.add_argument(
+        '--num-noise-samples', metavar='K', type=int, default=100,
+        help='number of noise words to sample per training word; only '
+             'applicable for nce-shared cost')
     argument_group.add_argument(
         '--unk-penalty', metavar='LOGPROB', type=float, default=None,
         help="if LOGPROB is zero, do not include <unk> tokens in perplexity "
@@ -264,6 +269,7 @@ def train(args):
             'momentum': args.momentum,
             'max_gradient_norm': args.gradient_normalization,
             'cost_function': args.cost,
+            'num_noise_samples': args.num_noise_samples,
             'ignore_unk': ignore_unk,
             'unk_penalty': unk_penalty
         }

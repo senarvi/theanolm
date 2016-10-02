@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from theano import printing
+from theano import tensor, printing
 
 def print_tensor(message, variable):
     """A small helper function that makes printing Theano variables a little bit
@@ -20,3 +20,15 @@ def print_tensor(message, variable):
 
     print_op = printing.Print(message)
     return print_op(variable)
+
+def assert_tensor_eq(message, result, variable1, variable2):
+#    print_op = printing.Print("Asserted variable 1:")
+#    variable1 = tensor.switch(tensor.neq(variable1, variable2),
+#                              print_op(variable1),
+#                              variable1)
+#    print_op = printing.Print("Asserted variable 2:")
+#    variable2 = tensor.switch(tensor.neq(variable1, variable2),
+#                              print_op(variable2),
+#                              variable2)
+    assert_op = tensor.opt.Assert(message)
+    return assert_op(result, tensor.eq(variable1, variable2))

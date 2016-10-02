@@ -76,6 +76,13 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         else:
             cost_function = optimization_options['cost_function']
 
+        # number of noise samples for nce-shared cost
+        if not 'num_noise_samples' in optimization_options:
+            raise ValueError("'num_noise_samples' is not given in optimization "
+                             "options.")
+        else:
+            num_noise_samples = optimization_options['num_noise_samples']
+
         # ignore <unk> tokens?
         if not 'ignore_unk' in optimization_options:
             raise ValueError("'ignore_unk' is not given in optimization "
@@ -98,17 +105,32 @@ class BasicOptimizer(object, metaclass=ABCMeta):
             # probability of a single word is 1/N.
             word_prob = 1.0 / self.network.vocabulary.num_classes()
             word_logprob = numpy.log(word_prob)
-            word_logprob = 0.0
             target_logprobs = self.network.unnormalized_logprobs()
             # In the article, h = 1 / (1 + e^-G). log(h) can be expressed using
             # the softplus function: log(h) = -log(1 + e^-G)
             target_log_h = -tensor.nnet.softplus(-(target_logprobs - word_logprob))
-            sample_logprobs = self.network.sampled_logprobs()
+            sample_logprobs = self.network.sample_logprobs()
             # log(1 - h) = log(1 - e^G / (e^G + 1))
             #            = log((e^G + 1 - e^G) / (e^G + 1))
             #            = log(1) - log(e^G + 1)
             sample_log_one_minus_h = -tensor.nnet.softplus(sample_logprobs - word_logprob)
             logprobs = (target_log_h + sample_log_one_minus_h) / 2
+        elif cost_function == 'nce-shared':
+            # The noise sample is taken from uniform distribution. The
+            # probability of a single word is 1/N.
+            word_prob = num_noise_samples / self.network.vocabulary.num_classes()
+            word_logprob = numpy.log(word_prob)
+            target_logprobs = self.network.unnormalized_logprobs()
+            # In the article, h = 1 / (1 + e^-G). log(h) can be expressed using
+            # the softplus function: log(h) = -log(1 + e^-G)
+            target_log_h = -tensor.nnet.softplus(-(target_logprobs - word_logprob))
+            sample_logprobs = self.network.shared_sample_logprobs()
+            # log(1 - h) = log(1 - e^G / (e^G + 1))
+            #            = log((e^G + 1 - e^G) / (e^G + 1))
+            #            = log(1) - log(e^G + 1)
+            sample_log_one_minus_h = -tensor.nnet.softplus(sample_logprobs - word_logprob)
+            logprobs = target_log_h + sample_log_one_minus_h.sum(2)
+            logprobs /= num_noise_samples + 1
         else:
             raise ValueError("Invalid cost function requested: `{}'".format(
                              cost_function))
@@ -144,7 +166,9 @@ class BasicOptimizer(object, metaclass=ABCMeta):
              self.network.target_class_ids,
              self.network.mask],
             cost,
-            givens=[(self.network.is_training, numpy.int8(1))],
+            givens=[(self.network.is_training, numpy.int8(1)),
+                    (self.network.num_noise_samples,
+                     numpy.int64(num_noise_samples))],
             updates=self._gradient_update_exprs(),
             name='gradient_update_function',
             on_unused_input='ignore',
