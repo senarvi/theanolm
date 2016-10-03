@@ -120,9 +120,8 @@ def add_arguments(parser):
              '(noise-contrastive estimation), "nce-shared" (noise samples are '
              'shared across mini-batch)')
     argument_group.add_argument(
-        '--num-noise-samples', metavar='K', type=int, default=100,
-        help='number of noise words to sample per training word; only '
-             'applicable for nce-shared cost')
+        '--num-noise-samples', metavar='K', type=int, default=1,
+        help='sample K noise words per one training word for NCE (default 1)')
     argument_group.add_argument(
         '--unk-penalty', metavar='LOGPROB', type=float, default=None,
         help="if LOGPROB is zero, do not include <unk> tokens in perplexity "

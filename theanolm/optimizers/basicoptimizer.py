@@ -8,6 +8,7 @@ import numpy
 import theano
 import theano.tensor as tensor
 from theanolm.exceptions import IncompatibleStateError, NumberError
+from theanolm.debugfunctions import *
 
 class BasicOptimizer(object, metaclass=ABCMeta):
     """Superclass for Neural Network Language Model Optimizers
@@ -76,7 +77,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         else:
             cost_function = optimization_options['cost_function']
 
-        # number of noise samples for nce-shared cost
+        # number of noise samples for noise-contrastive estimation
         if not 'num_noise_samples' in optimization_options:
             raise ValueError("'num_noise_samples' is not given in optimization "
                              "options.")
@@ -100,35 +101,27 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         if cost_function == 'cross-entropy':
             # Derive the symbolic expression for log probability of each word.
             logprobs = tensor.log(self.network.target_probs())
-        elif cost_function == 'nce':
+        elif (cost_function == 'nce') or (cost_function == 'nce-shared'):
             # The noise sample is taken from uniform distribution. The
             # probability of a single word is 1/N.
-            word_prob = 1.0 / self.network.vocabulary.num_classes()
+            word_prob = num_noise_samples
+            word_prob /= self.network.vocabulary.num_classes()
             word_logprob = numpy.log(word_prob)
             target_logprobs = self.network.unnormalized_logprobs()
             # In the article, h = 1 / (1 + e^-G). log(h) can be expressed using
-            # the softplus function: log(h) = -log(1 + e^-G)
-            target_log_h = -tensor.nnet.softplus(-(target_logprobs - word_logprob))
-            sample_logprobs = self.network.sample_logprobs()
+            # the softplus function: log(h) = -log(1 + e^-G) = -softplus(-G)
+            G = target_logprobs - word_logprob
+            target_log_h = -tensor.nnet.softplus(-G)
+            if cost_function == 'nce-shared':
+                sample_logprobs = self.network.shared_sample_logprobs()
+            else:
+                sample_logprobs = self.network.sample_logprobs()
             # log(1 - h) = log(1 - e^G / (e^G + 1))
             #            = log((e^G + 1 - e^G) / (e^G + 1))
             #            = log(1) - log(e^G + 1)
-            sample_log_one_minus_h = -tensor.nnet.softplus(sample_logprobs - word_logprob)
-            logprobs = (target_log_h + sample_log_one_minus_h) / 2
-        elif cost_function == 'nce-shared':
-            # The noise sample is taken from uniform distribution. The
-            # probability of a single word is 1/N.
-            word_prob = num_noise_samples / self.network.vocabulary.num_classes()
-            word_logprob = numpy.log(word_prob)
-            target_logprobs = self.network.unnormalized_logprobs()
-            # In the article, h = 1 / (1 + e^-G). log(h) can be expressed using
-            # the softplus function: log(h) = -log(1 + e^-G)
-            target_log_h = -tensor.nnet.softplus(-(target_logprobs - word_logprob))
-            sample_logprobs = self.network.shared_sample_logprobs()
-            # log(1 - h) = log(1 - e^G / (e^G + 1))
-            #            = log((e^G + 1 - e^G) / (e^G + 1))
-            #            = log(1) - log(e^G + 1)
-            sample_log_one_minus_h = -tensor.nnet.softplus(sample_logprobs - word_logprob)
+            #            = -softplus(G)
+            G = sample_logprobs - word_logprob
+            sample_log_one_minus_h = -tensor.nnet.softplus(G)
             logprobs = target_log_h + sample_log_one_minus_h.sum(2)
             logprobs /= num_noise_samples + 1
         else:

@@ -339,12 +339,12 @@ class Network(object):
 
     def sample_logprobs(self):
         """Returns the log probabilities of words sampled from a noise
-        distribution, one for each training word in the mini-batch.
+        distribution.
 
         Only computed when target_class_ids is given and using softmax output.
 
         :rtype: TensorVariable
-        :returns: a symbolic 2-dimensional matrix that has the same shape as the
+        :returns: a symbolic 3-dimensional matrix that has the same shape as the
                   mini-batch, and contains probabilities for random words
         """
 
@@ -363,9 +363,9 @@ class Network(object):
 
         Only computed when target_class_ids is given and using softmax output.
 
-        :type mask: TensorVariable
-        :param mask: a symbolic 3-dimensional matrix that contains a probability
-                     for each time step (except the last) and each sequence
+        :rtype: TensorVariable
+        :returns: a symbolic 3-dimensional matrix that has the same shape as the
+                  mini-batch, and contains probabilities for random words
         """
 
         if not hasattr(self.output_layer, 'shared_sample_logprobs'):

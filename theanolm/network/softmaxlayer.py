@@ -61,13 +61,15 @@ class SoftmaxLayer(BasicLayer):
         num_sequences = output_probs.shape[1]
 
         target_class_ids = assert_tensor_eq(
-            "target_class_ids.shape[0] != num_time_steps",
             target_class_ids,
+            'target_class_ids.shape[0]',
+            'num_time_steps',
             target_class_ids.shape[0],
             num_time_steps)
         target_class_ids = assert_tensor_eq(
-            "target_class_ids.shape[1] != num_sequences",
             target_class_ids,
+            'target_class_ids.shape[1]',
+            'num_sequences',
             target_class_ids.shape[1],
             num_sequences)
 
@@ -75,18 +77,23 @@ class SoftmaxLayer(BasicLayer):
         # contrastive estimation. Softmax output is exponential, so the
         # preactivations can be seen as unnormalized log probabilities.
         self.unnormalized_logprobs = \
-            self._get_target_preact(layer_input, target_class_ids)
+            self._get_target_preact(layer_input, target_class_ids[:,:,None])
+        self.unnormalized_logprobs = \
+            self.unnormalized_logprobs.reshape([num_time_steps, num_sequences])
+
         # Sample k noise words from uniform distribution. These are shared
         # across mini-batch.
         num_samples = self.network.num_noise_samples
-
         shared_sample = self.network.random.uniform((num_samples,))
         shared_sample *= num_classes
         shared_sample = tensor.cast(shared_sample, 'int64')
         self.shared_sample_logprobs = \
             self._get_target_list_preact(layer_input, shared_sample)
 
-        sample = self.network.random.uniform(self.unnormalized_logprobs.shape)
+        # Sample k noise words per training word from uniform distribution.
+        sample = self.network.random.uniform((num_time_steps,
+                                              num_sequences,
+                                              num_samples))
         sample *= num_classes
         sample = tensor.cast(sample, 'int64')
         self.sample_logprobs = \
@@ -99,8 +106,9 @@ class SoftmaxLayer(BasicLayer):
         target_class_ids = target_class_ids.flatten()
         minibatch_size = target_class_ids.shape[0]
         output_probs = assert_tensor_eq(
-            "output_probs.shape[0] != minibatch_size * num_classes",
             output_probs,
+            'output_probs.shape[0]',
+            'minibatch_size * num_classes',
             output_probs.shape[0],
             minibatch_size * num_classes)
         target_indices = tensor.arange(minibatch_size) * num_classes
@@ -158,24 +166,52 @@ class SoftmaxLayer(BasicLayer):
         num_sequences = layer_input.shape[1]
         input_size = layer_input.shape[2]
         minibatch_size = num_time_steps * num_sequences
-        layer_input = layer_input.reshape([minibatch_size, input_size])
+        layer_input = layer_input.reshape([minibatch_size, 1, input_size])
+
+        layer_input = assert_tensor_eq(
+            layer_input,
+            'target_class_ids.shape[0]',
+            'num_time_steps',
+            target_class_ids.shape[0],
+            num_time_steps)
+        layer_input = assert_tensor_eq(
+            layer_input,
+            'target_class_ids.shape[1]',
+            'num_sequences',
+            target_class_ids.shape[1],
+            num_sequences)
+#        layer_input = assert_tensor_eq(
+#            layer_input,
+#            'target_class_ids.shape[2]',
+#            'self.network.num_noise_samples',
+#            target_class_ids.shape[2],
+#            self.network.num_noise_samples)
 
         # Create preactivation for only the target outputs.
         weight = self._params[self._param_path('input/W')]
         bias = self._params[self._param_path('input/b')]
         target_class_ids = target_class_ids.flatten()
-        weight = weight[:, target_class_ids]
+        weight = weight.T
+        weight = weight[target_class_ids, :]
+        weight = weight.reshape([minibatch_size, -1, input_size])
         bias = bias[target_class_ids]
+        bias = bias.reshape([minibatch_size, -1])
 
-        # number of targets = minibatch size
-        assert_op = tensor.opt.Assert(
-            "The number of targets is not equal to the minibatch size.")
-        layer_input = assert_op(
-            layer_input,
-            tensor.eq(layer_input.shape[0], weight.shape[1]))
+ #       layer_input = assert_tensor_eq(
+ #           layer_input,
+ #           'weight.shape[1]',
+ #           'self.network.num_noise_samples',
+ #           weight.shape[1],
+ #           self.network.num_noise_samples)
+ #       layer_input = assert_tensor_eq(
+ #           layer_input,
+ #           'bias.shape[1]',
+ #           'self.network.num_noise_samples',
+ #           bias.shape[1],
+ #           self.network.num_noise_samples)
 
-        preact = (layer_input * weight.T).sum(1) + bias
-        return preact.reshape([num_time_steps, num_sequences])
+        result = (layer_input * weight).sum(2) + bias
+        return result.reshape([num_time_steps, num_sequences, -1])
 
     def _get_target_list_preact(self, layer_input, target_class_ids):
         """Structures the preactivations for a list of target classes.
