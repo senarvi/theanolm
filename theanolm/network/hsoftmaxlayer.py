@@ -6,9 +6,9 @@ import logging
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.network.basiclayer import BasicLayer
+from theanolm.network.outputlayer import OutputLayer
 
-class HSoftmaxLayer(BasicLayer):
+class HSoftmaxLayer(OutputLayer):
     """Hierarchical Softmax Output Layer
 
     The output layer is a simple softmax layer that outputs the word
@@ -101,7 +101,12 @@ class HSoftmaxLayer(BasicLayer):
                                                num_sequences,
                                                self.output_size])
             self.target_probs = None
-        else:
-            self.output_probs = None
-            self.target_probs = probs.reshape([num_time_steps,
-                                               num_sequences])
+            return
+
+        # Compute unnormalized output and noise samples for NCE.
+        self._compute_unnormalized_logprobs(layer_input)
+        self._compute_sample_logprobs(layer_input)
+
+        self.output_probs = None
+        self.target_probs = probs.reshape([num_time_steps,
+                                           num_sequences])
