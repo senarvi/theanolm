@@ -5,10 +5,10 @@ from collections import OrderedDict
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.network.outputlayer import OutputLayer
+from theanolm.network.ncelayer import NCELayer
 from theanolm.debugfunctions import *
 
-class SoftmaxLayer(OutputLayer):
+class SoftmaxLayer(NCELayer):
     """Softmax Output Layer
 
     The output layer is a simple softmax layer that outputs the word

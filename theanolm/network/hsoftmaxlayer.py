@@ -6,9 +6,9 @@ import logging
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.network.outputlayer import OutputLayer
+from theanolm.network.basiclayer import BasicLayer
 
-class HSoftmaxLayer(OutputLayer):
+class HSoftmaxLayer(BasicLayer):
     """Hierarchical Softmax Output Layer
 
     The output layer is a simple softmax layer that outputs the word
@@ -72,21 +72,21 @@ class HSoftmaxLayer(OutputLayer):
         else:
             target_class_ids = self.network.target_class_ids.flatten()
 
-        # Combine the first two dimensions so that softmax is taken
-        # independently for each location, over the output classes.
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
+        minibatch_size = num_time_steps * num_sequences
         input_size = layer_input.shape[2]
-        layer_input = layer_input.reshape([num_time_steps * num_sequences,
-                                           input_size])
 
         input_weight = self._params[self._param_path('input/W')]
         input_bias = self._params[self._param_path('input/b')]
         level1_weight = self._params[self._param_path('level1/W')]
         level1_bias = self._params[self._param_path('level1/b')]
 
-        probs = tensor.nnet.h_softmax(layer_input,
-                                      num_time_steps * num_sequences,
+        # Combine the first two dimensions so that softmax is taken
+        # independently for each location, over the output classes.
+        probs = tensor.nnet.h_softmax(layer_input.reshape([minibatch_size,
+                                                           input_size]),
+                                      minibatch_size,
                                       self.output_size,
                                       self.level1_size,
                                       self.level2_size,
@@ -102,10 +102,6 @@ class HSoftmaxLayer(OutputLayer):
                                                self.output_size])
             self.target_probs = None
             return
-
-        # Compute unnormalized output and noise samples for NCE.
-        self._compute_unnormalized_logprobs(layer_input)
-        self._compute_sample_logprobs(layer_input)
 
         self.output_probs = None
         self.target_probs = probs.reshape([num_time_steps,

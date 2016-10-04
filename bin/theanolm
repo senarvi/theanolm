@@ -3,6 +3,7 @@
 
 import argparse
 from theanolm.commands import *
+from theanolm.exceptions import *
 
 def main():
     parser = argparse.ArgumentParser(prog='theanolm')
@@ -38,7 +39,13 @@ def main():
     args = parser.parse_args()
 
     if hasattr(args, 'command_function'):
-        args.command_function(args)
+        try:
+            args.command_function(args)
+        except NumberError as e:
+            print('A numerical error has occurred. This may happen e.g. when '
+                  'network parameters go to infinity. If this happens during '
+                  'training, using a smaller learning rate usually helps. The '
+                  'error message was: "' + str(e) + '"')
     else:
         parser.print_help()
 
