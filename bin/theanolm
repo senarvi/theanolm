@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import sys
 import argparse
 from theanolm.commands import *
 from theanolm.exceptions import *
@@ -44,8 +45,11 @@ def main():
         except NumberError as e:
             print('A numerical error has occurred. This may happen e.g. when '
                   'network parameters go to infinity. If this happens during '
-                  'training, using a smaller learning rate usually helps. The '
-                  'error message was: "' + str(e) + '"')
+                  'training, using a smaller learning rate usually helps. '
+                  'Another possibility is to use gradient normalization. If '
+                  'this happens during inference, there is probably something '
+                  'wrong in the model. The error message was: "' + str(e) + '"')
+            sys.exit(2)
     else:
         parser.print_help()
 

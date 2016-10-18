@@ -234,3 +234,18 @@ environments such as MATLAB, Mathematica, and GNU Octave.
 If the file exists already when the training starts, and the saved model is
 compatible with the specified command line arguments, TheanoLM will
 automatically continue training from the previous state.
+
+Recipes
+-------
+
+There are examples for training language models in the `recipes directory`_ for
+two data sets. `penn-treebank` uses the data distributed with `RNNLM basic
+examples`_. `google` uses the `WMT 2011 News Crawl data`_, processed with the
+scripts provided by the `1 Billion Word Language Modeling Benchmark`_. The
+examples demonstrate class-based models, hierarchical softmax, and
+noise-contrastive estimation.
+
+.. _recipes directory: https://github.com/senarvi/theanolm/tree/master/recipes
+.. _RNNLM basic examples: http://www.fit.vutbr.cz/~imikolov/rnnlm/simple-examples.tgz
+.. _WMT 2011 News Crawl data: http://www.statmt.org/wmt11/translation-task.html#download
+.. _1 Billion Word Language Modeling Benchmark: https://github.com/ciprian-chelba/1-billion-word-language-modeling-benchmark
