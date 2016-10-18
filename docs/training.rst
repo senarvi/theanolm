@@ -66,8 +66,9 @@ Layer elements start with the word *layer* and may contain the following
 fields:
 
 * ``type`` selects the layer class. Has to be specified for all layers.
-  Currently *projection*, *tanh*, *lstm*, *gru*, *dropout*, *softmax*, and
-  *hsoftmax* (two-level hierarchical softmax) are implemented.
+  Currently *projection*, *tanh*, *lstm*, *gru*, *highwaytanh* (highway network
+  layer), *dropout*, *softmax*, and *hsoftmax* (two-level hierarchical softmax)
+  are implemented.
 * ``name`` is used to identify the layer. Has to be specified for all layers.
 * ``input`` specifies a network input or a layer whose output will be the input
   of this layer. Some layers types allow multiple inputs.
