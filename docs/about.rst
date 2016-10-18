@@ -17,7 +17,7 @@ Publications
 Seppo Enarvi and Mikko Kurimo (2016), `TheanoLM — An Extensible Toolkit for
 Neural Network Language Modeling <https://arxiv.org/abs/1605.00942>`_. In
 Proceedings of the 17th Annual Conference of the International Speech
-Communication Association (INTERSPEECH). To be published.
+Communication Association (INTERSPEECH).
 
 License
 =======

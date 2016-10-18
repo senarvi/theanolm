@@ -1,0 +1,4 @@
+input type=word name=word_input
+layer type=projection name=projection_layer input=word_input size=100
+layer type=lstm name=hidden_layer input=projection_layer size=256
+layer type=hsoftmax name=output_layer input=hidden_layer
