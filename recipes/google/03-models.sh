@@ -25,7 +25,7 @@ STOPPING_CRITERION=no-improvement
 ARCHITECTURE_FILE="${arch_dir}/class-lstm256.arch"
 CLASSES="${OUTPUT_DIR}/classes"
 COST=cross-entropy
-UNK_PENALTY=-5
+OPTIMIZATION_METHOD=sgd
 LEARNING_RATE=1.0
 rm -f "${OUTPUT_DIR}/nnlm.h5"
 train
