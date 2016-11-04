@@ -111,8 +111,6 @@ class TextScorer(object):
             seq_logprobs = logprobs[:,seq_index]
             seq_mask = mask[:,seq_index]
             seq_logprobs = seq_logprobs[seq_mask == 1]
-            if numpy.isnan(sum(seq_logprobs)):
-                raise NumberError("Sequence logprob has NaN value.")
             result.append(seq_logprobs)
 
         return result
@@ -142,9 +140,26 @@ class TextScorer(object):
                 self.vocabulary.get_class_memberships(word_ids)
             logprobs = self.score_batch(word_ids, class_ids, membership_probs,
                                         mask)
-            for seq_logprobs in logprobs:
-                total_logprob += sum(seq_logprobs)
+            for seq_index, seq_logprobs in enumerate(logprobs):
+                seq_word_ids = word_ids[:,seq_index]
+                seq_mask = mask[:,seq_index]
+                seq_logprob_sum = sum(seq_logprobs)
+                total_logprob += seq_logprob_sum
+                if numpy.isnan(seq_logprob_sum) or numpy.isinf(seq_logprob_sum):
+                    if numpy.isnan(seq_logprob_sum):
+                        print("NaN logprobs in sequence.")
+                    else:
+                        print("Infinite logprobs in sequence.")
+                    print("Sequence word IDs:",
+                          ' '.join(str(x) for x in seq_word_ids))
+                    print("Sequence mask:",
+                          ' '.join(str(x) for x in seq_mask))
+                    print("Sequence logprobs:",
+                          ' '.join(str(x) for x in seq_logprobs))
                 num_words += len(seq_logprobs)
+        if num_words == 0:
+            raise ValueError("Zero words for computing perplexity. Does the "
+                             "evaluation data contain only OOV words?")
         cross_entropy = -total_logprob / num_words
         return numpy.exp(cross_entropy)
 
@@ -161,7 +176,7 @@ class TextScorer(object):
         :param membership_probs: list of class membership probabilities
 
         :rtype: float
-        :returns: log probability of the sentence
+        :returns: log probability of the word sequence
         """
 
         # Create 2-dimensional matrices representing the transposes of the

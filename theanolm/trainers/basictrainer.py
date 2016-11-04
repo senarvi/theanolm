@@ -124,9 +124,10 @@ class BasicTrainer(object):
                 if self._is_scheduled(self.options['validation_frequency']):
                     perplexity = self.scorer.compute_perplexity(self.validation_iter)
                     if numpy.isnan(perplexity) or numpy.isinf(perplexity):
+                        self._set_candidate_state()
                         raise NumberError(
                             "Validation set perplexity computation resulted "
-                            "in a numerical error.")
+                            "in a numerical error. The network has been saved.")
                 else:
                     perplexity = None
                 self._validate(perplexity)
