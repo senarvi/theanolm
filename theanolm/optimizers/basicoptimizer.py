@@ -123,7 +123,6 @@ class BasicOptimizer(object, metaclass=ABCMeta):
             G = sample_logprobs - word_logprob
             sample_log_one_minus_h = -tensor.nnet.softplus(G)
             logprobs = target_log_h + sample_log_one_minus_h.sum(2)
-            logprobs /= num_noise_samples + 1
         else:
             raise ValueError("Invalid cost function requested: `{}'".format(
                              cost_function))
