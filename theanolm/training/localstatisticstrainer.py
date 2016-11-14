@@ -4,7 +4,7 @@
 import logging
 import numpy
 import h5py
-from theanolm.trainers.basictrainer import BasicTrainer
+from theanolm.training.basictrainer import BasicTrainer
 
 class LocalStatisticsTrainer(BasicTrainer):
     """A trainer that samples perplexity at a number of points before the actual
@@ -56,13 +56,13 @@ class LocalStatisticsTrainer(BasicTrainer):
         if perplexity is None:
             perplexity = self.scorer.compute_perplexity(self.validation_iter)
             last_sample = False
-        
+
         self.local_perplexities.append(perplexity)
         if len(self.local_perplexities) == 1:
             logging.debug("[%d] First validation sample, perplexity %.2f.",
                           self.update_number,
                           perplexity)
-    
+
         if not self._is_scheduled(self.options['validation_frequency'],
                                   self.samples_per_validation // 2):
             return

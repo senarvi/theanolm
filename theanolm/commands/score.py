@@ -109,7 +109,11 @@ def _score_text(input_file, vocabulary, scorer, output_file,
     :param word_level: if set to True, also writes word-level statistics
     """
 
-    validation_iter = LinearBatchIterator(input_file, vocabulary)
+    validation_iter = \
+        LinearBatchIterator(input_file,
+                            vocabulary,
+                            batch_size=100,
+                            max_sequence_length=None)
     log_scale = 1.0 if log_base is None else numpy.log(log_base)
     unk_id = vocabulary.word_to_id['<unk>']
 

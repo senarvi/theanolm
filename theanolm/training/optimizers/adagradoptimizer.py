@@ -4,7 +4,7 @@
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.optimizers.basicoptimizer import BasicOptimizer
+from theanolm.training.optimizers.basicoptimizer import BasicOptimizer
 
 class AdaGradOptimizer(BasicOptimizer):
     """AdaGrad Optimization Method

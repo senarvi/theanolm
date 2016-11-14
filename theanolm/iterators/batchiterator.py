@@ -125,7 +125,7 @@ class BatchIterator(object, metaclass=ABCMeta):
             if sequence is None:
                 break
             if len(sequence) < 2:
-                continue                
+                continue
             num_sequences += 1
 
         self._reset(False)

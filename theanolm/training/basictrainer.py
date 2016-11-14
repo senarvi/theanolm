@@ -6,10 +6,10 @@ import logging
 import mmap
 import numpy
 import theano
-from theanolm import ShufflingBatchIterator
+from theanolm.iterators import ShufflingBatchIterator, LinearBatchIterator
 from theanolm.exceptions import IncompatibleStateError, NumberError
-from theanolm.optimizers import create_optimizer
-from theanolm.stoppers import create_stopper
+from theanolm.training.optimizers import create_optimizer
+from theanolm.training.stoppers import create_stopper
 
 class BasicTrainer(object):
     """Basic training process saves a history of validation costs and "
@@ -66,18 +66,34 @@ class BasicTrainer(object):
                                           self.network,
                                           profile)
 
+        print("Computing unigram probabilities and the number of mini-batches "
+              "in training data.")
+        linear_iter = LinearBatchIterator(
+            training_files,
+            vocabulary,
+            batch_size=training_options['batch_size'],
+            max_sequence_length=training_options['sequence_length'])
+        sys.stdout.flush()
+        self.updates_per_epoch = 0
+        class_counts = numpy.zeros(self.vocabulary.num_classes(), dtype='int64')
+        for word_ids, _, mask in linear_iter:
+            self.updates_per_epoch += 1
+            word_ids = word_ids[mask == 1]
+            class_ids = self.vocabulary.word_id_to_class_id[word_ids]
+            numpy.add.at(class_counts, class_ids, 1)
+        if self.updates_per_epoch < 1:
+            raise ValueError("Training data does not contain any sentences.")
+        class_probs = class_counts / class_counts.sum()
+        logging.debug("Minimum class unigram probability: %f", class_probs.min())
+        logging.debug("Maximum class unigram probability: %f", class_probs.max())
+        self.network.set_class_prior_probs(class_probs)
+
         self.training_iter = ShufflingBatchIterator(
             training_files,
             sampling,
             vocabulary,
             batch_size=training_options['batch_size'],
             max_sequence_length=training_options['sequence_length'])
-
-        print("Computing the number of training updates per epoch.")
-        sys.stdout.flush()
-        self.updates_per_epoch = len(self.training_iter)
-        if self.updates_per_epoch < 1:
-            raise ValueError("Training data does not contain any sentences.")
 
         self.stopper = create_stopper(training_options, self)
         self.options = training_options
@@ -180,7 +196,7 @@ class BasicTrainer(object):
 
         Sets candidate state index point to the last element in the loaded cost
         history.
-        
+
         Requires that if ``state`` is set, it contains values for all the
         training parameters.
 

@@ -63,7 +63,9 @@ class SoftmaxLayer(NCELayer):
         if self.network.target_class_ids is None:
             self.target_probs = None
             self.unnormalized_logprobs = None
+            self.sample = None
             self.sample_logprobs = None
+            self.shared_sample = None
             self.shared_sample_logprobs = None
             return
 

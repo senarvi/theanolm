@@ -74,6 +74,15 @@ class Network(object):
         """Initializes the neural network parameters for all layers, and
         creates Theano shared variables from them.
 
+        When using noise-contrastive estimation, the output layer needs to know
+        the prior distribution of the classes, and how many noise classes to
+        sample. The number of noise classes per training word is controlled by
+        the num_noise_samples tensor variable. The prior distribution is a
+        shared variable, so that we don't have to pass the vector to every call
+        of a Theano function. The constructor initializes it to the uniform
+        distribution, and it can be set to the proper probabilities using the
+        set_class_prior_probs() function.
+
         :type vocabulary: Vocabulary
         :param vocabulary: mapping between word IDs and word classes
 
@@ -202,11 +211,17 @@ class Network(object):
         self.is_training = tensor.scalar('network/is_training', dtype='int8')
         self.is_training.tag.test_value = 1
 
-        # Softmax layer needs to know how many noise words to sample for noise-
-        # contrastive estimation.
+        # When using noise-contrastive estimation, the output layer needs to
+        # know the prior distribution of the classes, and how many noise classes
+        # to sample.
         self.num_noise_samples = tensor.scalar('network/num_noise_samples',
                                                dtype='int64')
         self.num_noise_samples.tag.test_value = 100
+        uniform_class_probs = numpy.ones(vocabulary.num_classes(),
+                                         dtype=theano.config.floatX)
+        uniform_class_probs /= vocabulary.num_classes()
+        self.class_prior_probs = theano.shared(uniform_class_probs,
+                                               'network/class_prior_probs')
 
         for layer in self.layers.values():
             layer.create_structure()
@@ -262,6 +277,12 @@ class Network(object):
         Used by recurrent layers to add a state variable that has to be passed
         from one time step to the next, when generating text or computing
         lattice probabilities.
+
+        :type size: int
+        :param size: size of the state vector
+
+        :rtype size: int
+        :param size: index of the new recurrent state variable
         """
 
         index = len(self.recurrent_state_size)
@@ -277,6 +298,25 @@ class Network(object):
         self.recurrent_state_input.append(variable)
 
         return index
+
+    def set_class_prior_probs(self, probs):
+        """Sets the prior (unigram) probabilities of the classes.
+
+        These are used only by the output layer when training using noise-
+        contrastive estimation, for sampling noise classes.
+
+        :type probs: numpy.ndarray
+        :param probs: the probability distribution
+        """
+
+        if (probs.shape != (self.vocabulary.num_classes(),)) or \
+           (not numpy.isclose(probs.sum(), 1.0)) or \
+           numpy.any(probs < 0):
+            raise ValueError("Network.set_class_prior_probs() expects a valid "
+                             "class probability distribution.")
+#        probs += 0.01
+#        probs /= probs.sum()
+        self.class_prior_probs.set_value(probs.astype(theano.config.floatX))
 
     def output_probs(self):
         """Returns the output probabilities for the whole vocabulary.
@@ -337,15 +377,15 @@ class Network(object):
                                "distribution.")
         return self.output_layer.unnormalized_logprobs
 
-    def sample_logprobs(self):
-        """Returns the log probabilities of words sampled from a noise
-        distribution.
+    def noise_sample(self):
+        """Returns the classes sampled from a noise distribution and their log
+        probabilities.
 
         Only computed when target_class_ids is given and using softmax output.
 
-        :rtype: TensorVariable
-        :returns: a symbolic 3-dimensional matrix that has the same shape as the
-                  mini-batch, and contains probabilities for random words
+        :rtype: tuple of two TensorVariables
+        :returns: two symbolic 3-dimensional matrices that contain 1) k noise
+                  classes per mini-batch element and 2) their log probabilities
         """
 
         if not hasattr(self.output_layer, 'sample_logprobs'):
@@ -355,17 +395,19 @@ class Network(object):
             raise RuntimeError("Trying to read target class probabilities, "
                                "while the output layer has produced the "
                                "distribution.")
-        return self.output_layer.sample_logprobs
+        return self.output_layer.sample, \
+               self.output_layer.sample_logprobs
 
-    def shared_sample_logprobs(self):
-        """Returns the log probabilities of words sampled from a noise
-        distribution. The sampled words are shared across mini-batch.
+    def shared_noise_sample(self):
+        """Returns the classes sampled from a noise distribution and their log
+        probabilities. The sampled words are shared across mini-batch.
 
         Only computed when target_class_ids is given and using softmax output.
 
-        :rtype: TensorVariable
-        :returns: a symbolic 3-dimensional matrix that has the same shape as the
-                  mini-batch, and contains probabilities for random words
+        :rtype: tuple of two TensorVariables
+        :returns: a list of k noise classes that are shared between every
+                  mini-batch element, and a symbolic 3-dimensional matrix that
+                  contains their log probabilities for each mini-batch element
         """
 
         if not hasattr(self.output_layer, 'shared_sample_logprobs'):
@@ -375,7 +417,8 @@ class Network(object):
             raise RuntimeError("Trying to read target class probabilities, "
                                "while the output layer has produced the "
                                "distribution.")
-        return self.output_layer.shared_sample_logprobs
+        return self.output_layer.shared_sample, \
+               self.output_layer.shared_sample_logprobs
 
     def _layer_options_from_description(self, description):
         """Creates layer options based on textual architecture description.

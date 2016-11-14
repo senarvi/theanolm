@@ -28,22 +28,32 @@ class NCELayer(BasicLayer):
         num_samples = self.network.num_noise_samples
         num_classes = self.network.vocabulary.num_classes()
 
-        # Sample k noise words from uniform distribution. These are shared
-        # across mini-batch.
-        sample = self.network.random.uniform((num_samples,))
-        sample *= num_classes
-        sample = tensor.cast(sample, 'int64')
+        # Sample k noise words from unigram distribution. These are shared
+        # across mini-batch. We need to repeat the distribution as many times as
+        # we want samples, because multinomial() does not yet use the size
+        # argument.
+        class_probs = self.network.class_prior_probs
+        class_probs = class_probs[None, :]
+        class_probs = tensor.tile(class_probs, [num_samples, 1])
+        sample = self.network.random.multinomial(pvals=class_probs)
+        sample = sample.argmax(1)
         self.shared_sample_logprobs = \
             self._get_target_list_preact(layer_input, sample)
+        self.shared_sample = sample
 
-        # Sample k noise words per training word from uniform distribution.
-        sample = self.network.random.uniform((num_time_steps,
-                                              num_sequences,
-                                              num_samples))
-        sample *= num_classes
-        sample = tensor.cast(sample, 'int64')
+        # Sample k noise words per training word from unigram distribution.
+        # multinomial() is only implemented for dimension <= 2, so we'll create
+        # a 2-dimensional probability distribution and then reshape the result.
+        class_probs = self.network.class_prior_probs
+        class_probs = class_probs[None, :]
+        num_batch_samples = num_time_steps * num_sequences * num_samples
+        class_probs = tensor.tile(class_probs, [num_batch_samples, 1])
+        sample = self.network.random.multinomial(pvals=class_probs)
+        sample = sample.argmax(1)
+        sample = sample.reshape([num_time_steps, num_sequences, num_samples])
         self.sample_logprobs = \
             self._get_target_preact(layer_input, sample)
+        self.sample = sample
 
     def _compute_unnormalized_logprobs(self, layer_input):
         """Computes unnormalized output (preactivations).

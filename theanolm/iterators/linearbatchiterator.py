@@ -8,15 +8,15 @@ class LinearBatchIterator(BatchIterator):
     """
 
     def __init__(self,
-                 input_file,
+                 input_files,
                  vocabulary,
                  batch_size=1,
                  max_sequence_length=None):
         """Constructs an iterator for reading mini-batches from given file or
         memory map.
 
-        :type input_file: file or mmap object
-        :param input_file: input text file or its memory-mapped data
+        :type input_files: file or mmap object, or a list
+        :param input_files: input text files or their memory-mapped data
 
         :type vocabulary: Vocabulary
         :param vocabulary: vocabulary that provides mapping between words and
@@ -31,23 +31,40 @@ class LinearBatchIterator(BatchIterator):
                                     this
         """
 
-        self.input_file = input_file
-        self.input_file.seek(0)
+        if isinstance(input_files, (list, tuple)):
+            self._input_files = input_files
+        else:
+            self._input_files = [input_files]
+        self._reset()
 
         super().__init__(vocabulary, batch_size, max_sequence_length)
 
     def _reset(self, shuffle=True):
         """Resets the read pointer back to the beginning of the file.
-        
+
         :type shuffle: bool
         :param shuffle: also shuffles the input sentences, unless set to False
                         (not supported by this class)
         """
 
-        self.input_file.seek(0)
+        self._input_file_iter = iter(self._input_files)
+        self._input_file = next(self._input_file_iter)
+        self._input_file.seek(0)
 
     def _readline(self):
         """Reads the next input line.
+
+        :rtype: str
+        :returns: next line from the data set, or an empty string if the end of
+                  the data set is reached.
         """
 
-        return self.input_file.readline()
+        result = self._input_file.readline()
+        while not result:
+            try:
+                self._input_file = next(self._input_file_iter)
+            except StopIteration:
+                return ""
+            self._input_file.seek(0)
+            result = self._input_file.readline()
+        return result

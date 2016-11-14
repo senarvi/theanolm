@@ -9,7 +9,7 @@ import h5py
 import theano
 from theanolm import Vocabulary, Architecture, Network
 from theanolm import LinearBatchIterator
-from theanolm.trainers import create_trainer
+from theanolm.training import create_trainer
 from theanolm.scoring import TextScorer
 from theanolm.filetypes import TextFileType
 
@@ -254,9 +254,11 @@ def train(args):
         validation_mmap = mmap.mmap(args.validation_file.fileno(),
                                     0,
                                     prot=mmap.PROT_READ)
-        validation_iter = LinearBatchIterator(validation_mmap,
-                                              vocabulary,
-                                              batch_size=32)
+        validation_iter = \
+            LinearBatchIterator(validation_mmap,
+                                vocabulary,
+                                batch_size=args.batch_size,
+                                max_sequence_length=None)
 
         optimization_options = {
             'method': args.optimization_method,

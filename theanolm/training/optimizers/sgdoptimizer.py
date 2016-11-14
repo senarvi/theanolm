@@ -3,7 +3,7 @@
 
 import numpy
 import theano
-from theanolm.optimizers.basicoptimizer import BasicOptimizer
+from theanolm.training.optimizers.basicoptimizer import BasicOptimizer
 
 class SGDOptimizer(BasicOptimizer):
     """Stochastic Gradient Descent Optimization Method

@@ -13,14 +13,14 @@ select_vocabulary () {
 	then
 		cat "${TRAIN_FILES[@]}" |
 		  ngram-count -order 1 -text - -no-sos -no-eos -write - |
-		  grep -v '^<unk>' |
+		  egrep -v '^(<unk>|<s>|</s>|-pau-)' |
 		  sort -s -g -k 2,2 -r |
 		  awk '$2 >= '"${VOCAB_MIN_COUNT}"' { print $1 }' \
 		  >"${vocab_file}"
 	else
 		cat "${TRAIN_FILES[@]}" |
 		  ngram-count -order 1 -text - -no-sos -no-eos -write-vocab - |
-		  grep -v '^<unk>' |
+		  egrep -v '^(<unk>|<s>|</s>|-pau-)' |
 		  sort \
 		  >"${vocab_file}"
 	fi

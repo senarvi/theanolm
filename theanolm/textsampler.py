@@ -33,7 +33,7 @@ class TextSampler(object):
         inputs = [network.input_word_ids, network.input_class_ids]
         inputs.extend(network.recurrent_state_input)
 
-        # multinomial() is only implemented for dimension < 2, but the matrix
+        # multinomial() is only implemented for dimension <= 2, but the matrix
         # contains only one time step anyway.
         output_probs = network.output_probs()[0]
         class_ids = self._random.multinomial(pvals=output_probs).argmax(1)

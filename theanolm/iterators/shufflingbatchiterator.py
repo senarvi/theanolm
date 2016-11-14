@@ -89,7 +89,7 @@ class SentencePointers(object):
 
     def __getitem__(self, sentence_index):
         """Returns a pointer to sentence with given index.
-        
+
         :type sentence_index: int
         :param sentence_index: a linear index between zero and one less the
                                total number of sentences
@@ -104,7 +104,7 @@ class SentencePointers(object):
 
 class ShufflingBatchIterator(BatchIterator):
     """Iterator for Reading Mini-Batches in a Random Order
-    
+
     Receives the positions of the line starts in the constructor, and shuffles
     the array whenever the end is reached.
     """
@@ -114,7 +114,7 @@ class ShufflingBatchIterator(BatchIterator):
                  sampling,
                  vocabulary,
                  batch_size=128,
-                 max_sequence_length=100):
+                 max_sequence_length=None):
         """Initializes the iterator to read sentences in linear order.
 
         :type input_files: list of file objects
@@ -180,7 +180,7 @@ class ShufflingBatchIterator(BatchIterator):
 
         Sets the offsets to the sentence starts (the order in which they are
         iterated), and the index to the current sentence.
-        
+
         Requires that ``state`` contains values for all the iterator parameters.
 
         :type state: h5py.File
@@ -206,10 +206,6 @@ class ShufflingBatchIterator(BatchIterator):
         logging.debug("Restored iterator to line %d of %d.",
                       self._next_line,
                       self._order.size)
-
-    def _create_order(self):
-        """Creates a random iteration order.
-        """
 
     def _reset(self, shuffle=True):
         """Resets the read pointer back to the beginning of the data set. If

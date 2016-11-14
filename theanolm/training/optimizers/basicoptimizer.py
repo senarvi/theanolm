@@ -104,23 +104,28 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         elif (cost_function == 'nce') or (cost_function == 'nce-shared'):
             # The noise sample is taken from uniform distribution. The
             # probability of a single word is 1/N.
-            word_prob = num_noise_samples
-            word_prob /= self.network.vocabulary.num_classes()
-            word_logprob = numpy.log(word_prob)
             target_logprobs = self.network.unnormalized_logprobs()
+            target_class_ids = self.network.target_class_ids
+            target_prior_logprobs = tensor.log(
+                self.network.class_prior_probs[target_class_ids])
             # In the article, h = 1 / (1 + e^-G). log(h) can be expressed using
             # the softplus function: log(h) = -log(1 + e^-G) = -softplus(-G)
-            G = target_logprobs - word_logprob
+            G = target_logprobs - target_prior_logprobs
             target_log_h = -tensor.nnet.softplus(-G)
+
             if cost_function == 'nce-shared':
-                sample_logprobs = self.network.shared_sample_logprobs()
+                sample, sample_logprobs = self.network.shared_noise_sample()
+                # Piror log probabilities of the sample will be broadcasted to
+                # the mini-batch shape.
             else:
-                sample_logprobs = self.network.sample_logprobs()
+                sample, sample_logprobs = self.network.noise_sample()
+            sample_prior_logprobs = tensor.log(
+                self.network.class_prior_probs[sample])
             # log(1 - h) = log(1 - e^G / (e^G + 1))
             #            = log((e^G + 1 - e^G) / (e^G + 1))
             #            = log(1) - log(e^G + 1)
             #            = -softplus(G)
-            G = sample_logprobs - word_logprob
+            G = sample_logprobs - sample_prior_logprobs
             sample_log_one_minus_h = -tensor.nnet.softplus(G)
             logprobs = target_log_h + sample_log_one_minus_h.sum(2)
         else:
