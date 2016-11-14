@@ -3,10 +3,9 @@
 
 import sys
 import logging
-import mmap
 import numpy
 import theano
-from theanolm.iterators import ShufflingBatchIterator, LinearBatchIterator
+from theanolm import ShufflingBatchIterator, LinearBatchIterator
 from theanolm.exceptions import IncompatibleStateError, NumberError
 from theanolm.training.optimizers import create_optimizer
 from theanolm.training.stoppers import create_stopper

@@ -145,8 +145,8 @@ class TextScorer(object):
         result = []
         membership_probs = membership_probs.astype(theano.config.floatX)
 
-        # We should predict probabilities of the words at the following time
-        # step.
+        # target_logprobs_function() uses the word and class IDs of the entire
+        # mini-batch, but membership probs and mask are only for the output.
         logprobs, mask = \
             self._target_logprobs_function(word_ids,
                                            class_ids,
@@ -231,23 +231,15 @@ class TextScorer(object):
         # Mask used by the network is all ones.
         mask = numpy.ones(word_ids.shape, numpy.int8)
 
-        # We should predict probabilities of the words at the following time
-        # step.
-        logprobs = self._target_logprobs_function(word_ids[:-1],
-                                                  class_ids[:-1],
-                                                  class_ids[1:],
+        # total_logprob_function() uses the word and class IDs of the entire
+        # mini-batch, but membership probs and mask are only for the output.
+        logprob, _ = self._total_logprob_function(word_ids,
+                                                  class_ids,
+                                                  membership_probs[1:],
                                                   mask[1:])
-        # Add logprobs from the class membership of the predicted word at each
-        # time step of each sequence.
-        logprobs += numpy.log(membership_probs[1:])
-        # If requested, predict <unk> with constant score.
-        if not self._unk_penalty is None:
-            logprobs[word_ids[1:] == self._unk_id] = self._unk_penalty
-        # If requested, zero out logprobs predicting <unk> token.
-        if self._ignore_unk:
-            logprobs[word_ids[1:] == self._unk_id] = 0
-
-        logprob = logprobs.sum()
         if numpy.isnan(logprob):
-            raise NumberError("Sentence logprob has NaN value.")
+            raise NumberError("Log probability of a sequence is NaN.")
+        if numpy.isinf(logprob):
+            raise NumberError("Log probability of a sequence is +/- infinity.")
+
         return logprob

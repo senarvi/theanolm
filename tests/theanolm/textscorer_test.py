@@ -12,13 +12,14 @@ from numpy.testing import assert_almost_equal
 class DummyNetwork(object):
     def __init__(self, vocabulary):
         self.vocabulary = vocabulary
-        self.word_input = tensor.matrix('word_input', dtype='int64')
-        self.class_input = tensor.matrix('class_input', dtype='int64')
+        self.input_word_ids = tensor.matrix('input_word_ids', dtype='int64')
+        self.input_class_ids = tensor.matrix('input_class_ids', dtype='int64')
+        self.target_class_ids = tensor.matrix('target_class_ids', dtype='int64')
         self.mask = tensor.matrix('mask', dtype='int64')
         self.is_training = tensor.scalar('is_training', dtype='int8')
 
     def target_probs(self):
-        return self.word_input[1:].astype('float32') / 5
+        return self.target_class_ids.astype('float32') / 5
 
 class TestTextScorer(unittest.TestCase):
     def setUp(self):
@@ -81,7 +82,7 @@ class TestTextScorer(unittest.TestCase):
         class_ids = numpy.arange(6)
         membership_probs = numpy.ones(6, dtype='float32')
         logprob = scorer.score_sequence(word_ids, class_ids, membership_probs)
-        correct = word_ids[1:].astype('float32')    
+        correct = word_ids[1:].astype('float32')
         correct = correct / 5
         correct = numpy.log(correct).sum()
         self.assertAlmostEqual(logprob, correct, places=5)

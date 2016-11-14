@@ -3,7 +3,6 @@
 
 import unittest
 import os
-import numpy
 from theano import tensor
 from theanolm import Vocabulary, TextSampler
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
@@ -11,8 +10,9 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 class DummyNetwork(object):
     def __init__(self, vocabulary):
         self.vocabulary = vocabulary
-        self.word_input = tensor.matrix('word_input', dtype='int64')
-        self.class_input = tensor.matrix('class_input', dtype='int64')
+        self.input_word_ids = tensor.matrix('input_word_ids', dtype='int64')
+        self.input_class_ids = tensor.matrix('input_class_ids', dtype='int64')
+        self.target_class_ids = tensor.matrix('target_class_ids', dtype='int64')
         self.mask = tensor.matrix('mask', dtype='int64')
         self.is_training = tensor.scalar('is_training', dtype='int8')
         self.recurrent_state_input = []
@@ -25,10 +25,9 @@ class DummyNetwork(object):
         yksi_id = self.vocabulary.word_to_id['yksi']
         kaksi_id = self.vocabulary.word_to_id['kaksi']
         eos_id = self.vocabulary.word_to_id['</s>']
-        sos_indices = tensor.eq(self.word_input, sos_id).nonzero()
 
-        num_time_steps = self.word_input.shape[0]
-        num_sequences = self.word_input.shape[1]
+        num_time_steps = self.input_word_ids.shape[0]
+        num_sequences = self.input_word_ids.shape[1]
         num_words = self.vocabulary.num_words()
         projection_matrix = tensor.zeros(shape=(num_words, num_words),
                                          dtype='float32')
@@ -39,7 +38,7 @@ class DummyNetwork(object):
         projection_matrix = tensor.set_subtensor(projection_matrix[kaksi_id, yksi_id], 0.5)
         projection_matrix = tensor.set_subtensor(projection_matrix[kaksi_id, eos_id], 0.5)
         projection_matrix = tensor.set_subtensor(projection_matrix[eos_id, sos_id], 1.0)
-        result = projection_matrix[self.word_input.flatten()]
+        result = projection_matrix[self.input_word_ids.flatten()]
         result = result.reshape([num_time_steps,
                                  num_sequences,
                                  num_words],

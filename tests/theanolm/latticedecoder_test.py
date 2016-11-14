@@ -16,8 +16,8 @@ from theanolm.scoring.lattice import Lattice
 class DummyNetwork(object):
     def __init__(self, vocabulary, projection_vector):
         self.vocabulary = vocabulary
-        self.word_input = tensor.matrix('word_input', dtype='int64')
-        self.class_input = tensor.matrix('class_input', dtype='int64')
+        self.input_word_ids = tensor.matrix('input_word_ids', dtype='int64')
+        self.input_class_ids = tensor.matrix('input_class_ids', dtype='int64')
         self.target_class_ids = tensor.matrix('target_class_ids', dtype='int64')
         self.mask = tensor.matrix('mask', dtype='int64')
         self.is_training = tensor.scalar('is_training', dtype='int8')
@@ -27,9 +27,9 @@ class DummyNetwork(object):
         self.projection_vector = projection_vector
 
     def target_probs(self):
-        num_time_steps = self.word_input.shape[0]
-        num_sequences = self.word_input.shape[1]
-        result = self.projection_vector[self.word_input.flatten()]
+        num_time_steps = self.input_word_ids.shape[0]
+        num_sequences = self.input_word_ids.shape[1]
+        result = self.projection_vector[self.input_word_ids.flatten()]
         result += self.projection_vector[self.target_class_ids.flatten()]
         result = result.reshape([num_time_steps,
                                  num_sequences],
