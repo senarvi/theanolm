@@ -237,32 +237,19 @@ class ShufflingBatchIterator(BatchIterator):
     def _readline(self):
         """Reads the next input line.
 
-        :rtype: str
-        :returns: next line from the data set, or an empty string if the end of
-                  the data set is reached.
+        :rtype: tuple of str and int
+        :returns: next line from the data set and the index of the file that was
+                  used to read it, or None if the end of the data set has been
+                  reached.
         """
 
         if self._next_line >= self._order.size:
-            return ''
+            return None
 
         sentence_index = self._order[self._next_line]
         input_file, position = self._sentence_pointers[sentence_index]
+        subset_index, _ = self._sentence_pointers.pointers[sentence_index]
         input_file.seek(position)
         line = input_file.readline()
         self._next_line += 1
-        return line
-
-    def _file_id(self):
-        """When the data set contains multiple files, returns the index of the
-        current file.
-
-        :rtype: int
-        :return: current file index
-        """
-
-        if self._next_line >= self._order.size:
-            return 0
-
-        sentence_index = self._order[self._next_line]
-        subset_index, _ = self._sentence_pointers.pointers[sentence_index]
-        return subset_index
+        return line, subset_index

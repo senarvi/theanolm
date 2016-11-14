@@ -159,13 +159,50 @@ class TestIterators(unittest.TestCase):
                 sequence_mask = mask[:,sequence]
                 sequence_word_ids = word_ids[sequence_mask != 0,sequence]
                 words.extend(self.vocabulary.id_to_word[sequence_word_ids])
-        corpus = ' '.join(words)
-        self.assertEqual(corpus,
+        self.assertEqual(' '.join(words),
                          '<s> yksi kaksi </s> '
                          '<s> kolme neljä viisi </s> '
                          '<s> kuusi seitsemän kahdeksan </s> '
                          '<s> yhdeksän </s> '
                          '<s> kymmenen </s>')
+
+        iterator = theanolm.LinearBatchIterator([self.sentences1_file,
+                                                 self.sentences2_file],
+                                                self.vocabulary,
+                                                batch_size=2,
+                                                max_sequence_length=5)
+        words = []
+        all_file_ids = []
+        for word_ids, file_ids, mask in iterator:
+            class_ids = self.vocabulary.word_id_to_class_id[word_ids]
+            assert_equal(word_ids, class_ids)
+            for sequence in range(mask.shape[1]):
+                sequence_mask = mask[:,sequence]
+                sequence_word_ids = word_ids[sequence_mask != 0,sequence]
+                words.extend(self.vocabulary.id_to_word[sequence_word_ids])
+                sequence_file_ids = file_ids[sequence_mask != 0,sequence]
+                all_file_ids.extend(sequence_file_ids)
+        self.assertEqual(' '.join(words),
+                         '<s> yksi kaksi </s> '
+                         '<s> kolme neljä viisi </s> '
+                         '<s> kuusi seitsemän kahdeksan </s> '
+                         '<s> yhdeksän </s> '
+                         '<s> kymmenen </s> '
+                         '<s> kymmenen yhdeksän </s> '
+                         '<s> kahdeksan seitsemän kuusi </s> '
+                         '<s> viisi </s> '
+                         '<s> neljä </s> '
+                         '<s> kolme kaksi yksi </s>')
+        assert_equal(all_file_ids, [0, 0, 0, 0,
+                                    0, 0, 0, 0, 0,
+                                    0, 0, 0, 0, 0,
+                                    0, 0, 0,
+                                    0, 0, 0,
+                                    1, 1, 1, 1,
+                                    1, 1, 1, 1, 1,
+                                    1, 1, 1,
+                                    1, 1, 1,
+                                    1, 1, 1, 1, 1])
 
 if __name__ == '__main__':
     unittest.main()
