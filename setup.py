@@ -9,7 +9,6 @@ from setuptools import setup, find_packages
 
 script_dir = path.dirname(path.realpath(__file__))
 version_path = path.join(script_dir, 'theanolm', 'version.py')
-scripts = glob(path.join(script_dir, 'bin', '*'))
 
 # Don't import theanolm, as the user may not have the dependencies installed
 # yet. This will import __version__.
