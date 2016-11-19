@@ -134,16 +134,19 @@ class BasicLayer(object):
                       dimension (in case ``value`` is a list, each part will
                       have this size)
 
-        :type value: float or list of floats
-        :param value: the value to initialize the elements to, or a list of
-                      values to create a concatenation of vectors
+        :type value: float, numpy.ndarray or list
+        :param value: the value or array to initialize the elements to, or a
+                      list of values or arrays to create a concatenation of
+                      vectors
         """
 
-        values = value if isinstance(value, list) else [value]
+        values = value if isinstance(value, (list, tuple)) else [value]
         parts = []
         for part_value in values:
             if part_value is None:
                 part = numpy.zeros(shape).astype(theano.config.floatX)
+            elif isinstance(value, numpy.ndarray):
+                part = value.astype(theano.config.floatX)
             else:
                 part = numpy.empty(shape).astype(theano.config.floatX)
                 part.fill(part_value)

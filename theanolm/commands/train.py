@@ -9,7 +9,7 @@ import h5py
 import theano
 from theanolm import Vocabulary, Architecture, Network
 from theanolm import LinearBatchIterator
-from theanolm.training import create_trainer
+from theanolm.training import create_trainer, create_optimizer
 from theanolm.scoring import TextScorer
 from theanolm.filetypes import TextFileType
 
@@ -118,10 +118,15 @@ def add_arguments(parser):
         '--cost', metavar='NAME', type=str, default='cross-entropy',
         help='cost function, one of "cross-entropy" (default), "nce" '
              '(noise-contrastive estimation), "nce-shared" (noise samples are '
-             'shared across mini-batch)')
+             'shared across mini-batch), "blackout", "blackout-shared"')
     argument_group.add_argument(
-        '--num-noise-samples', metavar='K', type=int, default=1,
-        help='sample K noise words per one training word for NCE (default 1)')
+        '--num-noise-samples', metavar='K', type=int, default=5,
+        help='sampling based costs sample K noise words per one training '
+             '(default 5)')
+    argument_group.add_argument(
+        '--unigram-noise', action="store_true",
+        help='sampling based costs use unigram noise distribution (default is '
+             'to sample from uniform distribution, which can be done on GPU)')
     argument_group.add_argument(
         '--unk-penalty', metavar='LOGPROB', type=float, default=None,
         help="if LOGPROB is zero, do not include <unk> tokens in perplexity "
@@ -166,10 +171,13 @@ def add_arguments(parser):
              'than one (default 1000)')
     argument_group.add_argument(
         '--debug', action="store_true",
-        help='enables debugging Theano errors')
+        help='use test values to get better error messages from Theano')
+    argument_group.add_argument(
+        '--print-graph', action="store_true",
+        help='print Theano computation graph')
     argument_group.add_argument(
         '--profile', action="store_true",
-        help='enables profiling Theano functions')
+        help='enable profiling Theano functions')
 
 def train(args):
     numpy.random.seed(args.random_seed)
@@ -220,16 +228,6 @@ def train(args):
         print("Number of words in vocabulary:", vocabulary.num_words())
         print("Number of word classes:", vocabulary.num_classes())
 
-        print("Building neural network.")
-        sys.stdout.flush()
-        if args.architecture == 'lstm300' or args.architecture == 'lstm1500':
-            architecture = Architecture.from_package(args.architecture)
-        else:
-            with open(args.architecture, 'rt', encoding='utf-8') as arch_file:
-                architecture = Architecture.from_description(arch_file)
-        network = Network(vocabulary, architecture, profile=args.profile)
-
-        sys.stdout.flush()
         if args.unk_penalty is None:
             ignore_unk = False
             unk_penalty = None
@@ -248,17 +246,20 @@ def train(args):
         for index, weight in enumerate(args.weights):
             weights[index] = weight
 
-        print("Building text scorer.")
-        scorer = TextScorer(network, ignore_unk, unk_penalty, args.profile)
-
-        validation_mmap = mmap.mmap(args.validation_file.fileno(),
-                                    0,
-                                    prot=mmap.PROT_READ)
-        validation_iter = \
-            LinearBatchIterator(validation_mmap,
-                                vocabulary,
-                                batch_size=args.batch_size,
-                                max_sequence_length=None)
+        training_options = {
+            'strategy': args.training_strategy,
+            'batch_size': args.batch_size,
+            'sequence_length': args.sequence_length,
+            'validation_frequency': args.validation_frequency,
+            'patience': args.patience,
+            'stopping_criterion': args.stopping_criterion,
+            'max_epochs': args.max_epochs,
+            'min_epochs': args.min_epochs,
+            'max_annealing_count': args.max_annealing_count
+        }
+        logging.debug("TRAINING OPTIONS")
+        for option_name, option_value in training_options.items():
+            logging.debug("%s: %s", option_name, str(option_value))
 
         optimization_options = {
             'method': args.optimization_method,
@@ -282,37 +283,53 @@ def train(args):
             else:
                 logging.debug("%s: %s", option_name, str(option_value))
 
-        training_options = {
-            'strategy': args.training_strategy,
-            'batch_size': args.batch_size,
-            'sequence_length': args.sequence_length,
-            'validation_frequency': args.validation_frequency,
-            'patience': args.patience,
-            'stopping_criterion': args.stopping_criterion,
-            'max_epochs': args.max_epochs,
-            'min_epochs': args.min_epochs,
-            'max_annealing_count': args.max_annealing_count
-        }
-        logging.debug("TRAINING OPTIONS")
-        for option_name, option_value in training_options.items():
-            logging.debug("%s: %s", option_name, str(option_value))
-
-        print("Building neural network trainer.")
-        sys.stdout.flush()
         if len(args.sampling) > len(args.training_set):
             print("You specified more sampling coefficients than training "
                   "files.")
             sys.exit(1)
-        trainer = create_trainer(
-            training_options, optimization_options,
-            network, vocabulary, scorer,
-            args.training_set, args.sampling, validation_iter,
-            state, args.profile)
+
+        print("Creating trainer.")
+        sys.stdout.flush()
+        trainer = create_trainer(training_options, vocabulary,
+                                 args.training_set, args.sampling,
+                                 state)
         trainer.set_logging(args.log_interval)
+
+        print("Building neural network.")
+        sys.stdout.flush()
+        if args.architecture == 'lstm300' or args.architecture == 'lstm1500':
+            architecture = Architecture.from_package(args.architecture)
+        else:
+            with open(args.architecture, 'rt', encoding='utf-8') as arch_file:
+                architecture = Architecture.from_description(arch_file)
+        network = Network(architecture, vocabulary, trainer.class_prior_probs,
+                          args.unigram_noise, profile=args.profile)
+
+        print("Compiling optimization function.")
+        sys.stdout.flush()
+        optimizer = create_optimizer(optimization_options, network,
+                                     args.profile)
+
+        if args.print_graph:
+            graph = optimizer.gradient_update_function.maker.fgraph.outputs[0]
+            print("Cost function computation graph:")
+            theano.printing.debugprint(optimizer.gradient_update_function)
+
+        print("Building text scorer.")
+        sys.stdout.flush()
+        scorer = TextScorer(network, ignore_unk, unk_penalty, args.profile)
+        validation_mmap = mmap.mmap(args.validation_file.fileno(),
+                                    0,
+                                    prot=mmap.PROT_READ)
+        validation_iter = \
+            LinearBatchIterator(validation_mmap,
+                                vocabulary,
+                                batch_size=args.batch_size,
+                                max_sequence_length=None)
 
         print("Training neural network.")
         sys.stdout.flush()
-        trainer.train()
+        trainer.train(optimizer, scorer, validation_iter, network)
 
         if not 'layers' in state.keys():
             print("The model has not been trained. No cross-validations were "

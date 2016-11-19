@@ -70,24 +70,29 @@ class Network(object):
             self.minibatch = minibatch
             self.nce = nce
 
-    def __init__(self, vocabulary, architecture, mode=None, profile=False):
+    def __init__(self, architecture, vocabulary, class_prior_probs=None,
+                 unigram_noise=False, mode=None, profile=False):
         """Initializes the neural network parameters for all layers, and
         creates Theano shared variables from them.
 
-        When using noise-contrastive estimation, the output layer needs to know
-        the prior distribution of the classes, and how many noise classes to
-        sample. The number of noise classes per training word is controlled by
-        the num_noise_samples tensor variable. The prior distribution is a
+        When using a sampling based output layer, it needs to know the prior
+        distribution of the classes, and how many noise classes to sample. The
+        number of noise classes per training word is controlled by the
+        ``num_noise_samples`` tensor variable. The prior distribution is a
         shared variable, so that we don't have to pass the vector to every call
-        of a Theano function. The constructor initializes it to the uniform
-        distribution, and it can be set to the proper probabilities using the
-        set_class_prior_probs() function.
+        of a Theano function. The constructor initializes it using
+        ``class_prior_probs``. If the ``unigram_noise`` is ``False``, noise
+        will be sampled from uniform distribution instead.
+
+        :type architecture: Architecture
+        :param architecture: an object that describes the network architecture
 
         :type vocabulary: Vocabulary
         :param vocabulary: mapping between word IDs and word classes
 
-        :type architecture: Architecture
-        :param architecture: an object that describes the network architecture
+        :type class_prior_probs: numpy.ndarray
+        :param class_prior_probs: empirical (unigram) distribution of the output
+                                  classes (only required for training)
 
         :type mode: Network.Mode
         :param mode: selects mini-batch or single time step processing
@@ -128,6 +133,10 @@ class Network(object):
             self.input_class_ids.tag.test_value = test_value(
                 size=(1, 16),
                 max_value=vocabulary.num_classes())
+
+        # During training, the output layer bias vector is initialized to the
+        # unigram probabilities.
+        self.class_prior_probs = class_prior_probs
 
         # Recurrent layers will create these lists, used to initialize state
         # variables of appropriate sizes, for doing forward passes one step at a
@@ -185,7 +194,9 @@ class Network(object):
         num_params = 0
         for layer in self.layers.values():
             for name, value in layer.param_init_values.items():
-                logging.debug("- %s size=%d", name, value.size)
+                logging.debug("- %s size=%d type=%s", name, value.size,
+                              value.dtype)
+                assert value.dtype != 'float64'
                 num_params += value.size
             self.param_init_values.update(layer.param_init_values)
         logging.debug("Total number of parameters: %d", num_params)
@@ -211,17 +222,27 @@ class Network(object):
         self.is_training = tensor.scalar('network/is_training', dtype='int8')
         self.is_training.tag.test_value = 1
 
-        # When using noise-contrastive estimation, the output layer needs to
-        # know the prior distribution of the classes, and how many noise classes
+        # num_noise_samples tells sampling based methods how many noise classes
         # to sample.
         self.num_noise_samples = tensor.scalar('network/num_noise_samples',
                                                dtype='int64')
         self.num_noise_samples.tag.test_value = 100
-        uniform_class_probs = numpy.ones(vocabulary.num_classes(),
-                                         dtype=theano.config.floatX)
-        uniform_class_probs /= vocabulary.num_classes()
-        self.class_prior_probs = theano.shared(uniform_class_probs,
-                                               'network/class_prior_probs')
+
+        # Sampling based methods use this noise distribution, if it's set.
+        # Otherwise noise is sampled from uniform distribution.
+        if unigram_noise:
+            # We mix uniform distribution and the unigram class distribution, so
+            # that also rare classes are sampled sometimes.
+            noise_probs = numpy.ones(vocabulary.num_classes(),
+                                     dtype=theano.config.floatX)
+            noise_probs /= vocabulary.num_classes()
+            noise_probs += class_prior_probs
+            noise_probs /= noise_probs.sum()
+            self.noise_probs = \
+                theano.shared(noise_probs.astype(theano.config.floatX),
+                              'network/noise_probs')
+        else:
+            self.noise_probs = None
 
         for layer in self.layers.values():
             layer.create_structure()
@@ -298,25 +319,6 @@ class Network(object):
         self.recurrent_state_input.append(variable)
 
         return index
-
-    def set_class_prior_probs(self, probs):
-        """Sets the prior (unigram) probabilities of the classes.
-
-        These are used only by the output layer when training using noise-
-        contrastive estimation, for sampling noise classes.
-
-        :type probs: numpy.ndarray
-        :param probs: the probability distribution
-        """
-
-        if (probs.shape != (self.vocabulary.num_classes(),)) or \
-           (not numpy.isclose(probs.sum(), 1.0)) or \
-           numpy.any(probs < 0):
-            raise ValueError("Network.set_class_prior_probs() expects a valid "
-                             "class probability distribution.")
-#        probs += 0.01
-#        probs /= probs.sum()
-        self.class_prior_probs.set_value(probs.astype(theano.config.floatX))
 
     def output_probs(self):
         """Returns the output probabilities for the whole vocabulary.

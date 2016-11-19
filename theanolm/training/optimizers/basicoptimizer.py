@@ -8,6 +8,7 @@ import numpy
 import theano
 import theano.tensor as tensor
 from theanolm.exceptions import IncompatibleStateError, NumberError
+from theanolm.matrixfunctions import test_value
 from theanolm.debugfunctions import *
 
 class BasicOptimizer(object, metaclass=ABCMeta):
@@ -19,14 +20,20 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         model.
 
         The subclass constructor is expected to give default values to all the
-        required parameters in self.param_init_values first. This constructor
-        will then create the corresponding Theano shared variables, and two
-        update functions:
+        required parameters in ``self.param_init_values`` first. This
+        constructor will then create the corresponding Theano shared variables,
+        and two update functions, ``self.gradient_update_function``, which
+        updates the gradient parameters and returns the cost, and
+        ``self.model_update_function``, which updates model state given the
+        gradients and the learning rate.
 
-        * gradient_update_function: updates the gradient parameters and returns
-          the cost
-        * model_update_function: updates model state given the gradients and the
-          learning rate
+        The gradient update functions takes as arguments three matrices:
+        1. Word IDs in the shape of a mini-batch. The functions will slice this
+           into input and output.
+        2. Class IDs in the shape of a mini-batch. The functions will slice this
+           into input and output.
+        3. Mask in the shape of a mini-batch, but only for the output words (not
+           for the first time step).
 
         :type optimization_options: dict
         :param optimization_options: a dictionary of optimization options
@@ -98,36 +105,30 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
         unk_id = self.network.vocabulary.word_to_id['<unk>']
 
+        # The functions take as input a mini-batch of word IDs and class IDs,
+        # and slice input and target IDs for the network.
+        batch_word_ids = tensor.matrix('optimizer/batch_word_ids',
+                                       dtype='int64')
+        batch_word_ids.tag.test_value = test_value(
+            size=(101, 16),
+            max_value=self.network.vocabulary.num_words())
+        batch_class_ids = tensor.matrix('optimizer/batch_class_ids',
+                                        dtype='int64')
+        batch_class_ids.tag.test_value = test_value(
+            size=(101, 16),
+            max_value=self.network.vocabulary.num_classes())
+
         if cost_function == 'cross-entropy':
             # Derive the symbolic expression for log probability of each word.
             logprobs = tensor.log(self.network.target_probs())
-        elif (cost_function == 'nce') or (cost_function == 'nce-shared'):
-            # The noise sample is taken from uniform distribution. The
-            # probability of a single word is 1/N.
-            target_logprobs = self.network.unnormalized_logprobs()
-            target_class_ids = self.network.target_class_ids
-            target_prior_logprobs = tensor.log(
-                self.network.class_prior_probs[target_class_ids])
-            # In the article, h = 1 / (1 + e^-G). log(h) can be expressed using
-            # the softplus function: log(h) = -log(1 + e^-G) = -softplus(-G)
-            G = target_logprobs - target_prior_logprobs
-            target_log_h = -tensor.nnet.softplus(-G)
-
-            if cost_function == 'nce-shared':
-                sample, sample_logprobs = self.network.shared_noise_sample()
-                # Piror log probabilities of the sample will be broadcasted to
-                # the mini-batch shape.
-            else:
-                sample, sample_logprobs = self.network.noise_sample()
-            sample_prior_logprobs = tensor.log(
-                self.network.class_prior_probs[sample])
-            # log(1 - h) = log(1 - e^G / (e^G + 1))
-            #            = log((e^G + 1 - e^G) / (e^G + 1))
-            #            = log(1) - log(e^G + 1)
-            #            = -softplus(G)
-            G = sample_logprobs - sample_prior_logprobs
-            sample_log_one_minus_h = -tensor.nnet.softplus(G)
-            logprobs = target_log_h + sample_log_one_minus_h.sum(2)
+        elif cost_function == 'nce':
+            logprobs = self._get_nce_cost(shared_noise=False)
+        elif cost_function == 'nce-shared':
+            logprobs = self._get_nce_cost(shared_noise=True)
+        elif cost_function == 'blackout':
+            logprobs = self._get_blackout_cost(shared_noise=False)
+        elif cost_function == 'blackout-shared':
+            logprobs = self._get_blackout_cost(shared_noise=True)
         else:
             raise ValueError("Invalid cost function requested: `{}'".format(
                              cost_function))
@@ -157,13 +158,13 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         # Ignore unused input, because is_training is only used by dropout
         # layer.
         self.gradient_update_function = theano.function(
-            [self.network.input_word_ids,
-             self.network.input_class_ids,
-             self.network.target_word_ids,
-             self.network.target_class_ids,
-             self.network.mask],
+            [batch_word_ids, batch_class_ids, self.network.mask],
             cost,
-            givens=[(self.network.is_training, numpy.int8(1)),
+            givens=[(network.input_word_ids, batch_word_ids[:-1]),
+                    (network.input_class_ids, batch_class_ids[:-1]),
+                    (network.target_word_ids, batch_word_ids[1:]),
+                    (network.target_class_ids, batch_class_ids[1:]),
+                    (self.network.is_training, numpy.int8(1)),
                     (self.network.num_noise_samples,
                      numpy.int64(num_noise_samples))],
             updates=self._gradient_update_exprs(),
@@ -256,16 +257,11 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
         # We should predict probabilities of the words at the following time
         # step.
-        input_word_ids = word_ids[:-1]
-        input_class_ids = class_ids[:-1]
         target_word_ids = word_ids[1:]
         target_class_ids = class_ids[1:]
         mask = mask[1:]
-        self.update_cost = self.gradient_update_function(input_word_ids,
-                                                         input_class_ids,
-                                                         target_word_ids,
-                                                         target_class_ids,
-                                                         mask)
+        self.update_cost = \
+            self.gradient_update_function(word_ids, class_ids, mask)
         if numpy.isnan(self.update_cost) or numpy.isinf(self.update_cost):
             raise NumberError("Mini-batch cost computation resulted in a "
                               "numerical error.")
@@ -282,6 +278,102 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         self.model_update_function(alpha)
 
         self.update_duration = time() - update_start_time
+
+    def _get_nce_cost(self, shared_noise):
+        """Returns a tensor variable that represents the mini-batch cost as
+        defined by noise-contrastive estimation.
+
+        M. U. Gutmann (2012)
+        Noise-Contrastive Estimation of Unnormalized Statistical Models, with
+        Applications to Natural Image Statistics
+        http://www.jmlr.org/papers/v13/gutmann12a.html
+
+        :type shared_noise: bool
+        :param shared_noise: use shared noise samples across mini-batch
+        """
+
+        target_logprobs = self.network.unnormalized_logprobs()
+        target_class_ids = self.network.target_class_ids
+        if self.network.noise_probs is None:
+            word_prob = 1.0 / self.network.vocabulary.num_classes()
+            word_logprob = numpy.log(word_prob)
+            target_prior_logprobs = word_logprob
+            # target_prior_logprobs will be broadcasted to the mini-batch shape,
+            # when subtracted from target_logprobs.
+        else:
+            target_prior_logprobs = tensor.log(
+                self.network.noise_probs[target_class_ids] + self._epsilon)
+        # In the article, h = 1 / (1 + e^-G). log(h) can be expressed using the
+        # softplus function: log(h) = -log(1 + e^-G) = -softplus(-G)
+        G = target_logprobs - target_prior_logprobs
+        target_log_h = -tensor.nnet.softplus(-G)
+
+        if shared_noise:
+            sample, sample_logprobs = self.network.shared_noise_sample()
+            # sample_prior_logprobs will be a one-dimensional array (or a scalar
+            # in case of uniform noise), but it will be broadcasted when
+            # subtracted from sample_logprobs.
+        else:
+            sample, sample_logprobs = self.network.noise_sample()
+        if self.network.noise_probs is None:
+            sample_prior_logprobs = word_logprob
+        else:
+            sample_prior_logprobs = tensor.log(
+                self.network.noise_probs[sample] + self._epsilon)
+        # log(1 - h) = log(1 - e^G / (e^G + 1))
+        #            = log((e^G + 1 - e^G) / (e^G + 1))
+        #            = log(1) - log(e^G + 1)
+        #            = -softplus(G)
+        G = sample_logprobs - sample_prior_logprobs
+        sample_log_one_minus_h = -tensor.nnet.softplus(G)
+        return target_log_h + sample_log_one_minus_h.sum(2)
+
+    def _get_blackout_cost(self, shared_noise):
+        """Returns a tensor variable that represents the mini-batch cost as
+        defined by BlackOut.
+
+        S. Ji (2016)
+        BlackOut: Speeding up Recurrent Neural Network Language Models With Very
+        Large Vocabularies
+        https://arxiv.org/abs/1511.06909
+
+        :type shared_noise: bool
+        :param shared_noise: use shared noise samples across mini-batch
+        """
+
+        target_logprobs = self.network.unnormalized_logprobs()
+        target_probs = tensor.exp(target_logprobs)
+        if self.network.noise_probs is None:
+            word_prob = 1.0 / self.network.vocabulary.num_classes()
+            target_prior_probs = word_prob
+            # target_prior_probs will be broadcasted to the mini-batch shape,
+            # when it is used to divide target_probs.
+        else:
+            target_prior_probs = \
+                self.network.noise_probs[target_class_ids]
+        target_weighted_probs = target_probs / target_prior_probs
+
+        if shared_noise:
+            sample, sample_logprobs = self.network.shared_noise_sample()
+            # sample_prior_probs will be a one-dimensional array (or a scalar in
+            # case of uniform noise), but it will be broadcasted when used to
+            # divide sample_probs.
+        else:
+            sample, sample_logprobs = self.network.noise_sample()
+        sample_probs = tensor.exp(sample_logprobs)
+        if self.network.noise_probs is None:
+            sample_prior_probs = word_prob
+        else:
+            sample_prior_probs = self.network.noise_probs[sample]
+        sample_weighted_probs = sample_probs / sample_prior_probs
+
+        denominators = target_weighted_probs + \
+                       sample_weighted_probs.sum(2)
+        target_costs = target_weighted_probs / denominators
+        sample_costs = sample_weighted_probs / denominators[:,:,None]
+        sample_costs = 1.0 - sample_costs
+        logprobs = tensor.log(target_costs + self._epsilon)
+        logprobs += tensor.log(sample_costs + self._epsilon).sum(2)
 
     @abstractmethod
     def _gradient_update_exprs(self):

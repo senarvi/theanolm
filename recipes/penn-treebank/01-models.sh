@@ -41,15 +41,15 @@ PATIENCE=0
 #train
 #compute_perplexity
 
-# Model performance stopped improving. Decreasing learning rate from 1.25 to 0.625 and resetting state to 100 % of epoch 9.
-# Finished training epoch 9. Best validation perplexity 121.57.
-# Best validation set perplexity: 121.557743029
+# Model performance stopped improving. Decreasing learning rate from 1.25 to 0.625 and resetting state to 100 % of epoch 8.
+# Finished training epoch 8. Best validation perplexity 121.18.
+# Best validation set perplexity: 121.156465316
 # Number of sentences: 3761
 # Number of words: 200582
 # Number of predicted probabilities: 82430
-# Cross entropy (base e): 4.760321860161241
-# Perplexity: 116.78350780925942
-# ./01-models.sh  3878.42s user 1433.86s system 99% cpu 1:28:35.36 total
+# Cross entropy (base e): 4.751490638853352
+# Perplexity: 115.75670743075338
+# ./01-models.sh  3538.38s user 1396.68s system 99% cpu 1:22:18.42 total
 
 ### hierarchical softmax #######################################################
 
@@ -74,56 +74,38 @@ PATIENCE=0
 
 #ARCHITECTURE_FILE="${arch_dir}/word-lstm256.arch"
 #COST=nce
-#NUM_NOISE_SAMPLES=3
-#LEARNING_RATE=10
+#NUM_NOISE_SAMPLES=25
+#LEARNING_RATE=20
 #rm -f "${OUTPUT_DIR}/nnlm.h5"
 #train
 #compute_perplexity
 
-# Model performance stopped improving. Decreasing learning rate from 0.15625 to 0.078125 and resetting state to 100 % of epoch 19.
-# Finished training epoch 19. Best validation perplexity 146.85.
-# Best validation set perplexity: 146.850085988
+# Model performance stopped improving. Decreasing learning rate from 0.15625 to 0.078125 and resetting state to 100 % of epoch 12.
+# Finished training epoch 12. Best validation perplexity 168.38.
+# Best validation set perplexity: 168.36442896
 # Number of sentences: 3761
 # Number of words: 200582
 # Number of predicted probabilities: 82430
-# Cross entropy (base e): 4.951415101841734
-# Perplexity: 141.37488229199442
-# ./01-models.sh  11131.72s user 3069.75s system 100% cpu 3:56:41.34 total
-
-#ARCHITECTURE_FILE="${arch_dir}/word-lstm256.arch"
-#COST=nce
-#NUM_NOISE_SAMPLES=5
-#LEARNING_RATE=25
-#rm -f "${OUTPUT_DIR}/nnlm.h5"
-#train
-#compute_perplexity
-
-# Finished training epoch 20. Best validation perplexity 158.46.
-# Stopping because 20 epochs was reached.
-# Best validation set perplexity: 158.533356181
-# Number of sentences: 3761
-# Number of words: 200582
-# Number of predicted probabilities: 82430
-# Cross entropy (base e): 5.018736468023775
-# Perplexity: 151.22011158431908
-# ./01-models.sh  13962.08s user 3514.67s system 100% cpu 4:51:16.59 total
+# Cross entropy (base e): 5.090273458248636
+# Perplexity: 162.43427497302542
+# ./01-models.sh  4617.24s user 1921.59s system 99% cpu 1:49:11.62 total
 
 ## noise-contrastive estimation with shared noise samples ######################
 
 #ARCHITECTURE_FILE="${arch_dir}/word-lstm256.arch"
 #COST=nce-shared
 #NUM_NOISE_SAMPLES=100
-#LEARNING_RATE=1
+#LEARNING_RATE=10
 #rm -f "${OUTPUT_DIR}/nnlm.h5"
 #train
 #compute_perplexity
 
-# Finished training epoch 20. Best validation perplexity 175.32.
-# Stopping because 20 epochs was reached.
-# Best validation set perplexity: 172.261715319
+# Model performance stopped improving. Decreasing learning rate from 0.078125 to 0.0390625 and resetting state to 100 % of epoch 17.
+# Finished training epoch 17. Best validation perplexity 166.00.
+# Best validation set perplexity: 166.029556588
 # Number of sentences: 3761
 # Number of words: 200582
 # Number of predicted probabilities: 82430
-# Cross entropy (base e): 5.089891811854721
-# Perplexity: 162.37229434582747
-# ./01-models.sh  4278.18s user 1731.88s system 99% cpu 1:40:13.76 total
+# Cross entropy (base e): 5.071950370897041
+# Perplexity: 159.485079261145
+# ./01-models.sh  5353.70s user 2027.92s system 99% cpu 2:03:12.38 total

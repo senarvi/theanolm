@@ -100,16 +100,6 @@ class GRULayer(BasicLayer):
             hidden_state_input = \
                 self.network.recurrent_state_input[self.hidden_state_index]
 
-            assert_op = tensor.opt.Assert(
-                "When processing a single time step, a matrix with an "
-                "unexpected shape was encountered.")
-            mask = assert_op(
-                self.network.mask, tensor.eq(self.network.mask.shape[0], 1))
-            layer_input_preact = assert_op(
-                layer_input_preact, tensor.eq(layer_input_preact.shape[0], 1))
-            hidden_state_input = assert_op(
-                hidden_state_input, tensor.eq(hidden_state_input.shape[0], 1))
-
             hidden_state_output = self._create_time_step(
                 mask[0],
                 layer_input_preact[0],
@@ -117,8 +107,6 @@ class GRULayer(BasicLayer):
                 hidden_state_weights)
 
             # Create a new axis for time step with size 1.
-            hidden_state_output = assert_op(
-                hidden_state_output, tensor.eq(hidden_state_output.ndim, 2))
             hidden_state_output = hidden_state_output[None,:,:]
 
             self.network.recurrent_state_output[self.hidden_state_index] = \

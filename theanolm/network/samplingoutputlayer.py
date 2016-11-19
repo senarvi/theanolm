@@ -8,15 +8,17 @@ import theano.tensor as tensor
 from theanolm.network.basiclayer import BasicLayer
 from theanolm.debugfunctions import *
 
-class NCELayer(BasicLayer):
-    """Output Layer with NCE Support
+class SamplingOutputLayer(BasicLayer):
+    """Sampling Support for Output Layer
 
-    Base class for output layers with support for noise-contrastive estimation.
-    The base class defines functions for computing unnormalized probabilities.
+    Base class for output layers with support for sampling noise words and
+    computing unnormalized probabilities. This is needed for Noise-contrastive
+    estimation and BlackOut.
     """
 
     def _compute_sample_logprobs(self, layer_input):
-        """Creates noise samples for NCE and computes their log probabilities.
+        """Creates noise samples for NCE and BlackOut, and computes their log
+        probabilities.
 
         :type layer_input: TensorVariable
         :param layer_input: a 3-dimensional tensor that contains the input
@@ -32,11 +34,15 @@ class NCELayer(BasicLayer):
         # across mini-batch. We need to repeat the distribution as many times as
         # we want samples, because multinomial() does not yet use the size
         # argument.
-        class_probs = self.network.class_prior_probs
-        class_probs = class_probs[None, :]
-        class_probs = tensor.tile(class_probs, [num_samples, 1])
-        sample = self.network.random.multinomial(pvals=class_probs)
-        sample = sample.argmax(1)
+        if self.network.noise_probs is None:
+            sample = self.network.random.uniform((num_samples,))
+            sample *= num_classes
+            sample = tensor.cast(sample, 'int64')
+        else:
+            class_probs = self.network.noise_probs[None, :]
+            class_probs = tensor.tile(class_probs, [num_samples, 1])
+            sample = self.network.random.multinomial(pvals=class_probs)
+            sample = sample.argmax(1)
         self.shared_sample_logprobs = \
             self._get_target_list_preact(layer_input, sample)
         self.shared_sample = sample
@@ -44,12 +50,25 @@ class NCELayer(BasicLayer):
         # Sample k noise words per training word from unigram distribution.
         # multinomial() is only implemented for dimension <= 2, so we'll create
         # a 2-dimensional probability distribution and then reshape the result.
-        class_probs = self.network.class_prior_probs
-        class_probs = class_probs[None, :]
         num_batch_samples = num_time_steps * num_sequences * num_samples
-        class_probs = tensor.tile(class_probs, [num_batch_samples, 1])
-        sample = self.network.random.multinomial(pvals=class_probs)
-        sample = sample.argmax(1)
+        if self.network.noise_probs is None:
+            sample = self.network.random.uniform((num_batch_samples,))
+            sample *= num_classes
+            sample = tensor.cast(sample, 'int64')
+        else:
+            class_probs = self.network.noise_probs[None, :]
+            class_probs = tensor.tile(class_probs, [num_batch_samples, 1])
+            # Since we sample different noise words for different data words, we can
+            # set the probability of the correct data words to zero, as suggested in
+            # the BlackOut paper.
+            target_class_ids = self.network.target_class_ids[:, :, None]
+            target_class_ids = tensor.tile(target_class_ids, [1, 1, num_samples])
+            target_class_ids = target_class_ids.flatten()
+            target_sample_ids = tensor.arange(num_batch_samples)
+            class_probs = tensor.set_subtensor(
+                class_probs[(target_sample_ids, target_class_ids)], 0)
+            sample = self.network.random.multinomial(pvals=class_probs)
+            sample = sample.argmax(1)
         sample = sample.reshape([num_time_steps, num_sequences, num_samples])
         self.sample_logprobs = \
             self._get_target_preact(layer_input, sample)
@@ -100,19 +119,6 @@ class NCELayer(BasicLayer):
         minibatch_size = num_time_steps * num_sequences
         layer_input = layer_input.reshape([minibatch_size, 1, input_size])
 
-        layer_input = assert_tensor_eq(
-            layer_input,
-            'target_class_ids.shape[0]',
-            'num_time_steps',
-            target_class_ids.shape[0],
-            num_time_steps)
-        layer_input = assert_tensor_eq(
-            layer_input,
-            'target_class_ids.shape[1]',
-            'num_sequences',
-            target_class_ids.shape[1],
-            num_sequences)
-
         # Create preactivation for only the target outputs.
         weight = self._params[self._param_path('input/W')]
         bias = self._params[self._param_path('input/b')]
@@ -120,7 +126,12 @@ class NCELayer(BasicLayer):
         weight = weight.T
         weight = weight[target_class_ids, :]
         weight = weight.reshape([minibatch_size, -1, input_size])
-        bias = bias[target_class_ids]
+        # For some reason if we select elements from a vector, it will use
+        # GpuAdvancedIncSubtensor1 and be slow. If bias is a matrix, it will
+        # use the faster GpuAdvancedIncSubtensor1_dev20.
+        bias = bias[:, None]
+        bias = bias[target_class_ids, 0]
+#        bias = bias[target_class_ids]
         bias = bias.reshape([minibatch_size, -1])
 
         result = (layer_input * weight).sum(2) + bias
@@ -141,13 +152,6 @@ class NCELayer(BasicLayer):
         :returns: a 3-dimensional tensor that contains the preactivation for
                   every target word, at each time step of each sequence
         """
-
-        assert_op = tensor.opt.Assert(
-            "A list of target IDs required, but a multidimensional tensor was "
-            "given.")
-        target_class_ids = assert_op(
-            target_class_ids,
-            tensor.eq(target_class_ids.ndim, 1))
 
         # Create preactivation for only the target outputs.
         weight = self._params[self._param_path('input/W')]

@@ -52,7 +52,7 @@ def score(args):
         print("Building neural network.")
         sys.stdout.flush()
         architecture = Architecture.from_state(state)
-        network = Network(vocabulary, architecture)
+        network = Network(architecture, vocabulary)
         print("Restoring neural network state.")
         sys.stdout.flush()
         network.set_state(state)

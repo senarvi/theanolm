@@ -121,6 +121,11 @@ train () {
 		extra_args+=(--unk-penalty "${UNK_PENALTY}")
 	fi
 	[ -n "${DEBUG}" ] && extra_args+=(--debug)
+	if [ -n "${PROFILE}" ]
+	then
+		extra_args+=(--print-graph --profile)
+		export CUDA_LAUNCH_BLOCKING=1
+	fi
 	[ -n "${ARCHITECTURE_FILE}" ] && extra_args+=(--architecture "${ARCHITECTURE_FILE}")
 
 	mkdir -p "${OUTPUT_DIR}"

@@ -1,6 +1,7 @@
 import numpy
 from theanolm.training.basictrainer import BasicTrainer
 from theanolm.training.localstatisticstrainer import LocalStatisticsTrainer
+from theanolm.training.optimizers import create_optimizer
 
 def create_trainer(training_options, *args, **kwargs):
     """Constructs one of the BasicTrainer subclasses based on training options.
