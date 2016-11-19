@@ -52,6 +52,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
                        for name, value in self.param_init_values.items()}
 
         float_type = numpy.dtype(theano.config.floatX).type
+        self.float_type = float_type
 
         # numerical stability / smoothing term to prevent divide-by-zero
         if not 'epsilon' in optimization_options:
@@ -297,12 +298,13 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         if self.network.noise_probs is None:
             word_prob = 1.0 / self.network.vocabulary.num_classes()
             word_logprob = numpy.log(word_prob)
+            word_logprob = self.float_type(word_logprob)
             target_prior_logprobs = word_logprob
             # target_prior_logprobs will be broadcasted to the mini-batch shape,
             # when subtracted from target_logprobs.
         else:
-            target_prior_logprobs = tensor.log(
-                self.network.noise_probs[target_class_ids] + self._epsilon)
+            noise_probs = self.network.noise_probs[target_class_ids]
+            target_prior_logprobs = tensor.log(noise_probs + self._epsilon)
         # In the article, h = 1 / (1 + e^-G). log(h) can be expressed using the
         # softplus function: log(h) = -log(1 + e^-G) = -softplus(-G)
         G = target_logprobs - target_prior_logprobs
@@ -318,8 +320,8 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         if self.network.noise_probs is None:
             sample_prior_logprobs = word_logprob
         else:
-            sample_prior_logprobs = tensor.log(
-                self.network.noise_probs[sample] + self._epsilon)
+            noise_probs = self.network.noise_probs[sample]
+            sample_prior_logprobs = tensor.log(noise_probs + self._epsilon)
         # log(1 - h) = log(1 - e^G / (e^G + 1))
         #            = log((e^G + 1 - e^G) / (e^G + 1))
         #            = log(1) - log(e^G + 1)
