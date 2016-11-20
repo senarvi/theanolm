@@ -70,15 +70,29 @@ class Network(object):
             self.minibatch = minibatch
             self.nce = nce
 
-    def __init__(self, vocabulary, architecture, mode=None, profile=False):
+    def __init__(self, architecture, vocabulary, class_prior_probs=None,
+                 unigram_noise=False, mode=None, profile=False):
         """Initializes the neural network parameters for all layers, and
         creates Theano shared variables from them.
+
+        When using a sampling based output layer, it needs to know the prior
+        distribution of the classes, and how many noise classes to sample. The
+        number of noise classes per training word is controlled by the
+        ``num_noise_samples`` tensor variable. The prior distribution is a
+        shared variable, so that we don't have to pass the vector to every call
+        of a Theano function. The constructor initializes it using
+        ``class_prior_probs``. If the ``unigram_noise`` is ``False``, noise
+        will be sampled from uniform distribution instead.
+
+        :type architecture: Architecture
+        :param architecture: an object that describes the network architecture
 
         :type vocabulary: Vocabulary
         :param vocabulary: mapping between word IDs and word classes
 
-        :type architecture: Architecture
-        :param architecture: an object that describes the network architecture
+        :type class_prior_probs: numpy.ndarray
+        :param class_prior_probs: empirical (unigram) distribution of the output
+                                  classes (only required for training)
 
         :type mode: Network.Mode
         :param mode: selects mini-batch or single time step processing
@@ -107,18 +121,18 @@ class Network(object):
         self.input_class_ids = tensor.matrix('network/input_class_ids', dtype='int64')
         if self.mode.minibatch:
             self.input_word_ids.tag.test_value = test_value(
-                size=(100, 16),
-                max_value=vocabulary.num_words())
+                size=(100, 16), high=vocabulary.num_words())
             self.input_class_ids.tag.test_value = test_value(
-                size=(100, 16),
-                max_value=vocabulary.num_classes())
+                size=(100, 16), high=vocabulary.num_classes())
         else:
             self.input_word_ids.tag.test_value = test_value(
-                size=(1, 16),
-                max_value=vocabulary.num_words())
+                size=(1, 16), high=vocabulary.num_words())
             self.input_class_ids.tag.test_value = test_value(
-                size=(1, 16),
-                max_value=vocabulary.num_classes())
+                size=(1, 16), high=vocabulary.num_classes())
+
+        # During training, the output layer bias vector is initialized to the
+        # unigram probabilities.
+        self.class_prior_probs = class_prior_probs
 
         # Recurrent layers will create these lists, used to initialize state
         # variables of appropriate sizes, for doing forward passes one step at a
@@ -151,24 +165,20 @@ class Network(object):
                                               dtype='int64')
         if self.mode.minibatch:
             self.target_class_ids.tag.test_value = test_value(
-                size=(100, 16),
-                max_value=vocabulary.num_classes())
+                size=(100, 16), high=vocabulary.num_classes())
         else:
             self.target_class_ids.tag.test_value = test_value(
-                size=(1, 16),
-                max_value=vocabulary.num_classes())
+                size=(1, 16), high=vocabulary.num_classes())
 
         # This input variable is used only for detecting <unk> target words.
         self.target_word_ids = tensor.matrix('network/target_word_ids',
                                              dtype='int64')
         if self.mode.minibatch:
             self.target_word_ids.tag.test_value = test_value(
-                size=(100, 16),
-                max_value=vocabulary.num_words())
+                size=(100, 16), high=vocabulary.num_words())
         else:
             self.target_word_ids.tag.test_value = test_value(
-                size=(1, 16),
-                max_value=vocabulary.num_words())
+                size=(1, 16), high=vocabulary.num_words())
 
         # Create initial parameter values.
         logging.debug("Initializing parameters.")
@@ -176,7 +186,9 @@ class Network(object):
         num_params = 0
         for layer in self.layers.values():
             for name, value in layer.param_init_values.items():
-                logging.debug("- %s size=%d", name, value.size)
+                logging.debug("- %s size=%d type=%s", name, value.size,
+                              value.dtype)
+                assert value.dtype != 'float64'
                 num_params += value.size
             self.param_init_values.update(layer.param_init_values)
         logging.debug("Total number of parameters: %d", num_params)
@@ -192,9 +204,7 @@ class Network(object):
         # data type, which is how Tensor stores booleans.
         if self.mode.minibatch:
             self.mask = tensor.matrix('network/mask', dtype='int8')
-            self.mask.tag.test_value = test_value(
-                size=(100, 16),
-                max_value=True)
+            self.mask.tag.test_value = test_value(size=(100, 16), high=True)
         else:
             self.mask = tensor.ones(self.input_word_ids.shape, dtype='int8')
 
@@ -202,11 +212,27 @@ class Network(object):
         self.is_training = tensor.scalar('network/is_training', dtype='int8')
         self.is_training.tag.test_value = 1
 
-        # Softmax layer needs to know how many noise words to sample for noise-
-        # contrastive estimation.
+        # num_noise_samples tells sampling based methods how many noise classes
+        # to sample.
         self.num_noise_samples = tensor.scalar('network/num_noise_samples',
                                                dtype='int64')
-        self.num_noise_samples.tag.test_value = 100
+        self.num_noise_samples.tag.test_value = 25
+
+        # Sampling based methods use this noise distribution, if it's set.
+        # Otherwise noise is sampled from uniform distribution.
+        if unigram_noise:
+            # We mix uniform distribution and the unigram class distribution, so
+            # that also rare classes are sampled sometimes.
+            noise_probs = numpy.ones(vocabulary.num_classes(),
+                                     dtype=theano.config.floatX)
+            noise_probs /= vocabulary.num_classes()
+            noise_probs += class_prior_probs
+            noise_probs /= noise_probs.sum()
+            self.noise_probs = \
+                theano.shared(noise_probs.astype(theano.config.floatX),
+                              'network/noise_probs')
+        else:
+            self.noise_probs = None
 
         for layer in self.layers.values():
             layer.create_structure()
@@ -262,6 +288,12 @@ class Network(object):
         Used by recurrent layers to add a state variable that has to be passed
         from one time step to the next, when generating text or computing
         lattice probabilities.
+
+        :type size: int
+        :param size: size of the state vector
+
+        :rtype size: int
+        :param size: index of the new recurrent state variable
         """
 
         index = len(self.recurrent_state_size)
@@ -271,7 +303,7 @@ class Network(object):
         # array) to keep the layer functions general.
         variable = tensor.tensor3('network/recurrent_state_' + str(index),
                                   dtype=theano.config.floatX)
-        variable.tag.test_value = test_value(size=(1, 16, size), max_value=1.0)
+        variable.tag.test_value = test_value(size=(1, 16, size), high=1.0)
 
         self.recurrent_state_size.append(size)
         self.recurrent_state_input.append(variable)
@@ -337,15 +369,15 @@ class Network(object):
                                "distribution.")
         return self.output_layer.unnormalized_logprobs
 
-    def sample_logprobs(self):
-        """Returns the log probabilities of words sampled from a noise
-        distribution.
+    def noise_sample(self):
+        """Returns the classes sampled from a noise distribution and their log
+        probabilities.
 
         Only computed when target_class_ids is given and using softmax output.
 
-        :rtype: TensorVariable
-        :returns: a symbolic 3-dimensional matrix that has the same shape as the
-                  mini-batch, and contains probabilities for random words
+        :rtype: tuple of two TensorVariables
+        :returns: two symbolic 3-dimensional matrices that contain 1) k noise
+                  classes per mini-batch element and 2) their log probabilities
         """
 
         if not hasattr(self.output_layer, 'sample_logprobs'):
@@ -355,17 +387,19 @@ class Network(object):
             raise RuntimeError("Trying to read target class probabilities, "
                                "while the output layer has produced the "
                                "distribution.")
-        return self.output_layer.sample_logprobs
+        return self.output_layer.sample, \
+               self.output_layer.sample_logprobs
 
-    def shared_sample_logprobs(self):
-        """Returns the log probabilities of words sampled from a noise
-        distribution. The sampled words are shared across mini-batch.
+    def shared_noise_sample(self):
+        """Returns the classes sampled from a noise distribution and their log
+        probabilities. The sampled words are shared across mini-batch.
 
         Only computed when target_class_ids is given and using softmax output.
 
-        :rtype: TensorVariable
-        :returns: a symbolic 3-dimensional matrix that has the same shape as the
-                  mini-batch, and contains probabilities for random words
+        :rtype: tuple of two TensorVariables
+        :returns: a list of k noise classes that are shared between every
+                  mini-batch element, and a symbolic 3-dimensional matrix that
+                  contains their log probabilities for each mini-batch element
         """
 
         if not hasattr(self.output_layer, 'shared_sample_logprobs'):
@@ -375,7 +409,8 @@ class Network(object):
             raise RuntimeError("Trying to read target class probabilities, "
                                "while the output layer has produced the "
                                "distribution.")
-        return self.output_layer.shared_sample_logprobs
+        return self.output_layer.shared_sample, \
+               self.output_layer.shared_sample_logprobs
 
     def _layer_options_from_description(self, description):
         """Creates layer options based on textual architecture description.

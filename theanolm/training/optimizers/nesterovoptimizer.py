@@ -3,7 +3,7 @@
 
 import numpy
 import theano
-from theanolm.optimizers.basicoptimizer import BasicOptimizer
+from theanolm.training.optimizers.basicoptimizer import BasicOptimizer
 
 class NesterovOptimizer(BasicOptimizer):
     """Nesterov Momentum Optimization Method

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy
-from theanolm.trainers.basictrainer import BasicTrainer
+from theanolm.training.basictrainer import BasicTrainer
 
 class MedianValidationTrainer(BasicTrainer):
     """A trainer that computes perplexity at several points ahead of the actual

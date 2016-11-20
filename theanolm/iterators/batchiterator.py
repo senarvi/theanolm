@@ -125,7 +125,7 @@ class BatchIterator(object, metaclass=ABCMeta):
             if sequence is None:
                 break
             if len(sequence) < 2:
-                continue                
+                continue
             num_sequences += 1
 
         self._reset(False)
@@ -159,11 +159,12 @@ class BatchIterator(object, metaclass=ABCMeta):
         """
 
         if not self.buffer:
-            file_id = self._file_id()
-            line = self._readline()
-            if len(line) == 0:
+            line_and_file_id = self._readline()
+            if line_and_file_id is None:
                 # end of data
                 return None
+            line = line_and_file_id[0]
+            file_id = line_and_file_id[1]
             self.buffer = [(word, file_id)
                            for word in utterance_from_line(line)]
 
@@ -183,22 +184,13 @@ class BatchIterator(object, metaclass=ABCMeta):
     def _readline(self):
         """Reads the next input line.
 
-        :rtype: str
-        :returns: next line from the data set, or an empty string if the end of
-                  the data set is reached.
+        :rtype: tuple of str and int
+        :returns: next line from the data set and the index of the file that was
+                  used to read it, or None if the end of the data set has been
+                  reached.
         """
 
         assert False
-
-    def _file_id(self):
-        """When the data set contains multiple files, returns the index of the
-        current file. The default implementation returns always 0.
-
-        :rtype: int
-        :return: current file index
-        """
-
-        return 0
 
     def _prepare_batch(self, sequences):
         """Transposes a list of sequences into a list of time steps. Then

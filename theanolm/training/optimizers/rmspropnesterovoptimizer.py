@@ -4,15 +4,15 @@
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.optimizers.basicoptimizer import BasicOptimizer
+from theanolm.training.optimizers.basicoptimizer import BasicOptimizer
 
 class RMSPropNesterovOptimizer(BasicOptimizer):
     """RMSProp Variation of Nesterov Momentum Optimization Method
-    
+
     At the time of writing, RMSProp is an unpublished method. Usually people
     cite slide 29 of Lecture 6 of Geoff Hinton's Coursera class:
     http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf 
-    
+
     The idea is simply to maintain a running average of the squared gradient for
     each parameter, and divide the gradient by the root of the mean squared
     gradient (RMS). This makes RMSProp take steps near 1 whenever the gradient

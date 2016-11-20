@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import unittest
-import os
-from theanolm.trainers import BasicTrainer
+from theanolm.training import BasicTrainer
 
 class DummyTrainer(object):
     pass

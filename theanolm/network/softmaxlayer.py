@@ -5,10 +5,10 @@ from collections import OrderedDict
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.network.ncelayer import NCELayer
+from theanolm.network.samplingoutputlayer import SamplingOutputLayer
 from theanolm.debugfunctions import *
 
-class SoftmaxLayer(NCELayer):
+class SoftmaxLayer(SamplingOutputLayer):
     """Softmax Output Layer
 
     The output layer is a simple softmax layer that outputs the word
@@ -27,7 +27,11 @@ class SoftmaxLayer(NCELayer):
         self._init_random_weight('input/W',
                                  (input_size, output_size),
                                  scale=0.01)
-        self._init_bias('input/b', output_size)
+        if self.network.class_prior_probs is None:
+            self._init_bias('input/b', output_size)
+        else:
+            initial_bias = numpy.log(self.network.class_prior_probs + 1e-10)
+            self._init_bias('input/b', output_size, initial_bias)
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.
@@ -49,60 +53,30 @@ class SoftmaxLayer(NCELayer):
         # Combine the first two dimensions so that softmax is taken
         # independently for each location, over the output classes. This
         # produces probabilities for the whole vocabulary.
-        num_time_steps = preact.shape[0]
-        num_sequences = preact.shape[1]
-        output_size = preact.shape[2]
+        num_time_steps = layer_input.shape[0]
+        num_sequences = layer_input.shape[1]
         preact = preact.reshape([num_time_steps * num_sequences,
-                                 output_size])
+                                 self.output_size])
         output_probs = tensor.nnet.softmax(preact)
-        output_probs = output_probs.reshape([num_time_steps,
-                                             num_sequences,
-                                             output_size])
-        self.output_probs = output_probs
+        self.output_probs = output_probs.reshape([num_time_steps,
+                                                  num_sequences,
+                                                  self.output_size])
 
         if self.network.target_class_ids is None:
             self.target_probs = None
             self.unnormalized_logprobs = None
+            self.sample = None
             self.sample_logprobs = None
+            self.shared_sample = None
             self.shared_sample_logprobs = None
             return
 
-        num_time_steps = output_probs.shape[0]
-        num_sequences = output_probs.shape[1]
-        target_class_ids = self.network.target_class_ids
-        target_class_ids = assert_tensor_eq(
-            target_class_ids,
-            'target_class_ids.shape[0]',
-            'num_time_steps',
-            target_class_ids.shape[0],
-            num_time_steps)
-        target_class_ids = assert_tensor_eq(
-            target_class_ids,
-            'target_class_ids.shape[1]',
-            'num_sequences',
-            target_class_ids.shape[1],
-            num_sequences)
-        num_classes = self.network.vocabulary.num_classes()
-        assert num_classes == self.output_size
+        element_ids = tensor.arange(num_time_steps * num_sequences)
+        target_class_ids = self.network.target_class_ids.flatten()
+        target_probs = output_probs[(element_ids, target_class_ids)]
+        self.target_probs = target_probs.reshape([num_time_steps,
+                                                  num_sequences])
 
         # Compute unnormalized output and noise samples for NCE.
         self._compute_unnormalized_logprobs(layer_input)
         self._compute_sample_logprobs(layer_input)
-
-        # An index to a flattened input matrix times the vocabulary size can be
-        # used to index the same location in the output matrix. The class ID is
-        # added to index the probability of that word.
-        output_probs = output_probs.flatten()
-        target_class_ids = target_class_ids.flatten()
-        minibatch_size = target_class_ids.shape[0]
-        output_probs = assert_tensor_eq(
-            output_probs,
-            'output_probs.shape[0]',
-            'minibatch_size * num_classes',
-            output_probs.shape[0],
-            minibatch_size * num_classes)
-        target_indices = tensor.arange(minibatch_size) * num_classes
-        target_indices += target_class_ids
-        self.target_probs = output_probs[target_indices]
-        self.target_probs = self.target_probs.reshape([num_time_steps,
-                                                       num_sequences])

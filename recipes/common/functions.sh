@@ -13,14 +13,14 @@ select_vocabulary () {
 	then
 		cat "${TRAIN_FILES[@]}" |
 		  ngram-count -order 1 -text - -no-sos -no-eos -write - |
-		  grep -v '^<unk>' |
+		  egrep -v '^(<unk>|<s>|</s>|-pau-)' |
 		  sort -s -g -k 2,2 -r |
 		  awk '$2 >= '"${VOCAB_MIN_COUNT}"' { print $1 }' \
 		  >"${vocab_file}"
 	else
 		cat "${TRAIN_FILES[@]}" |
 		  ngram-count -order 1 -text - -no-sos -no-eos -write-vocab - |
-		  grep -v '^<unk>' |
+		  egrep -v '^(<unk>|<s>|</s>|-pau-)' |
 		  sort \
 		  >"${vocab_file}"
 	fi
@@ -121,6 +121,11 @@ train () {
 		extra_args+=(--unk-penalty "${UNK_PENALTY}")
 	fi
 	[ -n "${DEBUG}" ] && extra_args+=(--debug)
+	if [ -n "${PROFILE}" ]
+	then
+		extra_args+=(--print-graph --profile)
+		export CUDA_LAUNCH_BLOCKING=1
+	fi
 	[ -n "${ARCHITECTURE_FILE}" ] && extra_args+=(--architecture "${ARCHITECTURE_FILE}")
 
 	mkdir -p "${OUTPUT_DIR}"

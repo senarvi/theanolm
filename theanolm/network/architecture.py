@@ -6,7 +6,7 @@ from theanolm.exceptions import IncompatibleStateError, InputError
 
 class Architecture(object):
     """Neural Network Architecture Description
-    
+
     A description of the neural network architecture can be read from a text
     file or from a neural network state stored in an HDF5 file.
     """

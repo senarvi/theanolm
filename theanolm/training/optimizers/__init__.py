@@ -1,10 +1,10 @@
-from theanolm.optimizers.sgdoptimizer import SGDOptimizer
-from theanolm.optimizers.nesterovoptimizer import NesterovOptimizer
-from theanolm.optimizers.adagradoptimizer import AdaGradOptimizer
-from theanolm.optimizers.adadeltaoptimizer import AdadeltaOptimizer
-from theanolm.optimizers.rmspropsgdoptimizer import RMSPropSGDOptimizer
-from theanolm.optimizers.rmspropnesterovoptimizer import RMSPropNesterovOptimizer
-from theanolm.optimizers.adamoptimizer import AdamOptimizer
+from theanolm.training.optimizers.sgdoptimizer import SGDOptimizer
+from theanolm.training.optimizers.nesterovoptimizer import NesterovOptimizer
+from theanolm.training.optimizers.adagradoptimizer import AdaGradOptimizer
+from theanolm.training.optimizers.adadeltaoptimizer import AdadeltaOptimizer
+from theanolm.training.optimizers.rmspropsgdoptimizer import RMSPropSGDOptimizer
+from theanolm.training.optimizers.rmspropnesterovoptimizer import RMSPropNesterovOptimizer
+from theanolm.training.optimizers.adamoptimizer import AdamOptimizer
 
 def create_optimizer(optimization_options, *args, **kwargs):
     """Constructs one of the BasicOptimizer subclasses based on optimization

@@ -3,40 +3,27 @@
 
 import sys
 import logging
-import mmap
 import numpy
 import theano
-from theanolm import ShufflingBatchIterator
+from theanolm import ShufflingBatchIterator, LinearBatchIterator
 from theanolm.exceptions import IncompatibleStateError, NumberError
-from theanolm.optimizers import create_optimizer
-from theanolm.stoppers import create_stopper
+from theanolm.training.stoppers import create_stopper
 
 class BasicTrainer(object):
     """Basic training process saves a history of validation costs and "
     decreases learning rate when the cost does not decrease anymore.
     """
 
-    def __init__(self, training_options, optimization_options,
-                 network, vocabulary, scorer,
-                 training_files, sampling, validation_iter, state,
-                 profile=False):
+    def __init__(self, training_options, vocabulary, training_files, sampling,
+                 state):
         """Creates the optimizer and initializes the training process.
 
         :type training_options: dict
         :param training_options: a dictionary of training options
 
-        :type optimization_options: dict
-        :param optimization_options: a dictionary of optimization options
-
-        :type network: Network
-        :param network: a neural network to be trained
-
         :type vocabulary: Vocabulary
         :param vocabulary: vocabulary that provides mapping between words and
                            word IDs
-
-        :type scorer: TextScorer
-        :param scorer: a text scorer for computing validation set perplexity
 
         :type training_files: list of file objects
         :param training_files: list of files to be used as training data
@@ -45,26 +32,36 @@ class BasicTrainer(object):
         :param sampling: specifies a fraction for each training file, how much
                          to sample on each epoch
 
-        :type validation_iter: theanolm.BatchIterator
-        :param validation_iter: an iterator for computing validation set
-                                perplexity
-
         :type state: h5py.File
         :param state: HDF5 file where initial training state will be possibly
                       read from, and candidate states will be saved to
-
-        :type profile: bool
-        :param profile: if set to True, creates Theano profile objects
         """
 
-        self.network = network
         self.vocabulary = vocabulary
-        self.scorer = scorer
-        self.validation_iter = validation_iter
 
-        self.optimizer = create_optimizer(optimization_options,
-                                          self.network,
-                                          profile)
+        print("Computing unigram probabilities and the number of mini-batches "
+              "in training data.")
+        linear_iter = LinearBatchIterator(
+            training_files,
+            vocabulary,
+            batch_size=training_options['batch_size'],
+            max_sequence_length=training_options['sequence_length'])
+        sys.stdout.flush()
+        self.updates_per_epoch = 0
+        class_counts = numpy.zeros(self.vocabulary.num_classes(), dtype='int64')
+        for word_ids, _, mask in linear_iter:
+            self.updates_per_epoch += 1
+            word_ids = word_ids[mask == 1]
+            class_ids = self.vocabulary.word_id_to_class_id[word_ids]
+            numpy.add.at(class_counts, class_ids, 1)
+        if self.updates_per_epoch < 1:
+            raise ValueError("Training data does not contain any sentences.")
+        logging.debug("One epoch of training data contains %d mini-batch updates.",
+                      self.updates_per_epoch)
+        self.class_prior_probs = class_counts / class_counts.sum()
+        logging.debug("Class unigram probabilities are in the range [%f, %f].",
+                      self.class_prior_probs.min(),
+                      self.class_prior_probs.max())
 
         self.training_iter = ShufflingBatchIterator(
             training_files,
@@ -72,12 +69,6 @@ class BasicTrainer(object):
             vocabulary,
             batch_size=training_options['batch_size'],
             max_sequence_length=training_options['sequence_length'])
-
-        print("Computing the number of training updates per epoch.")
-        sys.stdout.flush()
-        self.updates_per_epoch = len(self.training_iter)
-        if self.updates_per_epoch < 1:
-            raise ValueError("Training data does not contain any sentences.")
 
         self.stopper = create_stopper(training_options, self)
         self.options = training_options
@@ -105,10 +96,37 @@ class BasicTrainer(object):
         # total number of mini-batch updates performed (after restart)
         self.total_updates = 0
 
+        self.optimizer = None
+        self.network = None
+        self.scorer = None
+        self.validation_iter = None
+
     def set_logging(self, interval):
         self.log_update_interval = interval
 
-    def train(self):
+    def train(self, optimizer, scorer, validation_iter, network):
+        """Trains a neural network.
+
+        :type optimizer: BasicOptimizer
+        :param optimizer: one of the optimizer implementations
+
+        :type scorer: TextScorer
+        :param scorer: a text scorer for computing validation set perplexity
+
+        :type validation_iter: BatchIterator
+        :param validation_iter: an iterator for computing validation set
+                                perplexity
+
+        :type network: Network
+        :param network: the network, which will be used to retrieve state when
+                        saving
+        """
+
+        self.optimizer = optimizer
+        self.network = network
+        self.scorer = scorer
+        self.validation_iter = validation_iter
+
         while self.stopper.start_new_epoch():
             for word_ids, file_ids, mask in self.training_iter:
                 self.update_number += 1
@@ -122,7 +140,7 @@ class BasicTrainer(object):
                     self._log_update()
 
                 if self._is_scheduled(self.options['validation_frequency']):
-                    perplexity = self.scorer.compute_perplexity(self.validation_iter)
+                    perplexity = scorer.compute_perplexity(validation_iter)
                     if numpy.isnan(perplexity) or numpy.isinf(perplexity):
                         self._set_candidate_state()
                         raise NumberError(
@@ -170,9 +188,11 @@ class BasicTrainer(object):
                 'cost_history', data=self._cost_history, maxshape=(None,),
                 chunks=(1000,))
 
-        self.network.get_state(state)
+        if not self.network is None:
+            self.network.get_state(state)
         self.training_iter.get_state(state)
-        self.optimizer.get_state(state)
+        if not self.optimizer is None:
+            self.optimizer.get_state(state)
 
     def _reset_state(self):
         """Resets the values of Theano shared variables to the current candidate
@@ -180,7 +200,7 @@ class BasicTrainer(object):
 
         Sets candidate state index point to the last element in the loaded cost
         history.
-        
+
         Requires that if ``state`` is set, it contains values for all the
         training parameters.
 

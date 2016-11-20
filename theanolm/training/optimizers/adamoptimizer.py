@@ -5,7 +5,7 @@ import logging
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.optimizers.basicoptimizer import BasicOptimizer
+from theanolm.training.optimizers.basicoptimizer import BasicOptimizer
 
 class AdamOptimizer(BasicOptimizer):
     """Adam Optimization Method

@@ -4,6 +4,7 @@
 import theano
 import theano.tensor as tensor
 import numpy
+from theanolm.matrixfunctions import test_value
 from theanolm.exceptions import NumberError
 
 class TextScorer(object):
@@ -12,14 +13,26 @@ class TextScorer(object):
 
     def __init__(self, network, ignore_unk=False, unk_penalty=None,
                  profile=False):
-        """Creates a Theano function self.score_function that computes the
-        log probabilities predicted by the neural network for the words in a
-        mini-batch.
+        """Creates two Theano function, ``self._target_logprobs_function()``,
+        which computes the log probabilities predicted by the neural network for
+        the words in a mini-batch, and ``self._total_logprob_function()``, which
+        returns the total log probability.
 
-        self.score_function takes as arguments two matrices, the input word IDs
-        and mask, and returns a matrix of word prediction log probabilities. The
-        matrices are indexed by time step and word sequence, output containing
-        one less time step, since the last time step is not predicting any word.
+        Both functions take as arguments four matrices:
+        1. Word IDs in the shape of a mini-batch. The functions will only use
+           the input words (not the last time step).
+        2. Class IDs in the shape of a mini-batch. The functions will slice this
+           into input and output.
+        3. Class membership probabilities in the shape of a mini-batch, but only
+           for the output words (not the first time step).
+        4. Mask in the shape of a mini-batch, but only for the output words (not
+           for the first time step).
+
+        ``self._target_logprobs_function()`` will return a matrix of predicted
+        log probabilities for the output words (excluding the first time step)
+        and the mask after possibly applying special UNK handling.
+        ``self._total_logprob_function()`` will return the total log probability
+        of the predicted (unmasked) words and the number of those words.
 
         :type network: Network
         :param network: the neural network object
@@ -36,21 +49,64 @@ class TextScorer(object):
         :param profile: if set to True, creates a Theano profile object
         """
 
-        self.ignore_unk = ignore_unk
-        self.unk_penalty = unk_penalty
-        self.vocabulary = network.vocabulary
-        self.unk_id = network.vocabulary.word_to_id['<unk>']
+        self._ignore_unk = ignore_unk
+        self._unk_penalty = unk_penalty
+        self._vocabulary = network.vocabulary
+        self._unk_id = network.vocabulary.word_to_id['<unk>']
+
+        # The functions take as input a mini-batch of word IDs and class IDs,
+        # and slice input and target IDs for the network.
+        batch_word_ids = tensor.matrix('textscorer/batch_word_ids',
+                                       dtype='int64')
+        batch_word_ids.tag.test_value = test_value(
+            size=(101, 16), high=self._vocabulary.num_words())
+        batch_class_ids = tensor.matrix('textscorer/batch_class_ids',
+                                        dtype='int64')
+        batch_class_ids.tag.test_value = test_value(
+            size=(101, 16), high=self._vocabulary.num_classes())
+        membership_probs = tensor.matrix('textscorer/membership_probs',
+                                         dtype=theano.config.floatX)
+        membership_probs.tag.test_value = test_value(
+            size=(100, 16), high=1.0)
+
+        logprobs = tensor.log(network.target_probs())
+        # Add logprobs from the class membership of the predicted word at each
+        # time step of each sequence.
+        logprobs += tensor.log(membership_probs)
+        # If requested, predict <unk> with constant score.
+        target_word_ids = batch_word_ids[1:]
+        if not self._unk_penalty is None:
+            unk_mask = tensor.eq(target_word_ids, self._unk_id)
+            unk_indices = unk_mask.nonzero()
+            logprobs = tensor.set_subtensor(logprobs[unk_indices],
+                                            self._unk_penalty)
+        # Ignore logprobs predicting a word that is past the sequence end, and
+        # possibly also those that are predicting <unk> token.
+        mask = network.mask
+        if self._ignore_unk:
+            mask *= tensor.neq(target_word_ids, self._unk_id)
+        logprobs *= tensor.cast(mask, theano.config.floatX)
 
         # Ignore unused input variables, because is_training is only used by
         # dropout layer.
-        self.score_function = theano.function(
-            [network.input_word_ids,
-             network.input_class_ids,
-             network.target_class_ids,
-             network.mask],
-            tensor.log(network.target_probs()),
-            givens=[(network.is_training, numpy.int8(0))],
-            name='text_scorer',
+        self._target_logprobs_function = theano.function(
+            [batch_word_ids, batch_class_ids, membership_probs, network.mask],
+            [logprobs, mask],
+            givens=[(network.input_word_ids, batch_word_ids[:-1]),
+                    (network.input_class_ids, batch_class_ids[:-1]),
+                    (network.target_class_ids, batch_class_ids[1:]),
+                    (network.is_training, numpy.int8(0))],
+            name='target_logprobs',
+            on_unused_input='ignore',
+            profile=profile)
+        self._total_logprob_function = theano.function(
+            [batch_word_ids, batch_class_ids, membership_probs, network.mask],
+            [logprobs.sum(), mask.sum()],
+            givens=[(network.input_word_ids, batch_word_ids[:-1]),
+                    (network.input_class_ids, batch_class_ids[:-1]),
+                    (network.target_class_ids, batch_class_ids[1:]),
+                    (network.is_training, numpy.int8(0))],
+            name='total_logprob',
             on_unused_input='ignore',
             profile=profile)
 
@@ -84,29 +140,15 @@ class TextScorer(object):
         """
 
         result = []
+        membership_probs = membership_probs.astype(theano.config.floatX)
 
-        # We should predict probabilities of the words at the following time
-        # step.
-        input_word_ids = word_ids[:-1]
-        input_class_ids = class_ids[:-1]
-        target_word_ids = word_ids[1:]
-        target_class_ids = class_ids[1:]
-        mask = mask[1:]
-        logprobs = self.score_function(input_word_ids,
-                                       input_class_ids,
-                                       target_class_ids,
-                                       mask)
-        # Add logprobs from the class membership of the predicted word at each
-        # time step of each sequence.
-        logprobs += numpy.log(membership_probs[1:])
-        # If requested, predict <unk> with constant score.
-        if not self.unk_penalty is None:
-            logprobs[target_word_ids == self.unk_id] = self.unk_penalty
-        # Ignore logprobs predicting a word that is past the sequence end, and
-        # possibly also those that are predicting <unk> token.
-        if self.ignore_unk:
-            mask = numpy.copy(mask)
-            mask[target_word_ids == self.unk_id] = 0
+        # target_logprobs_function() uses the word and class IDs of the entire
+        # mini-batch, but membership probs and mask are only for the output.
+        logprobs, mask = \
+            self._target_logprobs_function(word_ids,
+                                           class_ids,
+                                           membership_probs[1:],
+                                           mask[1:])
         for seq_index in range(logprobs.shape[1]):
             seq_logprobs = logprobs[:,seq_index]
             seq_mask = mask[:,seq_index]
@@ -132,35 +174,33 @@ class TextScorer(object):
                   normalized by the number of words
         """
 
-        total_logprob = 0
+        logprob = 0
         num_words = 0
 
         for word_ids, _, mask in batch_iter:
             class_ids, membership_probs = \
-                self.vocabulary.get_class_memberships(word_ids)
-            logprobs = self.score_batch(word_ids, class_ids, membership_probs,
-                                        mask)
-            for seq_index, seq_logprobs in enumerate(logprobs):
-                seq_word_ids = word_ids[:,seq_index]
-                seq_mask = mask[:,seq_index]
-                seq_logprob_sum = sum(seq_logprobs)
-                total_logprob += seq_logprob_sum
-                if numpy.isnan(seq_logprob_sum) or numpy.isinf(seq_logprob_sum):
-                    if numpy.isnan(seq_logprob_sum):
-                        print("NaN logprobs in sequence.")
-                    else:
-                        print("Infinite logprobs in sequence.")
-                    print("Sequence word IDs:",
-                          ' '.join(str(x) for x in seq_word_ids))
-                    print("Sequence mask:",
-                          ' '.join(str(x) for x in seq_mask))
-                    print("Sequence logprobs:",
-                          ' '.join(str(x) for x in seq_logprobs))
-                num_words += len(seq_logprobs)
+                self._vocabulary.get_class_memberships(word_ids)
+            membership_probs = membership_probs.astype(theano.config.floatX)
+
+            # total_logprob_function() uses the word and class IDs of the entire
+            # mini-batch, but membership probs and mask are only for the output.
+            batch_logprob, batch_num_words = \
+                self._total_logprob_function(word_ids,
+                                             class_ids,
+                                             membership_probs[1:],
+                                             mask[1:])
+            if numpy.isnan(batch_logprob):
+                raise NumberError("Log probability of a mini-batch is NaN.")
+            if numpy.isinf(batch_logprob):
+                raise NumberError("Log probability of a mini-batch is +/- infinity.")
+
+            logprob += batch_logprob
+            num_words += batch_num_words
+
         if num_words == 0:
             raise ValueError("Zero words for computing perplexity. Does the "
                              "evaluation data contain only OOV words?")
-        cross_entropy = -total_logprob / num_words
+        cross_entropy = -logprob / num_words
         return numpy.exp(cross_entropy)
 
     def score_sequence(self, word_ids, class_ids, membership_probs):
@@ -188,23 +228,15 @@ class TextScorer(object):
         # Mask used by the network is all ones.
         mask = numpy.ones(word_ids.shape, numpy.int8)
 
-        # We should predict probabilities of the words at the following time
-        # step.
-        logprobs = self.score_function(word_ids[:-1],
-                                       class_ids[:-1],
-                                       class_ids[1:],
-                                       mask[1:])
-        # Add logprobs from the class membership of the predicted word at each
-        # time step of each sequence.
-        logprobs += numpy.log(membership_probs[1:])
-        # If requested, predict <unk> with constant score.
-        if not self.unk_penalty is None:
-            logprobs[word_ids[1:] == self.unk_id] = self.unk_penalty
-        # If requested, zero out logprobs predicting <unk> token.
-        if self.ignore_unk:
-            logprobs[word_ids[1:] == self.unk_id] = 0
-
-        logprob = logprobs.sum()
+        # total_logprob_function() uses the word and class IDs of the entire
+        # mini-batch, but membership probs and mask are only for the output.
+        logprob, _ = self._total_logprob_function(word_ids,
+                                                  class_ids,
+                                                  membership_probs[1:],
+                                                  mask[1:])
         if numpy.isnan(logprob):
-            raise NumberError("Sentence logprob has NaN value.")
+            raise NumberError("Log probability of a sequence is NaN.")
+        if numpy.isinf(logprob):
+            raise NumberError("Log probability of a sequence is +/- infinity.")
+
         return logprob
