@@ -3,7 +3,6 @@
 
 import numpy
 import theano
-from theano.compile.debugmode import InvalidValueError
 
 def random_weight(shape, scale=None):
     """Generates a weight matrix from “standard normal” distribution.
@@ -47,34 +46,32 @@ def orthogonal_weight(in_size, out_size, scale=None):
     result, _, _ = numpy.linalg.svd(nonorthogonal_matrix)
     return result.astype(theano.config.floatX)
 
-def test_value(size, max_value):
+def test_value(size, high):
     """Creates a matrix of random numbers that can be used as a test value for a
     parameter to enable debugging Theano errors.
 
-    The type of ``max_value`` defines the type of the returned array. For
-    integers, the range does not include the maximum value. If ``max_value`` is
-    a boolean, returns an int8 array, as Theano uses int8 to represent a
-    boolean.
+    The type of ``high`` defines the type of the returned array. For integers,
+    the range does not include the maximum value. If ``high`` is a boolean,
+    returns an int8 array, as Theano uses int8 to represent a boolean.
 
     :type size: int or tuple of ints
     :param size: dimensions of the matrix
 
-    :type max_value: int or float
-    :param max_value: maximum value for the generated random numbers
+    :type high: int, float, or bool
+    :param high: maximum value for the generated random numbers
 
     :rtype: numpy.ndarray
     :returns: a matrix or vector containing the generated values
     """
 
-    if type(max_value) is int:
-        return numpy.random.randint(0, max_value, size=size).astype('int64')
-    elif type(max_value) is float:
-        return max_value * numpy.random.rand(*size).astype(theano.config.floatX)
-    elif type(max_value) is bool:
-        return numpy.random.randint(0, int(max_value), size=size).astype('int8')
+    if isinstance(high, bool):
+        return numpy.random.randint(0, int(high), size=size).astype('int8')
+    elif isinstance(high, (int, numpy.int32, numpy.int64)):
+        return numpy.random.randint(0, high, size=size).astype('int64')
+    elif isinstance(high, (float, numpy.float32, numpy.float64)):
+        return high * numpy.random.rand(*size).astype(theano.config.floatX)
     else:
-        raise InvalidValueError("test_value() expects int, float, or bool "
-                                "maximum value.")
+        raise TypeError("High value should be int, float, or bool.")
 
 def get_submatrix(matrices, index, size, end_index=None):
     """Returns a submatrix of a concatenation of 2 or 3 dimensional

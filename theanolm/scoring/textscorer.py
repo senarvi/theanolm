@@ -59,18 +59,15 @@ class TextScorer(object):
         batch_word_ids = tensor.matrix('textscorer/batch_word_ids',
                                        dtype='int64')
         batch_word_ids.tag.test_value = test_value(
-            size=(101, 16),
-            max_value=self._vocabulary.num_words())
+            size=(101, 16), high=self._vocabulary.num_words())
         batch_class_ids = tensor.matrix('textscorer/batch_class_ids',
                                         dtype='int64')
         batch_class_ids.tag.test_value = test_value(
-            size=(101, 16),
-            max_value=self._vocabulary.num_classes())
+            size=(101, 16), high=self._vocabulary.num_classes())
         membership_probs = tensor.matrix('textscorer/membership_probs',
                                          dtype=theano.config.floatX)
         membership_probs.tag.test_value = test_value(
-            size=(100, 16),
-            max_value=1.0)
+            size=(100, 16), high=1.0)
 
         logprobs = tensor.log(network.target_probs())
         # Add logprobs from the class membership of the predicted word at each

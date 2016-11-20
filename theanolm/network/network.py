@@ -121,18 +121,14 @@ class Network(object):
         self.input_class_ids = tensor.matrix('network/input_class_ids', dtype='int64')
         if self.mode.minibatch:
             self.input_word_ids.tag.test_value = test_value(
-                size=(100, 16),
-                max_value=vocabulary.num_words())
+                size=(100, 16), high=vocabulary.num_words())
             self.input_class_ids.tag.test_value = test_value(
-                size=(100, 16),
-                max_value=vocabulary.num_classes())
+                size=(100, 16), high=vocabulary.num_classes())
         else:
             self.input_word_ids.tag.test_value = test_value(
-                size=(1, 16),
-                max_value=vocabulary.num_words())
+                size=(1, 16), high=vocabulary.num_words())
             self.input_class_ids.tag.test_value = test_value(
-                size=(1, 16),
-                max_value=vocabulary.num_classes())
+                size=(1, 16), high=vocabulary.num_classes())
 
         # During training, the output layer bias vector is initialized to the
         # unigram probabilities.
@@ -169,24 +165,20 @@ class Network(object):
                                               dtype='int64')
         if self.mode.minibatch:
             self.target_class_ids.tag.test_value = test_value(
-                size=(100, 16),
-                max_value=vocabulary.num_classes())
+                size=(100, 16), high=vocabulary.num_classes())
         else:
             self.target_class_ids.tag.test_value = test_value(
-                size=(1, 16),
-                max_value=vocabulary.num_classes())
+                size=(1, 16), high=vocabulary.num_classes())
 
         # This input variable is used only for detecting <unk> target words.
         self.target_word_ids = tensor.matrix('network/target_word_ids',
                                              dtype='int64')
         if self.mode.minibatch:
             self.target_word_ids.tag.test_value = test_value(
-                size=(100, 16),
-                max_value=vocabulary.num_words())
+                size=(100, 16), high=vocabulary.num_words())
         else:
             self.target_word_ids.tag.test_value = test_value(
-                size=(1, 16),
-                max_value=vocabulary.num_words())
+                size=(1, 16), high=vocabulary.num_words())
 
         # Create initial parameter values.
         logging.debug("Initializing parameters.")
@@ -212,9 +204,7 @@ class Network(object):
         # data type, which is how Tensor stores booleans.
         if self.mode.minibatch:
             self.mask = tensor.matrix('network/mask', dtype='int8')
-            self.mask.tag.test_value = test_value(
-                size=(100, 16),
-                max_value=True)
+            self.mask.tag.test_value = test_value(size=(100, 16), high=True)
         else:
             self.mask = tensor.ones(self.input_word_ids.shape, dtype='int8')
 
@@ -226,7 +216,7 @@ class Network(object):
         # to sample.
         self.num_noise_samples = tensor.scalar('network/num_noise_samples',
                                                dtype='int64')
-        self.num_noise_samples.tag.test_value = 100
+        self.num_noise_samples.tag.test_value = 25
 
         # Sampling based methods use this noise distribution, if it's set.
         # Otherwise noise is sampled from uniform distribution.
@@ -313,7 +303,7 @@ class Network(object):
         # array) to keep the layer functions general.
         variable = tensor.tensor3('network/recurrent_state_' + str(index),
                                   dtype=theano.config.floatX)
-        variable.tag.test_value = test_value(size=(1, 16, size), max_value=1.0)
+        variable.tag.test_value = test_value(size=(1, 16, size), high=1.0)
 
         self.recurrent_state_size.append(size)
         self.recurrent_state_input.append(variable)

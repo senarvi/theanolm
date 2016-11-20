@@ -111,13 +111,11 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         batch_word_ids = tensor.matrix('optimizer/batch_word_ids',
                                        dtype='int64')
         batch_word_ids.tag.test_value = test_value(
-            size=(101, 16),
-            max_value=self.network.vocabulary.num_words())
+            size=(101, 16), high=self.network.vocabulary.num_words())
         batch_class_ids = tensor.matrix('optimizer/batch_class_ids',
                                         dtype='int64')
         batch_class_ids.tag.test_value = test_value(
-            size=(101, 16),
-            max_value=self.network.vocabulary.num_classes())
+            size=(101, 16), high=self.network.vocabulary.num_classes())
 
         if cost_function == 'cross-entropy':
             # Derive the symbolic expression for log probability of each word.
