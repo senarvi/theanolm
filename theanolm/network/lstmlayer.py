@@ -96,7 +96,7 @@ class LSTMLayer(BasicLayer):
                 sequences=sequences,
                 outputs_info=[initial_cell_state, initial_hidden_state],
                 non_sequences=non_sequences,
-                name='hidden_layer_steps',
+                name='lstm_steps',
                 n_steps=num_time_steps,
                 profile=self._profile,
                 strict=True)

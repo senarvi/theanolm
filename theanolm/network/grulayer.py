@@ -90,7 +90,7 @@ class GRULayer(BasicLayer):
                 sequences=sequences,
                 outputs_info=[initial_hidden_state],
                 non_sequences=non_sequences,
-                name='hidden_layer_steps',
+                name='gru_steps',
                 n_steps=num_time_steps,
                 profile=self._profile,
                 strict=True)

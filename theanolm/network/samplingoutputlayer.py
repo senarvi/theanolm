@@ -144,5 +144,10 @@ class SamplingOutputLayer(BasicLayer):
         weight = self._params[self._param_path('input/W')]
         bias = self._params[self._param_path('input/b')]
         weight = weight[:, target_class_ids]
-        bias = bias[target_class_ids]
+        # For some reason if we select elements from a vector, it will use
+        # GpuAdvancedIncSubtensor1 and be slow. If bias is a matrix, it will
+        # use the faster GpuAdvancedIncSubtensor1_dev20.
+        bias = bias[:, None]
+        bias = bias[target_class_ids, 0]
+#        bias = bias[target_class_ids]
         return tensor.dot(layer_input, weight) + bias
