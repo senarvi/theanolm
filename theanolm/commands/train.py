@@ -157,6 +157,11 @@ def add_arguments(parser):
         help='when using annealing-count stopping criterion, continue training '
              'after decreasing learning rate at most N times (default 0)')
 
+    argument_group = parser.add_argument_group("configuration")
+    argument_group.add_argument(
+        '--default-device', metavar='DEVICE', type=str, default=None,
+        help='when multiple GPUs are present, use DEVICE as default')
+
     argument_group = parser.add_argument_group("logging and debugging")
     argument_group.add_argument(
         '--log-file', metavar='FILE', type=str, default='-',
@@ -303,12 +308,15 @@ def train(args):
             with open(args.architecture, 'rt', encoding='utf-8') as arch_file:
                 architecture = Architecture.from_description(arch_file)
         network = Network(architecture, vocabulary, trainer.class_prior_probs,
-                          args.unigram_noise, profile=args.profile)
+                          args.unigram_noise,
+                          default_device=args.default_device,
+                          profile=args.profile)
 
         print("Compiling optimization function.")
         sys.stdout.flush()
         optimizer = create_optimizer(optimization_options, network,
-                                     args.profile)
+                                     device=args.default_device,
+                                     profile=args.profile)
 
         if args.print_graph:
             graph = optimizer.gradient_update_function.maker.fgraph.outputs[0]

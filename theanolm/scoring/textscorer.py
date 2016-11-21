@@ -240,3 +240,13 @@ class TextScorer(object):
             raise NumberError("Log probability of a sequence is +/- infinity.")
 
         return logprob
+
+    def unk_ignored(self):
+        """Indicates whether the scorer ignores <unk> tokens.
+
+        :rtype: bool
+        :returns: ``True`` if the scorer ignores <unk> tokens, ``False``
+                  otherwise.
+        """
+
+        return self._ignore_unk

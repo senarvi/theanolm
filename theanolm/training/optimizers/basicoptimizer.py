@@ -14,7 +14,8 @@ class BasicOptimizer(object, metaclass=ABCMeta):
     """Superclass for Neural Network Language Model Optimizers
     """
 
-    def __init__(self, optimization_options, network, profile=False):
+    def __init__(self, optimization_options, network, device=None,
+                 profile=False):
         """Creates Theano functions for training a neural network language
         model.
 
@@ -40,6 +41,9 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         :type network: Network
         :param network: the neural network object
 
+        :type device: str
+        :param device: device where to store the shared variables
+
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
         """
@@ -47,8 +51,12 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         self.network = network
 
         # Create Theano shared variables from the initial parameter values.
-        self.params = {name: theano.shared(value, name)
-                       for name, value in self.param_init_values.items()}
+        if device is None:
+            self.params = {name: theano.shared(value, name)
+                           for name, value in self.param_init_values.items()}
+        else:
+            self.params = {name: theano.shared(value, name, target=device)
+                           for name, value in self.param_init_values.items()}
 
         float_type = numpy.dtype(theano.config.floatX).type
         self.float_type = float_type

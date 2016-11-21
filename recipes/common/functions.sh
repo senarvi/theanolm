@@ -97,8 +97,8 @@ train () {
 
 	command -v theanolm >/dev/null 2>&1 || { echo >&2 "theanolm not found. Please install from https://github.com/senarvi/TheanoLM."; exit 1; }
 
-	local sequence_length="${SEQUENCE_LENGTH:-100}"
-	local batch_size="${BATCH_SIZE:-16}"
+	local sequence_length="${SEQUENCE_LENGTH:-25}"
+	local batch_size="${BATCH_SIZE:-64}"
 	local training_strategy="${TRAINING_STRATEGY:-local-mean}"
 	local optimization_method="${OPTIMIZATION_METHOD:-adagrad}"
 	local stopping_criterion="${STOPPING_CRITERION:-annealing-count}"
@@ -132,6 +132,7 @@ train () {
 	mkdir -p "${OUTPUT_DIR}"
 
 	# Tell Theano to use GPU.
+#	export THEANO_FLAGS="floatX=float32,contexts=dev0->cuda0,nvcc.fastmath=True"
 	export THEANO_FLAGS="floatX=float32,device=gpu,nvcc.fastmath=True"
 
 	# Taining vocabulary or classes.
@@ -166,12 +167,13 @@ train () {
 	  --num-noise-samples "${num_noise_samples}" \
 	  --validation-frequency "${validation_freq}" \
 	  --patience "${patience}" \
-	  --max-epochs 20 \
 	  --min-epochs 1 \
+	  --max-epochs 15 \
 	  --random-seed 1 \
 	  --log-level debug \
-	  --log-interval 1000 \
+	  --log-interval 200 \
           "${extra_args[@]}")
+
 	echo "train finished."
 }
 
@@ -202,6 +204,7 @@ compute_perplexity () {
 		vocab_format="words"
 	fi
 
+	echo "Computing evaluation set perplexity."
 	(set -x; theanolm score \
 	  "${OUTPUT_DIR}/nnlm.h5" \
 	  "${EVAL_FILE}" \

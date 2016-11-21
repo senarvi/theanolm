@@ -85,11 +85,10 @@ class LSTMLayer(BasicLayer):
         if self.network.mode.minibatch:
             sequences = [self.network.mask, layer_input_preact]
             non_sequences = [hidden_state_weights]
-            initial_value = numpy.dtype(theano.config.floatX).type(0.0)
-            initial_cell_state = \
-                tensor.alloc(initial_value, num_sequences, self.output_size)
-            initial_hidden_state = \
-                tensor.alloc(initial_value, num_sequences, self.output_size)
+            initial_cell_state = tensor.zeros(
+                (num_sequences, self.output_size), dtype=theano.config.floatX)
+            initial_hidden_state = tensor.zeros(
+                (num_sequences, self.output_size), dtype=theano.config.floatX)
 
             state_outputs, _ = theano.scan(
                 self._create_time_step,

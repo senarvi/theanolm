@@ -60,7 +60,7 @@ def score(args):
     print("Building text scorer.")
     sys.stdout.flush()
     if args.unk_penalty is None:
-        ignore_unk = False  
+        ignore_unk = False
         unk_penalty = None
     elif args.unk_penalty == 0:
         ignore_unk = True
@@ -80,6 +80,9 @@ def score(args):
     elif args.output == 'utterance-scores':
         _score_utterances(args.input_file, vocabulary, scorer, args.output_file,
                           args.log_base)
+    else:
+        print("Invalid output format requested:", args.output)
+        sys.exit(1)
 
 def _score_text(input_file, vocabulary, scorer, output_file,
                 log_base=None, word_level=False):
@@ -112,7 +115,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
     validation_iter = \
         LinearBatchIterator(input_file,
                             vocabulary,
-                            batch_size=100,
+                            batch_size=16,
                             max_sequence_length=None)
     log_scale = 1.0 if log_base is None else numpy.log(log_base)
     unk_id = vocabulary.word_to_id['<unk>']
@@ -130,6 +133,8 @@ def _score_text(input_file, vocabulary, scorer, output_file,
             num_probs += len(seq_logprobs)
             total_logprob += seq_logprob
             seq_word_ids = word_ids[:, seq_index]
+            seq_mask = mask[:, seq_index]
+            seq_word_ids = seq_word_ids[seq_mask == 1]
             num_words += len(seq_word_ids)
             num_sentences += 1
             if not word_level:
@@ -144,14 +149,14 @@ def _score_text(input_file, vocabulary, scorer, output_file,
             logprob_index = 0
             for word_index, word_id in enumerate(seq_word_ids[1:]):
                 if word_index - 2 > 0:
-                    history = list(seq_words[word_index:word_index - 3:-1])
-                    history.append('...')
+                    history = ['...']
+                    history.extend(seq_words[word_index - 2:word_index + 1])
                 else:
-                    history = seq_words[word_index::-1]
-                history = ', '.join(history)
+                    history = seq_words[0:word_index + 1]
+                history = ' '.join(history)
                 predicted = seq_words[word_index + 1]
 
-                if scorer.ignore_unk and word_id == unk_id:
+                if scorer.unk_ignored() and word_id == unk_id:
                     output_file.write("p({0} | {1}) is not predicted\n".format(
                         predicted, history))
                 else:

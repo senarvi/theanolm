@@ -71,7 +71,8 @@ class Network(object):
             self.nce = nce
 
     def __init__(self, architecture, vocabulary, class_prior_probs=None,
-                 unigram_noise=False, mode=None, profile=False):
+                 unigram_noise=False, mode=None, default_device=None,
+                 profile=False):
         """Initializes the neural network parameters for all layers, and
         creates Theano shared variables from them.
 
@@ -96,6 +97,9 @@ class Network(object):
 
         :type mode: Network.Mode
         :param mode: selects mini-batch or single time step processing
+
+        :type default_device: str
+        :param default_device: default device where to store the shared variables
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
@@ -194,8 +198,12 @@ class Network(object):
         logging.debug("Total number of parameters: %d", num_params)
 
         # Create Theano shared variables.
-        self.params = {name: theano.shared(value, name)
-                       for name, value in self.param_init_values.items()}
+        if default_device is None:
+            self.params = {name: theano.shared(value, name)
+                           for name, value in self.param_init_values.items()}
+        else:
+            self.params = {name: theano.shared(value, name, target=default_device)
+                           for name, value in self.param_init_values.items()}
         for layer in self.layers.values():
             layer.set_params(self.params)
 
@@ -228,9 +236,15 @@ class Network(object):
             noise_probs /= vocabulary.num_classes()
             noise_probs += class_prior_probs
             noise_probs /= noise_probs.sum()
-            self.noise_probs = \
-                theano.shared(noise_probs.astype(theano.config.floatX),
-                              'network/noise_probs')
+            if default_device is None:
+                self.noise_probs = \
+                    theano.shared(noise_probs.astype(theano.config.floatX),
+                                  'network/noise_probs')
+            else:
+                self.noise_probs = \
+                    theano.shared(noise_probs.astype(theano.config.floatX),
+                                  'network/noise_probs',
+                                  target=default_device)
         else:
             self.noise_probs = None
 
