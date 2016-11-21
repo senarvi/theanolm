@@ -235,8 +235,8 @@ class BasicTrainer(object):
         self.epoch_number = int(h5_trainer.attrs['epoch_number'])
 
         if not 'update_number' in h5_trainer.attrs:
-            raise IncompatibleStateError("Current update number is missing from "
-                                         "training state.")
+            raise IncompatibleStateError("Current update number is missing "
+                                         "from training state.")
         self.update_number = int(h5_trainer.attrs['update_number'])
 
         logging.info("[%d] (%.2f %%) of epoch %d",
@@ -244,15 +244,19 @@ class BasicTrainer(object):
                      self.update_number / self.updates_per_epoch * 100,
                      self.epoch_number)
 
-        if not 'cost_history' in h5_trainer:
-            raise IncompatibleStateError("Validation set cost history is "
-                                         "missing from training state.")
-        self._cost_history = h5_trainer['cost_history'].value
-        if self._cost_history.size == 0:
-            raise IncompatibleStateError("Validation set cost history is "
-                                         "empty in the training state.")
-        self._candidate_index = self._cost_history.size - 1
-        self._log_validation()
+        if 'cost_history' in h5_trainer:
+            self._cost_history = h5_trainer['cost_history'].value
+            if self._cost_history.size == 0:
+                print("Validation set cost history is empty in the training state.")
+                self._candidate_index = None
+            else:
+                self._candidate_index = self._cost_history.size - 1
+                self._log_validation()
+        else:
+            print("Warning: Validation set cost history is missing from "
+                  "training state. Initializing to empty cost history.")
+            self._cost_history = numpy.asarray([], dtype=theano.config.floatX)
+            self._candidate_index = None
 
         self.training_iter.set_state(self._candidate_state)
         self.optimizer.set_state(self._candidate_state)
