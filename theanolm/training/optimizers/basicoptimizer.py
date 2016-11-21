@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from abc import abstractmethod, ABCMeta
-from time import time
 import logging
 import numpy
 import theano
@@ -252,8 +251,6 @@ class BasicOptimizer(object, metaclass=ABCMeta):
                      that masks out elements past the sequence ends.
         """
 
-        update_start_time = time()
-
         # We should predict probabilities of the words at the following time
         # step.
         target_word_ids = word_ids[1:]
@@ -275,8 +272,6 @@ class BasicOptimizer(object, metaclass=ABCMeta):
             weights = self._weights[file_ids]
             alpha *= weights[mask == 1].sum() / float_type(num_words)
         self.model_update_function(alpha)
-
-        self.update_duration = time() - update_start_time
 
     def _get_nce_cost(self, shared_noise):
         """Returns a tensor variable that represents the mini-batch cost as

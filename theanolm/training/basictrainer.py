@@ -3,6 +3,7 @@
 
 import sys
 import logging
+from time import time
 import numpy
 import theano
 from theanolm import ShufflingBatchIterator, LinearBatchIterator
@@ -127,13 +128,17 @@ class BasicTrainer(object):
         self.scorer = scorer
         self.validation_iter = validation_iter
 
+        start_time = time()
         while self.stopper.start_new_epoch():
+            epoch_start_time = time()
             for word_ids, file_ids, mask in self.training_iter:
                 self.update_number += 1
                 self.total_updates += 1
 
                 class_ids = self.vocabulary.word_id_to_class_id[word_ids]
+                update_start_time = time()
                 self.optimizer.update_minibatch(word_ids, class_ids, file_ids, mask)
+                self._update_duration = time() - update_start_time
 
                 if (self.log_update_interval >= 1) and \
                    (self.total_updates % self.log_update_interval == 0):
@@ -153,7 +158,11 @@ class BasicTrainer(object):
                 if not self.stopper.start_new_minibatch():
                     break
 
-            message = "Finished training epoch {}.".format(self.epoch_number)
+            epoch_duration = time() - epoch_start_time
+            epoch_minutes = epoch_duration / 60
+            epoch_time_h, epoch_time_m = divmod(epoch_minutes, 60)
+            message = "Finished training epoch {} in {:.0f} hours {:.1f} minutes." \
+                      .format(self.epoch_number, epoch_time_h, epoch_time_m)
             best_cost = self.candidate_cost()
             if not best_cost is None:
                 message += " Best validation perplexity {:.2f}.".format(
@@ -163,7 +172,11 @@ class BasicTrainer(object):
             self.epoch_number += 1
             self.update_number = 0
 
-        print("Training finished.")
+        duration = time() - start_time
+        minutes = duration / 60
+        time_h, time_m = divmod(minutes, 60)
+        print("Training finished in {:.0f} hours {:.1f} minutes." \
+              .format(time_h, time_m))
 
     def get_state(self, state):
         """Pulls parameter values from Theano shared variables and updates a
@@ -333,7 +346,7 @@ class BasicTrainer(object):
                      self.epoch_number,
                      self.optimizer.learning_rate,
                      self.optimizer.update_cost,
-                     self.optimizer.update_duration * 100)
+                     self._update_duration * 100)
 
     def _log_validation(self):
         """Prints the validation set cost history (or its tail), highlighting

@@ -127,6 +127,7 @@ train () {
 		export CUDA_LAUNCH_BLOCKING=1
 	fi
 	[ -n "${ARCHITECTURE_FILE}" ] && extra_args+=(--architecture "${ARCHITECTURE_FILE}")
+	[ -n "${UNIGRAM_NOISE}" ] && extra_args+=(--unigram-noise)
 
 	mkdir -p "${OUTPUT_DIR}"
 

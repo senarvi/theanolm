@@ -173,11 +173,7 @@ class BatchIterator(object, metaclass=ABCMeta):
             self.buffer = []
         else:
             result = self.buffer[:self.max_sequence_length]
-            # XXX Disable splitting of sentences into several sequences. It
-            # might have a negative effect since what is assumed to be before
-            # the continuation sequence is a zero vector. XXX
-            #self.buffer = self.buffer[self.max_sequence_length:]
-            self.buffer = []
+            self.buffer = self.buffer[self.max_sequence_length:]
         return result
 
     @abstractmethod
