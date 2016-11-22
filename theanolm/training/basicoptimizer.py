@@ -291,6 +291,10 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
         :type shared_noise: bool
         :param shared_noise: use shared noise samples across mini-batch
+
+        :rtype: TensorVariable
+        :returns: a symbolic 2-dimensional matrix that contains the log
+                  probability of each time step of each sequence
         """
 
         target_logprobs = self.network.unnormalized_logprobs()
@@ -341,6 +345,10 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
         :type shared_noise: bool
         :param shared_noise: use shared noise samples across mini-batch
+
+        :rtype: TensorVariable
+        :returns: a symbolic 2-dimensional matrix that contains the log
+                  probability of each time step of each sequence
         """
 
         target_logprobs = self.network.unnormalized_logprobs()
@@ -374,8 +382,9 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         target_costs = target_weighted_probs / denominators
         sample_costs = sample_weighted_probs / denominators[:,:,None]
         sample_costs = 1.0 - sample_costs
-        logprobs = tensor.log(target_costs + self._epsilon)
-        logprobs += tensor.log(sample_costs + self._epsilon).sum(2)
+        result = tensor.log(target_costs + self._epsilon)
+        result += tensor.log(sample_costs + self._epsilon).sum(2)
+        return result
 
     @abstractmethod
     def _gradient_update_exprs(self):
