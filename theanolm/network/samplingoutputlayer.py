@@ -117,9 +117,9 @@ class SamplingOutputLayer(BasicLayer):
         bias = self._params[self._param_path('input/b')]
         weight = weight.T
         weight = weight[target_class_ids, :]
-        # For some reason if we select elements from a vector, it will use
-        # GpuAdvancedIncSubtensor1 and be slow. If bias is a matrix, it will
-        # use the faster GpuAdvancedIncSubtensor1_dev20.
+        # The old GPU backend does not implement GpuAdvancedIncSubtensor1_dev20
+        # for vectors, which is why the very slow GpuAdvancedIncSubtensor1 will
+        # be selected if we index a vector.
         bias = bias[:, None]
         bias = bias[target_class_ids, 0]
 #        bias = bias[target_class_ids]
@@ -144,9 +144,9 @@ class SamplingOutputLayer(BasicLayer):
         weight = self._params[self._param_path('input/W')]
         bias = self._params[self._param_path('input/b')]
         weight = weight[:, target_class_ids]
-        # For some reason if we select elements from a vector, it will use
-        # GpuAdvancedIncSubtensor1 and be slow. If bias is a matrix, it will
-        # use the faster GpuAdvancedIncSubtensor1_dev20.
+        # The old GPU backend does not implement GpuAdvancedIncSubtensor1_dev20
+        # for vectors, which is why the very slow GpuAdvancedIncSubtensor1 will
+        # be selected if we index a vector.
         bias = bias[:, None]
         bias = bias[target_class_ids, 0]
 #        bias = bias[target_class_ids]

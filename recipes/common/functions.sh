@@ -98,7 +98,7 @@ train () {
 	command -v theanolm >/dev/null 2>&1 || { echo >&2 "theanolm not found. Please install from https://github.com/senarvi/TheanoLM."; exit 1; }
 
 	local sequence_length="${SEQUENCE_LENGTH:-25}"
-	local batch_size="${BATCH_SIZE:-64}"
+	local batch_size="${BATCH_SIZE:-32}"
 	local training_strategy="${TRAINING_STRATEGY:-local-mean}"
 	local optimization_method="${OPTIMIZATION_METHOD:-adagrad}"
 	local stopping_criterion="${STOPPING_CRITERION:-annealing-count}"
