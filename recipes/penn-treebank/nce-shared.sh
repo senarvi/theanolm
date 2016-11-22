@@ -26,6 +26,7 @@ source "${script_dir}/paths.sh"
 source "${script_dir}/../common/functions.sh"
 
 # Set training parameters.
+BATCH_SIZE=24
 OPTIMIZATION_METHOD=sgd
 MAX_GRADIENT_NORM=5
 STOPPING_CRITERION=no-improvement
