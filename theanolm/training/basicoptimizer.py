@@ -8,7 +8,6 @@ import theano
 import theano.tensor as tensor
 from theanolm.exceptions import IncompatibleStateError, NumberError
 from theanolm.matrixfunctions import test_value
-from theanolm.debugfunctions import *
 
 class BasicOptimizer(object, metaclass=ABCMeta):
     """Superclass for Neural Network Language Model Optimizers

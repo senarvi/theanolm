@@ -4,20 +4,27 @@
 import sys
 import logging
 from time import time
+import h5py
 import numpy
 import theano
 from theanolm import ShufflingBatchIterator, LinearBatchIterator
 from theanolm.exceptions import IncompatibleStateError, NumberError
 from theanolm.training.stoppers import create_stopper
 
-class BasicTrainer(object):
-    """Basic training process saves a history of validation costs and "
-    decreases learning rate when the cost does not decrease anymore.
+class Trainer(object):
+    """Training Process
+    
+    Saves a history of validation costs and decreases learning rate when the
+    cost does not decrease anymore.
     """
 
-    def __init__(self, training_options, vocabulary, training_files, sampling,
-                 state):
+    def __init__(self, training_options, vocabulary, training_files, sampling):
         """Creates the optimizer and initializes the training process.
+
+        Creates empty member variables for the perplexities list and the
+        training state at the validation point. Training state is saved at only
+        one validation point at a time, so validation interval is at least the
+        the number of samples used per validation.
 
         :type training_options: dict
         :param training_options: a dictionary of training options
@@ -32,13 +39,9 @@ class BasicTrainer(object):
         :type sampling: list of floats
         :param sampling: specifies a fraction for each training file, how much
                          to sample on each epoch
-
-        :type state: h5py.File
-        :param state: HDF5 file where initial training state will be possibly
-                      read from, and candidate states will be saved to
         """
 
-        self.vocabulary = vocabulary
+        self._vocabulary = vocabulary
 
         print("Computing unigram probabilities and the number of mini-batches "
               "in training data.")
@@ -48,33 +51,117 @@ class BasicTrainer(object):
             batch_size=training_options['batch_size'],
             max_sequence_length=training_options['sequence_length'])
         sys.stdout.flush()
-        self.updates_per_epoch = 0
-        class_counts = numpy.zeros(self.vocabulary.num_classes(), dtype='int64')
+        self._updates_per_epoch = 0
+        class_counts = numpy.zeros(vocabulary.num_classes(), dtype='int64')
         for word_ids, _, mask in linear_iter:
-            self.updates_per_epoch += 1
+            self._updates_per_epoch += 1
             word_ids = word_ids[mask == 1]
-            class_ids = self.vocabulary.word_id_to_class_id[word_ids]
+            class_ids = vocabulary.word_id_to_class_id[word_ids]
             numpy.add.at(class_counts, class_ids, 1)
-        if self.updates_per_epoch < 1:
+        if self._updates_per_epoch < 1:
             raise ValueError("Training data does not contain any sentences.")
         logging.debug("One epoch of training data contains %d mini-batch updates.",
-                      self.updates_per_epoch)
+                      self._updates_per_epoch)
         self.class_prior_probs = class_counts / class_counts.sum()
-        logging.debug("Class unigram probabilities are in the range [%f, %f].",
+        logging.debug("Class unigram probabilities are in the range [%.8f, "
+                      "%.8f].",
                       self.class_prior_probs.min(),
                       self.class_prior_probs.max())
 
-        self.training_iter = ShufflingBatchIterator(
+        self._training_iter = ShufflingBatchIterator(
             training_files,
             sampling,
             vocabulary,
             batch_size=training_options['batch_size'],
             max_sequence_length=training_options['sequence_length'])
 
-        self.stopper = create_stopper(training_options, self)
-        self.options = training_options
+        self._stopper = create_stopper(training_options, self)
+        self._options = training_options
 
+        # iterator to cross-validation data, or None for no cross-validation
+        self._validation_iter = None
+        # a text scorer for performing cross-validation
+        self._scorer = None
+        # number of perplexity samples per validation
+        self._samples_per_validation = 7
+        # function for combining validation samples
+        self._statistic_function = lambda x: numpy.median(numpy.asarray(x))
+        # the stored validation samples
+        self._local_perplexities = []
+        # the state at the center of validation samples
+        self._validation_state = None
+
+        # number of mini-batch updates between log messages
+        self._log_update_interval = 0
+
+        # the network to be trained
+        self._network = None
+        # the optimization function
+        self._optimizer = None
         # current candidate for the minimum validation cost state
+        self._candidate_state = None
+
+    def set_validation(self, validation_iter, scorer,
+                       samples_per_validation=None, statistics_function=None):
+        """Sets cross-validation iterator and parameters.
+
+        :type validation_iter: BatchIterator
+        :param validation_iter: an iterator for computing validation set
+                                perplexity
+
+        :type scorer: TextScorer
+        :param scorer: a text scorer for computing validation set perplexity
+
+        :type samples_per_validation: int
+        :param samples_per_validation: number of perplexity samples to compute
+                                       per cross-validation
+
+        :type statistic_function: Python function
+        :param statistic_function: a function to be performed on a list of
+           consecutive perplexity measurements to compute the validation cost
+           (median by default)
+        """
+
+        self._validation_iter = validation_iter
+        self._scorer = scorer
+
+        if not samples_per_validation is None:
+            self._samples_per_validation = samples_per_validation
+
+        if not statistics_function is None:
+            self._statistics_function = statistics_function
+
+    def set_logging(self, log_interval):
+        """Sets logging parameters.
+
+        :type log_interval: int
+        :param log_interval: number of mini-batch updates between log messages
+        """
+
+        self._log_update_interval = log_interval
+
+    def initialize(self, network, state, optimizer):
+        """Sets the network and the HDF5 file that stores the network state,
+        optimizer, and validation scorer and iterator.
+
+        If the HDF5 file contains a network state, initializes the network with
+        that state.
+
+        :type network: Network
+        :param network: the network, which will be used to retrieve state when
+                        saving
+
+        :type state: h5py.File
+        :param state: HDF5 file where initial training state will be possibly
+                      read from, and candidate states will be saved to
+
+        :type optimizer: BasicOptimizer
+        :param optimizer: one of the optimizer implementations
+        """
+
+        self._network = network
+        self._optimizer = optimizer
+
         self._candidate_state = state
         if 'trainer' in self._candidate_state:
             print("Restoring initial network state from {}.".format(
@@ -92,70 +179,37 @@ class BasicTrainer(object):
             # validation set cost history
             self._cost_history = numpy.asarray([], dtype=theano.config.floatX)
 
-        # number of mini-batch updates between log messages
-        self.log_update_interval = 0
         # total number of mini-batch updates performed (after restart)
-        self.total_updates = 0
+        self._total_updates = 0
 
-        self.optimizer = None
-        self.network = None
-        self.scorer = None
-        self.validation_iter = None
-
-    def set_logging(self, interval):
-        self.log_update_interval = interval
-
-    def train(self, optimizer, scorer, validation_iter, network):
+    def train(self):
         """Trains a neural network.
-
-        :type optimizer: BasicOptimizer
-        :param optimizer: one of the optimizer implementations
-
-        :type scorer: TextScorer
-        :param scorer: a text scorer for computing validation set perplexity
-
-        :type validation_iter: BatchIterator
-        :param validation_iter: an iterator for computing validation set
-                                perplexity
-
-        :type network: Network
-        :param network: the network, which will be used to retrieve state when
-                        saving
         """
 
-        self.optimizer = optimizer
-        self.network = network
-        self.scorer = scorer
-        self.validation_iter = validation_iter
+        if (self._network is None) or (self._optimizer is None) or \
+           (self._candidate_state is None):
+            raise RuntimeError("Trainer has not been initialized before "
+                               "calling train().")
 
         start_time = time()
-        while self.stopper.start_new_epoch():
+        while self._stopper.start_new_epoch():
             epoch_start_time = time()
-            for word_ids, file_ids, mask in self.training_iter:
+            for word_ids, file_ids, mask in self._training_iter:
                 self.update_number += 1
-                self.total_updates += 1
+                self._total_updates += 1
 
-                class_ids = self.vocabulary.word_id_to_class_id[word_ids]
+                class_ids = self._vocabulary.word_id_to_class_id[word_ids]
                 update_start_time = time()
-                self.optimizer.update_minibatch(word_ids, class_ids, file_ids, mask)
+                self._optimizer.update_minibatch(word_ids, class_ids, file_ids, mask)
                 self._update_duration = time() - update_start_time
 
-                if (self.log_update_interval >= 1) and \
-                   (self.total_updates % self.log_update_interval == 0):
+                if (self._log_update_interval >= 1) and \
+                   (self._total_updates % self._log_update_interval == 0):
                     self._log_update()
 
-                if self._is_scheduled(self.options['validation_frequency']):
-                    perplexity = scorer.compute_perplexity(validation_iter)
-                    if numpy.isnan(perplexity) or numpy.isinf(perplexity):
-                        self._set_candidate_state()
-                        raise NumberError(
-                            "Validation set perplexity computation resulted "
-                            "in a numerical error. The network has been saved.")
-                else:
-                    perplexity = None
-                self._validate(perplexity)
+                self._validate()
 
-                if not self.stopper.start_new_minibatch():
+                if not self._stopper.start_new_minibatch():
                     break
 
             epoch_duration = time() - epoch_start_time
@@ -201,11 +255,11 @@ class BasicTrainer(object):
                 'cost_history', data=self._cost_history, maxshape=(None,),
                 chunks=(1000,))
 
-        if not self.network is None:
-            self.network.get_state(state)
-        self.training_iter.get_state(state)
-        if not self.optimizer is None:
-            self.optimizer.get_state(state)
+        if not self._network is None:
+            self._network.get_state(state)
+        self._training_iter.get_state(state)
+        if not self._optimizer is None:
+            self._optimizer.get_state(state)
 
     def _reset_state(self):
         """Resets the values of Theano shared variables to the current candidate
@@ -223,7 +277,7 @@ class BasicTrainer(object):
                       cost found so far
         """
 
-        self.network.set_state(self._candidate_state)
+        self._network.set_state(self._candidate_state)
 
         if not 'trainer' in self._candidate_state:
             raise IncompatibleStateError("Training state is missing.")
@@ -241,7 +295,7 @@ class BasicTrainer(object):
 
         logging.info("[%d] (%.2f %%) of epoch %d",
                      self.update_number,
-                     self.update_number / self.updates_per_epoch * 100,
+                     self.update_number / self._updates_per_epoch * 100,
                      self.epoch_number)
 
         if 'cost_history' in h5_trainer:
@@ -258,8 +312,8 @@ class BasicTrainer(object):
             self._cost_history = numpy.asarray([], dtype=theano.config.floatX)
             self._candidate_index = None
 
-        self.training_iter.set_state(self._candidate_state)
-        self.optimizer.set_state(self._candidate_state)
+        self._training_iter.set_state(self._candidate_state)
+        self._optimizer.set_state(self._candidate_state)
 
     def num_validations(self):
         """Returns the number of validations performed.
@@ -306,17 +360,17 @@ class BasicTrainer(object):
         # Current learning rate might be smaller than the one stored in the
         # state, so set the new value after restoring optimizer to the old
         # state.
-        old_value = self.optimizer.learning_rate
+        old_value = self._optimizer.learning_rate
         new_value = old_value / 2
         self._reset_state()
-        self.stopper.improvement_ceased()
-        self.optimizer.learning_rate = new_value
+        self._stopper.improvement_ceased()
+        self._optimizer.learning_rate = new_value
 
         print("Model performance stopped improving. Decreasing learning rate "
               "from {} to {} and resetting state to {:.0f} % of epoch {}."
               .format(old_value,
                       new_value,
-                      self.update_number / self.updates_per_epoch * 100,
+                      self.update_number / self._updates_per_epoch * 100,
                       self.epoch_number))
 
     def _has_improved(self):
@@ -346,10 +400,10 @@ class BasicTrainer(object):
         logging.info("[%d] (%.1f %%) of epoch %d -- lr = %.1g, cost = %.2f, "
                      "duration = %.1f ms",
                      self.update_number,
-                     self.update_number / self.updates_per_epoch * 100,
+                     self.update_number / self._updates_per_epoch * 100,
                      self.epoch_number,
-                     self.optimizer.learning_rate,
-                     self.optimizer.update_cost,
+                     self._optimizer.learning_rate,
+                     self._optimizer.update_cost,
                      self._update_duration * 100)
 
     def _log_validation(self):
@@ -391,36 +445,102 @@ class BasicTrainer(object):
         logging.info("New candidate for optimal state saved to %s.",
                      self._candidate_state.filename)
 
-    def _validate(self, perplexity):
-        """When ``perplexity`` is not None, appends it to cost history and
-        validates whether there was improvement.
+    def _validate(self):
+        """If at or just before the actual validation point, computes perplexity
+        and adds to the list of samples. At the actual validation point we have
+        `self._samples_per_validation` values and combine them using
+        `self._statistic_function`. If the model performance has improved, the
+        state at the center of the validation samples will be saved using
+        `self._set_candidate_state()`.
 
         :type perplexity: float
         :param perplexity: computed perplexity at a validation point, None
                            elsewhere
         """
 
-        if perplexity is None:
+        if self._validation_iter is None:
+            return  # Validation has not been configured.
+
+        if not self._is_scheduled(self._options['validation_frequency'],
+                                  self._samples_per_validation - 1):
+            return  # We don't have to validate now.
+
+        perplexity = self._scorer.compute_perplexity(self._validation_iter)
+        if numpy.isnan(perplexity) or numpy.isinf(perplexity):
+            raise NumberError("Validation set perplexity computation resulted "
+                              "in a numerical error.")
+
+        self._local_perplexities.append(perplexity)
+        if len(self._local_perplexities) == 1:
+            logging.debug("[%d] First validation sample, perplexity %.2f.",
+                          self.update_number,
+                          perplexity)
+
+        # The rest of the function will be executed only at and after the center
+        # of sampling points.
+        if not self._is_scheduled(self._options['validation_frequency'],
+                                  self._samples_per_validation // 2):
             return
 
-        self._cost_history = numpy.append(self._cost_history, perplexity)
+        # The first sampling point within samples_per_validation / 2 of the
+        # actual validation point is the center of the sampling points. This
+        # will be saved in case the model performance has improved.
+        if self._validation_state is None:
+            logging.debug("[%d] Center of validation, perplexity %.2f.",
+                          self.update_number,
+                          perplexity)
+            self._validation_state = h5py.File(
+                name='validation-state', driver='core', backing_store=False)
+            self.get_state(self._validation_state)
 
+        # The rest of the function will be executed only at the final sampling
+        # point.
+        if not self._is_scheduled(self._options['validation_frequency']):
+            return
+        logging.debug("[%d] Last validation sample, perplexity %.2f.",
+                      self.update_number,
+                      perplexity)
+
+        if len(self._local_perplexities) < self._samples_per_validation:
+            # After restoring a previous validation state, which is at the
+            # center of the sampling points, the trainer will collect again half
+            # of the samples. Don't take that as a validation.
+            logging.debug("[%d] Only %d samples collected. Ignoring this "
+                          "validation.",
+                          self.update_number,
+                          len(self._local_perplexities))
+            self._local_perplexities = []
+            self._validation_state.close()
+            self._validation_state = None
+            return
+
+        statistic = self._statistic_function(self._local_perplexities)
+        self._cost_history = numpy.append(self._cost_history, statistic)
         if self._has_improved():
-            self._set_candidate_state()
+            # Take the state at the actual validation point and replace the cost
+            # history with the current cost history that also includes this
+            # latest statistic.
+            h5_cost_history = self._validation_state['trainer/cost_history']
+            h5_cost_history.resize(self._cost_history.shape)
+            h5_cost_history[:] = self._cost_history
+            self._set_candidate_state(self._validation_state)
 
         self._log_validation()
 
-        if (self.options['patience'] >= 0) and \
-           (self.validations_since_candidate() > self.options['patience']):
+        if (self._options['patience'] >= 0) and \
+           (self.validations_since_candidate() > self._options['patience']):
             # Too many validations without finding a new candidate state.
 
             # If any validations have been done, the best state has been found
             # and saved. If training has been started from previous state,
             # _candidate_state has been set to the initial state.
-            assert self._candidate_state.keys()
+            assert not self._candidate_state is None
 
             self._decrease_learning_rate()
 
+        self._local_perplexities = []
+        self._validation_state.close()
+        self._validation_state = None
 
     def _is_scheduled(self, frequency, within=0):
         """Checks if an event is scheduled to be performed within given number
@@ -447,6 +567,6 @@ class BasicTrainer(object):
         :returns: whether the operation is scheduled to be performed
         """
 
-        modulo = self.update_number * frequency % self.updates_per_epoch
+        modulo = self.update_number * frequency % self._updates_per_epoch
         return modulo < frequency or \
-               self.updates_per_epoch - modulo <= within * frequency
+               self._updates_per_epoch - modulo <= within * frequency

@@ -100,11 +100,11 @@ output, could be specified using the following description::
 
     input type=word name=word_input
     layer type=projection name=projection_layer input=word_input size=500
-    layer type=dropout name=dropout_layer_1 input=projection_layer dropout_rate=0.25
+    layer type=dropout name=dropout_layer_1 input=projection_layer dropout_rate=0.2
     layer type=lstm name=hidden_layer_1 input=dropout_layer_1 size=1500
-    layer type=dropout name=dropout_layer_2 input=hidden_layer_1 dropout_rate=0.25
+    layer type=dropout name=dropout_layer_2 input=hidden_layer_1 dropout_rate=0.2
     layer type=tanh name=hidden_layer_2 input=dropout_layer_2 size=1500
-    layer type=dropout name=dropout_layer_3 input=hidden_layer_2 dropout_rate=0.25
+    layer type=dropout name=dropout_layer_3 input=hidden_layer_2 dropout_rate=0.2
     layer type=hsoftmax name=output_layer input=dropout_layer_3
 
 Optimization
@@ -210,8 +210,8 @@ Below is a more complex example that reads word classes from
 
     theanolm train \
       model.h5 \
-      validation-data.txt.gz \
       --training-set training-data.txt.gz \
+      --validation-file validation-data.txt.gz \
       --vocabulary vocabulary.classes \
       --vocabulary-format srilm-classes \
       --architecture lstm1500 \

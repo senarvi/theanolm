@@ -9,7 +9,7 @@ import h5py
 import theano
 from theanolm import Vocabulary, Architecture, Network
 from theanolm import LinearBatchIterator
-from theanolm.training import create_trainer, create_optimizer
+from theanolm.training import Trainer, create_optimizer
 from theanolm.scoring import TextScorer
 from theanolm.filetypes import TextFileType
 
@@ -20,15 +20,16 @@ def add_arguments(parser):
         help='path where the best model state will be saved in HDF5 binary '
              'data format')
     argument_group.add_argument(
-        'validation_file', metavar='VALID-FILE', type=TextFileType('r'),
-        help='text file containing validation data for early stopping (UTF-8, '
-             'one sentence per line, assumed to be compressed if the name ends '
-             'in ".gz")')
-    argument_group.add_argument(
         '--training-set', metavar='FILE', type=TextFileType('r'), nargs='+',
         required=True,
         help='text files containing training data (UTF-8, one sentence per '
              'line, assumed to be compressed if the name ends in ".gz")')
+    argument_group.add_argument(
+        '--validation-file', metavar='VALID-FILE', type=TextFileType('r'),
+        default=None,
+        help='text file containing validation data for early stopping (UTF-8, '
+             'one sentence per line, assumed to be compressed if the name ends '
+             'in ".gz")')
     argument_group.add_argument(
         '--vocabulary', metavar='FILE', type=str, default=None,
         help='word or class vocabulary to be used in the neural network input '
@@ -58,11 +59,6 @@ def add_arguments(parser):
         help='randomly sample only FRACTION of each training file on each '
              'epoch (list the fractions in the same order as the training '
              'files)')
-    argument_group.add_argument(
-        '--training-strategy', metavar='NAME', type=str, default='local-mean',
-        help='selects a training and validation strategy, one of "basic", '
-            '"local-mean", "local-median", "validation-average" (default '
-            '"local-mean")')
     argument_group.add_argument(
         '--sequence-length', metavar='N', type=int, default=100,
         help='ignore sentences longer than N words (default 100)')
@@ -252,7 +248,6 @@ def train(args):
             weights[index] = weight
 
         training_options = {
-            'strategy': args.training_strategy,
             'batch_size': args.batch_size,
             'sequence_length': args.sequence_length,
             'validation_frequency': args.validation_frequency,
@@ -295,9 +290,8 @@ def train(args):
 
         print("Creating trainer.")
         sys.stdout.flush()
-        trainer = create_trainer(training_options, vocabulary,
-                                 args.training_set, args.sampling,
-                                 state)
+        trainer = Trainer(training_options, vocabulary, args.training_set,
+                          args.sampling)
         trainer.set_logging(args.log_interval)
 
         print("Building neural network.")
@@ -319,30 +313,36 @@ def train(args):
                                      profile=args.profile)
 
         if args.print_graph:
-            graph = optimizer.gradient_update_function.maker.fgraph.outputs[0]
             print("Cost function computation graph:")
             theano.printing.debugprint(optimizer.gradient_update_function)
 
-        print("Building text scorer.")
-        sys.stdout.flush()
-        scorer = TextScorer(network, ignore_unk, unk_penalty, args.profile)
-        validation_mmap = mmap.mmap(args.validation_file.fileno(),
-                                    0,
-                                    prot=mmap.PROT_READ)
-        validation_iter = \
-            LinearBatchIterator(validation_mmap,
-                                vocabulary,
-                                batch_size=args.batch_size,
-                                max_sequence_length=None)
+        trainer.initialize(network, state, optimizer)
+
+        if not args.validation_file is None:
+            print("Building text scorer for cross-validation.")
+            sys.stdout.flush()
+            scorer = TextScorer(network, ignore_unk, unk_penalty, args.profile)
+            print("Validation text:", args.validation_file.name)
+            validation_mmap = mmap.mmap(args.validation_file.fileno(),
+                                        0,
+                                        prot=mmap.PROT_READ)
+            validation_iter = \
+                LinearBatchIterator(validation_mmap,
+                                    vocabulary,
+                                    batch_size=args.batch_size,
+                                    max_sequence_length=None)
+            trainer.set_validation(validation_iter, scorer)
+        else:
+            validation_iter = None
 
         print("Training neural network.")
         sys.stdout.flush()
-        trainer.train(optimizer, scorer, validation_iter, network)
+        trainer.train()
 
         if not 'layers' in state.keys():
             print("The model has not been trained. No cross-validations were "
                   "performed or training did not improve the model.")
-        else:
+        elif not validation_iter is None:
             network.set_state(state)
             perplexity = scorer.compute_perplexity(validation_iter)
             print("Best validation set perplexity:", perplexity)

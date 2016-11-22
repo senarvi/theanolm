@@ -2,9 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import numpy
-import theano
 import theano.tensor as tensor
-from theanolm.training.optimizers.basicoptimizer import BasicOptimizer
+from theanolm.training.basicoptimizer import BasicOptimizer
 
 class AdadeltaOptimizer(BasicOptimizer):
     """ADADELTA Optimization Method

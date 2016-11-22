@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import logging
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.training.optimizers.basicoptimizer import BasicOptimizer
+from theanolm.training.basicoptimizer import BasicOptimizer
 
 class AdamOptimizer(BasicOptimizer):
     """Adam Optimization Method
