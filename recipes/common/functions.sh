@@ -99,7 +99,6 @@ train () {
 
 	local sequence_length="${SEQUENCE_LENGTH:-25}"
 	local batch_size="${BATCH_SIZE:-32}"
-	local training_strategy="${TRAINING_STRATEGY:-local-mean}"
 	local optimization_method="${OPTIMIZATION_METHOD:-adagrad}"
 	local stopping_criterion="${STOPPING_CRITERION:-annealing-count}"
 	local cost="${COST:-cross-entropy}"
@@ -132,7 +131,6 @@ train () {
 	mkdir -p "${OUTPUT_DIR}"
 
 	# Tell Theano to use GPU.
-#	export THEANO_FLAGS="floatX=float32,contexts=dev0->cuda0,nvcc.fastmath=True"
 	export THEANO_FLAGS="floatX=float32,device=gpu,nvcc.fastmath=True"
 
 	# Taining vocabulary or classes.
@@ -151,13 +149,12 @@ train () {
 
 	(set -x; theanolm train \
 	  "${OUTPUT_DIR}/nnlm.h5" \
-	  "${DEVEL_FILE}" \
 	  --training-set "${TRAIN_FILES[@]}" \
+	  --validation-file "${DEVEL_FILE}" \
 	  --vocabulary "${vocab_file}" \
           --vocabulary-format "${vocab_format}" \
 	  --sequence-length "${sequence_length}" \
 	  --batch-size "${batch_size}" \
-	  --training-strategy "${training_strategy}" \
 	  --optimization-method "${optimization_method}" \
 	  --stopping-criterion "${stopping_criterion}" \
 	  --cost "${cost}" \
