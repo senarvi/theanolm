@@ -131,7 +131,10 @@ train () {
 	mkdir -p "${OUTPUT_DIR}"
 
 	# Tell Theano to use GPU.
-	export THEANO_FLAGS="floatX=float32,device=gpu,nvcc.fastmath=True"
+	THEANO_FLAGS="floatX=float32,device=gpu,nvcc.fastmath=True"
+	[ -n "${DEBUG}" ] && THEANO_FLAGS="${THEANO_FLAGS},optimizer=None"
+	export THEANO_FLAGS
+	echo "THEANO_FLAGS=${THEANO_FLAGS}"
 
 	# Taining vocabulary or classes.
 	local vocab_file

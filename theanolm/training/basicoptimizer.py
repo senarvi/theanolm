@@ -261,7 +261,6 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         # We should predict probabilities of the words at the following time
         # step.
         target_word_ids = word_ids[1:]
-        target_class_ids = class_ids[1:]
         mask = mask[1:]
         self.update_cost = \
             self.gradient_update_function(word_ids, class_ids, mask)
@@ -353,6 +352,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
         target_logprobs = self.network.unnormalized_logprobs()
         target_probs = tensor.exp(target_logprobs)
+        target_class_ids = self.network.target_class_ids
         if self.network.noise_probs is None:
             word_prob = 1.0 / self.network.vocabulary.num_classes()
             target_prior_probs = word_prob

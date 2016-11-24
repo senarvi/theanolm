@@ -196,6 +196,8 @@ def train(args):
 
     if args.debug:
         theano.config.compute_test_value = 'warn'
+        print("Enabled computing test values for tensor variables.")
+        print("Warning: GpuArray backend will fail random number generation!")
     else:
         theano.config.compute_test_value = 'off'
     theano.config.profile = args.profile
@@ -228,6 +230,12 @@ def train(args):
             vocabulary.get_state(state)
         print("Number of words in vocabulary:", vocabulary.num_words())
         print("Number of word classes:", vocabulary.num_classes())
+
+        if (args.num_noise_samples > vocabulary.num_classes()):
+            print("Number of noise samples ({}) is larger than the number of "
+                  "classes. This doesn't make sense and would cause sampling "
+                  "to fail.".format(args.num_noise_samples))
+            sys.exit(1)
 
         if args.unk_penalty is None:
             ignore_unk = False

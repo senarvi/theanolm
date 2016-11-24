@@ -41,9 +41,13 @@ class SamplingOutputLayer(BasicLayer):
             sample = sample.astype('int64')
         else:
             class_probs = self.network.noise_probs[None, :]
-            class_probs = tensor.tile(class_probs, [num_samples, 1])
-            sample = self.network.random.multinomial(pvals=class_probs)
-            sample = sample.argmax(1)
+            sample = random.multinomial_wo_replacement(pvals=class_probs,
+                                                       n=num_samples)
+            sample = sample[0, :]
+            # For some reason (maybe a rounding error) it may happen that the
+            # sample contains a very high or negative value.
+            sample = tensor.maximum(sample, 0)
+            sample = tensor.minimum(sample, num_classes - 1)
         self.shared_sample_logprobs = \
             self._get_target_list_preact(layer_input, sample)
         self.shared_sample = sample
@@ -51,26 +55,31 @@ class SamplingOutputLayer(BasicLayer):
         # Sample k noise words per training word from unigram distribution.
         # multinomial() is only implemented for dimension <= 2, so we'll create
         # a 2-dimensional probability distribution and then reshape the result.
-        num_batch_samples = num_time_steps * num_sequences * num_samples
+        minibatch_size = num_time_steps * num_sequences
         if self.network.noise_probs is None:
             # The upper bound is exclusive, so this always creates samples that
             # are < num_classes
+            num_batch_samples = minibatch_size * num_samples
             sample = random.uniform((num_batch_samples,)) * num_classes
             sample = sample.astype('int64')
         else:
             class_probs = self.network.noise_probs[None, :]
-            class_probs = tensor.tile(class_probs, [num_batch_samples, 1])
-            # Since we sample different noise words for different data words, we can
-            # set the probability of the correct data words to zero, as suggested in
-            # the BlackOut paper.
-            target_class_ids = self.network.target_class_ids[:, :, None]
-            target_class_ids = tensor.tile(target_class_ids, [1, 1, num_samples])
-            target_class_ids = target_class_ids.flatten()
-            target_sample_ids = tensor.arange(num_batch_samples)
-            class_probs = tensor.set_subtensor(
-                class_probs[(target_sample_ids, target_class_ids)], 0)
-            sample = self.network.random.multinomial(pvals=class_probs)
-            sample = sample.argmax(1)
+            class_probs = tensor.tile(class_probs, [minibatch_size, 1])
+            # Since we sample different noise words for different data words, we
+            # can set the probability of the correct data words to zero, as
+            # suggested in the BlackOut paper.
+#            target_class_ids = self.network.target_class_ids.flatten()
+#            target_sample_ids = tensor.arange(minibatch_size)
+#            class_probs = tensor.set_subtensor(
+#                class_probs[(target_sample_ids, target_class_ids)], 0)
+#            class_probs /= class_probs.sum()
+            sample = random.multinomial_wo_replacement(pvals=class_probs,
+                                                       n=num_samples)
+            # For some reason (maybe a rounding error) it may happen that the
+            # sample contains a very high or negative value.
+            sample = tensor.maximum(sample, 0)
+            sample = tensor.minimum(sample, num_classes - 1)
+
         sample = sample.reshape([num_time_steps, num_sequences, num_samples])
         self.sample_logprobs = \
             self._get_target_preact(layer_input, sample)
