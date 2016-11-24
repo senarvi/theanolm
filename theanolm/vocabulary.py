@@ -221,7 +221,7 @@ class Vocabulary(object):
             word_classes.append(word_class)
 
         index = len(word_classes) - 1
-        while True:
+        while index >= 0:
             word_class = word_classes[index]
             if len(word_class) == 1:
                 word_id, _ = next(iter(word_class))
