@@ -332,4 +332,4 @@ class Architecture(object):
                     raise IncompatibleStateError(
                         "Neural network state has {0}={2}, while this "
                         "architecture has {0}={1}.".format(
-                            variable, value, h5_value))
+                            variable, values, h5_value))
