@@ -301,6 +301,7 @@ def train(args):
         else:
             with open(args.architecture, 'rt', encoding='utf-8') as arch_file:
                 architecture = Architecture.from_description(arch_file)
+
         network = Network(architecture, vocabulary, trainer.class_prior_probs,
                           args.unigram_noise,
                           default_device=args.default_device,
