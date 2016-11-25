@@ -143,7 +143,8 @@ class BatchIterator(object, metaclass=ABCMeta):
 
     def _read_sequence(self):
         """Returns next word sequence. If sequence length is not limited, it
-        will be the next line. Otherwise it may be truncated.
+        will be the next line. Otherwise returns the next at most
+        ``self.max_sequence_length`` words.
 
         Start-of-sentence and end-of-sentece tags (``<s>`` and ``</s>``) will be
         inserted at the beginning and the end of the sequence, if they're

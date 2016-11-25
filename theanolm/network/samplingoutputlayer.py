@@ -66,15 +66,16 @@ class SamplingOutputLayer(BasicLayer):
             class_probs = self.network.noise_probs[None, :]
             class_probs = tensor.tile(class_probs, [minibatch_size, 1])
             # Since we sample different noise words for different data words, we
-            # can set the probability of the correct data words to zero, as
-            # suggested in the BlackOut paper.
-            target_class_ids = self.network.target_class_ids.flatten()
-            target_sample_ids = tensor.arange(minibatch_size)
-            class_probs = tensor.set_subtensor(
-                class_probs[(target_sample_ids, target_class_ids)], 0)
-            denominators = class_probs.sum(1)
-            denominators = denominators[:, None]
-            class_probs /= denominators
+            # could set the probability of the correct data words to zero, as
+            # suggested in the BlackOut paper. That seems to result in a little
+            # bit worse model with NCE and BlackOut.
+#            target_class_ids = self.network.target_class_ids.flatten()
+#            target_sample_ids = tensor.arange(minibatch_size)
+#            class_probs = tensor.set_subtensor(
+#                class_probs[(target_sample_ids, target_class_ids)], 0)
+#            denominators = class_probs.sum(1)
+#            denominators = denominators[:, None]
+#            class_probs /= denominators
             sample = random.multinomial_wo_replacement(pvals=class_probs,
                                                        n=num_samples)
             # For some reason (maybe a rounding error) it may happen that the

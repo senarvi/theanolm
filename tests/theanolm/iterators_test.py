@@ -113,8 +113,8 @@ class TestIterators(unittest.TestCase):
         self.assertTrue(sentences1 != sentences2)
         self.assertTrue(files1 != files2)
 
-        # The current behaviour is to cut the sentences, so we always get 5
-        # batches regardless of the maximum sequence length.
+        # The sentences are wraped so that we get more sequences if we limit
+        # the maximum length. Sequences shorter than two words will be ignored.
         iterator = theanolm.ShufflingBatchIterator([self.sentences1_file,
                                                     self.sentences2_file],
                                                    [],
@@ -128,7 +128,7 @@ class TestIterators(unittest.TestCase):
                                                    self.vocabulary,
                                                    batch_size=2,
                                                    max_sequence_length=3)
-        self.assertEqual(len(iterator), 5)
+        self.assertEqual(len(iterator), 7)
 
         # Sample 2 and 4 sentences (40 % and 80 %).
         iterator = theanolm.ShufflingBatchIterator([self.sentences1_file,
