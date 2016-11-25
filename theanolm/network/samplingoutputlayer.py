@@ -66,8 +66,9 @@ class SamplingOutputLayer(BasicLayer):
             class_probs = self.network.noise_probs[None, :]
             class_probs = tensor.tile(class_probs, [minibatch_size, 1])
             # Since we sample different noise words for different data words, we
-            # can set the probability of the correct data words to zero, as
-            # suggested in the BlackOut paper.
+            # could set the probability of the correct data words to zero, as
+            # suggested in the BlackOut paper, but this seems to make the
+            # results very bad.
 #            target_class_ids = self.network.target_class_ids.flatten()
 #            target_sample_ids = tensor.arange(minibatch_size)
 #            class_probs = tensor.set_subtensor(
