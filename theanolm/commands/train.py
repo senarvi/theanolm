@@ -119,7 +119,7 @@ def add_arguments(parser):
         help='sampling based costs sample K noise words per one training word '
              '(default 5)')
     argument_group.add_argument(
-        '--noise-sharing', metavar='SHARING', type=str, default=5,
+        '--noise-sharing', metavar='SHARING', type=str, default=None,
         help='can be "seq" for sharing noise samples across mini-batch '
              'sequences, or "batch" for sharing noise samples across einter '
              'mini-batch for improved speed (default is no sharing, which is '

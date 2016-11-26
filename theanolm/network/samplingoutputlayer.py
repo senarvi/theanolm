@@ -97,29 +97,34 @@ class SamplingOutputLayer(BasicLayer):
                             vector for each time step in each sequence
 
         :rtype: tuple of two TensorVariables
-        :returns: 3-dimensional tensors that contain the k sampled class IDs and
+        :returns: a 2-dimensional tensor that contains k sampled class IDs for
+                  each time step, and a 3-dimensional tensors that contains
                   their log probabilities for each time step in each sequence
         """
 
         num_time_steps = layer_input.shape[0]
         num_samples = self.network.num_noise_samples
+        num_batch_samples = num_time_steps * num_samples
         num_classes = numpy.int64(self.network.vocabulary.num_classes())
         random = self.network.random
 
         if self.network.noise_probs is None:
             # The upper bound is exclusive, so this always creates samples that
             # are < num_classes.
-            num_batch_samples = num_time_steps * num_samples
             sample = random.uniform((num_batch_samples,)) * num_classes
             sample = sample.astype('int64')
         else:
-            # We repeat the distribution for each time step, and sample k noise
-            # words per time step. k < number of outpus, so it's possible
-            # without replacement.
             class_probs = self.network.noise_probs[None, :]
-            class_probs = tensor.tile(class_probs, [num_time_steps, 1])
+            # We could repeat the distribution for each time step, and sample k
+            # noise words per time step. Since k < number of outpus, we would
+            # never have a problem with sampling without replacement.
+            # Unfortunately that is very inefficient.
+#            class_probs = tensor.tile(class_probs, [num_time_steps, 1])
+#            sample = random.multinomial_wo_replacement(pvals=class_probs,
+#                                                       n=num_samples)
             sample = random.multinomial_wo_replacement(pvals=class_probs,
-                                                       n=num_samples)
+                                                       n=num_batch_samples)
+            sample.reshape([num_time_steps, num_samples])
             # For some reason (maybe a rounding error) it may happen that the
             # sample contains a very high or negative value.
             sample = tensor.maximum(sample, 0)
@@ -138,7 +143,7 @@ class SamplingOutputLayer(BasicLayer):
                             vector for each time step in each sequence
 
         :rtype: tuple of two TensorVariables
-        :returns: 3-dimensional tensors that contain the k sampled class IDs and
+        :returns: k sampled class IDs and a 3-dimensional tensor that contain
                   their log probabilities for each time step in each sequence
         """
 
