@@ -60,55 +60,31 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         float_type = numpy.dtype(theano.config.floatX).type
         self.float_type = float_type
 
-        # numerical stability / smoothing term to prevent divide-by-zero
-        if not 'epsilon' in optimization_options:
-            raise ValueError("'epsilon' is not given in optimization options.")
-        self._epsilon = float_type(optimization_options['epsilon'])
-
-        # learning rate / step size
-        if not 'learning_rate' in optimization_options:
-            raise ValueError("'learning_rate' is not given in optimization "
-                             "options.")
-        self.learning_rate = float_type(optimization_options['learning_rate'])
-
-        # weights for training files
-        if not 'weights' in optimization_options:
-            raise ValueError("'weights' is not given in optimization options.")
-        self._weights = optimization_options['weights']
-
-        # maximum norm for parameter updates
-        if not 'max_gradient_norm' in optimization_options:
-            raise ValueError("'max_gradient_norm' is not given in optimization "
-                             "options.")
-        else:
+        try:
+            # numerical stability / smoothing term to prevent divide-by-zero
+            self._epsilon = float_type(optimization_options['epsilon'])
+            # learning rate / step size
+            self.learning_rate = float_type(optimization_options['learning_rate'])
+            # weights for training files
+            self._weights = optimization_options['weights']
+            # maximum norm for parameter updates
             self._max_gradient_norm = float_type(
                 optimization_options['max_gradient_norm'])
-
-        # cost function
-        if not 'cost_function' in optimization_options:
-            raise ValueError("'cost_function' is not given in optimization "
-                             "options.")
-        else:
+            # cost function
             cost_function = optimization_options['cost_function']
-
-        # number of noise samples for noise-contrastive estimation
-        if not 'num_noise_samples' in optimization_options:
-            raise ValueError("'num_noise_samples' is not given in optimization "
-                             "options.")
-        else:
+            # number of noise samples for sampling based output
             num_noise_samples = optimization_options['num_noise_samples']
-
-        # ignore <unk> tokens?
-        if not 'ignore_unk' in optimization_options:
-            raise ValueError("'ignore_unk' is not given in optimization "
-                             "options.")
-        self.ignore_unk = optimization_options['ignore_unk']
-
-        # penalty for <unk> tokens
-        if not 'unk_penalty' in optimization_options:
-            raise ValueError("'unk_penalty' is not given in optimization "
-                             "options.")
-        unk_penalty = optimization_options['unk_penalty']
+            # noise sample sharing for sampling based output
+            noise_sharing = optimization_options['noise_sharing']
+            # ignore <unk> tokens?
+            self._ignore_unk = optimization_options['ignore_unk']
+            # penalty for <unk> tokens
+            unk_penalty = optimization_options['unk_penalty']
+            # ignore <unk> tokens?
+            self._ignore_unk = optimization_options['ignore_unk']
+        except KeyError as e:
+            raise ValueError("Option {} is missing from optimization options."
+                             .format(e))
 
         unk_id = self.network.vocabulary.word_to_id['<unk>']
 
@@ -127,13 +103,9 @@ class BasicOptimizer(object, metaclass=ABCMeta):
             # Derive the symbolic expression for log probability of each word.
             logprobs = tensor.log(self.network.target_probs())
         elif cost_function == 'nce':
-            logprobs = self._get_nce_cost(shared_noise=False)
-        elif cost_function == 'nce-shared':
-            logprobs = self._get_nce_cost(shared_noise=True)
+            logprobs = self._get_nce_cost(sharing=noise_sharing)
         elif cost_function == 'blackout':
-            logprobs = self._get_blackout_cost(shared_noise=False)
-        elif cost_function == 'blackout-shared':
-            logprobs = self._get_blackout_cost(shared_noise=True)
+            logprobs = self._get_blackout_cost(sharing=noise_sharing)
         else:
             raise ValueError("Invalid cost function requested: `{}'".format(
                              cost_function))
@@ -147,7 +119,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         # cast to floatX, otherwise the result will be float64 and pulled out
         # from the GPU earlier than necessary.
         mask = self.network.mask
-        if self.ignore_unk:
+        if self._ignore_unk:
             mask *= tensor.neq(self.network.target_word_ids, unk_id)
         logprobs *= tensor.cast(mask, theano.config.floatX)
         # Cost is the negative log probability normalized by the number of
@@ -269,7 +241,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
                               "numerical error.")
 
         alpha = self.learning_rate
-        if self.ignore_unk:
+        if self._ignore_unk:
             mask *= tensor.neq(target_word_ids, unk_id)
         num_words = numpy.count_nonzero(mask)
         float_type = numpy.dtype(theano.config.floatX).type
@@ -279,7 +251,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
             alpha *= weights[mask == 1].sum() / float_type(num_words)
         self.model_update_function(alpha)
 
-    def _get_nce_cost(self, shared_noise):
+    def _get_nce_cost(self, sharing):
         """Returns a tensor variable that represents the mini-batch cost as
         defined by noise-contrastive estimation.
 
@@ -288,8 +260,10 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         Applications to Natural Image Statistics
         http://www.jmlr.org/papers/v13/gutmann12a.html
 
-        :type shared_noise: bool
-        :param shared_noise: use shared noise samples across mini-batch
+        :type sharing: str
+        :param sharing: either ``None`` for k samples per mini-batch element,
+                        'seq' for k samples per time step, or 'batch' for k
+                        samples in total
 
         :rtype: TensorVariable
         :returns: a symbolic 2-dimensional matrix that contains the log
@@ -313,13 +287,19 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         G = target_logprobs - target_prior_logprobs
         target_log_h = -tensor.nnet.softplus(-G)
 
-        if shared_noise:
-            sample, sample_logprobs = self.network.shared_noise_sample()
+        if sharing is None:
+            sample, sample_logprobs = self.network.noise_sample(sharing)
+        elif sharing == 'seq':
+            sample, sample_logprobs = self.network.noise_sample(sharing)
+            sample = sample[:, None, :]
+        elif sharing == 'batch':
+            sample, sample_logprobs = self.network.noise_sample(sharing)
             # sample_prior_logprobs will be a one-dimensional array (or a scalar
             # in case of uniform noise), but it will be broadcasted when
             # subtracted from sample_logprobs.
         else:
-            sample, sample_logprobs = self.network.noise_sample()
+            raise ValueError("Unknown noise sample sharing: `{}'".format(
+                             sharing))
         if self.network.noise_probs is None:
             sample_prior_logprobs = word_logprob
         else:
@@ -333,7 +313,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         sample_log_one_minus_h = -tensor.nnet.softplus(G)
         return target_log_h + sample_log_one_minus_h.sum(2)
 
-    def _get_blackout_cost(self, shared_noise):
+    def _get_blackout_cost(self, sharing):
         """Returns a tensor variable that represents the mini-batch cost as
         defined by BlackOut.
 
@@ -342,8 +322,10 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         Large Vocabularies
         https://arxiv.org/abs/1511.06909
 
-        :type shared_noise: bool
-        :param shared_noise: use shared noise samples across mini-batch
+        :type sharing: str
+        :param sharing: either ``None`` for k samples per mini-batch element,
+                        'seq' for k samples per time step, or 'batch' for k
+                        samples in total
 
         :rtype: TensorVariable
         :returns: a symbolic 2-dimensional matrix that contains the log
@@ -363,13 +345,19 @@ class BasicOptimizer(object, metaclass=ABCMeta):
                 self.network.noise_probs[target_class_ids]
         target_weighted_probs = target_probs / target_prior_probs
 
-        if shared_noise:
-            sample, sample_logprobs = self.network.shared_noise_sample()
+        if sharing is None:
+            sample, sample_logprobs = self.network.noise_sample(sharing)
+        elif sharing == 'seq':
+            sample, sample_logprobs = self.network.noise_sample(sharing)
+            sample = sample[:, None, :]
+        elif sharing == 'batch':
+            sample, sample_logprobs = self.network.noise_sample(sharing)
             # sample_prior_probs will be a one-dimensional array (or a scalar in
             # case of uniform noise), but it will be broadcasted when used to
             # divide sample_probs.
         else:
-            sample, sample_logprobs = self.network.noise_sample()
+            raise ValueError("Unknown noise sample sharing: `{}'".format(
+                             sharing))
         sample_probs = tensor.exp(sample_logprobs)
         if self.network.noise_probs is None:
             sample_prior_probs = word_prob

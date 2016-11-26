@@ -113,16 +113,22 @@ def add_arguments(parser):
     argument_group.add_argument(
         '--cost', metavar='NAME', type=str, default='cross-entropy',
         help='cost function, one of "cross-entropy" (default), "nce" '
-             '(noise-contrastive estimation), "nce-shared" (noise samples are '
-             'shared across mini-batch), "blackout", "blackout-shared"')
+             '(noise-contrastive estimation), or "blackout"')
     argument_group.add_argument(
         '--num-noise-samples', metavar='K', type=int, default=5,
-        help='sampling based costs sample K noise words per one training '
+        help='sampling based costs sample K noise words per one training word '
              '(default 5)')
+    argument_group.add_argument(
+        '--noise-sharing', metavar='SHARING', type=str, default=5,
+        help='can be "seq" for sharing noise samples across mini-batch '
+             'sequences, or "batch" for sharing noise samples across einter '
+             'mini-batch for improved speed (default is no sharing, which is '
+             'very slow)')
     argument_group.add_argument(
         '--unigram-noise', action="store_true",
         help='sampling based costs use unigram noise distribution (default is '
-             'to sample from uniform distribution, which can be done on GPU)')
+             'to sample from uniform distribution, which can be done more '
+             'efficiently, but results in a worse model)')
     argument_group.add_argument(
         '--unk-penalty', metavar='LOGPROB', type=float, default=None,
         help="if LOGPROB is zero, do not include <unk> tokens in perplexity "
@@ -280,6 +286,7 @@ def train(args):
             'max_gradient_norm': args.gradient_normalization,
             'cost_function': args.cost,
             'num_noise_samples': args.num_noise_samples,
+            'noise_sharing': args.noise_sharing,
             'ignore_unk': ignore_unk,
             'unk_penalty': unk_penalty
         }

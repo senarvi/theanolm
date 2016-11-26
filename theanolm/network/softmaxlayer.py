@@ -78,5 +78,11 @@ class SoftmaxLayer(SamplingOutputLayer):
                                                   num_sequences])
 
         # Compute unnormalized output and noise samples for NCE.
-        self._compute_unnormalized_logprobs(layer_input)
-        self._compute_sample_logprobs(layer_input)
+        self.unnormalized_logprobs = \
+            self._get_unnormalized_logprobs(layer_input)
+        self.sample, self.sample_logprobs = \
+            self._get_sample_tensors(layer_input)
+        self.seqshared_sample, self.seqshared_sample_logprobs = \
+            self._get_seqshared_sample_tensors(layer_input)
+        self.shared_sample, self.shared_sample_logprobs = \
+            self._get_shared_sample_tensors(layer_input)

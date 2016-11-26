@@ -383,48 +383,46 @@ class Network(object):
                                "distribution.")
         return self.output_layer.unnormalized_logprobs
 
-    def noise_sample(self):
-        """Returns the classes sampled from a noise distribution and their log
+    def noise_sample(self, sharing=None):
+        """Returns the classes sampled from a noise distribution, and their log
         probabilities.
 
         Only computed when target_class_ids is given and using softmax output.
 
-        :rtype: tuple of two TensorVariables
-        :returns: two symbolic 3-dimensional matrices that contain 1) k noise
-                  classes per mini-batch element and 2) their log probabilities
-        """
+        If ``sharing`` is None``, the sample is a 3-dimensional matrix of k
+        class IDs for each time step and sequence. If ``sharing`` is 'seq', the
+        sample is a 2-dimensional matrix, k class IDs for each time step. If
+        ``sharing`` is 'batch', the sample is a vector of k class IDs in total.
+        The log probabilities are always returned in a 3-dimensional matrix, as
+        they differ for each time step and sequence.
 
-        if not hasattr(self.output_layer, 'sample_logprobs'):
-            raise RuntimeError("The final layer is not a softmax layer, and "
-                               "noise probabilities are needed.")
-        if self.output_layer.sample_logprobs is None:
-            raise RuntimeError("Trying to read target class probabilities, "
-                               "while the output layer has produced the "
-                               "distribution.")
-        return self.output_layer.sample, \
-               self.output_layer.sample_logprobs
-
-    def shared_noise_sample(self):
-        """Returns the classes sampled from a noise distribution and their log
-        probabilities. The sampled words are shared across mini-batch.
-
-        Only computed when target_class_ids is given and using softmax output.
+        :type sharing: str
+        :param sharing: either ``None`` for k samples per mini-batch element,
+                        'seq' for k samples per time step, or 'batch' for k
+                        samples in total
 
         :rtype: tuple of two TensorVariables
-        :returns: a list of k noise classes that are shared between every
-                  mini-batch element, and a symbolic 3-dimensional matrix that
-                  contains their log probabilities for each mini-batch element
+        :returns: noise class IDs and their log probabilities
         """
 
-        if not hasattr(self.output_layer, 'shared_sample_logprobs'):
-            raise RuntimeError("The final layer is not a softmax layer, and "
-                               "noise probabilities are needed.")
-        if self.output_layer.shared_sample_logprobs is None:
-            raise RuntimeError("Trying to read target class probabilities, "
-                               "while the output layer has produced the "
-                               "distribution.")
-        return self.output_layer.shared_sample, \
-               self.output_layer.shared_sample_logprobs
+        try:
+            if sharing is None:
+                return self.output_layer.sample, \
+                       self.output_layer.sample_logprobs
+            elif sharing == 'seq':
+                return self.output_layer.seqshared_sample, \
+                       self.output_layer.seqshared_sample_logprobs
+            elif sharing == 'batch':
+                return self.output_layer.shared_sample, \
+                       self.output_layer.shared_sample_logprobs
+            else:
+                raise ValueError("Unknown noise sample sharing: `{}'".format(
+                                 sharing))
+        except AttributeError:
+            raise RuntimeError(
+                "Trying to read the noise sample when the final layer is not a "
+                "softmax layer, or the output layer is producing a "
+                "distribution instead of target probabilities.")
 
     def _layer_options_from_description(self, description):
         """Creates layer options based on textual architecture description.
