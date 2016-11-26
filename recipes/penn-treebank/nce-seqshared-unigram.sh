@@ -41,6 +41,6 @@ UNIGRAM_NOISE=1
 #PROFILE=1
 
 rm -f "${OUTPUT_DIR}/nnlm.h5"
-mv -f "${script_dir}/nce-shared-unigram.log" "${script_dir}/nce-shared-unigram.log~" 2>/dev/null || true
-train | tee "${script_dir}/nce-shared-unigram.log"
-compute_perplexity | tee --append "${script_dir}/nce-shared-unigram.log"
+mv -f "${script_dir}/nce-seqshared-unigram.log" "${script_dir}/nce-seqshared-unigram.log~" 2>/dev/null || true
+train | tee "${script_dir}/nce-seqshared-unigram.log"
+compute_perplexity | tee --append "${script_dir}/nce-seqshared-unigram.log"
