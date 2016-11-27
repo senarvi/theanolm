@@ -71,7 +71,7 @@ class Network(object):
             self.nce = nce
 
     def __init__(self, architecture, vocabulary, class_prior_probs=None,
-                 unigram_noise=False, mode=None, default_device=None,
+                 noise_dampening=1.0, mode=None, default_device=None,
                  profile=False):
         """Initializes the neural network parameters for all layers, and
         creates Theano shared variables from them.
@@ -82,8 +82,7 @@ class Network(object):
         ``num_noise_samples`` tensor variable. The prior distribution is a
         shared variable, so that we don't have to pass the vector to every call
         of a Theano function. The constructor initializes it using
-        ``class_prior_probs``. If the ``unigram_noise`` is ``False``, noise
-        will be sampled from uniform distribution instead.
+        ``class_prior_probs`` and ``noise_dampening``.
 
         :type architecture: Architecture
         :param architecture: an object that describes the network architecture
@@ -94,6 +93,10 @@ class Network(object):
         :type class_prior_probs: numpy.ndarray
         :param class_prior_probs: empirical (unigram) distribution of the output
                                   classes (only required for training)
+
+        :type noise_dampening: float
+        :param noise_dampening: exponent to which the unigram distribution is
+                                raised before sampling noise samples
 
         :type mode: Network.Mode
         :param mode: selects mini-batch or single time step processing
@@ -228,13 +231,11 @@ class Network(object):
 
         # Sampling based methods use this noise distribution, if it's set.
         # Otherwise noise is sampled from uniform distribution.
-        if unigram_noise:
-            # We mix uniform distribution and the unigram class distribution, so
-            # that also rare classes are sampled sometimes.
-            noise_probs = numpy.ones(vocabulary.num_classes(),
-                                     dtype=theano.config.floatX)
-            noise_probs /= vocabulary.num_classes()
-            noise_probs += class_prior_probs
+        if (class_prior_probs is None) or (noise_dampening == 0.0):
+            # Use uniform() for sampling based training.
+            self.noise_probs = None
+        else:
+            noise_probs = numpy.power(class_prior_probs, noise_dampening)
             noise_probs /= noise_probs.sum()
             if default_device is None:
                 self.noise_probs = \
@@ -245,8 +246,6 @@ class Network(object):
                     theano.shared(noise_probs.astype(theano.config.floatX),
                                   'network/noise_probs',
                                   target=default_device)
-        else:
-            self.noise_probs = None
 
         for layer in self.layers.values():
             layer.create_structure()

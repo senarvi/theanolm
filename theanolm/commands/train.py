@@ -125,10 +125,11 @@ def add_arguments(parser):
              'mini-batch for improved speed (default is no sharing, which is '
              'very slow)')
     argument_group.add_argument(
-        '--unigram-noise', action="store_true",
-        help='sampling based costs use unigram noise distribution (default is '
-             'to sample from uniform distribution, which can be done more '
-             'efficiently, but results in a worse model)')
+        '--noise-dampening', metavar='ALPHA', type=float, default=0.5,
+        help='the empirical unigram distribution is raised to the power ALPHA '
+             'before sampling noise words; 0.0 corresponds to the uniform '
+             'distribution and 1.0 corresponds to the unigram distribution '
+             '(default 0.5)')
     argument_group.add_argument(
         '--unk-penalty', metavar='LOGPROB', type=float, default=None,
         help="if LOGPROB is zero, do not include <unk> tokens in perplexity "
@@ -318,7 +319,7 @@ def train(args):
                 architecture = Architecture.from_description(arch_file)
 
         network = Network(architecture, vocabulary, trainer.class_prior_probs,
-                          args.unigram_noise,
+                          args.noise_dampening,
                           default_device=args.default_device,
                           profile=args.profile)
 

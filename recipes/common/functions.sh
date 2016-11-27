@@ -106,6 +106,7 @@ train () {
 	local gradient_decay_rate="${GRADIENT_DECAY_RATE:-0.9}"
 	local epsilon="${EPSILON:-1e-6}"
         local num_noise_samples="${NUM_NOISE_SAMPLES:-1}"
+        local noise_dampening="${NOISE_DAMPENING:-0.5}"
 	local validation_freq="${VALIDATION_FREQ:-8}"
 	local patience="${PATIENCE:-4}"
 	local run_gpu="${RUN_GPU}"
@@ -127,7 +128,6 @@ train () {
 	fi
 	[ -n "${ARCHITECTURE_FILE}" ] && extra_args+=(--architecture "${ARCHITECTURE_FILE}")
 	[ -n "${NOISE_SHARING}" ] && extra_args+=(--noise-sharing "${NOISE_SHARING}")
-	[ -n "${UNIGRAM_NOISE}" ] && extra_args+=(--unigram-noise)
 
 	mkdir -p "${OUTPUT_DIR}"
 
@@ -166,6 +166,7 @@ train () {
 	  --gradient-decay-rate "${gradient_decay_rate}" \
 	  --numerical-stability-term "${epsilon}" \
 	  --num-noise-samples "${num_noise_samples}" \
+	  --noise-dampening "${noise_dampening}" \
 	  --validation-frequency "${validation_freq}" \
 	  --patience "${patience}" \
 	  --min-epochs 1 \
