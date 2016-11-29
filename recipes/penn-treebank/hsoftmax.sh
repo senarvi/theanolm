@@ -33,7 +33,6 @@ VALIDATION_FREQ=1
 PATIENCE=0
 ARCHITECTURE_FILE="${arch_dir}/word-lstm256-hsoftmax.arch"
 COST=cross-entropy
-#LEARNING_RATE=5
 LEARNING_RATE=1
 #PROFILE=1
 

@@ -26,15 +26,15 @@ source "${script_dir}/paths.sh"
 source "${script_dir}/../common/functions.sh"
 
 # Set training parameters.
-OPTIMIZATION_METHOD=sgd
+OPTIMIZATION_METHOD=adagrad
 MAX_GRADIENT_NORM=5
 STOPPING_CRITERION=no-improvement
 VALIDATION_FREQ=1
 PATIENCE=0
 ARCHITECTURE_FILE="${arch_dir}/word-lstm256.arch"
 COST=cross-entropy
-LEARNING_RATE=10
-DEBUG=1
+LEARNING_RATE=1
+#DEBUG=1
 
 rm -f "${OUTPUT_DIR}/nnlm.h5"
 mv -f "${script_dir}/softmax.log" "${script_dir}/softmax.log~" 2>/dev/null || true
