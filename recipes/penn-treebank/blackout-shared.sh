@@ -27,7 +27,7 @@ source "${script_dir}/../common/functions.sh"
 
 # Set training parameters.
 BATCH_SIZE=24
-OPTIMIZATION_METHOD=sgd
+OPTIMIZATION_METHOD=adagrad
 MAX_GRADIENT_NORM=5
 STOPPING_CRITERION=no-improvement
 VALIDATION_FREQ=1
@@ -37,7 +37,7 @@ COST=blackout
 NUM_NOISE_SAMPLES=100
 NOISE_SHARING=batch
 NOISE_DAMPENING=0.75
-LEARNING_RATE=5
+LEARNING_RATE=1
 #PROFILE=1
 
 rm -f "${OUTPUT_DIR}/nnlm.h5"
