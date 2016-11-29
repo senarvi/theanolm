@@ -106,7 +106,7 @@ train () {
 	local gradient_decay_rate="${GRADIENT_DECAY_RATE:-0.9}"
 	local epsilon="${EPSILON:-1e-6}"
         local num_noise_samples="${NUM_NOISE_SAMPLES:-1}"
-        local noise_dampening="${NOISE_DAMPENING:-0.5}"
+        local noise_dampening="${NOISE_DAMPENING:-0.75}"
 	local validation_freq="${VALIDATION_FREQ:-8}"
 	local patience="${PATIENCE:-4}"
 	local run_gpu="${RUN_GPU}"
