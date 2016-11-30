@@ -447,7 +447,10 @@ class Trainer(object):
             for name in state.attrs:
                 self._candidate_state.attrs[name] = state.attrs[name]
 
-        self._candidate_index = self._cost_history.size - 1
+        if self._cost_history.size == 0:
+            self._candidate_index = None
+        else:
+            self._candidate_index = self._cost_history.size - 1
 
         self._candidate_state.flush()
         logging.info("New candidate for optimal state saved to %s.",

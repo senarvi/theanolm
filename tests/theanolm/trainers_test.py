@@ -7,7 +7,7 @@ from theanolm.training import Trainer
 class DummyTrainer(object):
     pass
 
-class TestIterators(unittest.TestCase):
+class TestTrainers(unittest.TestCase):
     def setUp(self):
         self.dummy_trainer = DummyTrainer()
 

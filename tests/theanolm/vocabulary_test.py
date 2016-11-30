@@ -80,6 +80,24 @@ class TestVocabulary(unittest.TestCase):
         self.assertListEqual(list(vocabulary1._word_classes),
                              list(vocabulary2._word_classes))
 
+    def test_class_ids(self):
+        self.classes_file.seek(0)
+        vocabulary = Vocabulary.from_file(self.classes_file, 'srilm-classes')
+        word_id = vocabulary.word_to_id['yksi']
+        yksi_class_id = vocabulary.word_id_to_class_id[word_id]
+        word_id = vocabulary.word_to_id['kaksi']
+        kaksi_class_id = vocabulary.word_id_to_class_id[word_id]
+        word_id = vocabulary.word_to_id['kolme']
+        kolme_class_id = vocabulary.word_id_to_class_id[word_id]
+        word_id = vocabulary.word_to_id['neljä']
+        nelja_class_id = vocabulary.word_id_to_class_id[word_id]
+        word_id = vocabulary.word_to_id['</s>']
+        eos_class_id = vocabulary.word_id_to_class_id[word_id]
+        self.assertNotEqual(yksi_class_id, kaksi_class_id)
+        self.assertEqual(kolme_class_id, nelja_class_id)
+        self.assertNotEqual(kolme_class_id, eos_class_id)
+        self.assertEqual(kaksi_class_id, eos_class_id)
+
     def test_compute_probs(self):
         self.classes_file.seek(0)
         vocabulary = Vocabulary.from_file(self.classes_file, 'srilm-classes')
@@ -88,7 +106,7 @@ class TestVocabulary(unittest.TestCase):
         word_id = vocabulary.word_to_id['yksi']
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 1.0)
         word_id = vocabulary.word_to_id['kaksi']
-        self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 1.0)
+        self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 2.0 / 12.0)
         word_id = vocabulary.word_to_id['kolme']
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 0.5)
         word_id = vocabulary.word_to_id['neljä']
@@ -105,6 +123,12 @@ class TestVocabulary(unittest.TestCase):
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 0.25)
         word_id = vocabulary.word_to_id['kymmenen']
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 1.0)
+        word_id = vocabulary.word_to_id['<s>']
+        self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 1.0)
+        word_id = vocabulary.word_to_id['</s>']
+        self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 10.0 / 12.0)
+        word_id = vocabulary.word_to_id['<unk>']
+        self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 1.0)
 
     def test_get_class_memberships(self):
         vocabulary = Vocabulary.from_file(self.classes_file, 'srilm-classes')
@@ -117,12 +141,15 @@ class TestVocabulary(unittest.TestCase):
                                 vocabulary.word_to_id['seitsemän'],
                                 vocabulary.word_to_id['kahdeksan'],
                                 vocabulary.word_to_id['yhdeksän'],
-                                vocabulary.word_to_id['kymmenen']])
+                                vocabulary.word_to_id['kymmenen'],
+                                vocabulary.word_to_id['<s>'],
+                                vocabulary.word_to_id['</s>'],
+                                vocabulary.word_to_id['<unk>']])
         class_ids, probs = vocabulary.get_class_memberships(word_ids)
         assert_equal(class_ids, vocabulary.word_id_to_class_id[word_ids])
         assert_equal(class_ids[3], vocabulary.word_id_to_class_id[word_ids[3]])
         assert_almost_equal(probs, [1.0,
-                                    1.0,
+                                    0.999,
                                     0.599 / (0.599 + 0.400),
                                     0.400 / (0.599 + 0.400),
                                     1.0,
@@ -130,6 +157,9 @@ class TestVocabulary(unittest.TestCase):
                                     0.226 / (0.281 + 0.226 + 0.262 + 0.228),
                                     0.262 / (0.281 + 0.226 + 0.262 + 0.228),
                                     0.228 / (0.281 + 0.226 + 0.262 + 0.228),
+                                    1.0,
+                                    1.0,
+                                    0.001,
                                     1.0])
 
 if __name__ == '__main__':

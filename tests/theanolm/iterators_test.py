@@ -7,7 +7,7 @@ import mmap
 import numpy
 from numpy.testing import assert_equal
 import theanolm
-from theanolm.iterators.shufflingbatchiterator import find_sentence_starts
+from theanolm.parsing.functions import find_sentence_starts
 
 class TestIterators(unittest.TestCase):
     def setUp(self):

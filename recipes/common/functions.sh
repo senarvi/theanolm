@@ -91,7 +91,6 @@ EOF
 
 train () {
 	[ "${#TRAIN_FILES[@]}" -lt 1 ] && { echo "TRAIN_FILES required." >&2; exit 1; }
-	[ -n "${DEVEL_FILE}" ] || { echo "DEVEL_FILE required." >&2; exit 1; }
 	[ -n "${OUTPUT_DIR}" ] || { echo "OUTPUT_DIR required." >&2; exit 1; }
 	[ -n "${ARCHITECTURE_FILE}" ] || { echo "ARCHITECTURE_FILE required." >&2; exit 1; }
 
@@ -128,6 +127,7 @@ train () {
 	fi
 	[ -n "${ARCHITECTURE_FILE}" ] && extra_args+=(--architecture "${ARCHITECTURE_FILE}")
 	[ -n "${NOISE_SHARING}" ] && extra_args+=(--noise-sharing "${NOISE_SHARING}")
+	[ -n "${DEVEL_FILE}" ] && extra_args+=(--validation-file "${DEVEL_FILE}")
 
 	mkdir -p "${OUTPUT_DIR}"
 
@@ -143,7 +143,7 @@ train () {
 	if [ -n "${CLASSES}" ]
 	then
 		vocab_file="${CLASSES}"
-		vocab_format="srilm-classes"
+		vocab_format="${CLASSES_FORMAT:-srilm-classes}"
 	else
 		vocab_file="${OUTPUT_DIR}/nnlm.vocab"
 		echo "${vocab_file}"
@@ -154,7 +154,6 @@ train () {
 	(set -x; theanolm train \
 	  "${OUTPUT_DIR}/nnlm.h5" \
 	  --training-set "${TRAIN_FILES[@]}" \
-	  --validation-file "${DEVEL_FILE}" \
 	  --vocabulary "${vocab_file}" \
           --vocabulary-format "${vocab_format}" \
 	  --sequence-length "${sequence_length}" \

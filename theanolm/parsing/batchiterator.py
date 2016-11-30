@@ -3,33 +3,7 @@
 
 from abc import abstractmethod, ABCMeta
 import numpy
-
-def utterance_from_line(line):
-    """Converts a line of text, read from an input file, into a list of words.
-
-    Start-of-sentence and end-of-sentece tags (``<s>`` and ``</s>``) will be
-    inserted at the beginning and the end of the list, if they're missing. If
-    the line is empty, returns an empty list (instead of an empty sentence
-    ``['<s>', '</s>']``).
-
-    :type line: str or bytes
-    :param line: a line of text (read from an input file)
-    """
-
-    if type(line) == bytes:
-        line = line.decode('utf-8')
-    line = line.rstrip()
-    if len(line) == 0:
-        # empty line
-        return []
-
-    result = line.split()
-    if result[0] != '<s>':
-        result.insert(0, '<s>')
-    if result[-1] != '</s>':
-        result.append('</s>')
-
-    return result
+from theanolm.parsing.functions import utterance_from_line
 
 class BatchIterator(object, metaclass=ABCMeta):
     """Iterator for Reading Mini-Batches

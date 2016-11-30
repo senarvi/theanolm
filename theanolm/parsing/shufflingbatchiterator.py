@@ -6,35 +6,8 @@ import mmap
 import logging
 import numpy
 from numpy import random
-from theanolm.iterators.batchiterator import BatchIterator
-
-def find_sentence_starts(data):
-    """Finds the positions inside a memory-mapped file, where the sentences
-    (lines) start.
-
-    TextIOWrapper disables tell() when readline() is called, so search for
-    sentence starts in memory-mapped data.
-
-    :type data: mmap.mmap
-    :param data: memory-mapped data of the input file
-
-    :rtype: list of ints
-    :returns: a list of file offsets pointing to the next character from a
-              newline (including file start and excluding file end)
-    """
-
-    result = [0]
-
-    pos = 0
-    while True:
-        pos = data.find(b'\n', pos)
-        if pos == -1:
-            break;
-        pos += 1
-        if pos < len(data):
-            result.append(pos)
-
-    return result
+from theanolm.parsing.batchiterator import BatchIterator
+from theanolm.parsing.functions import find_sentence_starts
 
 class SentencePointers(object):
     """A class that creates a memory map of text files and stores pointers to

@@ -11,7 +11,6 @@ import theano
 from theanolm import Vocabulary, Architecture, Network
 from theanolm.scoring import LatticeDecoder, SLFLattice
 from theanolm.filetypes import TextFileType
-from theanolm.iterators import utterance_from_line
 
 def add_arguments(parser):
     argument_group = parser.add_argument_group("files")

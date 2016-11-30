@@ -8,10 +8,9 @@ import numpy
 import h5py
 import theano
 from theanolm import Vocabulary, Architecture, Network
-from theanolm import LinearBatchIterator
+from theanolm.parsing import LinearBatchIterator, utterance_from_line
 from theanolm.scoring import TextScorer
 from theanolm.filetypes import TextFileType
-from theanolm.iterators import utterance_from_line
 
 def add_arguments(parser):
     argument_group = parser.add_argument_group("files")

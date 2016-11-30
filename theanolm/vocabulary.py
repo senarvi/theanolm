@@ -4,6 +4,7 @@
 from collections import OrderedDict
 import numpy
 import h5py
+from theanolm.parsing import utterance_from_line
 from theanolm.exceptions import IncompatibleStateError, InputError
 
 class Vocabulary(object):
@@ -294,10 +295,6 @@ class Vocabulary(object):
             else:
                 raise InputError("%d fields on one line of vocabulary file: %s" % (len(fields), line))
 
-            if word in ('<s>', '</s>', '<unk>'):
-                # These special symbols are automatically added
-                continue
-
             if word in words:
                 raise InputError("Word `%s' appears more than once in the vocabulary file." % word)
             words.add(word)
@@ -432,6 +429,8 @@ class Vocabulary(object):
         Probabilities are updates only for classes whose words occur in the
         text.
 
+        Ensures that special tokens will always have nonzero probabilities.
+
         :type input_files: list of file or mmap objects
         :param input_files: input text files
         """
@@ -439,9 +438,16 @@ class Vocabulary(object):
         counts = numpy.zeros(self.num_words(), dtype='int64')
         for subset_file in input_files:
             for line in subset_file:
-                for word in line.split():
+                for word in utterance_from_line(line):
                     if word in self.word_to_id:
                         counts[self.word_to_id[word]] += 1
+
+        sos_id = self.word_to_id['<s>']
+        eos_id = self.word_to_id['</s>']
+        unk_id = self.word_to_id['<unk>']
+        counts[sos_id] = max(counts[sos_id], 1)
+        counts[eos_id] = max(counts[eos_id], 1)
+        counts[unk_id] = max(counts[unk_id], 1)
 
         for cls in self._word_classes:
             cls_counts = dict()
@@ -451,6 +457,10 @@ class Vocabulary(object):
             if cls_total > 0:
                 for word_id, count in cls_counts.items():
                     cls.set_prob(word_id, float(count) / cls_total)
+            else:
+                prob = 1.0 / len(cls)
+                for word_id, _ in cls:
+                    cls.set_prob(word_id, prob)
 
     def get_state(self, state):
         """Saves the vocabulary in a network state file.
