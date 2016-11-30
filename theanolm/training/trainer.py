@@ -184,6 +184,11 @@ class Trainer(object):
 
     def train(self):
         """Trains a neural network.
+
+        If cross-validation has been configured using ``set_validation()``,
+        computes the validation set perplexity as many times per epoch as
+        specified by the _validation_frequency_ option and saves the model when
+        the perplexity improves. Otherwise saves the model after each epoch.
         """
 
         if (self._network is None) or (self._optimizer is None) or \
@@ -211,6 +216,9 @@ class Trainer(object):
 
                 if not self._stopper.start_new_minibatch():
                     break
+
+            if self._validation_iter is None:
+                self._set_candidate_state()
 
             epoch_duration = time() - epoch_start_time
             epoch_minutes = epoch_duration / 60

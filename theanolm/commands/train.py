@@ -350,6 +350,7 @@ def train(args):
                                     max_sequence_length=None)
             trainer.set_validation(validation_iter, scorer)
         else:
+            print("Cross-validation will not be performed.")
             validation_iter = None
 
         print("Training neural network.")
