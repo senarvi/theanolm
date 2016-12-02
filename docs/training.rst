@@ -33,7 +33,7 @@ noise-contrastive estimation, or BlackOut. These options are explained below:
   sampling a subset of the vocabulary for each mini-batch and contrast the
   correct target words to these *noise* words only, instead of the whole
   vocabulary. Only normal softmax output layer supports sampling. This is
-  explained in more detail below.
+  explained in the `Cost function` section below.
 
 A vocabulary has to be provided for ``theanolm train`` command using the
 ``--vocabulary`` argument. If classes are not used, the vocabulary is simply a
@@ -115,20 +115,11 @@ Optimization
 ------------
 
 The objective of the implemented optimization methods is to maximize the
-likelihood of the training sentences. The cost function is the sum of the
-negative log probabilities of the training words, given the preceding input
-words.
-
-Training words are processed in sequences that by default correspond to lines of
-training data. Maximum sequence length may be given with the
-``--sequence-length`` argument, which limits the time span for which the network
-can learn dependencies.
-
-All the implemented optimization methods are based on Gradient Descent, meaning
-that the neural network parameters are updated by taking steps proportional to
-the negative of the gradient of the cost function. The true gradient is
-approximated by subgradients on subsets of the training data called
-“mini-batches”.
+likelihood of the training sentences. All the implemented optimization methods
+are based on Gradient Descent, meaning that the neural network parameters are
+updated by taking steps proportional to the negative of the gradient of the cost
+function. The true gradient is approximated by subgradients on subsets of the
+training data called “mini-batches”.
 
 The size of the step taken when updating neural network parameters is controlled
 by “learning rate”. The initial value can be set using the ``--learning-rate``
@@ -138,12 +129,28 @@ function by the number of training examples in the mini-batch. In most of the
 cases, something between 0.1 and 1.0 works well, depending on the optimization
 method and data.
 
-However, optimization methods that adapt the gradients before updating
-parameters, can easily make the gradients explode, unless gradient
-normalization is used. With the ``--max-gradient-norm`` argument one can set the
-maximum for the norm of the (adapted) gradients. Typically 5 or 15 works well.
-The table below suggests some values for learning rate. Those are a good
-starting point, assuming gradient normalization is used.
+The number of sequences included in one mini-batch can be set with the
+``--batch-size`` argument. Larger mini-batches are more efficient to compute on
+a GPU, and result in more reliable gradient estimates. However, when a larger
+batch size is selected, the learning rate may have to be reduced to keep the
+optimization stable. This makes a too large batch size inefficient. Usually
+something like 16 or 32 works well.
+
+Maximum sequence length may be given with the ``--sequence-length`` argument,
+which limits the time span for which the network can learn dependencies. Longer
+sentences will be split to multiple sequences. If the argument is not given, the
+sequences in a mini-batch correspond to sentences. There's no point in using a
+value greater than 100, and smaller values such as 25 or 50 can be used to limit
+the memory consumption and make the computation more efficient.
+
+The optimization method can be selected using the ``--optimization-method``
+argument. Methods that adapt the gradients before updating parameters can
+considerably improve the speed of convergence, but training may be less stable.
+In order to avoid the gradients exploding, gradient normalization is
+recommended. With the ``--max-gradient-norm`` argument one can set the maximum
+for the norm of the (adapted) gradients. Typically 5 or 15 works well. The table
+below suggests some values for learning rate. Those are a good starting point,
+assuming gradient normalization is used.
 
 +--------------------------------+-----------------------+-----------------+
 | Optimization Method            | --optimization-method | --learning-rate |
@@ -164,21 +171,12 @@ starting point, assuming gradient normalization is used.
 +--------------------------------+-----------------------+-----------------+
 
 AdaGrad automatically scales the gradients before updating the neural network
-parameters. It is the fastest method to converge and usually reaches close to
-the optimum without manual annealing. ADADELTA is an extension of AdaGrad that
-is not as aggressive in scaling down the gradients. It seems to benefit from
-manual annealing, but still stay behind AdaGrad in terms of final model
-performance.
-
-Nesterov Momentum requires manual annealing, but seems to find the best final
-model.
-
-The number of sequences included in one mini-batch can be set with the
-``--batch-size`` argument. Larger mini-batches are more efficient to compute on
-a GPU, and result in more reliable gradient estimates. However, when a larger
-batch size is selected, the learning rate may have to be reduced to keep the
-optimization stable. This makes a too large batch size inefficient. Usually a
-value between 4 and 32 is used.
+parameters. It seems to be the fastest method to converge and usually reaches
+close to the optimum without manual annealing. ADADELTA is an extension of
+AdaGrad that is not as aggressive in scaling down the gradients. It seems to
+benefit from manual annealing, but still stay behind AdaGrad in terms of final
+model performance. Nesterov Momentum requires manual annealing, but may find a
+better final model.
 
 Cost function
 -------------
@@ -191,7 +189,7 @@ proposed alternatives, noise-contrastive estimation (*nce*) and BlackOut
 training. This subset, called noise words, is randomly sampled.
 
 The sampling based costs can be faster to compute, but less stable and slower to
-converge. For each data word $k$ noise words are sampled, where $k$ can be set
+converge. For each data word *k* noise words are sampled, where *k* can be set
 using the ``--num-noise-samples`` argument. The higher the number of noise
 samples, the more stable and slower the training is.
 
