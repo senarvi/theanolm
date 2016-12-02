@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from abc import abstractmethod, ABCMeta
 from collections import OrderedDict
 import logging
 import numpy
@@ -8,7 +9,7 @@ import theano
 import theano.tensor as tensor
 from theanolm.matrixfunctions import random_weight, orthogonal_weight
 
-class BasicLayer(object):
+class BasicLayer(object, metaclass=ABCMeta):
     """Superclass for Neural Network Layers
     """
 
@@ -54,6 +55,17 @@ class BasicLayer(object):
         """
 
         self._params = params
+
+    @abstractmethod
+    def create_structure(self):
+        """Creates the symbolic graph of this layer.
+
+        Sets self.output to a symbolic matrix that describes the output of this
+        layer. Assumes that the shared variables have been passed using
+        ``set_params()``.
+        """
+
+        assert False
 
     def _param_path(self, param_name):
         """Returns the HDF5 path used to address a parameter.
