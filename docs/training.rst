@@ -7,10 +7,9 @@ Vocabulary
 Because of the softmax normalization performed over the vocabulary at the output
 layer of a neural network, vocabulary size has a huge impact on training speed.
 Vocabulary size can be reduced by clustering words into classes, and estimating
-a language model over the word classes. Another option is to use subword units.
-Training word-based models is also possible even with a large vocabulary, when
-hierarchical softmax is used at the output of the network. These options are
-explained below:
+a language model over the word classes, or using subword units. Another option
+is to approximate the softmax normalization using hierarchical softmax,
+noise-contrastive estimation, or BlackOut. These options are explained below:
 
 * Class-based models are probably the fastest to train and evaluate, because the
   vocabulary size is usually a few thousand. TheanoLM will use unigram
@@ -30,6 +29,11 @@ explained below:
   choices. Training will be considerably faster than with regular softmax, but
   the number of parameters will still be large, meaning that the amount of GPU
   memory may limit the usable vocabulary size.
+* A new alternative to hierarchical softmax is to approximate softmax by
+  sampling a subset of the vocabulary for each mini-batch and contrast the
+  correct target words to these *noise* words only, instead of the whole
+  vocabulary. Only normal softmax output layer supports sampling. This is
+  explained in more detail below.
 
 A vocabulary has to be provided for ``theanolm train`` command using the
 ``--vocabulary`` argument. If classes are not used, the vocabulary is simply a
@@ -176,16 +180,49 @@ batch size is selected, the learning rate may have to be reduced to keep the
 optimization stable. This makes a too large batch size inefficient. Usually a
 value between 4 and 32 is used.
 
+Cost function
+-------------
+
+The objective of the optimization can be change by selecting a different cost
+function using the ``--cost`` argument. The standard *cross-entropy* cost
+involves normalization by computing all the output probabilities. Recently
+proposed alternatives, noise-contrastive estimation (*nce*) and BlackOut
+(*blackout*), perform normalization only on a subset of the vocabulary during
+training. This subset, called noise words, is randomly sampled.
+
+The sampling based costs can be faster to compute, but less stable and slower to
+converge. For each data word $k$ noise words are sampled, where $k$ can be set
+using the ``--num-noise-samples`` argument. The higher the number of noise
+samples, the more stable and slower the training is.
+
+Creating a different noise sample for every data word is very slow. The noise
+sample can be shared across the mini-batch using the ``--noise-sharing``
+argument. The value *batch* creates just one noise sample for the entire
+mini-batch. The value *seq* creates one noise sample for each time step (word
+inside a sequence), but shares the noise samples between sequences. Because of
+how multinomial sampling is currently implemented in Theano, noise sharing is
+practically necessary and it limits the total number of noise samples per
+mini-batch to the vocabulary size.
+
+The distribution where the noise samples are drawn from plays an important role.
+Uniform sampling is very fast, but rarely gives good results. It can be selected
+by setting the ``--noise-dampening`` argument to zero. Setting that argument to
+one corresponds to sampling from the unigram distribution in the training data.
+The problem with the unigram distribution is that very rare words may never get
+sampled. Usually the optimum value is a bit lower than one.
+
 Command line
 ------------
 
-Train command takes two positional arguments: output model path and validation
-data path. In addition the ``--training-set`` argument is mandatory, and is
-followed by path to one or more training data files. The rest of the arguments
-have default values. Below is an example that shows what the command line may
-look like at its simplest::
+Train command takes two mandatory arguments: the output model path and the
+``--training-set`` argument followed by path to one or more training data files.
+The rest of the arguments have default values. You probably want to provide a
+validation text to monitor the progress of the training. Below is an example
+that shows what the command line may look like at its simplest::
 
-    theanolm train model.h5 validation-data.txt --training-set training-data.txt
+    theanolm train model.h5 \
+      --training-set training-data.txt \
+      --validation-file validation-data.txt
 
 The input files can be either plain text or compressed with gzip. Text data is
 read one utterance per line. Start-of-sentence and end-of-sentence tags (*<s>*
@@ -198,12 +235,12 @@ is selected with the ``--architecture`` argument. A larger network can be
 selected with *lstm1500*, or a path to a custom network architecture description
 can be given.
 
-When the *no-improvement* stopping condition is used, learning rate is halved
-when validation set perplexity stops improving, and training stops when the
-perplexity did not improve at all with the current learning rate.
-``--validation-frequency`` argument defines how many cross-validations are
-performed on each epoch. ``--patience`` argument defines how many times
-perplexity is allowedto increase before learning rate is reduced.
+The *no-improvement* stopping condition can be used when validation data is
+provided. It halves the learning rate when validation set perplexity stops
+improving, and stops training when the perplexity did not improve at all with
+the current learning rate. ``--validation-frequency`` argument defines how many
+cross-validations are performed on each epoch. ``--patience`` argument defines
+how many times perplexity is allowedto increase before learning rate is reduced.
 
 Below is a more complex example that reads word classes from
 *vocabulary.classes* and uses Nesterov Momentum optimizer with annealing::

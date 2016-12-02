@@ -120,7 +120,7 @@ def add_arguments(parser):
              '(default 5)')
     argument_group.add_argument(
         '--noise-sharing', metavar='SHARING', type=str, default=None,
-        help='can be "seq" for sharing noise samples across mini-batch '
+        help='can be "seq" for sharing noise samples between mini-batch '
              'sequences, or "batch" for sharing noise samples across einter '
              'mini-batch for improved speed (default is no sharing, which is '
              'very slow)')

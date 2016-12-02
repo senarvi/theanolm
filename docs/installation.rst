@@ -13,6 +13,12 @@ command is ``pip3``. To install system-wide, use::
 
     sudo pip3 install TheanoLM
 
+It is also possible to use `virtualenv <https://virtualenv.pypa.io/en/stable/>`_
+to create an isolated Python environment, or install under your home directory
+by passing the ``--user`` argument to pip::
+
+    pip3 install --user TheanoLM
+
 Linux
 -----
 
