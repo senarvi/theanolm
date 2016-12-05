@@ -80,7 +80,7 @@ class Architecture(object):
         output_layer = h5_arch.attrs['output_layer']
 
         return classname(inputs, layers, output_layer)
-    
+
     @classmethod
     def from_description(classname, description_file):
         """Reads a description of the network architecture from a text file.
@@ -122,7 +122,7 @@ class Architecture(object):
                 inputs.append(input_description)
 
             elif fields[0] == 'layer':
-                layer_description = {'inputs': []}
+                layer_description = {'inputs': [], 'devices': []}
                 for field in fields[1:]:
                     parts = field.split('=', 1)
                     if len(parts) != 2:
@@ -135,6 +135,8 @@ class Architecture(object):
                         layer_description[variable] = int(value)
                     elif variable == 'input':
                         layer_description['inputs'].append(value)
+                    elif variable == 'device':
+                        layer_description['devices'].append(value)
                     else:
                         layer_description[variable] = value
                 if not 'type' in layer_description:

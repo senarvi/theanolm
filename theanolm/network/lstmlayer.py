@@ -4,7 +4,7 @@
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.matrixfunctions import get_submatrix
+from theanolm.network.weightfunctions import get_submatrix
 from theanolm.network.basiclayer import BasicLayer
 
 class LSTMLayer(BasicLayer):
@@ -33,17 +33,17 @@ class LSTMLayer(BasicLayer):
         output_size = self.output_size
 
         # Add state variables to be passed between time steps.
-        self.cell_state_index = self.network.add_recurrent_state(output_size)
-        self.hidden_state_index = self.network.add_recurrent_state(output_size)
+        self.cell_state_index = self._network.add_recurrent_state(output_size)
+        self.hidden_state_index = self._network.add_recurrent_state(output_size)
 
         # Initialize the parameters.
         num_gates = 3
         # layer input weights for each gate and the candidate state
-        self._init_orthogonal_weight('layer_input/W', input_size, output_size,
-                                     scale=0.01, count=num_gates+1)
+        self._init_weight('layer_input/W', (input_size, output_size),
+                          scale=0.01, count=num_gates+1)
         # hidden state input weights for each gate and the candidate state
-        self._init_orthogonal_weight('step_input/W', output_size, output_size,
-                                     count=num_gates+1)
+        self._init_weight('step_input/W', (output_size, output_size),
+                          count=num_gates+1)
         # biases for each gate and the candidate state
         self._init_bias('layer_input/b', output_size, [-1.0, 1.0, -1.0, 0.0])
 
@@ -59,7 +59,7 @@ class LSTMLayer(BasicLayer):
         probability distribution of the next word. Then the input is still
         3-dimensional, but the size of the first dimension (time steps) is 1,
         and the state outputs from the previous time step are read from
-        ``self.network.recurrent_state_input``.
+        ``self._network.recurrent_state_input``.
 
         Saves the recurrent state in the Network object: cell state C_(t) and
         hidden state h_(t). ``self.output`` will be set to the hidden state
@@ -82,8 +82,8 @@ class LSTMLayer(BasicLayer):
         # inside the loop.
         hidden_state_weights = self._get_param('step_input/W')
 
-        if self.network.mode.minibatch:
-            sequences = [self.network.mask, layer_input_preact]
+        if self._network.mode.minibatch:
+            sequences = [self._network.mask, layer_input_preact]
             non_sequences = [hidden_state_weights]
             initial_cell_state = tensor.zeros(
                 (num_sequences, self.output_size), dtype=theano.config.floatX)
@@ -103,9 +103,9 @@ class LSTMLayer(BasicLayer):
             self.output = state_outputs[1]
         else:
             cell_state_input = \
-                self.network.recurrent_state_input[self.cell_state_index]
+                self._network.recurrent_state_input[self.cell_state_index]
             hidden_state_input = \
-                self.network.recurrent_state_input[self.hidden_state_index]
+                self._network.recurrent_state_input[self.hidden_state_index]
 
             state_outputs = self._create_time_step(
                 mask[0],
@@ -118,9 +118,9 @@ class LSTMLayer(BasicLayer):
             cell_state_output = cell_state_output[None,:,:]
             hidden_state_output = hidden_state_output[None,:,:]
 
-            self.network.recurrent_state_output[self.cell_state_index] = \
+            self._network.recurrent_state_output[self.cell_state_index] = \
                 cell_state_output
-            self.network.recurrent_state_output[self.hidden_state_index] = \
+            self._network.recurrent_state_output[self.hidden_state_index] = \
                 hidden_state_output
             self.output = hidden_state_output
 

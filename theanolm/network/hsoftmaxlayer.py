@@ -39,13 +39,11 @@ class HSoftmaxLayer(BasicLayer):
         # Create the parameters. Weight matrix and bias for concatenated input
         # and the second level of the hierarchy.
         input_size = sum(x.output_size for x in self.input_layers)
-        self._init_random_weight('input/W',
-                                 (input_size, level1_size),
-                                 scale=0.01)
+        self._init_weight('input/W', (input_size, level1_size), scale=0.01)
         self._init_bias('input/b', level1_size)
-        self._init_random_weight('level1/W',
-                                 (level1_size, input_size, level2_size),
-                                 scale=0.01)
+        self._init_weight('level1/W',
+                          (level1_size, input_size, level2_size),
+                          scale=0.01)
         self._init_bias('level1/b', (level1_size, level2_size))
 
     def create_structure(self):
@@ -67,10 +65,10 @@ class HSoftmaxLayer(BasicLayer):
         # If we're only predicting probabilities of the target outputs, the
         # targets are the words at the next time step and the last time step is
         # not used as input.
-        if self.network.target_class_ids is None:
+        if self._network.target_class_ids is None:
             target_class_ids = None
         else:
-            target_class_ids = self.network.target_class_ids.flatten()
+            target_class_ids = self._network.target_class_ids.flatten()
 
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]

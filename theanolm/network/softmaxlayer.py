@@ -24,13 +24,11 @@ class SoftmaxLayer(SamplingOutputLayer):
         # Create the parameters. Weight matrix and bias for each input.
         input_size = sum(x.output_size for x in self.input_layers)
         output_size = self.output_size
-        self._init_random_weight('input/W',
-                                 (input_size, output_size),
-                                 scale=0.01)
-        if self.network.class_prior_probs is None:
+        self._init_weight('input/W', (input_size, output_size), scale=0.01)
+        if self._network.class_prior_probs is None:
             self._init_bias('input/b', output_size)
         else:
-            initial_bias = numpy.log(self.network.class_prior_probs + 1e-10)
+            initial_bias = numpy.log(self._network.class_prior_probs + 1e-10)
             self._init_bias('input/b', output_size, initial_bias)
 
     def create_structure(self):
@@ -62,7 +60,7 @@ class SoftmaxLayer(SamplingOutputLayer):
                                                   num_sequences,
                                                   self.output_size])
 
-        if self.network.target_class_ids is None:
+        if self._network.target_class_ids is None:
             self.target_probs = None
             self.unnormalized_logprobs = None
             self.sample = None
@@ -72,7 +70,7 @@ class SoftmaxLayer(SamplingOutputLayer):
             return
 
         element_ids = tensor.arange(num_time_steps * num_sequences)
-        target_class_ids = self.network.target_class_ids.flatten()
+        target_class_ids = self._network.target_class_ids.flatten()
         target_probs = output_probs[(element_ids, target_class_ids)]
         self.target_probs = target_probs.reshape([num_time_steps,
                                                   num_sequences])

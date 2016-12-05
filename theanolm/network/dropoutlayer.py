@@ -51,15 +51,19 @@ class DropoutLayer(BasicLayer):
         ``set_params()``.
         """
 
+        float_type = numpy.dtype(theano.config.floatX).type
+
         layer_input = tensor.concatenate([x.output for x in self.input_layers],
                                          axis=2)
         # Pass rate is the probability of not dropping a unit.
         pass_rate = 1.0 - self.dropout_rate
-        sample = self.network.random.uniform(size=layer_input.shape)
+        pass_rate = float_type(pass_rate)
+        sample = self._network.random.uniform(size=layer_input.shape)
         mask = tensor.cast(sample < pass_rate, theano.config.floatX)
         # Multiply the output by the inverse of the pass rate before dropping
         # units to compensate the scaling effect.
         scale_correction = 1.0 / pass_rate
-        self.output = tensor.switch(self.network.is_training,
+        scale_correction = float_type(scale_correction)
+        self.output = tensor.switch(self._network.is_training,
                                     layer_input * scale_correction * mask,
                                     layer_input)

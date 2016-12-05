@@ -7,7 +7,7 @@ import logging
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.matrixfunctions import random_weight, orthogonal_weight
+from theanolm.network.weightfunctions import random_weight, orthogonal_weight
 
 class BasicLayer(object, metaclass=ABCMeta):
     """Superclass for Neural Network Layers
@@ -28,20 +28,35 @@ class BasicLayer(object, metaclass=ABCMeta):
 
         self.name = layer_options['name']
         self.input_layers = layer_options['input_layers']
+        self._devices = layer_options['devices']
 
         if 'size' in layer_options:
-            self.output_size = layer_options['size']
+            self.output_size = int(layer_options['size'])
         else:
             self.output_size = \
-                sum([ x.output_size for x in self.input_layers ])
+                sum([x.output_size for x in self.input_layers])
 
-        logging.debug("- %s name=%s inputs=[%s] size=%d",
+        num_devices = len(self._devices)
+        self._weight_sizes = []
+        if num_devices > 0:
+            quotient, remainder = divmod(self.output_size, num_devices)
+            start_index = 0
+            for i in range(1, num_devices + 1):
+                end_index = i * quotient + min(i, remainder)
+                self._weight_sizes.append(end_index - start_index)
+                start_index = end_index
+            assert len(self._weight_sizes) == num_devices
+            assert sum(self._weight_sizes) == self.output_size
+            assert end_index == self.output_size
+
+        logging.debug("- %s name=%s inputs=[%s] sizes=[%s], devices=[%s]",
             self.__class__.__name__,
             self.name,
             ', '.join([x.name for x in self.input_layers]),
-            self.output_size)
+            ', '.join([str(x) for x in self._weight_sizes]),
+            ', '.join([str(x) for x in self._devices]))
 
-        self.network = network
+        self._network = network
         self._profile = profile
         self.param_init_values = OrderedDict()
 
@@ -91,45 +106,39 @@ class BasicLayer(object, metaclass=ABCMeta):
 
         return self._params[self._param_path(param_name)]
 
-    def _init_random_weight(self, param_name, shape, scale=None, count=1):
+    def _init_weight(self, param_name, shape, scale=None, count=1):
         """Generates a weight matrix from “standard normal” distribution.
 
-        :type shape: tuple of ints
-        :param shape: size of each dimension (typically there are two
-                      dimensions, input and output)
+        If ``shape`` contains two dimensions that match, generates an orthogonal
+        matrix. In that case scale is ignored. Orthogonal weights are useful for
+        two reasons:
+
+        1. Multiplying by an orthogonal weight preserves the norm of the
+           input vector, which should help avoid exploding and vanishing
+           gradients.
+        2. The row and column vectors are orthonormal to one another, which
+           should help avoid two vectors learning to produce the same features.
+
+        :type shape: list or tuple of ints
+        :param shape: sizes of the weight dimensions; normally the first one is
+                      the dimensionality of the input data and the second one is
+                      the dimensionality of the output data
 
         :type scale: float
-        :param scale: if other than None, the random numbers will be scaled by
-                      this factor
-
-        :rtype: numpy.ndarray
-        :returns: the generated weight matrix
+        :param scale: if other than ``None``, the matrix will be scaled by this
+                      factor, unless an orthogonal matrix is created
         """
 
-        self.param_init_values[self._param_path(param_name)] = \
-            numpy.concatenate([random_weight(shape, scale=scale)
-                               for _ in range(count)],
-                              axis=1)
-
-    def _init_orthogonal_weight(self, param_name, input_size, output_size, scale=None, count=1):
-        """Generates a weight matrix from “standard normal” distribution. If
-        in_size matches out_size, generates an orthogonal matrix.
-
-        :type input_size: int
-        :param input_size: size of the input dimension of the weight
-
-        :type output_size: int
-        :param output_size: size of the output dimension of the weight
-
-        :type scale: float
-        :param scale: if other than None, the matrix will be scaled by this factor,
-                      unless an orthogonal matrix is created
-        """
-
-        self.param_init_values[self._param_path(param_name)] = \
-            numpy.concatenate([orthogonal_weight(input_size, output_size, scale=0.01)
-                               for _ in range(count)],
-                              axis=1)
+        weight_path = self._param_path(param_name)
+        if (len(shape) == 2) and (shape[0] == shape[1]):
+            weight_matrix = numpy.concatenate(
+                [orthogonal_weight(shape[0]) for _ in range(count)],
+                axis=1)
+        else:
+            weight_matrix = numpy.concatenate(
+                [random_weight(shape, scale) for _ in range(count)],
+                axis=1)
+        self.param_init_values[weight_path] = weight_matrix
 
     def _init_bias(self, param_name, shape, value=None):
         """Initializes a bias vector with given value.

@@ -5,7 +5,7 @@ from collections import OrderedDict
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.matrixfunctions import get_submatrix
+from theanolm.network.weightfunctions import get_submatrix
 from theanolm.network.basiclayer import BasicLayer
 
 class HighwayTanhLayer(BasicLayer):
@@ -33,8 +33,8 @@ class HighwayTanhLayer(BasicLayer):
         # with those of the transform gate. Transform gate bias is initialized
         # to a negative value, so that the network is initially biased towards
         # carrying the input without transformation.
-        self._init_orthogonal_weight('input/W', input_size, output_size,
-                                     scale=0.01, count=2)
+        self._init_weight('input/W', (input_size, output_size), scale=0.01,
+                          count=2)
         self._init_bias('input/b', output_size, [0.0, -1.0])
 
     def create_structure(self):

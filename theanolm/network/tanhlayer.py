@@ -22,9 +22,7 @@ class TanhLayer(BasicLayer):
         # Create the parameters. Weight matrix and bias for concatenated input.
         input_size = sum(x.output_size for x in self.input_layers)
         output_size = self.output_size
-        self._init_random_weight('input/W',
-                                 (input_size, output_size),
-                                 scale=0.01)
+        self._init_weight('input/W', (input_size, output_size), scale=0.01)
         self._init_bias('input/b', output_size)
 
     def create_structure(self):

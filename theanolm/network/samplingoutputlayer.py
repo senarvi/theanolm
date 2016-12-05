@@ -30,7 +30,7 @@ class SamplingOutputLayer(BasicLayer):
 
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
-        target_class_ids = self.network.target_class_ids[:, :, None]
+        target_class_ids = self._network.target_class_ids[:, :, None]
         result = self._get_target_preact(layer_input, target_class_ids)
         return result.reshape([num_time_steps, num_sequences])
 
@@ -49,12 +49,12 @@ class SamplingOutputLayer(BasicLayer):
 
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
-        num_samples = self.network.num_noise_samples
-        num_classes = numpy.int64(self.network.vocabulary.num_classes())
-        random = self.network.random
+        num_samples = self._network.num_noise_samples
+        num_classes = numpy.int64(self._network.vocabulary.num_classes())
+        random = self._network.random
 
         minibatch_size = num_time_steps * num_sequences
-        if self.network.noise_probs is None:
+        if self._network.noise_probs is None:
             # The upper bound is exclusive, so this always creates samples that
             # are < num_classes.
             num_batch_samples = minibatch_size * num_samples
@@ -64,13 +64,13 @@ class SamplingOutputLayer(BasicLayer):
             # We repeat the distribution for each mini-batch element, and sample
             # k noise words per mini-batch element. k < number of outpus, so
             # it's possible without replacement.
-            class_probs = self.network.noise_probs[None, :]
+            class_probs = self._network.noise_probs[None, :]
             class_probs = tensor.tile(class_probs, [minibatch_size, 1])
             # Since we sample different noise words for different data words, we
             # could set the probability of the correct data words to zero, as
             # suggested in the BlackOut paper. That seems to result in a little
             # bit worse model with NCE and BlackOut.
-#            target_class_ids = self.network.target_class_ids.flatten()
+#            target_class_ids = self._network.target_class_ids.flatten()
 #            target_sample_ids = tensor.arange(minibatch_size)
 #            class_probs = tensor.set_subtensor(
 #                class_probs[(target_sample_ids, target_class_ids)], 0)
@@ -103,18 +103,18 @@ class SamplingOutputLayer(BasicLayer):
         """
 
         num_time_steps = layer_input.shape[0]
-        num_samples = self.network.num_noise_samples
+        num_samples = self._network.num_noise_samples
         num_batch_samples = num_time_steps * num_samples
-        num_classes = numpy.int64(self.network.vocabulary.num_classes())
-        random = self.network.random
+        num_classes = numpy.int64(self._network.vocabulary.num_classes())
+        random = self._network.random
 
-        if self.network.noise_probs is None:
+        if self._network.noise_probs is None:
             # The upper bound is exclusive, so this always creates samples that
             # are < num_classes.
             sample = random.uniform((num_batch_samples,)) * num_classes
             sample = sample.astype('int64')
         else:
-            class_probs = self.network.noise_probs[None, :]
+            class_probs = self._network.noise_probs[None, :]
             # We could repeat the distribution for each time step, and sample k
             # noise words per time step. Since k < number of outpus, we would
             # never have a problem with sampling without replacement.
@@ -147,12 +147,12 @@ class SamplingOutputLayer(BasicLayer):
                   their log probabilities for each time step in each sequence
         """
 
-        num_samples = self.network.num_noise_samples
-        num_classes = numpy.int64(self.network.vocabulary.num_classes())
-        random = self.network.random
+        num_samples = self._network.num_noise_samples
+        num_classes = numpy.int64(self._network.vocabulary.num_classes())
+        random = self._network.random
 
         # Sample k noise words in total. These are shared across mini-batch.
-        if self.network.noise_probs is None:
+        if self._network.noise_probs is None:
             # The upper bound is exclusive, so this always creates samples that
             # are < num_classes
             sample = random.uniform((num_samples,)) * num_classes
@@ -160,7 +160,7 @@ class SamplingOutputLayer(BasicLayer):
         else:
             # Multinomial sampling is implemented for a 2-dimensional
             # distribution only.
-            class_probs = self.network.noise_probs[None, :]
+            class_probs = self._network.noise_probs[None, :]
             sample = random.multinomial_wo_replacement(pvals=class_probs,
                                                        n=num_samples)
             sample = sample[0, :]

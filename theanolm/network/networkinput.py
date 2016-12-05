@@ -34,6 +34,7 @@ class NetworkInput(BasicLayer):
                 "Invalid network input type: {}".format(self.input_type))
         input_options['size'] = output_size
         input_options['input_layers'] = []
+        input_options['devices'] = []
         super().__init__(input_options, network)
 
     def create_structure(self):
@@ -45,8 +46,8 @@ class NetworkInput(BasicLayer):
         """
 
         if self.input_type == 'word':
-            self.output = self.network.input_word_ids
+            self.output = self._network.input_word_ids
         elif self.input_type == 'class':
-            self.output = self.network.input_class_ids
+            self.output = self._network.input_class_ids
         else:
             assert False
