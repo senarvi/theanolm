@@ -64,9 +64,6 @@ class LSTMLayer(BasicLayer):
         Saves the recurrent state in the Network object: cell state C_(t) and
         hidden state h_(t). ``self.output`` will be set to the hidden state
         output, which is the actual output of this layer.
-
-        Assumes that the shared variables have been passed using
-        ``set_params()``.
         """
 
         layer_input = tensor.concatenate([x.output for x in self.input_layers],

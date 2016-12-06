@@ -3,6 +3,7 @@
 
 import numpy
 import theano.tensor as tensor
+from theanolm import Parameters
 from theanolm.training.basicoptimizer import BasicOptimizer
 
 class AdaGradOptimizer(BasicOptimizer):
@@ -33,21 +34,21 @@ class AdaGradOptimizer(BasicOptimizer):
         :param network: the neural network object
         """
 
-        self.param_init_values = dict()
-        for name, param in network.params.items():
-            self.param_init_values[name + '_gradient'] = \
-                numpy.zeros_like(param.get_value())
-            self.param_init_values[name + '_sum_sqr_gradient'] = \
-                numpy.zeros_like(param.get_value())
+        self._params = Parameters()
+        for path, param in network.get_variables().items():
+            self._params.add(path + '_gradient',
+                             numpy.zeros_like(param.get_value()))
+            self._params.add(path + '_sum_sqr_gradient',
+                             numpy.zeros_like(param.get_value()))
 
         super().__init__(optimization_options, network, *args, **kwargs)
 
     def _gradient_update_exprs(self):
         result = []
-        for name, gradient_new in zip(self.network.params,
+        for path, gradient_new in zip(self.network.get_variables(),
                                       self._gradient_exprs):
-            gradient = self.params[name + '_gradient']
-            ss_gradient = self.params[name + '_sum_sqr_gradient']
+            gradient = self._params[path + '_gradient']
+            ss_gradient = self._params[path + '_sum_sqr_gradient']
             ss_gradient_new = ss_gradient + tensor.sqr(gradient_new)
             result.append((gradient, gradient_new))
             result.append((ss_gradient, ss_gradient_new))
@@ -55,15 +56,15 @@ class AdaGradOptimizer(BasicOptimizer):
 
     def _model_update_exprs(self, alpha):
         updates = dict()
-        for name, param in self.network.params.items():
-            gradient = self.params[name + '_gradient']
-            ss_gradient = self.params[name + '_sum_sqr_gradient']
+        for path, param in self.network.get_variables().items():
+            gradient = self._params[path + '_gradient']
+            ss_gradient = self._params[path + '_sum_sqr_gradient']
             rss_gradient = tensor.sqrt(ss_gradient + self._epsilon)
-            updates[name] = -gradient / rss_gradient
+            updates[path] = -gradient / rss_gradient
         self._normalize(updates)
 
         result = []
-        for name, param in self.network.params.items():
-            update = updates[name]
+        for path, param in self.network.get_variables().items():
+            update = updates[path]
             result.append((param, param + alpha * update))
         return result

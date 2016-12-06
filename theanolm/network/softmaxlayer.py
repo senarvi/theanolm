@@ -40,8 +40,7 @@ class SoftmaxLayer(SamplingOutputLayer):
         time step in the input.
 
         Sets self.output to a symbolic matrix that describes the output of this
-        layer. Assumes that the shared variables have been passed using
-        ``set_params()``.
+        layer.
         """
 
         layer_input = tensor.concatenate([x.output for x in self.input_layers],

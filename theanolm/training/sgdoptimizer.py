@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy
+from theanolm import Parameters
 from theanolm.training.basicoptimizer import BasicOptimizer
 
 class SGDOptimizer(BasicOptimizer):
@@ -18,30 +19,30 @@ class SGDOptimizer(BasicOptimizer):
         :param network: the neural network object
         """
 
-        self.param_init_values = dict()
-        for name, param in network.params.items():
-            self.param_init_values[name + '_gradient'] = \
-                numpy.zeros_like(param.get_value())
+        self._params = Parameters()
+        for path, param in network.get_variables().items():
+            self._params.add(path + '_gradient',
+                             numpy.zeros_like(param.get_value()))
 
         super().__init__(optimization_options, network, *args, **kwargs)
 
     def _gradient_update_exprs(self):
         result = []
-        for name, gradient_new in zip(self.network.params,
+        for path, gradient_new in zip(self.network.get_variables(),
                                       self._gradient_exprs):
-            gradient = self.params[name + '_gradient']
+            gradient = self._params[path + '_gradient']
             result.append((gradient, gradient_new))
         return result
 
     def _model_update_exprs(self, alpha):
         updates = dict()
-        for name, param in self.network.params.items():
-            gradient = self.params[name + '_gradient']
-            updates[name] = -gradient
+        for path, param in self.network.get_variables().items():
+            gradient = self._params[path + '_gradient']
+            updates[path] = -gradient
         self._normalize(updates)
 
         result = []
-        for name, param in self.network.params.items():
-            update = updates[name]
+        for path, param in self.network.get_variables().items():
+            update = updates[path]
             result.append((param, param + alpha * update))
         return result

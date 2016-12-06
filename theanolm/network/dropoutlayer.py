@@ -47,8 +47,6 @@ class DropoutLayer(BasicLayer):
 
         Sets ``self.output`` to a symbolic matrix that describes the output of
         this layer. During training sets randomly some of the outputs to zero.
-        Assumes that the shared variables have been passed using
-        ``set_params()``.
         """
 
         float_type = numpy.dtype(theano.config.floatX).type

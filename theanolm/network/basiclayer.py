@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 from abc import abstractmethod, ABCMeta
-from collections import OrderedDict
 import logging
 import numpy
 import theano
 import theano.tensor as tensor
+from theanolm import Parameters
 from theanolm.network.weightfunctions import weight_matrix
 
 class BasicLayer(object, metaclass=ABCMeta):
@@ -28,6 +28,7 @@ class BasicLayer(object, metaclass=ABCMeta):
 
         self.name = layer_options['name']
         self.input_layers = layer_options['input_layers']
+        self.params = Parameters()
         self._devices = layer_options['devices']
 
         if 'size' in layer_options:
@@ -45,26 +46,13 @@ class BasicLayer(object, metaclass=ABCMeta):
 
         self._network = network
         self._profile = profile
-        self.param_init_values = OrderedDict()
-
-    def set_params(self, params):
-        """Sets the dictionary that can be used to access Theano shared
-        variables.
-
-        :type params: dict
-        :param params: a dictionary of Theano shared variables indexed by
-                       parameter name
-        """
-
-        self._params = params
 
     @abstractmethod
     def create_structure(self):
         """Creates the symbolic graph of this layer.
 
         Sets self.output to a symbolic matrix that describes the output of this
-        layer. Assumes that the shared variables have been passed using
-        ``set_params()``.
+        layer.
         """
 
         assert False
@@ -104,7 +92,7 @@ class BasicLayer(object, metaclass=ABCMeta):
         :returns: the corresponding tensor variable
         """
 
-        return self._params[self._param_path(param_name, device)]
+        return self.params[self._param_path(param_name, device)]
 
     def _init_weight(self, param_name, shape, scale=None, count=1):
         """Generates a weight matrix from “standard normal” distribution.
@@ -136,7 +124,7 @@ class BasicLayer(object, metaclass=ABCMeta):
         """
 
         path = self._param_path(param_name)
-        self.param_init_values[path] = weight_matrix(shape, scale, count)
+        self.params.add(path, weight_matrix(shape, scale, count))
 
     def _init_split_weight(self, param_name, shape, scale=None, count=1):
         """Generates one weight matrix per device from “standard normal”
@@ -179,7 +167,7 @@ class BasicLayer(object, metaclass=ABCMeta):
             assert not device is None
             path = self._param_path(param_name) + '/' + device
             shape[-1] = size
-            self.param_init_values[path] = weight_matrix(shape, scale, count)
+            self.params.add(path, weight_matrix(shape, scale, count), device)
 
     def _init_bias(self, param_name, shape, value=None):
         """Initializes a bias vector with given value.
@@ -213,8 +201,8 @@ class BasicLayer(object, metaclass=ABCMeta):
                 part = numpy.empty(shape).astype(theano.config.floatX)
                 part.fill(part_value)
             parts.append(part)
-        self.param_init_values[self._param_path(param_name)] = \
-            numpy.concatenate(parts)
+        path = self._param_path(param_name)
+        self.params.add(path, numpy.concatenate(parts))
 
     def _size_per_device(self, total_size):
         """Returns ``total_size`` divided for each device.
@@ -271,6 +259,6 @@ class BasicLayer(object, metaclass=ABCMeta):
                   this matrix) are the preactivations
         """
 
-        weight = self._params[self._param_path(param_name) + '/W']
-        bias = self._params[self._param_path(param_name) + '/b']
+        weight = self.params[self._param_path(param_name) + '/W']
+        bias = self.params[self._param_path(param_name) + '/b']
         return tensor.dot(input_matrix, weight) + bias

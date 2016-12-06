@@ -55,8 +55,7 @@ class HSoftmaxLayer(BasicLayer):
         time step in the input.
 
         Sets self.output to a symbolic matrix that describes the output of this
-        layer. Assumes that the shared variables have been passed using
-        ``set_params()``.
+        layer.
         """
 
         layer_input = tensor.concatenate([x.output for x in self.input_layers],
@@ -75,10 +74,10 @@ class HSoftmaxLayer(BasicLayer):
         minibatch_size = num_time_steps * num_sequences
         input_size = layer_input.shape[2]
 
-        input_weight = self._params[self._param_path('input/W')]
-        input_bias = self._params[self._param_path('input/b')]
-        level1_weight = self._params[self._param_path('level1/W')]
-        level1_bias = self._params[self._param_path('level1/b')]
+        input_weight = self.params[self._param_path('input/W')]
+        input_bias = self.params[self._param_path('input/b')]
+        level1_weight = self.params[self._param_path('level1/W')]
+        level1_bias = self.params[self._param_path('level1/b')]
 
         # Combine the first two dimensions so that softmax is taken
         # independently for each location, over the output classes.

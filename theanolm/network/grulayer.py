@@ -60,9 +60,6 @@ class GRULayer(BasicLayer):
         Saves the recurrent state in the Network object. There's just one state
         in a GRU layer, h_(t). ``self.output`` will be set to the same hidden
         state output, which is also the actual output of this layer.
-
-        Assumes that the shared variables have been passed using
-        ``set_params()``.
         """
 
         layer_input = tensor.concatenate([x.output for x in self.input_layers],

@@ -18,13 +18,11 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         """Creates Theano functions for training a neural network language
         model.
 
-        The subclass constructor is expected to give default values to all the
-        required parameters in ``self.param_init_values`` first. This
-        constructor will then create the corresponding Theano shared variables,
-        and two update functions, ``self.gradient_update_function``, which
-        updates the gradient parameters and returns the cost, and
-        ``self.model_update_function``, which updates model state given the
-        gradients and the learning rate.
+        The subclass constructor is expected to create the optimizer parameters
+        in ``self._params``. This constructor will then create two update
+        functions, ``self.gradient_update_function``, which updates the gradient
+        parameters and returns the cost, and ``self.model_update_function``,
+        which updates model state given the gradients and the learning rate.
 
         The gradient update functions takes as arguments three matrices:
         1. Word IDs in the shape of a mini-batch. The functions will slice this
@@ -48,14 +46,6 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         """
 
         self.network = network
-
-        # Create Theano shared variables from the initial parameter values.
-        if device is None:
-            self.params = {name: theano.shared(value, name)
-                           for name, value in self.param_init_values.items()}
-        else:
-            self.params = {name: theano.shared(value, name, target=device)
-                           for name, value in self.param_init_values.items()}
 
         float_type = numpy.dtype(theano.config.floatX).type
         self.float_type = float_type
@@ -130,7 +120,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         # Derive the symbolic expression for updating the gradient with regard
         # to each parameter.
         self._gradient_exprs = \
-            tensor.grad(cost, wrt=list(self.network.params.values()))
+            tensor.grad(cost, wrt=list(self.network.get_variables().values()))
 
         # Ignore unused input, because is_training is only used by dropout
         # layer.
@@ -172,11 +162,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         h5_optimizer = state.require_group('optimizer')
         h5_optimizer.attrs['learning_rate'] = self.learning_rate
 
-        for name, param in self.params.items():
-            if name in state:
-                state[name][:] = param.get_value()
-            else:
-                state.create_dataset(name, data=param.get_value())
+        self._params.get_state(state)
 
     def set_state(self, state):
         """Sets the values of Theano shared variables.
@@ -197,16 +183,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
                                          "optimizer state.")
         self.learning_rate = h5_optimizer.attrs['learning_rate']
 
-        for name, param in self.params.items():
-            if not name in state:
-                raise IncompatibleStateError("Parameter %s is missing from "
-                                             "training state." % name)
-            new_value = state[name].value
-            param.set_value(new_value)
-            if len(new_value.shape) == 0:
-                logging.debug("%s <- %s", name, str(new_value))
-            else:
-                logging.debug("%s <- array%s", name, str(new_value.shape))
+        self._params.set_state(state)
 
     def update_minibatch(self, word_ids, class_ids, file_ids, mask):
         """Optimizes the neural network parameters using the given inputs and

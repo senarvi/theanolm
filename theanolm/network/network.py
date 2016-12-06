@@ -163,6 +163,9 @@ class Network(object):
             layer = create_layer(layer_options, self, profile=profile)
             self.layers[layer.name] = layer
         self.output_layer = self.layers[architecture.output_layer]
+        num_params = sum(layer.params.total_size
+                         for layer in self.layers.values())
+        logging.debug("Total number of parameters: %d", num_params)
 
         # This list will be filled by the recurrent layers to contain the
         # recurrent state outputs, for doing forward passes one step at a time.
@@ -188,29 +191,6 @@ class Network(object):
         else:
             self.target_word_ids.tag.test_value = test_value(
                 size=(1, 16), high=vocabulary.num_words())
-
-        # Create initial parameter values.
-        logging.debug("Initializing parameters.")
-        self.param_init_values = OrderedDict()
-        num_params = 0
-        for layer in self.layers.values():
-            for name, value in layer.param_init_values.items():
-                logging.debug("- %s size=%d type=%s", name, value.size,
-                              value.dtype)
-                assert value.dtype != 'float64'
-                num_params += value.size
-            self.param_init_values.update(layer.param_init_values)
-        logging.debug("Total number of parameters: %d", num_params)
-
-        # Create Theano shared variables.
-        if default_device is None:
-            self.params = {name: theano.shared(value, name)
-                           for name, value in self.param_init_values.items()}
-        else:
-            self.params = {name: theano.shared(value, name, target=default_device)
-                           for name, value in self.param_init_values.items()}
-        for layer in self.layers.values():
-            layer.set_params(self.params)
 
         # mask is used to mask out the rest of the input matrix, when a sequence
         # is shorter than the maximum sequence length. The mask is kept as int8
@@ -262,11 +242,8 @@ class Network(object):
         :param state: HDF5 file for storing the neural network parameters
         """
 
-        for name, param in self.params.items():
-            if name in state:
-                state[name][:] = param.get_value()
-            else:
-                state.create_dataset(name, data=param.get_value())
+        for layer in self.layers.values():
+            layer.params.get_state(state)
 
         self.architecture.get_state(state)
 
@@ -280,22 +257,31 @@ class Network(object):
         :param state: HDF5 file that contains the neural network parameters
         """
 
-        for name, param in self.params.items():
-            if not name in state:
-                raise IncompatibleStateError(
-                    "Parameter %s is missing from neural network state." % name)
-            new_value = state[name].value
-            param.set_value(new_value)
-            if len(new_value.shape) == 0:
-                logging.debug("%s <- %s", name, str(new_value))
-            else:
-                logging.debug("%s <- array%s", name, str(new_value.shape))
+        for layer in self.layers.values():
+            layer.params.set_state(state)
+
         try:
             self.architecture.check_state(state)
         except IncompatibleStateError as error:
             raise IncompatibleStateError(
                 "Attempting to restore state of a network that is incompatible "
                 "with this architecture. " + str(error))
+
+    def get_variables(self):
+        """Returns a dictionary of the shared variables.
+
+        This function is used by the optimizers to create optimization
+        parameters that are specific to network parameters, and compute
+        gradients with regard to the parameters.
+
+        :rtype: dict
+        :returns: mapping from parameter path to Theano shared variables
+        """
+
+        result = dict()
+        for layer in self.layers.values():
+            result.update(layer.params.get_variables())
+        return result
 
     def add_recurrent_state(self, size):
         """Adds a recurrent state variable and returns its index.
