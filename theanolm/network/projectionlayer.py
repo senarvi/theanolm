@@ -39,13 +39,14 @@ class ProjectionLayer(BasicLayer):
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
 
-        # Indexing the word_projection matrix with a word ID returns the
-        # self.output_size dimensional projection. Note that indexing the
-        # matrix with a vector of all the word IDs gives a concatenation of
-        # those projections.
-        projections = self._get_param('W')[layer_input.flatten()]
-        projections = projections.reshape([num_time_steps,
-                                           num_sequences,
-                                           self.output_size],
-                                          ndim=3)
+        for device in self._devices:
+            # Indexing the word_projection matrix with a word ID returns the
+            # self.output_size dimensional projection. Note that indexing the
+            # matrix with a vector of all the word IDs gives a concatenation of
+            # those projections.
+            projections = self._get_param('W')[layer_input.flatten()]
+            projections = projections.reshape([num_time_steps,
+                                               num_sequences,
+                                               self.output_size],
+                                              ndim=3)
         self.output = projections

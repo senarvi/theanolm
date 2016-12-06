@@ -7,7 +7,7 @@ import logging
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.network.weightfunctions import random_weight, orthogonal_weight
+from theanolm.network.weightfunctions import weight_matrix
 
 class BasicLayer(object, metaclass=ABCMeta):
     """Superclass for Neural Network Layers
@@ -36,24 +36,11 @@ class BasicLayer(object, metaclass=ABCMeta):
             self.output_size = \
                 sum([x.output_size for x in self.input_layers])
 
-        num_devices = len(self._devices)
-        self._weight_sizes = []
-        if num_devices > 0:
-            quotient, remainder = divmod(self.output_size, num_devices)
-            start_index = 0
-            for i in range(1, num_devices + 1):
-                end_index = i * quotient + min(i, remainder)
-                self._weight_sizes.append(end_index - start_index)
-                start_index = end_index
-            assert len(self._weight_sizes) == num_devices
-            assert sum(self._weight_sizes) == self.output_size
-            assert end_index == self.output_size
-
-        logging.debug("- %s name=%s inputs=[%s] sizes=[%s], devices=[%s]",
+        logging.debug("- %s name=%s inputs=[%s] size=%d, devices=[%s]",
             self.__class__.__name__,
             self.name,
             ', '.join([x.name for x in self.input_layers]),
-            ', '.join([str(x) for x in self._weight_sizes]),
+            self.output_size,
             ', '.join([str(x) for x in self._devices]))
 
         self._network = network
@@ -82,29 +69,42 @@ class BasicLayer(object, metaclass=ABCMeta):
 
         assert False
 
-    def _param_path(self, param_name):
+    def _param_path(self, param_name, device=None):
         """Returns the HDF5 path used to address a parameter.
 
         :type param_name: str
         :param param_name: name of a parameter within this layer
 
+        :type device: str
+        :param device: ``None`` for parameters that reside on the default device
+                       only; otherwise returns the path used to address the part
+                       of the parameter that resides on the given device
+
         :rtype: str
         :returns: full path of the parameter in a HDF5 file.
         """
 
-        return 'layers/' + self.name + '/' + param_name
+        result = 'layers/' + self.name + '/' + param_name
+        if not device is None:
+            result += '/' + device
+        return result
 
-    def _get_param(self, param_name):
+    def _get_param(self, param_name, device=None):
         """Returns a Theano tensor variable by parameter name.
 
         :type param_name: str
         :param param_name: name of a parameter within the layer
 
+        :type device: str
+        :param device: ``None`` for parameters that reside on the default device
+                       only; otherwise returns the part of the parameter that
+                       resides on the given device
+
         :rtype: TensorVariable
         :returns: the corresponding tensor variable
         """
 
-        return self._params[self._param_path(param_name)]
+        return self._params[self._param_path(param_name, device)]
 
     def _init_weight(self, param_name, shape, scale=None, count=1):
         """Generates a weight matrix from “standard normal” distribution.
@@ -119,6 +119,9 @@ class BasicLayer(object, metaclass=ABCMeta):
         2. The row and column vectors are orthonormal to one another, which
            should help avoid two vectors learning to produce the same features.
 
+        If ``count`` is specified, creates a concatenation of several similar
+        matrices (same shape but different content).
+
         :type shape: list or tuple of ints
         :param shape: sizes of the weight dimensions; normally the first one is
                       the dimensionality of the input data and the second one is
@@ -127,18 +130,56 @@ class BasicLayer(object, metaclass=ABCMeta):
         :type scale: float
         :param scale: if other than ``None``, the matrix will be scaled by this
                       factor, unless an orthogonal matrix is created
+
+        :type count: int
+        :param count: concatenate this many weight matrices with the same shape
         """
 
-        weight_path = self._param_path(param_name)
-        if (len(shape) == 2) and (shape[0] == shape[1]):
-            weight_matrix = numpy.concatenate(
-                [orthogonal_weight(shape[0]) for _ in range(count)],
-                axis=1)
-        else:
-            weight_matrix = numpy.concatenate(
-                [random_weight(shape, scale) for _ in range(count)],
-                axis=1)
-        self.param_init_values[weight_path] = weight_matrix
+        path = self._param_path(param_name)
+        self.param_init_values[path] = weight_matrix(shape, scale, count)
+
+    def _init_split_weight(self, param_name, shape, scale=None, count=1):
+        """Generates one weight matrix per device from “standard normal”
+        distribution. The last dimension in ``shape`` is divided by the number
+        of devices.
+
+        If ``shape`` contains two dimensions that match, generates an orthogonal
+        matrix. In that case scale is ignored. Orthogonal weights are useful for
+        two reasons:
+
+        1. Multiplying by an orthogonal weight preserves the norm of the
+           input vector, which should help avoid exploding and vanishing
+           gradients.
+        2. The row and column vectors are orthonormal to one another, which
+           should help avoid two vectors learning to produce the same features.
+
+        If ``count`` is specified, the created matrices will be concatenations
+        of several similar matrices (the last dimension of each submatrix is
+        divided by the number of devices).
+
+        :type shape: list or tuple of ints
+        :param shape: sizes of the weight dimensions; normally the first one is
+                      the dimensionality of the input data and the second one is
+                      the dimensionality of the output data
+
+        :type scale: float
+        :param scale: if other than ``None``, the matrix will be scaled by this
+                      factor, unless an orthogonal matrix is created
+
+        :type count: int
+        :param count: concatenate this many weight matrices with the same shape
+        """
+
+        if (len(self._devices) == 1) and (self._devices[0] == None):
+            # This layer has not been assigned to a specific device.
+            return self._init_weight(param_name, shape, scale, count)
+
+        sizes = self._size_per_device(shape[-1])
+        for device, size in self._devices, sizes:
+            assert not device is None
+            path = self._param_path(param_name) + '/' + device
+            shape[-1] = size
+            self.param_init_values[path] = weight_matrix(shape, scale, count)
 
     def _init_bias(self, param_name, shape, value=None):
         """Initializes a bias vector with given value.
@@ -174,6 +215,35 @@ class BasicLayer(object, metaclass=ABCMeta):
             parts.append(part)
         self.param_init_values[self._param_path(param_name)] = \
             numpy.concatenate(parts)
+
+    def _size_per_device(self, total_size):
+        """Returns ``total_size`` divided for each device.
+
+        :type total_size: int
+        :param total_size: total size of a parameter
+
+        :rtype: list of ints
+        :returns: ``total_size`` divided into as many parts as there are devices
+                  assigned to this layer
+        """
+
+        num_devices = len(self._devices)
+        if num_devices < 1:
+            raise RuntimeError("No devices assigned to this layer.")
+
+        result = []
+        quotient, remainder = divmod(total_size, num_devices)
+        start_index = 0
+        for i in range(1, num_devices + 1):
+            end_index = i * quotient + min(i, remainder)
+            result.append(end_index - start_index)
+            start_index = end_index
+
+        assert len(result) == num_devices
+        assert sum(result) == total_size
+        assert end_index == total_size
+
+        return result
 
     def _tensor_preact(self, input_matrix, param_name):
         """Helper function that creates a pre-activation of ``input_matrix`` by
