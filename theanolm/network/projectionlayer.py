@@ -24,7 +24,8 @@ class ProjectionLayer(BasicLayer):
         # Initialize the parameters.
         input_size = sum(x.output_size for x in self.input_layers)
         output_size = self.output_size
-        self._init_split_weight('W', (input_size, output_size), scale=0.01)
+        self._init_weight('W', (input_size, output_size), scale=0.01,
+                          split_to_devices=True)
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.

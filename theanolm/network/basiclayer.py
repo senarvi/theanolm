@@ -7,7 +7,7 @@ import numpy
 import theano
 import theano.tensor as tensor
 from theanolm import Parameters
-from theanolm.network.weightfunctions import weight_matrix
+from theanolm.network.weightfunctions import random_matrix, matrix_from_value
 
 class BasicLayer(object, metaclass=ABCMeta):
     """Superclass for Neural Network Layers
@@ -94,7 +94,8 @@ class BasicLayer(object, metaclass=ABCMeta):
 
         return self.params[self._param_path(param_name, device)]
 
-    def _init_weight(self, param_name, shape, scale=None, count=1):
+    def _init_weight(self, param_name, shape, scale=None, count=1,
+                     split_to_devices=False):
         """Generates a weight matrix from “standard normal” distribution.
 
         If ``shape`` contains two dimensions that match, generates an orthogonal
@@ -108,7 +109,12 @@ class BasicLayer(object, metaclass=ABCMeta):
            should help avoid two vectors learning to produce the same features.
 
         If ``count`` is specified, creates a concatenation of several similar
-        matrices (same shape but different content).
+        submatrices (same shape but different content).
+
+        If ``split_to_devices`` is set to ``True``, splits the weight to equal
+        parts on the last dimension, and creates one parameter for each device.
+        If also ``count`` is specified, each device will have an equal part of
+        every submatrix.
 
         :type shape: list or tuple of ints
         :param shape: sizes of the weight dimensions; normally the first one is
@@ -121,60 +127,33 @@ class BasicLayer(object, metaclass=ABCMeta):
 
         :type count: int
         :param count: concatenate this many weight matrices with the same shape
+
+        :type split_to_devices: bool
+        :param split_to_devices: if set to ``True``, creates on every device a
+                                 parameter that contains one part of the weight
         """
 
         path = self._param_path(param_name)
-        self.params.add(path, weight_matrix(shape, scale, count))
-
-    def _init_split_weight(self, param_name, shape, scale=None, count=1):
-        """Generates one weight matrix per device from “standard normal”
-        distribution. The last dimension in ``shape`` is divided by the number
-        of devices.
-
-        If ``shape`` contains two dimensions that match, generates an orthogonal
-        matrix. In that case scale is ignored. Orthogonal weights are useful for
-        two reasons:
-
-        1. Multiplying by an orthogonal weight preserves the norm of the
-           input vector, which should help avoid exploding and vanishing
-           gradients.
-        2. The row and column vectors are orthonormal to one another, which
-           should help avoid two vectors learning to produce the same features.
-
-        If ``count`` is specified, the created matrices will be concatenations
-        of several similar matrices (the last dimension of each submatrix is
-        divided by the number of devices).
-
-        :type shape: list or tuple of ints
-        :param shape: sizes of the weight dimensions; normally the first one is
-                      the dimensionality of the input data and the second one is
-                      the dimensionality of the output data
-
-        :type scale: float
-        :param scale: if other than ``None``, the matrix will be scaled by this
-                      factor, unless an orthogonal matrix is created
-
-        :type count: int
-        :param count: concatenate this many weight matrices with the same shape
-        """
-
-        if (len(self._devices) == 1) and (self._devices[0] == None):
+        weight = random_matrix(shape, scale, count)
+        if not split_to_devices:
+            self.params.add(path, random_matrix(shape, scale, count))
+        elif (len(self._devices) == 1) and (self._devices[0] == None):
             # This layer has not been assigned to a specific device.
-            return self._init_weight(param_name, shape, scale, count)
+            self.params.add(path, random_matrix(shape, scale, count))
+        else:
+            self._split_to_devices(path, weight, shape[-1])
 
-        sizes = self._size_per_device(shape[-1])
-        for device, size in self._devices, sizes:
-            assert not device is None
-            path = self._param_path(param_name) + '/' + device
-            shape[-1] = size
-            self.params.add(path, weight_matrix(shape, scale, count), device)
-
-    def _init_bias(self, param_name, shape, value=None):
+    def _init_bias(self, param_name, shape, value=None, split_to_devices=False):
         """Initializes a bias vector with given value.
 
         If ``value`` is not given, initializes the vector with zero value. If
         ``value`` is a list, creates a concatenation of as many vectors as there
         are elements in the list.
+
+        If ``split_to_devices`` is set to ``True``, splits the array to equal
+        parts on the last dimension, and creates one parameter for each device.
+        If ``value`` is a list, each device will have an equal part of every
+        submatrix.
 
         :type param_name: str
         :param param_name: name for the parameter within the layer
@@ -188,21 +167,59 @@ class BasicLayer(object, metaclass=ABCMeta):
         :param value: the value or array to initialize the elements to, or a
                       list of values or arrays to create a concatenation of
                       vectors
+
+        :type split_to_devices: bool
+        :param split_to_devices: if set to ``True``, creates on every device a
+                                 parameter that contains one part of the array
         """
 
-        values = value if isinstance(value, (list, tuple)) else [value]
-        parts = []
-        for part_value in values:
-            if part_value is None:
-                part = numpy.zeros(shape).astype(theano.config.floatX)
-            elif isinstance(value, numpy.ndarray):
-                part = value.astype(theano.config.floatX)
-            else:
-                part = numpy.empty(shape).astype(theano.config.floatX)
-                part.fill(part_value)
-            parts.append(part)
         path = self._param_path(param_name)
-        self.params.add(path, numpy.concatenate(parts))
+        bias = matrix_from_value(shape, value)
+        if not split_to_devices:
+            self.params.add(path, matrix_from_value(shape, value))
+        elif (len(self._devices) == 1) and (self._devices[0] == None):
+            # This layer has not been assigned to a specific device.
+            self.params.add(path, matrix_from_value(shape, value))
+        else:
+            self._split_to_devices(path, bias, shape[-1])
+
+    def _split_to_devices(self, path, value, part_size):
+        """Splits a matrix to equal parts on the last dimension, and creates a
+        parameter on each device.
+
+        If the matrix consists of submatrices, each device will have an equal
+        part of every submatrix, whose size is specified by ``part_size``.
+
+        :type path: str
+        :param path: base path for the parameters that will be prefixed by the
+                     device string
+
+        :type value: numpy.ndarray
+        :param value: a matrix that will be split to give the initial value of
+                      the parameters
+
+        :type part_size: int
+        :param part_size: size of the last dimension of ``value``, or if
+                          ``value`` consists of multiple submatrices, size of
+                          one submatrix
+        """
+
+        part_count = value.shape[-1] // part_size
+        if part_count * part_size != value.shape[-1]:
+            raise ValueError("Last dimension is not a multiple of part size.")
+
+        split_sizes = self._size_per_device(part_size)
+        split_start = 0
+        for device, split_size in zip(self._devices, split_sizes):
+            assert not device is None
+            split_end = split_start + split_size
+            ranges = []
+            for part_index in range(part_count):
+                part_start = part_index * part_size
+                ranges.extend(range(part_start + split_start,
+                                    part_start + split_end))
+            split_start = split_end
+            self.params.add(path + '/' + device, value[..., ranges], device)
 
     def _size_per_device(self, total_size):
         """Returns ``total_size`` divided for each device.
@@ -218,6 +235,9 @@ class BasicLayer(object, metaclass=ABCMeta):
         num_devices = len(self._devices)
         if num_devices < 1:
             raise RuntimeError("No devices assigned to this layer.")
+        if total_size < num_devices:
+            raise ValueError("Cannot split matrix of size {} to {} devices."
+                             .format(total_size, num_devices))
 
         result = []
         quotient, remainder = divmod(total_size, num_devices)

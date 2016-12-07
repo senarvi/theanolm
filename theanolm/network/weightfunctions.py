@@ -4,8 +4,8 @@
 import numpy
 import theano
 
-def random_weight_matrix(shape, scale=None):
-    """Generates a weight matrix from “standard normal” distribution.
+def random_normal_matrix(shape, scale=None):
+    """Generates a random matrix from “standard normal” distribution.
 
     :type shape: tuple of ints
     :param shape: size of each dimension (typically there are two dimensions,
@@ -24,9 +24,8 @@ def random_weight_matrix(shape, scale=None):
         result = scale * result
     return result.astype(theano.config.floatX)
 
-def orthogonal_weight_matrix(size):
-    """Generates an orthogonal weight matrix from “standard normal”
-    distribution.
+def random_orthogonal_matrix(size):
+    """Generates a random orthogonal matrix from “standard normal” distribution.
 
     :type size: int
     :param size: size of both dimensions of the weight
@@ -39,17 +38,11 @@ def orthogonal_weight_matrix(size):
     result, _, _ = numpy.linalg.svd(nonorthogonal_matrix)
     return result.astype(theano.config.floatX)
 
-def weight_matrix(shape, scale=None, count=1):
-    """Generates a weight matrix from “standard normal” distribution.
+def random_matrix(shape, scale=None, count=1):
+    """Generates a random matrix from “standard normal” distribution.
 
     If ``shape`` contains two dimensions that match, generates an orthogonal
-    matrix. In that case scale is ignored. Orthogonal weights are useful for two
-    reasons:
-
-    1. Multiplying by an orthogonal weight preserves the norm of the input
-       vector, which should help avoid exploding and vanishing gradients.
-    2. The row and column vectors are orthonormal to one another, which should
-       help avoid two vectors learning to produce the same features.
+    matrix. In that case scale is ignored.
 
     If ``count`` is specified, creates a concatenation of several similar
     matrices (same shape but different content).
@@ -71,13 +64,41 @@ def weight_matrix(shape, scale=None, count=1):
 
     if (len(shape) == 2) and (shape[0] == shape[1]):
         return numpy.concatenate(
-            [orthogonal_weight_matrix(shape[0]) for _ in range(count)],
-            axis=1)
+            [random_orthogonal_matrix(shape[0]) for _ in range(count)],
+            axis=-1)
     else:
         return numpy.concatenate(
-            [random_weight_matrix(shape, scale) for _ in range(count)],
-            axis=1)
+            [random_normal_matrix(shape, scale) for _ in range(count)],
+            axis=-1)
 
+def matrix_from_value(shape, value=None):
+    """Creates a matrix with given value.
+
+    If ``value`` is not given, initializes the vector with zero value. If
+    ``value`` is a list, creates a concatenation of as many vectors as there are
+    elements in the list.
+
+    :type shape: int or tuple of ints
+    :param shape: size of the vector, or a tuple of the sizes of each dimension
+                  (in case ``value`` is a list, each part will have this size)
+
+    :type value: float, numpy.ndarray or list
+    :param value: the value or array to initialize the elements to, or a list of
+                  values or arrays to create a concatenation of vectors
+    """
+
+    values = value if isinstance(value, (list, tuple)) else [value]
+    parts = []
+    for part_value in values:
+        if part_value is None:
+            part = numpy.zeros(shape).astype(theano.config.floatX)
+        elif isinstance(value, numpy.ndarray):
+            part = value.astype(theano.config.floatX)
+        else:
+            part = numpy.empty(shape).astype(theano.config.floatX)
+            part.fill(part_value)
+        parts.append(part)
+    return numpy.concatenate(parts, axis=-1)
 
 def get_submatrix(matrices, index, size, end_index=None):
     """Returns a submatrix of a concatenation of 2 or 3 dimensional
