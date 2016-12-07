@@ -55,7 +55,14 @@ class Parameters:
         if device is None:
             self._vars[path] = theano.shared(value, path)
         else:
-            self._vars[path] = theano.shared(value, path, target=device)
+            try:
+                self._vars[path] = theano.shared(value, path, target=device)
+            except TypeError:
+                raise RuntimeError(
+                    "Unable to create Theano shared variable for parameter {} "
+                    "on device {}. If you are using the old backend, you "
+                    "cannot assign layers to different GPU devices."
+                    .format(path, device))
 
         logging.debug("     * %s size=%d type=%s device=%s",
                       path, value.size, value.dtype, str(device))

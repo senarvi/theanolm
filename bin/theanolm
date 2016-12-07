@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from traceback import format_tb
+import logging
 import sys
 import argparse
+from theano.gpuarray.type import ContextNotDefined
 from theanolm.commands import *
 from theanolm.exceptions import *
+
+def exception_handler(exception_type, exception, traceback):
+    print("{}: {}".format(exception_type.__name__, exception))
+    logging.debug("Traceback:")
+    for item in format_tb(traceback):
+        logging.debug(item.strip())
+    sys.exit(2)
 
 def main():
     parser = argparse.ArgumentParser(prog='theanolm')
@@ -40,6 +50,7 @@ def main():
     args = parser.parse_args()
 
     if hasattr(args, 'command_function'):
+        sys.excepthook = exception_handler
         try:
             args.command_function(args)
         except NumberError as e:
@@ -49,6 +60,12 @@ def main():
                   'Another possibility is to use gradient normalization. If '
                   'this happens during inference, there is probably something '
                   'wrong in the model. The error message was: "' + str(e) + '"')
+            sys.exit(2)
+        except ContextNotDefined as e:
+            print('Theano returned error "' + str(e) + '". You need to map the '
+                  'device contexts that are used in the architecture file to '
+                  'CUDA devices (e.g. '
+                  'THEANO_FLAGS=contexts=dev0->cuda0;dev1->cuda1).')
             sys.exit(2)
     else:
         parser.print_help()
