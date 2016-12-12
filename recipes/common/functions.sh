@@ -108,7 +108,6 @@ train () {
         local noise_dampening="${NOISE_DAMPENING:-0.75}"
 	local validation_freq="${VALIDATION_FREQ:-8}"
 	local patience="${PATIENCE:-4}"
-	local run_gpu="${RUN_GPU}"
 
 	declare -a extra_args
 	[ -n "${MAX_GRADIENT_NORM}" ] && extra_args+=(--gradient-normalization "${MAX_GRADIENT_NORM}")
@@ -119,7 +118,11 @@ train () {
 	then
 		extra_args+=(--unk-penalty "${UNK_PENALTY}")
 	fi
-	[ -n "${DEBUG}" ] && extra_args+=(--debug)
+	if [ -n "${DEBUG}" ]
+	then
+		extra_args+=(--debug)
+		THEANO_FLAGS="${THEANO_FLAGS},optimizer=None"
+	fi
 	if [ -n "${PROFILE}" ]
 	then
 		extra_args+=(--print-graph --profile)
@@ -130,12 +133,6 @@ train () {
 	[ -n "${DEVEL_FILE}" ] && extra_args+=(--validation-file "${DEVEL_FILE}")
 
 	mkdir -p "${OUTPUT_DIR}"
-
-	# Tell Theano to use GPU.
-	THEANO_FLAGS="floatX=float32,device=gpu,nvcc.fastmath=True"
-	[ -n "${DEBUG}" ] && THEANO_FLAGS="${THEANO_FLAGS},optimizer=None"
-	export THEANO_FLAGS
-	echo "THEANO_FLAGS=${THEANO_FLAGS}"
 
 	# Taining vocabulary or classes.
 	local vocab_file
@@ -150,6 +147,9 @@ train () {
 		[ -s "${vocab_file}" ] || select_vocabulary "${vocab_file}"
 		vocab_format="words"
 	fi
+
+	export THEANO_FLAGS
+	echo "THEANO_FLAGS=${THEANO_FLAGS}"
 
 	(set -x; theanolm train \
 	  "${OUTPUT_DIR}/nnlm.h5" \
@@ -190,9 +190,6 @@ compute_perplexity () {
 	then
 		extra_args+=(--unk-penalty "${UNK_PENALTY}")
 	fi
-
-	# Tell Theano to use GPU.
-	export THEANO_FLAGS="floatX=float32,device=gpu,nvcc.fastmath=True"
 
 	local vocab_file
 	local vocab_format

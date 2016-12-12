@@ -105,11 +105,14 @@ class LSTMLayer(BasicLayer):
                 self._network.recurrent_state_input[self.hidden_state_index]
 
             state_outputs = self._create_time_step(
-                mask[0],
+                self.network.mask[0],
                 layer_input_preact[0],
                 cell_state_input[0],
                 hidden_state_input[0],
                 hidden_state_weights)
+
+            cell_state_output = state_outputs[0]
+            hidden_state_output = state_outputs[1]
 
             # Create a new axis for time step with size 1.
             cell_state_output = cell_state_output[None,:,:]
