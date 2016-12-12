@@ -379,8 +379,10 @@ class LatticeDecoder(object):
             self._append_word(new_tokens, self._eos_id)
         else:
             for token in new_tokens:
-                token.ac_logprob += link.ac_logprob
-                token.lat_lm_logprob += link.lm_logprob
+                if not link.ac_logprob is None:
+                    token.ac_logprob += link.ac_logprob
+                if not link.lm_logprob is None:
+                    token.lat_lm_logprob += link.lm_logprob
             if not link.word.startswith('!'):
                 try:
                     word_id = self._vocabulary.word_to_id[link.word]

@@ -97,7 +97,7 @@ class SLFLattice(Lattice):
         for link in self.links:
             if link.word is None:
                 raise InputError("SLF lattice does not contain word identity "
-                                 "in link %d or in the following node.".format(
+                                 "in link {} or in the following node.".format(
                                  link.id))
 
     def _read_slf_header(self, fields):
@@ -106,7 +106,7 @@ class SLFLattice(Lattice):
         :type fields: list of strs
         :param fields: fields, such as name="value"
         """
-        
+
         for field in fields:
             name, value = self._split_slf_field(field)
             if (name == 'UTTERANCE') or (name == 'U'):
@@ -190,10 +190,10 @@ class SLFLattice(Lattice):
                     lm_logprob = logprob_type(value) * self._log_scale
 
         if start_node is None:
-            raise InputError("Start node is not specified for link %d.".format(
+            raise InputError("Start node is not specified for link {}.".format(
                              link_id))
         if end_node is None:
-            raise InputError("End node is not specified for link %d.".format(
+            raise InputError("End node is not specified for link {}.".format(
                              link_id))
         link = self._add_link(start_node, end_node)
         link.word = word

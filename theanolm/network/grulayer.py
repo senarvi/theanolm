@@ -97,7 +97,7 @@ class GRULayer(BasicLayer):
                 self._network.recurrent_state_input[self.hidden_state_index]
 
             hidden_state_output = self._create_time_step(
-                self.network.mask[0],
+                self._network.mask[0],
                 layer_input_preact[0],
                 hidden_state_input[0],
                 hidden_state_weights)
