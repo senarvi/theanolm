@@ -3,7 +3,7 @@
 
 import logging
 import theano
-from theanolm.exceptions import IncompatibleStateError
+from theanolm.exceptions import IncompatibleStateError, TheanoConfigurationError
 
 class Parameters:
     """Theano Function Parameters
@@ -49,8 +49,11 @@ class Parameters:
 
         if path in self._vars:
             raise ValueError("Path `{}' already in parameters.".format(path))
-        if value.dtype == 'float64':
-            raise ValueError("Refusing to create float64 parameters.")
+        if theano.config.device.startswith('gpu') and value.dtype == 'float64':
+            raise TheanoConfigurationError(
+                'You are using Theano with the old GPU backend ("device=gpu"), '
+                'and the parameter {} is float64. This is very inefficient, so '
+                'you most likely want to set "floatX=float32".'.format(path))
 
         if device is None:
             self._vars[path] = theano.shared(value, path)
