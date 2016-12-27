@@ -291,7 +291,6 @@ class TestLatticeDecoder(unittest.TestCase):
             'A': 1,
             'AT': 1,
             'THE': 1,
-            'E.': 1,
             "DIDN'T": 1,
             'ELABORATE': 1})
         projection_vector = tensor.ones(shape=(vocabulary.num_words(),),
@@ -321,7 +320,7 @@ class TestLatticeDecoder(unittest.TestCase):
             print(token.ac_logprob / log_scale,
                   token.lat_lm_logprob / log_scale,
                   token.total_logprob / log_scale,
-                  ' '.join(vocabulary.id_to_word[token.history]))
+                  ' '.join(token.history_words(vocabulary)))
 
         all_paths = ["<s> IT DIDN'T ELABORATE </s>",
                      "<s> BUT IT DIDN'T ELABORATE </s>",
@@ -335,12 +334,11 @@ class TestLatticeDecoder(unittest.TestCase):
                      "<s> TO IT DIDN'T ELABORATE </s>",
                      "<s> A. IT DIDN'T ELABORATE </s>",
                      "<s> A IT DIDN'T ELABORATE </s>"]
-        paths = [' '.join(vocabulary.id_to_word[token.history])
-                 for token in tokens]
+        paths = [' '.join(token.history_words(vocabulary)) for token in tokens]
         self.assertListEqual(paths, all_paths)
 
         token = tokens[0]
-        history = ' '.join(vocabulary.id_to_word[token.history])
+        history = ' '.join(token.history_words(vocabulary))
         self.assertAlmostEqual(token.ac_logprob / log_scale, -8686.28, places=2)
         self.assertAlmostEqual(token.lat_lm_logprob / log_scale, -94.3896, places=2)
         self.assertAlmostEqual(token.nn_lm_logprob, math.log(0.1) * 4)

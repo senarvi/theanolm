@@ -163,6 +163,16 @@ its own set of lattices, limiting the number of tokens at each node to 10::
         --max-tokens-per-node 64 --beam 500 --recombination-order 20 \
         --num-jobs 50 --job "${SLURM_ARRAY_TASK_ID}"
 
+If the frequency of OOV words in the training data is high, the model may favor
+paths that contain OOV words. It may be better to penalize OOV words by manually
+setting their log probability using the ``--unk-penalty`` argument. By setting
+``--unk-penalty=-inf``, paths that contain OOV words will get zero probability.
+The effect of interpolation weight can be confusing if either the lattice or the
+neural network model assigns -inf log probability to some word. The result of
+interpolation will be -inf regardless of the weight, as long as the weight of
+-inf is greater than zero. If -inf is weighted by zero, it will be ignored and
+the other probability will be used.
+
 Generating text
 ---------------
 

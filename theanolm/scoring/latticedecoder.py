@@ -140,6 +140,22 @@ class LatticeDecoder(object):
             self.total_logprob += self.lm_logprob * lm_scale
             self.total_logprob += wi_penalty * len(self.history)
 
+        def history_words(self, vocabulary):
+            """Converts the word IDs in the history to words using
+            ``vocabulary``. The history may contain also OOV words as text, so
+            any ``str`` will be left untouched.
+
+            :type vocabulary: Vocabulary
+            :param vocabulary: mapping from word IDs to words
+
+            :rtype: list of strs
+            :returns: the token's history as list of words
+            """
+
+            return [vocabulary.id_to_word[word] if isinstance(word, int)
+                    else word
+                    for word in self.history]
+
         def __str__(self, vocabulary=None):
             """Creates a string representation of the token.
 
@@ -154,7 +170,7 @@ class LatticeDecoder(object):
             if vocabulary is None:
                 history = ' '.join(str(x) for x in self.history)
             else:
-                history = ' '.join(vocabulary.id_to_word[self.history])
+                history = ' '.join(self.history_words(vocabulary))
 
             if self.total_logprob is None:
                 return '[{}]  acoustic: {:.2f}  lattice LM: {:.2f}  NNLM: ' \
@@ -385,10 +401,10 @@ class LatticeDecoder(object):
                     token.lat_lm_logprob += link.lm_logprob
             if not link.word.startswith('!'):
                 try:
-                    word_id = self._vocabulary.word_to_id[link.word]
+                    word = self._vocabulary.word_to_id[link.word]
                 except KeyError:
-                    word_id = self._unk_id
-                self._append_word(new_tokens, word_id)
+                    word = link.word
+                self._append_word(new_tokens, word)
 
         for token in new_tokens:
             token.recompute_hash(self._recombination_order)
@@ -448,23 +464,34 @@ class LatticeDecoder(object):
 
         self._tokens[node.id] = new_tokens
 
-    def _append_word(self, tokens, target_word_id):
+    def _append_word(self, tokens, target_word):
         """Appends a word to each of the given tokens, and updates their scores.
 
         :type tokens: list of LatticeDecoder.Tokens
         :param tokens: input tokens
 
-        :type target_word_id: int
-        :param target_word_id: word ID to be appended to the existing history of
-                               each input token
+        :type target_word: int or str
+        :param target_word: word ID or word to be appended to the existing
+                            history of each input token; if not an integer, the
+                            word will be considered ``<unk>`` and this variable
+                            will be taken literally as the word that will be
+                            used in the resulting transcript
         """
 
-        input_word_ids = [[token.history[-1] for token in tokens]]
+        def str_to_unk(self, word):
+            if isinstance(word, int):
+                return word
+            else:
+                return self._unk_id
+
+        input_word_ids = [[str_to_unk(self, token.history[-1])
+                           for token in tokens]]
         input_word_ids = numpy.asarray(input_word_ids).astype('int64')
         input_class_ids, membership_probs = \
             self._vocabulary.get_class_memberships(input_word_ids)
         recurrent_state = [token.state for token in tokens]
         recurrent_state = RecurrentState.combine_sequences(recurrent_state)
+        target_word_id = str_to_unk(self, target_word)
         target_class_ids = numpy.ones(shape=(1, len(tokens))).astype('int64')
         target_class_ids *= self._vocabulary.word_id_to_class_id[target_word_id]
         step_result = self.step_function(input_word_ids,
@@ -477,7 +504,7 @@ class LatticeDecoder(object):
         output_state = step_result[1:]
 
         for index, token in enumerate(tokens):
-            token.history.append(target_word_id)
+            token.history.append(target_word)
             token.state = RecurrentState(self._network.recurrent_state_size)
             # Slice the sequence that corresponds to this token.
             token.state.set([layer_state[:,index:index+1]
