@@ -231,7 +231,7 @@ class SLFLattice(Lattice):
         :rtype: tuple of two strs
         :returns: the name and value of the field
         """
-        
+
         name_value = field.split('=', 1)
         if len(name_value) != 2:
             raise InputError("Expected '=' in SLF lattice field: '{}'".format(

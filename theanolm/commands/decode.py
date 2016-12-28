@@ -222,9 +222,34 @@ def decode(args):
 
 def format_token(token, utterance_id, vocabulary, log_scale, format):
     """Formats an output line from a token and an utterance ID.
+
+    Reads word IDs from the history list of ``token`` and converts them to words
+    using ``vocabulary``. The history may contain also OOV words as text, so any
+    ``str`` will be printed literally.
+
+    :type token: Token
+    :param token: a token whose history will be formatted
+
+    :type utterance_id: str
+    :param utterance_id: utterance ID for full output
+
+    :type vocabulary: Vocabulary
+    :param vocabulary: mapping from word IDs to words
+
+    :type log_scale: float
+    :param log_scale: divide log probabilities by this number to convert the log
+                      base
+
+    :type format: str
+    :param format: which format to write, one of "ref" (utterance ID, words),
+                   "trn" (words, utterance ID in parentheses), "full" (utterance
+                   ID, acoustic and LM scores, number of words, words)
+
+    :rtype: str
+    :returns: the formatted output line
     """
 
-    words = vocabulary.id_to_word[token.history]
+    words = token.history_words(vocabulary)
     if format == 'ref':
         return "{} {}".format(utterance_id, ' '.join(words))
     elif format == 'trn':

@@ -16,3 +16,8 @@ class IncompatibleStateError(Exception):
     with the neural network structure.
     """
     pass
+
+class TheanoConfigurationError(Exception):
+    """Exception raised when Theano has not been properly configured.
+    """
+    pass

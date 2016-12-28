@@ -122,6 +122,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
     total_logprob = 0.0
     num_sentences = 0
     num_words = 0
+    num_unks = 0
     num_probs = 0
     for word_ids, _, mask in validation_iter:
         class_ids, membership_probs = vocabulary.get_class_memberships(word_ids)
@@ -135,6 +136,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
             seq_mask = mask[:, seq_index]
             seq_word_ids = seq_word_ids[seq_mask == 1]
             num_words += len(seq_word_ids)
+            num_unks += numpy.count_nonzero(seq_word_ids == unk_id)
             num_sentences += 1
             if not word_level:
                 continue
@@ -171,6 +173,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
 
     output_file.write("Number of sentences: {0}\n".format(num_sentences))
     output_file.write("Number of words: {0}\n".format(num_words))
+    output_file.write("Number of out-of-vocabulary words: {0}\n".format(num_unks))
     output_file.write("Number of predicted probabilities: {0}\n".format(num_probs))
     if num_words > 0:
         cross_entropy = -total_logprob / num_probs

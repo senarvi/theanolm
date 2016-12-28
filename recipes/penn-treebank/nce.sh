@@ -24,6 +24,7 @@ source "${script_dir}/paths.sh"
 
 # Load common functions.
 source "${script_dir}/../common/functions.sh"
+source "${script_dir}/../common/configure-theano.sh"
 
 # Set training parameters.
 BATCH_SIZE=24

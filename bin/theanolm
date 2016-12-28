@@ -10,7 +10,9 @@ from theanolm.commands import *
 from theanolm.exceptions import *
 
 def exception_handler(exception_type, exception, traceback):
-    print("{}: {}".format(exception_type.__name__, exception))
+    print("Un unexpected {} exception occurred. Traceback will be written to "
+          "debug log. The error message was: {}"
+          .format(exception_type.__name__, exception))
     logging.debug("Traceback:")
     for item in format_tb(traceback):
         logging.debug(item.strip())
@@ -59,13 +61,18 @@ def main():
                   'training, using a smaller learning rate usually helps. '
                   'Another possibility is to use gradient normalization. If '
                   'this happens during inference, there is probably something '
-                  'wrong in the model. The error message was: "' + str(e) + '"')
+                  'wrong in the model. The error message was: ' + str(e))
             sys.exit(2)
         except ContextNotDefined as e:
             print('Theano returned error "' + str(e) + '". You need to map the '
                   'device contexts that are used in the architecture file to '
                   'CUDA devices (e.g. '
                   'THEANO_FLAGS=contexts=dev0->cuda0;dev1->cuda1).')
+            sys.exit(2)
+        except TheanoConfigurationError as e:
+            print('There is a problem with Theano configuration. Please check '
+                  'THEANO_FLAGS environment variable and .theanorc file. The '
+                  'error message was: ' + str(e))
             sys.exit(2)
     else:
         parser.print_help()
