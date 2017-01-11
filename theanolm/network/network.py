@@ -314,8 +314,6 @@ class Network(object):
     def output_probs(self):
         """Returns the output probabilities for the whole vocabulary.
 
-        Only computed when target_class_ids is not given.
-
         :rtype: TensorVariable
         :returns: a symbolic 3-dimensional matrix that contains a probability
                   for each time step, each sequence, and each output class
@@ -323,16 +321,12 @@ class Network(object):
 
         if not hasattr(self.output_layer, 'output_probs'):
             raise RuntimeError("The final layer is not an output layer.")
-        if self.output_layer.output_probs is None:
-            raise RuntimeError("Trying to read output distribution, while the "
-                               "output layer has produced only target class "
-                               "probabilities.")
         return self.output_layer.output_probs
 
     def target_probs(self):
         """Returns the output probabilities for the predicted words.
 
-        Only computed when target_class_ids is given.
+        Can be used only when target_class_ids is given.
 
         :rtype: TensorVariable
         :returns: a symbolic 2-dimensional matrix that contains the target word
@@ -341,10 +335,6 @@ class Network(object):
 
         if not hasattr(self.output_layer, 'target_probs'):
             raise RuntimeError("The final layer is not an output layer.")
-        if self.output_layer.target_probs is None:
-            raise RuntimeError("Trying to read target class probabilities, "
-                               "while the output layer has produced the "
-                               "distribution.")
         return self.output_layer.target_probs
 
     def unnormalized_logprobs(self):
@@ -364,10 +354,6 @@ class Network(object):
         if not hasattr(self.output_layer, 'unnormalized_logprobs'):
             raise RuntimeError("The final layer is not a softmax layer, and "
                                "unnormalized probabilities are needed.")
-        if self.output_layer.unnormalized_logprobs is None:
-            raise RuntimeError("Trying to read target class probabilities, "
-                               "while the output layer has produced the "
-                               "distribution.")
         return self.output_layer.unnormalized_logprobs
 
     def noise_sample(self, sharing=None):

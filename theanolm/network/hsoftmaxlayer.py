@@ -61,14 +61,6 @@ class HSoftmaxLayer(BasicLayer):
         layer_input = tensor.concatenate([x.output for x in self.input_layers],
                                          axis=2)
 
-        # If we're only predicting probabilities of the target outputs, the
-        # targets are the words at the next time step and the last time step is
-        # not used as input.
-        if self._network.target_class_ids is None:
-            target_class_ids = None
-        else:
-            target_class_ids = self._network.target_class_ids.flatten()
-
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
         minibatch_size = num_time_steps * num_sequences
@@ -79,6 +71,7 @@ class HSoftmaxLayer(BasicLayer):
         level1_weight = self.params[self._param_path('level1/W')]
         level1_bias = self.params[self._param_path('level1/b')]
 
+        # First create the output for the whole probability distribution.
         # Combine the first two dimensions so that softmax is taken
         # independently for each location, over the output classes.
         probs = tensor.nnet.h_softmax(layer_input.reshape([minibatch_size,
@@ -90,16 +83,24 @@ class HSoftmaxLayer(BasicLayer):
                                       input_weight,
                                       input_bias,
                                       level1_weight,
+                                      level1_bias)
+        self.output_probs = probs.reshape([num_time_steps,
+                                           num_sequences,
+                                           self.output_size])
+
+        # Next create the output for target classes. It can only be used when
+        # self._network.target_class_ids is given to the function.
+        target_class_ids = self._network.target_class_ids.flatten()
+        probs = tensor.nnet.h_softmax(layer_input.reshape([minibatch_size,
+                                                           input_size]),
+                                      minibatch_size,
+                                      self.output_size,
+                                      self.level1_size,
+                                      self.level2_size,
+                                      input_weight,
+                                      input_bias,
+                                      level1_weight,
                                       level1_bias,
                                       target_class_ids)
-
-        if target_class_ids is None:
-            self.output_probs = probs.reshape([num_time_steps,
-                                               num_sequences,
-                                               self.output_size])
-            self.target_probs = None
-            return
-
-        self.output_probs = None
         self.target_probs = probs.reshape([num_time_steps,
                                            num_sequences])

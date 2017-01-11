@@ -59,15 +59,8 @@ class SoftmaxLayer(SamplingOutputLayer):
                                                   num_sequences,
                                                   self.output_size])
 
-        if self._network.target_class_ids is None:
-            self.target_probs = None
-            self.unnormalized_logprobs = None
-            self.sample = None
-            self.sample_logprobs = None
-            self.shared_sample = None
-            self.shared_sample_logprobs = None
-            return
-
+        # The following variables can only be used when
+        # self._network.target_class_ids is given to the function.
         element_ids = tensor.arange(num_time_steps * num_sequences)
         target_class_ids = self._network.target_class_ids.flatten()
         target_probs = output_probs[(element_ids, target_class_ids)]
