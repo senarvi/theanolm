@@ -55,6 +55,10 @@ def main():
         sys.excepthook = exception_handler
         try:
             args.command_function(args)
+        except FileNotFoundError as e:
+            print('Could not open one of the required files. The error message '
+                  'was: ' + str(e))
+            sys.exit(2)
         except NumberError as e:
             print('A numerical error has occurred. This may happen e.g. when '
                   'network parameters go to infinity. If this happens during '
