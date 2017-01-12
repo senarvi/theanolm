@@ -182,7 +182,8 @@ def decode(args):
 
     # Combine paths from command line and lattice list.
     lattices = args.lattices
-    lattices.extend(args.lattice_list.readlines())
+    if not args.lattice_list is None:
+        lattices.extend(args.lattice_list.readlines())
     lattices = [path.strip() for path in lattices]
     # Ignore empty lines in the lattice list.
     lattices = list(filter(None, lattices))
