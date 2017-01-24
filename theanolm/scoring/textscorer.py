@@ -138,8 +138,8 @@ class TextScorer(object):
                      that masks out elements past the sequence ends
 
         :rtype: list of lists
-        :returns: logprob of each word in each sequence, possibly excluding
-                  <unk> tokens
+        :returns: logprob of each word in each sequence, ``None`` values
+                  indicating excluded <unk> tokens
         """
 
         result = []
@@ -147,23 +147,17 @@ class TextScorer(object):
 
         # target_logprobs_function() uses the word and class IDs of the entire
         # mini-batch, but membership probs and mask are only for the output.
-        logprobs, mask = \
-            self._target_logprobs_function(word_ids,
-                                           class_ids,
-                                           membership_probs[1:],
-                                           mask[1:])
+        logprobs, new_mask = self._target_logprobs_function(word_ids,
+                                                            class_ids,
+                                                            membership_probs[1:],
+                                                            mask[1:])
         for seq_index in range(logprobs.shape[1]):
-            seq_logprobs = logprobs[:, seq_index]
-            seq_mask = mask[:, seq_index]
-            seq_logprobs = seq_logprobs[seq_mask == 1]
-            # If <unk> tokens are ignored, there are less logprobs than there
-            # were words. Add None in place of any ignored <unk>'s.
-            if self._ignore_unk:
-                seq_word_ids = word_ids[:, seq_index]
-                logprob_iter = iter(seq_logprobs)
-                seq_logprobs = [None if word_id == self._unk_id
-                                else next(logprob_iter)
-                                for word_id in seq_word_ids[1:]]
+            seq_mask = mask[1:, seq_index]
+            seq_logprobs = logprobs[seq_mask == 1, seq_index]
+            # The new mask also masks excluded tokens, replace those with None.
+            seq_mask = new_mask[seq_mask == 1, seq_index]
+            seq_logprobs = [lp if m == 1 else None
+                            for lp, m in zip(seq_logprobs, seq_mask)]
             result.append(seq_logprobs)
 
         return result

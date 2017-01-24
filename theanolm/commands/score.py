@@ -8,7 +8,7 @@ import numpy
 import h5py
 import theano
 from theanolm import Vocabulary, Architecture, Network
-from theanolm.parsing import LinearBatchIterator, utterance_from_line
+from theanolm.parsing import ScoringBatchIterator, utterance_from_line
 from theanolm.scoring import TextScorer
 from theanolm.filetypes import TextFileType
 
@@ -123,10 +123,10 @@ def _score_text(input_file, vocabulary, scorer, output_file,
     """
 
     validation_iter = \
-        LinearBatchIterator(input_file,
-                            vocabulary,
-                            batch_size=16,
-                            max_sequence_length=None)
+        ScoringBatchIterator(input_file,
+                             vocabulary,
+                             batch_size=16,
+                             max_sequence_length=None)
     log_scale = 1.0 if log_base is None else numpy.log(log_base)
 
     total_logprob = 0.0
@@ -135,7 +135,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
     num_words = 0
     num_unks = 0
     num_probs = 0
-    for word_ids, _, mask in validation_iter:
+    for word_ids, words, mask in validation_iter:
         class_ids, membership_probs = vocabulary.get_class_memberships(word_ids)
         logprobs = scorer.score_batch(word_ids, class_ids, membership_probs,
                                       mask)
@@ -143,7 +143,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
             seq_word_ids = word_ids[:, seq_index]
             seq_mask = mask[:, seq_index]
             seq_word_ids = seq_word_ids[seq_mask == 1]
-            seq_words = vocabulary.id_to_word[seq_word_ids]
+            seq_words = words[seq_index]
             merged_words, merged_logprobs = _merge_subwords(seq_words,
                                                             seq_logprobs,
                                                             subword_marking)
@@ -157,23 +157,24 @@ def _score_text(input_file, vocabulary, scorer, output_file,
             # number of words, including <unk>'s
             num_words += len(merged_words)
             # number of word probabilities computed (may not include <unk>'s)
-            num_probs += len(filter(None, merged_logprobs))
+            num_probs += sum(not x is None for x in merged_logprobs)
             # number of <unk>'s (just for reporting)
-            num_unks += merged_words.count('<unk>')
+            num_unks += sum(x is None for x in merged_logprobs)
             # number of sequences
             num_sentences += 1
 
             if word_level:
                 output_file.write("# Sentence {0}\n".format(num_sentences))
-                _write_word_scores(seq_word_ids, seq_words, seq_logprobs, scorer.unk_ignored(), output_file)
+                _write_word_scores(merged_words, merged_logprobs, output_file,
+                                   log_scale)
                 output_file.write("Sentence perplexity: {0}\n\n".format(
                     numpy.exp(-seq_logprob / len(seq_logprobs))))
 
     output_file.write("Number of sentences: {0}\n".format(num_sentences))
     output_file.write("Number of words: {0}\n".format(num_words))
     output_file.write("Number of tokens: {0}\n".format(num_tokens))
-    output_file.write("Number of out-of-vocabulary words: {0}\n".format(num_unks))
     output_file.write("Number of predicted probabilities: {0}\n".format(num_probs))
+    output_file.write("Number of excluded (OOV) words: {0}\n".format(num_unks))
     if num_words > 0:
         cross_entropy = -total_logprob / num_probs
         perplexity = numpy.exp(cross_entropy)
@@ -257,7 +258,7 @@ def _merge_subwords(subwords, subword_logprobs, marking):
         logprobs.append(current_logprob)
     return words, logprobs
 
-def _write_word_scores(words, logprobs, output_file, log_base=None):
+def _write_word_scores(words, logprobs, output_file, log_scale):
     """Writes word-level scores to an output file.
 
     :type words: list of strs
@@ -269,16 +270,15 @@ def _write_word_scores(words, logprobs, output_file, log_base=None):
     :type output_file: file object
     :param output_file: a file where to write the output
 
-    :type log_base: int
-    :param log_base: if set to other than None, convert log probabilities to
-                     this base
+    :type log_scale: float
+    :param log_scale: divide logprobs by this amount to convert to correct base
     """
 
     if len(logprobs) != len(words) - 1:
         raise ValueError("Number of logprobs should be exactly one less than "
                          "the number of words.")
 
-    logprobs = [x / log_scale for x in logprobs]
+    logprobs = [None if x is None else x / log_scale for x in logprobs]
     for index, logprob in enumerate(logprobs):
         if index - 2 > 0:
             history = ['...']
@@ -294,8 +294,6 @@ def _write_word_scores(words, logprobs, output_file, log_base=None):
         else:
             output_file.write("log(p({0} | {1})) = {2}\n".format(
                 predicted, history, logprob))
-
-    assert logprob_index == len(logprobs)
 
 def _score_utterances(input_file, vocabulary, scorer, output_file,
                       log_base=None):
