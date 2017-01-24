@@ -37,9 +37,15 @@ def add_arguments(parser):
              'natural logarithm)')
     argument_group.add_argument(
         '--unk-penalty', metavar='LOGPROB', type=float, default=None,
-        help="if LOGPROB is zero, do not include <unk> tokens in perplexity "
-             "computation; otherwise use constant LOGPROB as <unk> token score "
-             "(default is to use the network to predict <unk> probability)")
+        help='if LOGPROB is zero, do not include <unk> tokens in perplexity '
+             'computation; otherwise use constant LOGPROB as <unk> token score '
+             '(default is to use the network to predict <unk> probability)')
+    argument_group.add_argument(
+        '--subwords', metavar='MARKING', type=str, default=None,
+        help='the subword vocabulary uses MARKING to indicate how words are '
+             'formed from subwords; one of "word-boundary" (<w> token '
+             'separates words), "prefix-affix" (subwords that can be '
+             'concatenated are prefixed or affixed with +, e.g. "cat+ +s")')
 
 def score(args):
     with h5py.File(args.model_path, 'r') as state:
@@ -72,10 +78,10 @@ def score(args):
     print("Scoring text.")
     if args.output == 'perplexity':
         _score_text(args.input_file, vocabulary, scorer, args.output_file,
-                    args.log_base, False)
+                    args.log_base, args.subwords, False)
     elif args.output == 'word-scores':
         _score_text(args.input_file, vocabulary, scorer, args.output_file,
-                    args.log_base, True)
+                    args.log_base, args.subwords, True)
     elif args.output == 'utterance-scores':
         _score_utterances(args.input_file, vocabulary, scorer, args.output_file,
                           args.log_base)
@@ -84,7 +90,7 @@ def score(args):
         sys.exit(1)
 
 def _score_text(input_file, vocabulary, scorer, output_file,
-                log_base=None, word_level=False):
+                log_base=None, subword_marking=None, word_level=False):
     """Reads text from ``input_file``, computes perplexity using
     ``scorer``, and writes to ``output_file``.
 
@@ -107,6 +113,11 @@ def _score_text(input_file, vocabulary, scorer, output_file,
     :param log_base: if set to other than None, convert log probabilities to
                      this base
 
+    :type subword_marking: str
+    :param subword_marking: if other than None, vocabulary is subwords;
+        "word-boundary" indicates <w> token separates words, "prefix-affix"
+        indicates subwords are prefixed/affixed with +
+
     :type word_level: bool
     :param word_level: if set to True, also writes word-level statistics
     """
@@ -117,10 +128,10 @@ def _score_text(input_file, vocabulary, scorer, output_file,
                             batch_size=16,
                             max_sequence_length=None)
     log_scale = 1.0 if log_base is None else numpy.log(log_base)
-    unk_id = vocabulary.word_to_id['<unk>']
 
     total_logprob = 0.0
     num_sentences = 0
+    num_tokens = 0
     num_words = 0
     num_unks = 0
     num_probs = 0
@@ -129,50 +140,38 @@ def _score_text(input_file, vocabulary, scorer, output_file,
         logprobs = scorer.score_batch(word_ids, class_ids, membership_probs,
                                       mask)
         for seq_index, seq_logprobs in enumerate(logprobs):
-            seq_logprob = sum(seq_logprobs)
-            num_probs += len(seq_logprobs)
-            total_logprob += seq_logprob
             seq_word_ids = word_ids[:, seq_index]
             seq_mask = mask[:, seq_index]
             seq_word_ids = seq_word_ids[seq_mask == 1]
-            num_words += len(seq_word_ids)
-            num_unks += numpy.count_nonzero(seq_word_ids == unk_id)
-            num_sentences += 1
-            if not word_level:
-                continue
-
-            seq_logprobs = [x / log_scale for x in seq_logprobs]
             seq_words = vocabulary.id_to_word[seq_word_ids]
-            output_file.write("# Sentence {0}\n".format(num_sentences))
+            merged_words, merged_logprobs = _merge_subwords(seq_words,
+                                                            seq_logprobs,
+                                                            subword_marking)
 
-            # In case some word IDs are ignored, seq_word_ids may contain more
-            # items than seq_logprobs.
-            logprob_index = 0
-            for word_index, word_id in enumerate(seq_word_ids[1:]):
-                if word_index - 2 > 0:
-                    history = ['...']
-                    history.extend(seq_words[word_index - 2:word_index + 1])
-                else:
-                    history = seq_words[0:word_index + 1]
-                history = ' '.join(history)
-                predicted = seq_words[word_index + 1]
+            # total logprob of this sequence
+            seq_logprob = sum(filter(None, merged_logprobs))
+            # total logprob of all sequences
+            total_logprob += seq_logprob
+            # number of tokens, which may be subwords, including <unk>'s
+            num_tokens += len(seq_word_ids)
+            # number of words, including <unk>'s
+            num_words += len(merged_words)
+            # number of word probabilities computed (may not include <unk>'s)
+            num_probs += len(filter(None, merged_logprobs))
+            # number of <unk>'s (just for reporting)
+            num_unks += merged_words.count('<unk>')
+            # number of sequences
+            num_sentences += 1
 
-                if scorer.unk_ignored() and word_id == unk_id:
-                    output_file.write("p({0} | {1}) is not predicted\n".format(
-                        predicted, history))
-                else:
-                    logprob = seq_logprobs[logprob_index]
-                    logprob_index += 1
-                    output_file.write("log(p({0} | {1})) = {2}\n".format(
-                        predicted, history, logprob))
-            assert logprob_index == len(seq_logprobs)
-
-            # seq_logprob is in natural base.
-            output_file.write("Sentence perplexity: {0}\n\n".format(
-                numpy.exp(-seq_logprob / len(seq_logprobs))))
+            if word_level:
+                output_file.write("# Sentence {0}\n".format(num_sentences))
+                _write_word_scores(seq_word_ids, seq_words, seq_logprobs, scorer.unk_ignored(), output_file)
+                output_file.write("Sentence perplexity: {0}\n\n".format(
+                    numpy.exp(-seq_logprob / len(seq_logprobs))))
 
     output_file.write("Number of sentences: {0}\n".format(num_sentences))
     output_file.write("Number of words: {0}\n".format(num_words))
+    output_file.write("Number of tokens: {0}\n".format(num_tokens))
     output_file.write("Number of out-of-vocabulary words: {0}\n".format(num_unks))
     output_file.write("Number of predicted probabilities: {0}\n".format(num_probs))
     if num_words > 0:
@@ -184,6 +183,119 @@ def _score_text(input_file, vocabulary, scorer, output_file,
             output_file.write("Cross entropy (base {1}): {0}\n".format(
                 cross_entropy, log_base))
         output_file.write("Perplexity: {0}\n".format(perplexity))
+
+def _merge_subwords(subwords, subword_logprobs, marking):
+    """Creates a word list from a subword list.
+
+    :type subwords: list of strs
+    :param subwords: list of vocabulary words, which may be subwords
+
+    :type subword_logprobs: list of floats
+    :param subword_logprobs: list of log probabilities for each word/subword
+                             starting from the second one, containing ``None``
+                             in place of any ignored <unk>'s
+
+    :type marking: str
+    :param marking: ``None`` for word vocabulary, otherwise the type of subword
+                    marking used: "word-boundary" if a word boundary token (<w>)
+                    is used and "prefix-affix" if subwords are prefixed/affixed
+                    with + when they can be concatenated
+    """
+
+    if len(subword_logprobs) != len(subwords) - 1:
+        raise ValueError("Number of logprobs should be exactly one less than "
+                         "the number of words.")
+
+    if marking is None:
+        # Vocabulary is already words.
+        return subwords, subword_logprobs
+
+    words = [subwords[0]]
+    logprobs = []
+    current_word = ''
+    current_logprob = 0.0
+
+    if marking == 'word-boundary':
+        # Words are separated by <w>. Merge subwords and logprobs between <w>
+        # tokens. If any part of a word is <unk>, the whole word is <unk>.
+        for subword, logprob in zip(subwords[1:], subword_logprobs):
+            if (current_logprob is None) or (logprob is None):
+                current_logprob = None
+            else:
+                current_logprob += logprob
+            if subword == '<w>':
+                if current_word != '':
+                    words.append(current_word)
+                    logprobs.append(current_logprob)
+                    current_word = ''
+                current_logprob = 0.0
+            elif (current_word == '<unk>') or (subword == '<unk>'):
+                current_word = '<unk>'
+            else:
+                current_word += subword
+    elif marking == 'prefix-affix':
+        # Merge subword to the current word if the current word ends in + and
+        # the subword starts with +.
+        for subword, logprob in zip(subwords[1:], subword_logprobs):
+            if current_word.endswith('+') and subword.startswith('+'):
+                current_word = current_word[:-1] + subword[1:]
+                if (current_logprob is None) or (logprob is None):
+                    current_logprob = None
+                else:
+                    current_logprob += logprob
+            else:
+                if current_word != '':
+                    words.append(current_word)
+                    logprobs.append(current_logprob)
+                current_word = subword
+                current_logprob = logprob
+    else:
+        raise ValueError("Invalid subword marking type: " + marking)
+
+    if current_word != '':
+        words.append(current_word)
+        logprobs.append(current_logprob)
+    return words, logprobs
+
+def _write_word_scores(words, logprobs, output_file, log_base=None):
+    """Writes word-level scores to an output file.
+
+    :type words: list of strs
+    :param words: sequence of words
+
+    :type logprobs: list of floats
+    :param logprobs: logprob of each word starting from the second word
+
+    :type output_file: file object
+    :param output_file: a file where to write the output
+
+    :type log_base: int
+    :param log_base: if set to other than None, convert log probabilities to
+                     this base
+    """
+
+    if len(logprobs) != len(words) - 1:
+        raise ValueError("Number of logprobs should be exactly one less than "
+                         "the number of words.")
+
+    logprobs = [x / log_scale for x in logprobs]
+    for index, logprob in enumerate(logprobs):
+        if index - 2 > 0:
+            history = ['...']
+            history.extend(words[index - 2:index + 1])
+        else:
+            history = words[:index + 1]
+        history = ' '.join(history)
+        predicted = words[index + 1]
+
+        if logprob is None:
+            output_file.write("p({0} | {1}) is not predicted\n".format(
+                predicted, history))
+        else:
+            output_file.write("log(p({0} | {1})) = {2}\n".format(
+                predicted, history, logprob))
+
+    assert logprob_index == len(logprobs)
 
 def _score_utterances(input_file, vocabulary, scorer, output_file,
                       log_base=None):

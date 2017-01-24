@@ -46,7 +46,7 @@ class TestTextScorer(unittest.TestCase):
         assert_almost_equal(logprobs[1],
                             numpy.log(word_ids[1:,1].astype('float32') / 5))
 
-        # <unk> is removed from the resulting logprobs.
+        # <unk> is replaced with None.
         scorer = TextScorer(self.dummy_network, ignore_unk=True)
         word_ids = numpy.arange(6).reshape((3, 2))
         word_ids[1,1] = self.vocabulary.word_to_id['<unk>']
@@ -57,7 +57,8 @@ class TestTextScorer(unittest.TestCase):
                                       mask)
         assert_almost_equal(logprobs[0],
                             numpy.log(word_ids[1:,0].astype('float32') / 5))
-        assert_almost_equal(logprobs[1],
+        self.assertIsNone(logprobs[1][0])
+        assert_almost_equal(logprobs[1][1:],
                             numpy.log(word_ids[2:,1].astype('float32') / 5))
 
         # <unk> is assigned a constant logprob.
@@ -72,8 +73,8 @@ class TestTextScorer(unittest.TestCase):
         assert_almost_equal(logprobs[0],
                             numpy.log(word_ids[1:,0].astype('float32') / 5))
         assert_almost_equal(logprobs[1][0], -5)
-        assert_almost_equal(logprobs[1][1],
-                            numpy.log(word_ids[2,1].astype('float32') / 5))
+        assert_almost_equal(logprobs[1][1:],
+                            numpy.log(word_ids[2:,1].astype('float32') / 5))
 
     def test_score_sequence(self):
         # Network predicts <unk> probability.

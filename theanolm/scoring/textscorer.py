@@ -114,9 +114,11 @@ class TextScorer(object):
         """Computes the log probabilities predicted by the neural network for
         the words in a mini-batch.
 
-        Indices in the resulting list of lists will be a transpose of those of
-        the input matrices matrices, so that the first index is the sequence,
-        not the time step.
+        The result will be returned in a list of lists. The indices will be a
+        transpose of those of the input matrices, so that the first index is the
+        sequence, not the time step. The lists will contain ``None`` values in
+        place of any <unk> tokens, if the constructor was given
+        ``ignore_unk=True``.
 
         :type word_ids: numpy.ndarray of an integer type
         :param word_ids: a 2-dimensional matrix, indexed by time step and
@@ -136,7 +138,8 @@ class TextScorer(object):
                      that masks out elements past the sequence ends
 
         :rtype: list of lists
-        :returns: logprob of each word in each sequence
+        :returns: logprob of each word in each sequence, possibly excluding
+                  <unk> tokens
         """
 
         result = []
@@ -150,9 +153,17 @@ class TextScorer(object):
                                            membership_probs[1:],
                                            mask[1:])
         for seq_index in range(logprobs.shape[1]):
-            seq_logprobs = logprobs[:,seq_index]
-            seq_mask = mask[:,seq_index]
+            seq_logprobs = logprobs[:, seq_index]
+            seq_mask = mask[:, seq_index]
             seq_logprobs = seq_logprobs[seq_mask == 1]
+            # If <unk> tokens are ignored, there are less logprobs than there
+            # were words. Add None in place of any ignored <unk>'s.
+            if self._ignore_unk:
+                seq_word_ids = word_ids[:, seq_index]
+                logprob_iter = iter(seq_logprobs)
+                seq_logprobs = [None if word_id == self._unk_id
+                                else next(logprob_iter)
+                                for word_id in seq_word_ids[1:]]
             result.append(seq_logprobs)
 
         return result
