@@ -5,9 +5,15 @@ from traceback import format_tb
 import logging
 import sys
 import argparse
-from theano.gpuarray.type import ContextNotDefined
 from theanolm.commands import *
 from theanolm.exceptions import *
+
+# This exception class is not needed, if gpuarray is not used.
+try:
+    from theano.gpuarray.type import ContextNotDefined
+except ImportError:
+    class ContextNotDefined(object):
+        pass
 
 def exception_handler(exception_type, exception, traceback):
     print("An unexpected {} exception occurred. Traceback will be written to "
