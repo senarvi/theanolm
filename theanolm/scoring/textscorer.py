@@ -19,6 +19,7 @@ class TextScorer(object):
         returns the total log probability.
 
         Both functions take as arguments four matrices:
+
         1. Word IDs in the shape of a mini-batch. The functions will only use
            the input words (not the last time step).
         2. Class IDs in the shape of a mini-batch. The functions will slice this

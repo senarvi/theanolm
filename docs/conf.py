@@ -37,7 +37,10 @@ sys.path.insert(0, root_dir)
 class Mock(MagicMock):
     @classmethod
     def __getattr__(classname, x):
-        return Mock()
+        if x == "_mock_methods":
+            return x._mock_methods
+        else:
+            return Mock()
 mock_modules = ['h5py',
                 'numpy',
                 'scipy',

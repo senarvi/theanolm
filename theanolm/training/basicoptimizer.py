@@ -25,6 +25,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         which updates model state given the gradients and the learning rate.
 
         The gradient update functions takes as arguments three matrices:
+
         1. Word IDs in the shape of a mini-batch. The functions will slice this
            into input and output.
         2. Class IDs in the shape of a mini-batch. The functions will slice this
