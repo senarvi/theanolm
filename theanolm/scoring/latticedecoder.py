@@ -9,6 +9,7 @@ import theano
 from theano import tensor
 from theanolm.network import RecurrentState
 from theanolm.probfunctions import *
+from theanolm.exceptions import InputError
 
 class LatticeDecoder(object):
     """Word Lattice Decoding Using a Neural Network Language Model
