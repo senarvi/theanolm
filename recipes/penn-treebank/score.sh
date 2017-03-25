@@ -1,6 +1,6 @@
 #!/bin/bash -e
 #
-# An example script for sampling text using a TheanoLM model.
+# An example script for scoring text using a TheanoLM model.
 
 script_dir=$(dirname "${0}")
 script_dir=$(readlink -e "${script_dir}")
@@ -12,4 +12,7 @@ source "${script_dir}/paths.sh"
 source "${script_dir}/../common/functions.sh"
 source "${script_dir}/../common/configure-theano.sh"
 
-theanolm sample --num-sentences 10 "${OUTPUT_DIR}/nnlm.h5"
+text_file=$(mktemp)
+echo 'in some other markets as well' >"${text_file}"
+theanolm score "${OUTPUT_DIR}/nnlm.h5" "${text_file}"
+rm -f "${text_file}"

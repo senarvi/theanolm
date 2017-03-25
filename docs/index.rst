@@ -24,6 +24,7 @@ Getting Started
    usage
    training
    applying
+   calling
 
 Development
 -----------

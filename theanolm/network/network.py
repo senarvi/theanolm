@@ -3,12 +3,16 @@
 
 from enum import Enum, unique
 from collections import OrderedDict
+import sys
 import logging
+import h5py
 import numpy
 import theano
 import theano.tensor as tensor
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
+from theanolm import Vocabulary
 from theanolm.exceptions import IncompatibleStateError, InputError
+from theanolm.network.architecture import Architecture
 from theanolm.network.networkinput import NetworkInput
 from theanolm.network.projectionlayer import ProjectionLayer
 from theanolm.network.tanhlayer import TanhLayer
@@ -231,6 +235,26 @@ class Network(object):
 
         for layer in self.layers.values():
             layer.create_structure()
+
+    @classmethod
+    def from_file(classname, model_path):
+        """Reads a model from an HDF5 file.
+        """
+
+        with h5py.File(model_path, 'r') as state:
+            print("Reading vocabulary from network state.")
+            sys.stdout.flush()
+            vocabulary = Vocabulary.from_state(state)
+            print("Number of words in vocabulary:", vocabulary.num_words())
+            print("Number of word classes:", vocabulary.num_classes())
+            print("Building neural network.")
+            sys.stdout.flush()
+            architecture = Architecture.from_state(state)
+            result = classname(architecture, vocabulary)
+            print("Restoring neural network state.")
+            sys.stdout.flush()
+            result.set_state(state)
+            return result
 
     def get_state(self, state):
         """Pulls parameter values from Theano shared variables.

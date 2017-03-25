@@ -5,6 +5,7 @@ import theano
 import theano.tensor as tensor
 import numpy
 from theanolm.matrixfunctions import test_value
+from theanolm.parsing import utterance_from_line
 from theanolm.exceptions import NumberError
 
 class TextScorer(object):
@@ -110,6 +111,10 @@ class TextScorer(object):
             name='total_logprob',
             on_unused_input='ignore',
             profile=profile)
+
+        # These are updated by score_line().
+        self.num_words = 0
+        self.num_unks = 0
 
     def score_batch(self, word_ids, class_ids, membership_probs, mask):
         """Computes the log probabilities predicted by the neural network for
@@ -246,6 +251,41 @@ class TextScorer(object):
             raise NumberError("Log probability of a sequence is +/- infinity.")
 
         return logprob
+
+    def score_line(line, vocabulary):
+        """Scores a line of text.
+
+        Start-of-sentence and end-of-sentece tags (``<s>`` and ``</s>``) will be
+        inserted at the beginning and the end of the line, if they're missing.
+        If the line is empty, ``None`` will be returned, instead of interpreting
+        it as the empty sentence ``<s> </s>``.
+
+        :type line: str
+        :param line: a sequence of words
+
+        :type vocabulary: Vocabulary
+        :param vocabulary: vocabulary for converting the words to word IDs
+
+        :rtype: float
+        :returns: log probability of the word sequence, or None if the line is
+                  empty
+        """
+
+        words = utterance_from_line(line)
+        if not words:
+            return None
+
+        word_ids = vocabulary.words_to_ids(words)
+        unk_id = vocabulary.word_to_id['<unk>']
+        self.num_words += word_ids.size
+        self.num_unks += numpy.count_nonzero(word_ids == unk_id)
+
+        class_ids = [vocabulary.word_id_to_class_id[word_id]
+                     for word_id in word_ids]
+        probs = [vocabulary.get_word_prob(word_id)
+                 for word_id in word_ids]
+
+        return self.score_sequence(word_ids, class_ids, probs)
 
     def unk_ignored(self):
         """Indicates whether the scorer ignores <unk> tokens.

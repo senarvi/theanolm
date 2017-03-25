@@ -6,9 +6,8 @@ import os
 import logging
 import subprocess
 import numpy
-import h5py
 import theano
-from theanolm import Vocabulary, Architecture, Network
+from theanolm import Network
 from theanolm.scoring import LatticeDecoder, SLFLattice
 from theanolm.filetypes import TextFileType
 
@@ -131,20 +130,7 @@ def decode(args):
     theano.config.profile = args.profile
     theano.config.profile_memory = args.profile
 
-    with h5py.File(args.model_path, 'r') as state:
-        print("Reading vocabulary from network state.")
-        sys.stdout.flush()
-        vocabulary = Vocabulary.from_state(state)
-        print("Number of words in vocabulary:", vocabulary.num_words())
-        print("Number of word classes:", vocabulary.num_classes())
-        print("Building neural network.")
-        sys.stdout.flush()
-        architecture = Architecture.from_state(state)
-        network = Network(architecture, vocabulary,
-                          mode=Network.Mode(minibatch=False))
-        print("Restoring neural network state.")
-        sys.stdout.flush()
-        network.set_state(state)
+    network = Network.from_file(args.model_path)
 
     log_scale = 1.0 if args.log_base is None else numpy.log(args.log_base)
 
@@ -216,7 +202,7 @@ def decode(args):
         for index in range(min(args.n_best, len(tokens))):
             line = format_token(tokens[index],
                                 utterance_id,
-                                vocabulary,
+                                network.vocabulary,
                                 log_scale,
                                 args.output)
             args.output_file.write(line + "\n")

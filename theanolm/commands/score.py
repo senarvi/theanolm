@@ -5,10 +5,9 @@ import sys
 import os
 import subprocess
 import numpy
-import h5py
 import theano
-from theanolm import Vocabulary, Architecture, Network
-from theanolm.parsing import ScoringBatchIterator, utterance_from_line
+from theanolm import Network
+from theanolm.parsing import ScoringBatchIterator
 from theanolm.scoring import TextScorer
 from theanolm.filetypes import TextFileType
 
@@ -48,19 +47,7 @@ def add_arguments(parser):
              'concatenated are prefixed or affixed with +, e.g. "cat+ +s")')
 
 def score(args):
-    with h5py.File(args.model_path, 'r') as state:
-        print("Reading vocabulary from network state.")
-        sys.stdout.flush()
-        vocabulary = Vocabulary.from_state(state)
-        print("Number of words in vocabulary:", vocabulary.num_words())
-        print("Number of word classes:", vocabulary.num_classes())
-        print("Building neural network.")
-        sys.stdout.flush()
-        architecture = Architecture.from_state(state)
-        network = Network(architecture, vocabulary)
-        print("Restoring neural network state.")
-        sys.stdout.flush()
-        network.set_state(state)
+    network = Network.from_file(args.model_path)
 
     print("Building text scorer.")
     sys.stdout.flush()
@@ -77,14 +64,14 @@ def score(args):
 
     print("Scoring text.")
     if args.output == 'perplexity':
-        _score_text(args.input_file, vocabulary, scorer, args.output_file,
-                    args.log_base, args.subwords, False)
+        _score_text(args.input_file, network.vocabulary, scorer,
+                    args.output_file, args.log_base, args.subwords, False)
     elif args.output == 'word-scores':
-        _score_text(args.input_file, vocabulary, scorer, args.output_file,
-                    args.log_base, args.subwords, True)
+        _score_text(args.input_file, network.vocabulary, scorer,
+                    args.output_file, args.log_base, args.subwords, True)
     elif args.output == 'utterance-scores':
-        _score_utterances(args.input_file, vocabulary, scorer, args.output_file,
-                          args.log_base)
+        _score_utterances(args.input_file, network.vocabulary, scorer,
+                          args.output_file, args.log_base)
     else:
         print("Invalid output format requested:", args.output)
         sys.exit(1)
@@ -201,6 +188,11 @@ def _merge_subwords(subwords, subword_logprobs, marking):
                     marking used: "word-boundary" if a word boundary token (<w>)
                     is used and "prefix-affix" if subwords are prefixed/affixed
                     with + when they can be concatenated
+
+    :rtype: tuple of (list of strs, list of floats)
+    :returns: the first item is a list of words; the second item is a list of
+              log probabilities for each word starting from the second one,
+              containing ``None`` in place of any ignored <unk>'s
     """
 
     if len(subword_logprobs) != len(subwords) - 1:
@@ -327,33 +319,21 @@ def _score_utterances(input_file, vocabulary, scorer, output_file,
 
     log_scale = 1.0 if log_base is None else numpy.log(log_base)
 
-    unk_id = vocabulary.word_to_id['<unk>']
-    num_words = 0
-    num_unks = 0
     for line_num, line in enumerate(input_file):
-        words = utterance_from_line(line)
-        if not words:
+        lm_score = scorer.score_line(line, vocabulary)
+        if lm_score is None:
             continue
-
-        word_ids = vocabulary.words_to_ids(words)
-        num_words += word_ids.size
-        num_unks += numpy.count_nonzero(word_ids == unk_id)
-        class_ids = [vocabulary.word_id_to_class_id[word_id]
-                     for word_id in word_ids]
-        probs = [vocabulary.get_word_prob(word_id)
-                 for word_id in word_ids]
-
-        lm_score = scorer.score_sequence(word_ids, class_ids, probs)
         lm_score /= log_scale
         output_file.write(str(lm_score) + '\n')
-
         if (line_num + 1) % 1000 == 0:
             print("{0} sentences scored.".format(line_num + 1))
         sys.stdout.flush()
 
-    if num_words == 0:
+    if scorer.num_words == 0:
         print("The input file contains no words.")
     else:
         print("{0} words processed, including start-of-sentence and "
               "end-of-sentence tags, and {1} ({2:.1f} %) out-of-vocabulary "
-              "words".format(num_words, num_unks, num_unks / num_words))
+              "words".format(scorer.num_words,
+                             scorer.num_unks,
+                             scorer.num_unks / scorer.num_words))
