@@ -252,7 +252,7 @@ class TextScorer(object):
 
         return logprob
 
-    def score_line(line, vocabulary):
+    def score_line(self, line, vocabulary):
         """Scores a line of text.
 
         Start-of-sentence and end-of-sentece tags (``<s>`` and ``</s>``) will be
