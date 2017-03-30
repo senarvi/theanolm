@@ -66,10 +66,10 @@ class HSoftmaxLayer(BasicLayer):
         minibatch_size = num_time_steps * num_sequences
         input_size = layer_input.shape[2]
 
-        input_weight = self.params[self._param_path('input/W')]
-        input_bias = self.params[self._param_path('input/b')]
-        level1_weight = self.params[self._param_path('level1/W')]
-        level1_bias = self.params[self._param_path('level1/b')]
+        input_weight = self._params[self._param_path('input/W')]
+        input_bias = self._params[self._param_path('input/b')]
+        level1_weight = self._params[self._param_path('level1/W')]
+        level1_bias = self._params[self._param_path('level1/b')]
 
         # First create the output for the whole probability distribution.
         # Combine the first two dimensions so that softmax is taken

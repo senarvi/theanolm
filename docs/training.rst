@@ -69,10 +69,8 @@ layer elements, one element on each line. Input elements start with the word
 Layer elements start with the word *layer* and may contain the following
 fields:
 
-* ``type`` selects the layer class. Has to be specified for all layers.
-  Currently *projection*, *tanh*, *lstm*, *gru*, *highwaytanh* (highway network
-  layer), *dropout*, *softmax*, and *hsoftmax* (two-level hierarchical softmax)
-  are implemented.
+* ``type`` selects the layer class. Has to be specified for all layers. See
+  below for possible values.
 * ``name`` is used to identify the layer. Has to be specified for all layers.
 * ``input`` specifies a network input or a layer whose output will be the input
   of this layer. Some layers types allow multiple inputs.
@@ -80,6 +78,21 @@ fields:
   number of input connections. Will be automatically set to the size of the
   vocabulary in the output layer.
 * ``dropout_rate`` may be set in the dropout layer.
+
+Currently the following layer types are implemented:
+
+* ``projection`` projects words to continuous vectors. Required as the first
+  layer.
+* ``tanh`` basic feedforward layer with tanh activation.
+* ``lstm`` long short-term memory.
+* ``gru`` gated recurrent unit.
+* ``blstm`` bidirectional LSTM.
+* ``bgru`` bidirectional GRU.
+* ``highwaytanh`` highway network layer with tanh activation
+* ``dropout`` a layer without any units that just performs Dropout.
+* ``softmax`` normal softmax output layer. The last layer has to be softmax or
+  hsoftmax.
+* ``hsoftmax`` two-level hierarchical softmax.
 
 The elements have to specified in the order that the network is constructed,
 i.e. an element can have in its inputs only elements that have already been

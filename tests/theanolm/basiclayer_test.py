@@ -24,7 +24,7 @@ class DummyParameters(object):
 class DummyLayer(BasicLayer):
     def __init__(self, layer_options):
         super().__init__(layer_options, None)
-        self.params = DummyParameters()
+        self._params = DummyParameters()
 
     def create_structure(self):
         pass
@@ -46,10 +46,10 @@ class TestBasicLayer(unittest.TestCase):
 
     def test_get_param(self):
         layer = DummyLayer(self.layer_options)
-        layer.params.add('layers/layer_name/var1', 1)
-        layer.params.add('layers/layer_name/var2', 2)
-        layer.params.add('layers/layer_name/var3/dev1', 3)
-        layer.params.add('layers/layer_name/var3/dev2', 4)
+        layer._params.add('layers/layer_name/var1', 1)
+        layer._params.add('layers/layer_name/var2', 2)
+        layer._params.add('layers/layer_name/var3/dev1', 3)
+        layer._params.add('layers/layer_name/var3/dev2', 4)
         self.assertEqual(layer._get_param('var1'), 1)
         self.assertEqual(layer._get_param('var2'), 2)
         self.assertEqual(layer._get_param('var3', 'dev1'), 3)
@@ -89,9 +89,9 @@ class TestBasicLayer(unittest.TestCase):
         self.assertListEqual(list(weight.shape), [100, 200])
         weight = layer._get_param('weight5', 'dev2')
         self.assertListEqual(list(weight.shape), [100, 200])
-        self.assertEqual(layer.params.get_device('layers/layer_name/weight5/dev0'), 'dev0')
-        self.assertEqual(layer.params.get_device('layers/layer_name/weight5/dev1'), 'dev1')
-        self.assertEqual(layer.params.get_device('layers/layer_name/weight5/dev2'), 'dev2')
+        self.assertEqual(layer._params.get_device('layers/layer_name/weight5/dev0'), 'dev0')
+        self.assertEqual(layer._params.get_device('layers/layer_name/weight5/dev1'), 'dev1')
+        self.assertEqual(layer._params.get_device('layers/layer_name/weight5/dev2'), 'dev2')
 
         layer._init_weight('weight6', (100, 600), count=2, split_to_devices=True)
         weight = layer._get_param('weight6', 'dev0')
@@ -100,9 +100,9 @@ class TestBasicLayer(unittest.TestCase):
         self.assertListEqual(list(weight.shape), [100, 400])
         weight = layer._get_param('weight6', 'dev2')
         self.assertListEqual(list(weight.shape), [100, 400])
-        self.assertEqual(layer.params.get_device('layers/layer_name/weight6/dev0'), 'dev0')
-        self.assertEqual(layer.params.get_device('layers/layer_name/weight6/dev1'), 'dev1')
-        self.assertEqual(layer.params.get_device('layers/layer_name/weight6/dev2'), 'dev2')
+        self.assertEqual(layer._params.get_device('layers/layer_name/weight6/dev0'), 'dev0')
+        self.assertEqual(layer._params.get_device('layers/layer_name/weight6/dev1'), 'dev1')
+        self.assertEqual(layer._params.get_device('layers/layer_name/weight6/dev2'), 'dev2')
 
     def test_init_bias(self):
         layer = DummyLayer(self.layer_options)
@@ -140,9 +140,9 @@ class TestBasicLayer(unittest.TestCase):
         assert_almost_equal(bias, value)
         bias = layer._get_param('bias5', 'dev2')
         assert_almost_equal(bias, value)
-        self.assertEqual(layer.params.get_device('layers/layer_name/bias5/dev0'), 'dev0')
-        self.assertEqual(layer.params.get_device('layers/layer_name/bias5/dev1'), 'dev1')
-        self.assertEqual(layer.params.get_device('layers/layer_name/bias5/dev2'), 'dev2')
+        self.assertEqual(layer._params.get_device('layers/layer_name/bias5/dev0'), 'dev0')
+        self.assertEqual(layer._params.get_device('layers/layer_name/bias5/dev1'), 'dev1')
+        self.assertEqual(layer._params.get_device('layers/layer_name/bias5/dev2'), 'dev2')
 
     def test_split_to_devices(self):
         layer = DummyLayer(self.layer_options)

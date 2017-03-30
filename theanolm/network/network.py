@@ -3,6 +3,7 @@
 
 from enum import Enum, unique
 from collections import OrderedDict
+from copy import copy
 import sys
 import logging
 import h5py
@@ -40,6 +41,8 @@ def create_layer(layer_options, *args, **kwargs):
         return LSTMLayer(layer_options, *args, **kwargs)
     elif layer_type == 'gru':
         return GRULayer(layer_options, *args, **kwargs)
+    elif layer_type == 'blstm' or layer_type == 'bgru':
+        return BidirectionalLayer(layer_options, *args, **kwargs)
     elif layer_type == 'highwaytanh':
         return HighwayTanhLayer(layer_options, *args, **kwargs)
     elif layer_type == 'softmax':
@@ -167,8 +170,7 @@ class Network(object):
             layer = create_layer(layer_options, self, profile=profile)
             self.layers[layer.name] = layer
         self.output_layer = self.layers[architecture.output_layer]
-        num_params = sum(layer.params.total_size
-                         for layer in self.layers.values())
+        num_params = sum(layer.num_params() for layer in self.layers.values())
         logging.debug("Total number of parameters: %d", num_params)
 
         # This list will be filled by the recurrent layers to contain the

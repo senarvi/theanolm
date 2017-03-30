@@ -86,12 +86,16 @@ class GRULayer(BasicLayer):
                 sequences=sequences,
                 outputs_info=[initial_hidden_state],
                 non_sequences=non_sequences,
+                go_backwards=self.reverse_time,
                 name='gru_steps',
                 n_steps=num_time_steps,
                 profile=self._profile,
                 strict=True)
 
             self.output = hidden_state_output
+        elif self.reverse_time:
+            raise RuntimeError("Text generation is not possible with "
+                               "bidirectional layers.")
         else:
             hidden_state_input = \
                 self._network.recurrent_state_input[self.hidden_state_index]

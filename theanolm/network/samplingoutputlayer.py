@@ -189,8 +189,8 @@ class SamplingOutputLayer(BasicLayer):
                   each target class, for each time step in each sequence
         """
 
-        weight = self.params[self._param_path('input/W')]
-        bias = self.params[self._param_path('input/b')]
+        weight = self._params[self._param_path('input/W')]
+        bias = self._params[self._param_path('input/b')]
         weight = weight.T
         weight = weight[target_class_ids, :]
         # The old GPU backend does not implement GpuAdvancedIncSubtensor1_dev20
@@ -218,8 +218,8 @@ class SamplingOutputLayer(BasicLayer):
                   each target class, for each time step in each sequence
         """
 
-        weight = self.params[self._param_path('input/W')]
-        bias = self.params[self._param_path('input/b')]
+        weight = self._params[self._param_path('input/W')]
+        bias = self._params[self._param_path('input/b')]
         weight = weight.T
         weight = weight[target_class_ids, :]
         # The old GPU backend does not implement GpuAdvancedIncSubtensor1_dev20
@@ -249,8 +249,8 @@ class SamplingOutputLayer(BasicLayer):
                   every target word, at each time step of each sequence
         """
 
-        weight = self.params[self._param_path('input/W')]
-        bias = self.params[self._param_path('input/b')]
+        weight = self._params[self._param_path('input/W')]
+        bias = self._params[self._param_path('input/b')]
         weight = weight[:, target_class_ids]
         # The old GPU backend does not implement GpuAdvancedIncSubtensor1_dev20
         # for vectors, which is why the very slow GpuAdvancedIncSubtensor1 will

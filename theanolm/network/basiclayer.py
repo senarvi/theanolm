@@ -28,7 +28,7 @@ class BasicLayer(object, metaclass=ABCMeta):
 
         self.name = layer_options['name']
         self.input_layers = layer_options['input_layers']
-        self.params = Parameters()
+        self._params = Parameters()
         self._devices = layer_options['devices']
 
         if 'size' in layer_options:
@@ -36,6 +36,11 @@ class BasicLayer(object, metaclass=ABCMeta):
         else:
             self.output_size = \
                 sum([x.output_size for x in self.input_layers])
+
+        if 'reverse_time' in layer_options:
+            self.reverse_time = bool(layer_options['reverse_time'])
+        else:
+            self.reverse_time = False
 
         logging.debug("- %s name=%s inputs=[%s] size=%d, devices=[%s]",
             self.__class__.__name__,
@@ -56,6 +61,39 @@ class BasicLayer(object, metaclass=ABCMeta):
         """
 
         assert False
+
+    def get_state(self, state):
+        """Pulls parameter values from Theano shared variables.
+
+        If there already is a parameter in the state, it will be replaced, so it
+        has to have the same number of elements.
+
+        :type state: h5py.File
+        :param state: HDF5 file for storing the neural network parameters
+        """
+
+        self._params.get_state(state)
+
+    def set_state(self, state):
+        """Sets the values of Theano shared variables.
+
+        :type state: h5py.File
+        :param state: HDF5 file that contains the neural network parameters
+        """
+
+        self._params.set_state(state)
+
+    def num_params(self):
+        """Returns the number of parameters in this layer.
+
+        This method is used just for reporting the number of parameters in the
+        model. Normally there is just one set of parameters.
+
+        :rtype: int
+        :returns: the number of parameters used by the layer
+        """
+
+        return self._params.total_size
 
     def _param_path(self, param_name, device=None):
         """Returns the HDF5 path used to address a parameter.
@@ -92,7 +130,7 @@ class BasicLayer(object, metaclass=ABCMeta):
         :returns: the corresponding tensor variable
         """
 
-        return self.params[self._param_path(param_name, device)]
+        return self._params[self._param_path(param_name, device)]
 
     def _init_weight(self, param_name, shape, scale=None, count=1,
                      split_to_devices=False):
@@ -136,10 +174,10 @@ class BasicLayer(object, metaclass=ABCMeta):
         path = self._param_path(param_name)
         weight = random_matrix(shape, scale, count)
         if not split_to_devices:
-            self.params.add(path, random_matrix(shape, scale, count))
+            self._params.add(path, random_matrix(shape, scale, count))
         elif (len(self._devices) == 1) and (self._devices[0] == None):
             # This layer has not been assigned to a specific device.
-            self.params.add(path, random_matrix(shape, scale, count))
+            self._params.add(path, random_matrix(shape, scale, count))
         else:
             self._split_to_devices(path, weight, shape[-1])
 
@@ -176,10 +214,10 @@ class BasicLayer(object, metaclass=ABCMeta):
         path = self._param_path(param_name)
         bias = matrix_from_value(shape, value)
         if not split_to_devices:
-            self.params.add(path, matrix_from_value(shape, value))
+            self._params.add(path, matrix_from_value(shape, value))
         elif (len(self._devices) == 1) and (self._devices[0] == None):
             # This layer has not been assigned to a specific device.
-            self.params.add(path, matrix_from_value(shape, value))
+            self._params.add(path, matrix_from_value(shape, value))
         else:
             self._split_to_devices(path, bias, shape[-1])
 
@@ -219,7 +257,7 @@ class BasicLayer(object, metaclass=ABCMeta):
                 ranges.extend(range(part_start + split_start,
                                     part_start + split_end))
             split_start = split_end
-            self.params.add(path + '/' + device, value[..., ranges], device)
+            self._params.add(path + '/' + device, value[..., ranges], device)
 
     def _size_per_device(self, total_size):
         """Returns ``total_size`` divided for each device.
@@ -279,6 +317,6 @@ class BasicLayer(object, metaclass=ABCMeta):
                   this matrix) are the preactivations
         """
 
-        weight = self.params[self._param_path(param_name) + '/W']
-        bias = self.params[self._param_path(param_name) + '/b']
+        weight = self._params[self._param_path(param_name) + '/W']
+        bias = self._params[self._param_path(param_name) + '/b']
         return tensor.dot(input_matrix, weight) + bias

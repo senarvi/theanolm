@@ -92,12 +92,16 @@ class LSTMLayer(BasicLayer):
                 sequences=sequences,
                 outputs_info=[initial_cell_state, initial_hidden_state],
                 non_sequences=non_sequences,
+                go_backwards=self.reverse_time,
                 name='lstm_steps',
                 n_steps=num_time_steps,
                 profile=self._profile,
                 strict=True)
 
             self.output = state_outputs[1]
+        elif self.reverse_time:
+            raise RuntimeError("Text generation is not possible with "
+                               "bidirectional layers.")
         else:
             cell_state_input = \
                 self._network.recurrent_state_input[self.cell_state_index]
