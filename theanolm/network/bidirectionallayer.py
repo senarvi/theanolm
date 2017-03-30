@@ -85,3 +85,19 @@ class BidirectionalLayer(object):
 
         return self._forward_layer._params.total_size + \
                self._backward_layer._params.total_size
+
+    def get_variables(self):
+        """Returns a dictionary of the shared variables.
+
+        This function is used by the optimizers to create optimization
+        parameters that are specific to network parameters, and compute
+        gradients with regard to the parameters.
+
+        :rtype: dict
+        :returns: mapping from parameter path to Theano shared variables
+        """
+
+        result = dict()
+        result.update(self._forward_layer.get_variables())
+        result.update(self._backward_layer.get_variables())
+        return result

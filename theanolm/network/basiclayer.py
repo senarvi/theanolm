@@ -95,6 +95,20 @@ class BasicLayer(object, metaclass=ABCMeta):
 
         return self._params.total_size
 
+    def get_variables(self):
+        """Returns a dictionary of the shared variables.
+
+        This function is used by the optimizers to create optimization
+        parameters that are specific to network parameters, and compute
+        gradients with regard to the parameters. Normally there is just one set
+        of parameters.
+
+        :rtype: dict
+        :returns: mapping from parameter path to Theano shared variables
+        """
+
+        return self._params.get_variables()
+
     def _param_path(self, param_name, device=None):
         """Returns the HDF5 path used to address a parameter.
 

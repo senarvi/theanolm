@@ -269,7 +269,7 @@ class Network(object):
         """
 
         for layer in self.layers.values():
-            layer.params.get_state(state)
+            layer.get_state(state)
 
         self.architecture.get_state(state)
 
@@ -284,7 +284,7 @@ class Network(object):
         """
 
         for layer in self.layers.values():
-            layer.params.set_state(state)
+            layer.set_state(state)
 
         try:
             self.architecture.check_state(state)
@@ -306,7 +306,7 @@ class Network(object):
 
         result = dict()
         for layer in self.layers.values():
-            result.update(layer.params.get_variables())
+            result.update(layer.get_variables())
         return result
 
     def add_recurrent_state(self, size):
