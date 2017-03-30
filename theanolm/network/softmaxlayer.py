@@ -22,8 +22,8 @@ class SoftmaxLayer(SamplingOutputLayer):
         super().__init__(*args, **kwargs)
 
         # Create the parameters. Weight matrix and bias for each input.
-        input_size = sum(x.output_size for x in self.input_layers)
-        output_size = self.output_size
+        input_size = sum(x._output_size for x in self._input_layers)
+        output_size = self._output_size
         self._init_weight('input/W', (input_size, output_size), scale=0.01)
         if self._network.class_prior_probs is None:
             self._init_bias('input/b', output_size)
@@ -43,7 +43,7 @@ class SoftmaxLayer(SamplingOutputLayer):
         layer.
         """
 
-        layer_input = tensor.concatenate([x.output for x in self.input_layers],
+        layer_input = tensor.concatenate([x.output for x in self._input_layers],
                                          axis=2)
         preact = self._tensor_preact(layer_input, 'input')
 
@@ -53,11 +53,11 @@ class SoftmaxLayer(SamplingOutputLayer):
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
         preact = preact.reshape([num_time_steps * num_sequences,
-                                 self.output_size])
+                                 self._output_size])
         output_probs = tensor.nnet.softmax(preact)
         self.output_probs = output_probs.reshape([num_time_steps,
                                                   num_sequences,
-                                                  self.output_size])
+                                                  self._output_size])
 
         # The following variables can only be used when
         # self._network.target_class_ids is given to the function.

@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from collections import OrderedDict
-import numpy
-import theano
 import theano.tensor as tensor
 from theanolm.network.basiclayer import BasicLayer
 
@@ -17,20 +14,20 @@ class BidirectionalLayer(object):
 
     def __init__(self, layer_options, *args, **kwargs):
         layer_type = layer_options['type']
-        name = layer_options['name']
+        self.name = layer_options['name']
         if 'size' in layer_options:
             output_size = int(layer_options['size'])
         else:
             input_layers = layer_options['input_layers']
-            output_size = sum([x.output_size for x in input_layers])
+            output_size = sum([x._output_size for x in input_layers])
         forward_size = output_size // 2
         backward_size = output_size - forward_size
 
         forward_options = layer_options
         backward_options = copy(layer_options)
-        forward_options['name'] = name + '/forward'
+        forward_options['name'] = self.name + '/forward'
         forward_options['size'] = forward_size
-        backward_options['name'] = name + '/backward'
+        backward_options['name'] = self.name + '/backward'
         backward_options['size'] = backward_size
         backward_options['reverse_time'] = True
         if layer_type == 'blstm':

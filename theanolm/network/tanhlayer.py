@@ -20,8 +20,8 @@ class TanhLayer(BasicLayer):
         super().__init__(*args, **kwargs)
 
         # Create the parameters. Weight matrix and bias for concatenated input.
-        input_size = sum(x.output_size for x in self.input_layers)
-        output_size = self.output_size
+        input_size = sum(x._output_size for x in self._input_layers)
+        output_size = self._output_size
         self._init_weight('input/W', (input_size, output_size), scale=0.01)
         self._init_bias('input/b', output_size)
 
@@ -32,7 +32,7 @@ class TanhLayer(BasicLayer):
         layer.
         """
 
-        layer_input = tensor.concatenate([x.output for x in self.input_layers],
+        layer_input = tensor.concatenate([x.output for x in self._input_layers],
                                          axis=2)
         preact = self._tensor_preact(layer_input, 'input')
         self.output = tensor.tanh(preact)

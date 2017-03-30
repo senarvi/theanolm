@@ -26,8 +26,8 @@ class GRULayer(BasicLayer):
 
         super().__init__(*args, **kwargs)
 
-        input_size = sum(x.output_size for x in self.input_layers)
-        output_size = self.output_size
+        input_size = sum(x._output_size for x in self._input_layers)
+        output_size = self._output_size
 
         # Add state variables to be passed between time steps.
         self.hidden_state_index = self._network.add_recurrent_state(output_size)
@@ -62,7 +62,7 @@ class GRULayer(BasicLayer):
         state output, which is also the actual output of this layer.
         """
 
-        layer_input = tensor.concatenate([x.output for x in self.input_layers],
+        layer_input = tensor.concatenate([x.output for x in self._input_layers],
                                          axis=2)
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
@@ -79,7 +79,7 @@ class GRULayer(BasicLayer):
             sequences = [self._network.mask, layer_input_preact]
             non_sequences = [hidden_state_weights]
             initial_hidden_state = tensor.zeros(
-                (num_sequences, self.output_size), dtype=theano.config.floatX)
+                (num_sequences, self._output_size), dtype=theano.config.floatX)
 
             hidden_state_output, _ = theano.scan(
                 self._create_time_step,
@@ -154,17 +154,19 @@ class GRULayer(BasicLayer):
 
         # pre-activation of the gates
         h_preact = tensor.dot(h_in, h_weights)
-        preact_gates = get_submatrix(h_preact, 0, self.output_size, 1)
-        preact_gates += get_submatrix(x_preact, 0, self.output_size, 1)
+        preact_gates = get_submatrix(h_preact, 0, self._output_size, 1)
+        preact_gates += get_submatrix(x_preact, 0, self._output_size, 1)
 
         # reset and update gates
-        r = tensor.nnet.sigmoid(get_submatrix(preact_gates, 0, self.output_size))
-        u = tensor.nnet.sigmoid(get_submatrix(preact_gates, 1, self.output_size))
+        r = tensor.nnet.sigmoid(
+            get_submatrix(preact_gates, 0, self._output_size))
+        u = tensor.nnet.sigmoid(
+            get_submatrix(preact_gates, 1, self._output_size))
 
         # pre-activation of the candidate state
-        preact_candidate = get_submatrix(h_preact, 2, self.output_size)
+        preact_candidate = get_submatrix(h_preact, 2, self._output_size)
         preact_candidate *= r
-        preact_candidate += get_submatrix(x_preact, 2, self.output_size)
+        preact_candidate += get_submatrix(x_preact, 2, self._output_size)
 
         # hidden state output
         h_candidate = tensor.tanh(preact_candidate)

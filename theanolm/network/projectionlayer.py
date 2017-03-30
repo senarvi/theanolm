@@ -22,8 +22,8 @@ class ProjectionLayer(BasicLayer):
         super().__init__(*args, **kwargs)
 
         # Initialize the parameters.
-        input_size = sum(x.output_size for x in self.input_layers)
-        output_size = self.output_size
+        input_size = sum(x._output_size for x in self._input_layers)
+        output_size = self._output_size
         self._init_weight('W', (input_size, output_size), scale=0.01,
                           split_to_devices=True)
 
@@ -38,8 +38,8 @@ class ProjectionLayer(BasicLayer):
         layer.
         """
 
-        assert len(self.input_layers) == 1
-        layer_input = self.input_layers[0].output
+        assert len(self._input_layers) == 1
+        layer_input = self._input_layers[0].output
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
 
