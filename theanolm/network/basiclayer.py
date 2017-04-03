@@ -32,10 +32,10 @@ class BasicLayer(object, metaclass=ABCMeta):
         self._devices = layer_options['devices']
 
         if 'size' in layer_options:
-            self._output_size = int(layer_options['size'])
+            self.output_size = int(layer_options['size'])
         else:
-            self._output_size = \
-                sum([x._output_size for x in self._input_layers])
+            self.output_size = \
+                sum([x.output_size for x in self._input_layers])
 
         if 'reverse_time' in layer_options:
             self.reverse_time = bool(layer_options['reverse_time'])
@@ -46,7 +46,7 @@ class BasicLayer(object, metaclass=ABCMeta):
             self.__class__.__name__,
             self.name,
             ', '.join([x.name for x in self._input_layers]),
-            self._output_size,
+            self.output_size,
             ', '.join([str(x) for x in self._devices]))
 
         self._network = network

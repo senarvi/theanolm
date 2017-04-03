@@ -3,7 +3,6 @@
 
 from enum import Enum, unique
 from collections import OrderedDict
-from copy import copy
 import sys
 import logging
 import h5py
@@ -23,6 +22,7 @@ from theanolm.network.highwaytanhlayer import HighwayTanhLayer
 from theanolm.network.softmaxlayer import SoftmaxLayer
 from theanolm.network.hsoftmaxlayer import HSoftmaxLayer
 from theanolm.network.dropoutlayer import DropoutLayer
+from theanolm.network.bidirectionallayer import BidirectionalLayer
 from theanolm.matrixfunctions import test_value
 
 def create_layer(layer_options, *args, **kwargs):

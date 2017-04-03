@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from copy import copy
 import theano.tensor as tensor
-from theanolm.network.basiclayer import BasicLayer
+from theanolm.network.grulayer import GRULayer
+from theanolm.network.lstmlayer import LSTMLayer
 
 class BidirectionalLayer(object):
     """Wrapper for Combining Forward and Backward Recurrent Layers
@@ -16,12 +18,12 @@ class BidirectionalLayer(object):
         layer_type = layer_options['type']
         self.name = layer_options['name']
         if 'size' in layer_options:
-            output_size = int(layer_options['size'])
+            self.output_size = int(layer_options['size'])
         else:
             input_layers = layer_options['input_layers']
-            output_size = sum([x._output_size for x in input_layers])
-        forward_size = output_size // 2
-        backward_size = output_size - forward_size
+            self.output_size = sum([x.output_size for x in input_layers])
+        backward_size = self.output_size // 2
+        forward_size = self.output_size - backward_size
 
         forward_options = layer_options
         backward_options = copy(layer_options)
@@ -44,8 +46,8 @@ class BidirectionalLayer(object):
         layer.
         """
 
-        self._forward_layer._create_structure()
-        self._backward_layer._create_structure()
+        self._forward_layer.create_structure()
+        self._backward_layer.create_structure()
         self.output = tensor.concatenate([self._forward_layer.output,
                                           self._backward_layer.output],
                                          axis=2)

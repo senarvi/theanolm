@@ -36,8 +36,8 @@ class DropoutLayer(BasicLayer):
         logging.debug("  dropout_rate=%f", self.dropout_rate)
 
         # Make sure the user hasn't tried to change the number of connections.
-        input_size = sum(x._output_size for x in self._input_layers)
-        output_size = self._output_size
+        input_size = sum(x.output_size for x in self._input_layers)
+        output_size = self.output_size
         if input_size != output_size:
             raise ValueError("Dropout layer cannot change the number of "
                              "connections.")

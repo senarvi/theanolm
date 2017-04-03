@@ -29,8 +29,8 @@ class LSTMLayer(BasicLayer):
 
         super().__init__(*args, **kwargs)
 
-        input_size = sum(x._output_size for x in self._input_layers)
-        output_size = self._output_size
+        input_size = sum(x.output_size for x in self._input_layers)
+        output_size = self.output_size
 
         # Add state variables to be passed between time steps.
         self.cell_state_index = self._network.add_recurrent_state(output_size)
@@ -83,9 +83,9 @@ class LSTMLayer(BasicLayer):
             sequences = [self._network.mask, layer_input_preact]
             non_sequences = [hidden_state_weights]
             initial_cell_state = tensor.zeros(
-                (num_sequences, self._output_size), dtype=theano.config.floatX)
+                (num_sequences, self.output_size), dtype=theano.config.floatX)
             initial_hidden_state = tensor.zeros(
-                (num_sequences, self._output_size), dtype=theano.config.floatX)
+                (num_sequences, self.output_size), dtype=theano.config.floatX)
 
             state_outputs, _ = theano.scan(
                 self._create_time_step,
@@ -176,12 +176,12 @@ class LSTMLayer(BasicLayer):
         preact += x_preact
 
         # input, forget, and output gates
-        i = tensor.nnet.sigmoid(get_submatrix(preact, 0, self._output_size))
-        f = tensor.nnet.sigmoid(get_submatrix(preact, 1, self._output_size))
-        o = tensor.nnet.sigmoid(get_submatrix(preact, 2, self._output_size))
+        i = tensor.nnet.sigmoid(get_submatrix(preact, 0, self.output_size))
+        f = tensor.nnet.sigmoid(get_submatrix(preact, 1, self.output_size))
+        o = tensor.nnet.sigmoid(get_submatrix(preact, 2, self.output_size))
 
         # cell state and hidden state outputs
-        C_candidate = tensor.tanh(get_submatrix(preact, 3, self._output_size))
+        C_candidate = tensor.tanh(get_submatrix(preact, 3, self.output_size))
         C_out = f * C_in + i * C_candidate
         h_out = o * tensor.tanh(C_out)
 

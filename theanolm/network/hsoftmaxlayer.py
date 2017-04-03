@@ -23,7 +23,7 @@ class HSoftmaxLayer(BasicLayer):
 
         # Factorize the output size into two levels of equal or almost equal
         # size.
-        output_size = self._output_size
+        output_size = self.output_size
         level1_size = numpy.int(numpy.ceil(numpy.sqrt(output_size)))
         level2_size = numpy.int(numpy.ceil(output_size / level1_size))
         assert level1_size * level2_size >= output_size
@@ -38,7 +38,7 @@ class HSoftmaxLayer(BasicLayer):
 
         # Create the parameters. Weight matrix and bias for concatenated input
         # and the second level of the hierarchy.
-        input_size = sum(x._output_size for x in self._input_layers)
+        input_size = sum(x.output_size for x in self._input_layers)
         self._init_weight('input/W', (input_size, level1_size), scale=0.01)
         self._init_bias('input/b', level1_size)
         self._init_weight('level1/W',
@@ -77,7 +77,7 @@ class HSoftmaxLayer(BasicLayer):
         probs = tensor.nnet.h_softmax(layer_input.reshape([minibatch_size,
                                                            input_size]),
                                       minibatch_size,
-                                      self._output_size,
+                                      self.output_size,
                                       self._level1_size,
                                       self._level2_size,
                                       input_weight,
@@ -86,7 +86,7 @@ class HSoftmaxLayer(BasicLayer):
                                       level1_bias)
         self.output_probs = probs.reshape([num_time_steps,
                                            num_sequences,
-                                           self._output_size])
+                                           self.output_size])
 
         # Next create the output for target classes. It can only be used when
         # self._network.target_class_ids is given to the function.
@@ -94,7 +94,7 @@ class HSoftmaxLayer(BasicLayer):
         probs = tensor.nnet.h_softmax(layer_input.reshape([minibatch_size,
                                                            input_size]),
                                       minibatch_size,
-                                      self._output_size,
+                                      self.output_size,
                                       self._level1_size,
                                       self._level2_size,
                                       input_weight,

@@ -23,8 +23,8 @@ class HighwayTanhLayer(BasicLayer):
         super().__init__(*args, **kwargs)
 
         # Make sure the user hasn't tried to change the number of connections.
-        input_size = sum(x._output_size for x in self._input_layers)
-        output_size = self._output_size
+        input_size = sum(x.output_size for x in self._input_layers)
+        output_size = self.output_size
         if input_size != output_size:
             raise ValueError("Highway network layer cannot change the number "
                              "of connections.")
@@ -48,6 +48,6 @@ class HighwayTanhLayer(BasicLayer):
                                          axis=2)
         preact = self._tensor_preact(layer_input, 'input')
         # normal activation (hidden state) and transform gate
-        h = tensor.tanh(get_submatrix(preact, 0, self._output_size))
-        t = tensor.nnet.sigmoid(get_submatrix(preact, 1, self._output_size))
+        h = tensor.tanh(get_submatrix(preact, 0, self.output_size))
+        t = tensor.nnet.sigmoid(get_submatrix(preact, 1, self.output_size))
         self.output = h * t + layer_input * (1 - t)
