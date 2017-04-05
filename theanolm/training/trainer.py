@@ -13,7 +13,7 @@ from theanolm.training.stoppers import create_stopper
 
 class Trainer(object):
     """Training Process
-    
+
     Saves a history of validation costs and decreases learning rate when the
     cost does not decrease anymore.
     """

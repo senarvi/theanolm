@@ -38,15 +38,16 @@ class BasicLayer(object, metaclass=ABCMeta):
                 sum([x.output_size for x in self._input_layers])
 
         if 'reverse_time' in layer_options:
-            self.reverse_time = bool(layer_options['reverse_time'])
+            self._reverse_time = bool(layer_options['reverse_time'])
         else:
-            self.reverse_time = False
+            self._reverse_time = False
 
-        logging.debug("- %s name=%s inputs=[%s] size=%d, devices=[%s]",
+        logging.debug("- %s name=%s inputs=[%s] size=%d,%s devices=[%s]",
             self.__class__.__name__,
             self.name,
             ', '.join([x.name for x in self._input_layers]),
             self.output_size,
+            ' reverse,' if self._reverse_time else '',
             ', '.join([str(x) for x in self._devices]))
 
         self._network = network

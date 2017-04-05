@@ -17,6 +17,7 @@ encoding//theanolm/exceptions.py=utf-8
 encoding//theanolm/filetypes.py=utf-8
 encoding//theanolm/matrixfunctions.py=utf-8
 encoding//theanolm/network/basiclayer.py=utf-8
+encoding//theanolm/network/bidirectionallayer.py=utf-8
 encoding//theanolm/network/hsoftmaxlayer.py=utf-8
 encoding//theanolm/network/lstmlayer.py=utf-8
 encoding//theanolm/network/network.py=utf-8

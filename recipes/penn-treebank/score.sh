@@ -14,5 +14,5 @@ source "${script_dir}/../common/configure-theano.sh"
 
 text_file=$(mktemp)
 echo 'in some other markets as well' >"${text_file}"
-theanolm score "${OUTPUT_DIR}/nnlm.h5" "${text_file}"
+theanolm score "${OUTPUT_DIR}/nnlm.h5" "${text_file}" --output word-scores
 rm -f "${text_file}"

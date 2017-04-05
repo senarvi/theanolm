@@ -70,6 +70,15 @@ class GRULayer(BasicLayer):
         # Compute the gate and candidate state pre-activations, which don't
         # depend on the state input from the previous time step.
         layer_input_preact = self._tensor_preact(layer_input, 'layer_input')
+        if self._reverse_time:
+            # Shift the input left by two time steps in the backward layer of a
+            # bidirectional layer. The target word is the next input word, so
+            # otherwise predicting it will be trivial.
+            preact_dim = layer_input_preact.shape[2]
+            padding = tensor.zeros([2, num_sequences, preact_dim])
+            layer_input_preact = tensor.concatenate(
+                [layer_input_preact[2:], padding],
+                axis=0)
 
         # Weights of the hidden state input of each time step have to be applied
         # inside the loop.
@@ -86,14 +95,16 @@ class GRULayer(BasicLayer):
                 sequences=sequences,
                 outputs_info=[initial_hidden_state],
                 non_sequences=non_sequences,
-                go_backwards=self.reverse_time,
+                go_backwards=self._reverse_time,
                 name='gru_steps',
                 n_steps=num_time_steps,
                 profile=self._profile,
                 strict=True)
 
             self.output = hidden_state_output
-        elif self.reverse_time:
+            if self._reverse_time:
+                self.output = self.output[::-1]
+        elif self._reverse_time:
             raise RuntimeError("Text generation is not possible with "
                                "bidirectional layers.")
         else:
