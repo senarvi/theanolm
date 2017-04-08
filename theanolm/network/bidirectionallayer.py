@@ -12,6 +12,14 @@ class BidirectionalLayer(object):
     M. Schuster, K. K. Paliwal
     Bidirectional Recurrent Neural Networks
     IEEE Transactions on Signal Processing, 45(11), 2673–2681
+
+    Combines two recurrent layers, one which has dependency forward in time, and
+    one with dependency backward in time. The input of the backward layer is
+    shifted two time steps to make sure the target word is not predicted using
+    itself (which is also the next input word). Note that the probability of a
+    word depends on the future words as well, instead of just the past words.
+    Thus the sequence probabilities are not a true probability distribution, and
+    text cannot be generated.
     """
 
     def __init__(self, layer_options, *args, **kwargs):
@@ -38,6 +46,8 @@ class BidirectionalLayer(object):
         elif layer_type == 'bgru':
            self._forward_layer = GRULayer(forward_options, *args, **kwargs)
            self._backward_layer = GRULayer(backward_options, *args, **kwargs)
+        else:
+            raise ValueError("Invalid layer type requested: " + layer_type)
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.
