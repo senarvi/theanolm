@@ -9,11 +9,13 @@ import theano.tensor as tensor
 from theanolm.network.weightfunctions import get_submatrix
 from theanolm.network.basiclayer import BasicLayer
 
-class GatedConvolutionLayer(BasicLayer):
-    """Convolution Layer with Gated Linear Unit
+class GLULayer(BasicLayer):
+    """Gated Linear Unit Layer
+
+    Implements a convolution layer with a gating mechanism.
 
     Y. N. Dauphin (2016)
-    Language Modeling with Gated Convolution Networks
+    Language Modeling with Gated Convolutional Networks
     https://arxiv.org/abs/1612.08083
     """
 
@@ -34,6 +36,10 @@ class GatedConvolutionLayer(BasicLayer):
         input_depth = self._input_layers[0].output_depth
         output_size = self.output_size
         output_depth = self.output_depth
+
+        # Make sure the user hasn't tried to change the number of connections.
+        if input_size != output_size:
+            raise ValueError("GLU layer size has to match the previous layer.")
 
         # convolution filters for the linear projection and its gate
         # The width of the kernel is fixed to the width of the input vector.
@@ -95,6 +101,10 @@ class GatedConvolutionLayer(BasicLayer):
                   this matrix) are the preactivations
         """
 
+        num_time_steps = input_matrix.shape[0]
+        num_sequences = input_matrix.shape[1]
+        output_size = input_matrix.shape[2]
+
         # Permutate the dimensions for conv2d(), which expects
         # [sequences, channels, rows, columns].
         if self._input_depth > 1:
@@ -112,12 +122,10 @@ class GatedConvolutionLayer(BasicLayer):
                                     border_mode='half',
                                     filter_flip=False)
         result = result.dimshuffle(2, 0, 3, 1)
+        result = result[:num_time_steps,:,:output_size,:]
         result += bias
 
         if self.output_depth == 1:
-            num_time_steps = result.shape[0]
-            num_sequences = result.shape[1]
-            output_size = result.shape[2]
             result = result.reshape([num_time_steps,
                                      num_sequences,
                                      output_size])

@@ -39,8 +39,8 @@ class DropoutLayer(BasicLayer):
         input_size = sum(x.output_size for x in self._input_layers)
         output_size = self.output_size
         if input_size != output_size:
-            raise ValueError("Dropout layer cannot change the number of "
-                             "connections.")
+            raise ValueError("Dropout layer size has to match the previous "
+                             "layer.")
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.
