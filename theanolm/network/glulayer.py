@@ -52,6 +52,7 @@ class GLULayer(BasicLayer):
         self._init_bias('gate/b', output_depth)
 
         self._filter_shape = filter_shape
+        self._input_size = input_size
         self._input_depth = input_depth
 
     def create_structure(self):
@@ -70,64 +71,71 @@ class GLULayer(BasicLayer):
         layer_input = self._input_layers[0].output
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
-
-        # Compute the linear projection and the gate pre-activation.
-        linear = self._tensor_convolution(layer_input, 'linear')
-        gate = self._tensor_convolution(layer_input, 'gate')
-        self.output = linear * tensor.nnet.sigmoid(gate)
-
-    def _tensor_convolution(self, input_matrix, param_name):
-        """Convolves ``input_matrix`` using filters and adds a bias.
-
-        ``input_matrix`` and the result normally have the shape of a mini-batch:
-        the first dimension is the time step and the second dimension is the
-        sequence. The last dimension is always the data vector. The size of the
-        input data vector should equal to the first dimension of the weight
-        vector, and the second dimension of the weight vector defines the size
-        of the output data vector.
-
-        :type input_matrix: TensorVariable
-        :param input_matrix: the preactivations will be computed by multiplying
-                             the data vectors (the last dimension of this
-                             matrix) by the weight matrix, and adding bias
-
-        :type param_name: str
-        :param param_name: name of a parameter group that contains a filter
-                           matrix and a bias vector
-
-        :rtype: TensorVariable
-        :returns: a matrix that has the same number of dimensions as
-                  ``input_matrix``, but the data vectors (the last dimension of
-                  this matrix) are the preactivations
-        """
-
-        num_time_steps = input_matrix.shape[0]
-        num_sequences = input_matrix.shape[1]
-        output_size = input_matrix.shape[2]
+        input_size = self._input_size
+        input_depth = self._input_depth
 
         # Permutate the dimensions for conv2d(), which expects
         # [sequences, channels, rows, columns].
         if self._input_depth > 1:
-            input_matrix = input_matrix.dimshuffle(1, 3, 0, 2)
+            layer_input = layer_input.dimshuffle(1, 3, 0, 2)
         else:
-            input_matrix = input_matrix.dimshuffle(1, 'x', 0, 2)
+            layer_input = layer_input.dimshuffle(1, 'x', 0, 2)
+
+        # Shift the input right by k/2 time steps, where k is the kernel size,
+        # so that the output at any time step does not contain information from
+        # future words.
+        padding_size = self._filter_shape[2] // 2
+        padding = tensor.zeros([
+            num_sequences, input_depth, padding_size, input_size])
+        layer_input = tensor.concatenate([padding, layer_input], axis=2)
+
+        # Compute the linear projection and the gate pre-activation. Because of
+        # the padding, there are now more time steps than we want. If the filter
+        # width (data width) is not an odd number, there will be one extra data
+        # dimension too.
+        linear = self._tensor_convolution(layer_input, 'linear')
+        linear = linear.dimshuffle(2, 0, 3, 1)
+        linear = linear[:num_time_steps,:,:input_size,:]
+        gate = self._tensor_convolution(layer_input, 'gate')
+        gate = gate.dimshuffle(2, 0, 3, 1)
+        gate = gate[:num_time_steps,:,:input_size,:]
+
+        # Add biases and multiply each element by the gate activation.
+        bias = self._params[self._param_path('linear/b')]
+        linear += bias
+        bias = self._params[self._param_path('gate/b')]
+        gate += bias
+        self.output = linear * tensor.nnet.sigmoid(gate)
+
+        if self.output_depth == 1:
+            self.output = self.output.reshape([num_time_steps,
+                                               num_sequences,
+                                               input_size])
+
+    def _tensor_convolution(self, input_matrix, param_name):
+        """Convolves ``input_matrix`` using filters.
+
+        ``input_matrix`` and the result have the shape expected by ``conv2d()``:
+        [sequences, channels (depth), time steps, data].
+
+        :type input_matrix: TensorVariable
+        :param input_matrix: one or more sequences (first dimension) and one or
+                             more channels (second dimension), each containing
+                             two-dimensional data, first data dimension being
+                             the time steps
+
+        :type param_name: str
+        :param param_name: name of a parameter group that contains a filter
+                           matrix
+
+        :rtype: TensorVariable
+        :returns: the input convolved with the filters
+        """
 
         filters = self._params[self._param_path(param_name) + '/W']
-        bias = self._params[self._param_path(param_name) + '/b']
-
-        result = tensor.nnet.conv2d(input_matrix,
+        return tensor.nnet.conv2d(input_matrix,
                                     filters,
                                     input_shape=(None, 1, None, None),
                                     filter_shape=self._filter_shape,
                                     border_mode='half',
                                     filter_flip=False)
-        result = result.dimshuffle(2, 0, 3, 1)
-        result = result[:num_time_steps,:,:output_size,:]
-        result += bias
-
-        if self.output_depth == 1:
-            result = result.reshape([num_time_steps,
-                                     num_sequences,
-                                     output_size])
-
-        return result

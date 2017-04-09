@@ -35,9 +35,9 @@ PATIENCE=0
 ARCHITECTURE_FILE="${arch_dir}/word-gcnn.arch"
 COST=cross-entropy
 LEARNING_RATE=1
-DEBUG=1
+#DEBUG=1
 
 rm -f "${OUTPUT_DIR}/nnlm.h5"
 mv -f "${script_dir}/gcnn.log" "${script_dir}/gcnn.log~" 2>/dev/null || true
 train | tee "${script_dir}/gcnn.log"
-#compute_perplexity | tee --append "${script_dir}/gcnn.log"
+compute_perplexity | tee --append "${script_dir}/gcnn.log"
