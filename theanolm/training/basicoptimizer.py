@@ -127,7 +127,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         # layer.
         self.gradient_update_function = theano.function(
             [batch_word_ids, batch_class_ids, self.network.mask],
-            cost,
+            [],
             givens=[(network.input_word_ids, batch_word_ids[:-1]),
                     (network.input_class_ids, batch_class_ids[:-1]),
                     (network.target_word_ids, batch_word_ids[1:]),
@@ -212,11 +212,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         # step.
         target_word_ids = word_ids[1:]
         mask = mask[1:]
-        self.update_cost = \
-            self.gradient_update_function(word_ids, class_ids, mask)
-        if numpy.isnan(self.update_cost) or numpy.isinf(self.update_cost):
-            raise NumberError("Mini-batch cost computation resulted in a "
-                              "numerical error.")
+        self.gradient_update_function(word_ids, class_ids, mask)
 
         alpha = self.learning_rate
         if self._ignore_unk:

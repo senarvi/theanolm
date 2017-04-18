@@ -405,13 +405,12 @@ class Trainer(object):
         """Logs information about the previous mini-batch update.
         """
 
-        logging.info("[%d] (%.1f %%) of epoch %d -- lr = %.1g, cost = %.2f, "
+        logging.info("[%d] (%.1f %%) of epoch %d -- lr = %.1g, "
                      "duration = %.1f ms",
                      self.update_number,
                      self.update_number / self._updates_per_epoch * 100,
                      self.epoch_number,
                      self._optimizer.learning_rate,
-                     self._optimizer.update_cost,
                      self._update_duration * 100)
 
     def _log_validation(self):
