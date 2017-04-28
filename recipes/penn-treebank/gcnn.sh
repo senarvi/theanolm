@@ -34,7 +34,7 @@ VALIDATION_FREQ=1
 PATIENCE=0
 ARCHITECTURE_FILE="${arch_dir}/word-gcnn.arch"
 COST=cross-entropy
-LEARNING_RATE=1
+LEARNING_RATE=0.1
 #DEBUG=1
 
 rm -f "${OUTPUT_DIR}/nnlm.h5"
