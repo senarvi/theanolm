@@ -65,8 +65,8 @@ class GLULayer(BasicLayer):
         """
 
         if not self._network.mode.minibatch:
-            raise RuntimeError("Text generation is not possible with "
-                               "convolution layers.")
+            raise RuntimeError("Text generation and lattice decoding are not "
+                               "possible with convolution layers.")
 
         layer_input = self._input_layers[0].output
         num_time_steps = layer_input.shape[0]

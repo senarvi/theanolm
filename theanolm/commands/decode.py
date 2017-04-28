@@ -130,7 +130,8 @@ def decode(args):
     theano.config.profile = args.profile
     theano.config.profile_memory = args.profile
 
-    network = Network.from_file(args.model_path)
+    network = Network.from_file(args.model_path,
+                                mode=Network.Mode(minibatch=False))
 
     log_scale = 1.0 if args.log_base is None else numpy.log(args.log_base)
 

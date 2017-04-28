@@ -105,8 +105,8 @@ class GRULayer(BasicLayer):
             if self._reverse_time:
                 self.output = self.output[::-1]
         elif self._reverse_time:
-            raise RuntimeError("Text generation is not possible with "
-                               "bidirectional layers.")
+            raise RuntimeError("Text generation and lattice decoding are not "
+                               "possible with bidirectional layers.")
         else:
             hidden_state_input = \
                 self._network.recurrent_state_input[self.hidden_state_index]

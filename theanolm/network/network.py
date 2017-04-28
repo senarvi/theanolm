@@ -242,8 +242,14 @@ class Network(object):
             layer.create_structure()
 
     @classmethod
-    def from_file(classname, model_path):
+    def from_file(classname, model_path, mode=None):
         """Reads a model from an HDF5 file.
+
+        :type model_path: str
+        :param model_path: path to a HDF5 model file
+
+        :type mode: Network.Mode
+        :param mode: selects mini-batch or single time step processing
         """
 
         with h5py.File(model_path, 'r') as state:
@@ -255,7 +261,7 @@ class Network(object):
             print("Building neural network.")
             sys.stdout.flush()
             architecture = Architecture.from_state(state)
-            result = classname(architecture, vocabulary)
+            result = classname(architecture, vocabulary, mode=mode)
             print("Restoring neural network state.")
             sys.stdout.flush()
             result.set_state(state)
