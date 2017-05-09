@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements custom exception classes.
+"""
 
 class InputError(Exception):
     """Exception raised for errors in the input.

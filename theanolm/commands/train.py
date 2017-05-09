@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the "theanolm train" command.
+"""
 
 import sys
 import mmap
 import logging
-import numpy
+
 import h5py
+import numpy
 import theano
+
 from theanolm import Vocabulary, Architecture, Network
 from theanolm import LinearBatchIterator
 from theanolm.training import Trainer, create_optimizer
@@ -14,6 +18,13 @@ from theanolm.scoring import TextScorer
 from theanolm.filetypes import TextFileType
 
 def add_arguments(parser):
+    """Specifies the command line arguments supported by the "theanolm train"
+    command.
+
+    :type parser: argparse.ArgumentParser
+    :param parser: a command line argument parser
+    """
+
     argument_group = parser.add_argument_group("files")
     argument_group.add_argument(
         'model_path', metavar='MODEL-FILE', type=str,
@@ -188,6 +199,12 @@ def add_arguments(parser):
         help='enable profiling Theano functions')
 
 def train(args):
+    """A function that performs the "theanolm train" command.
+
+    :type args: argparse.Namespace
+    :param args: a collection of command line arguments
+    """
+
     numpy.random.seed(args.random_seed)
 
     log_file = args.log_file
@@ -238,7 +255,7 @@ def train(args):
         print("Number of words in vocabulary:", vocabulary.num_words())
         print("Number of word classes:", vocabulary.num_classes())
 
-        if (args.num_noise_samples > vocabulary.num_classes()):
+        if args.num_noise_samples > vocabulary.num_classes():
             print("Number of noise samples ({}) is larger than the number of "
                   "classes. This doesn't make sense and would cause sampling "
                   "to fail.".format(args.num_noise_samples))
@@ -293,7 +310,7 @@ def train(args):
         }
         logging.debug("OPTIMIZATION OPTIONS")
         for option_name, option_value in optimization_options.items():
-            if type(option_value) is list:
+            if isinstance(option_value, list):
                 value_str = ', '.join(str(x) for x in option_value)
                 logging.debug("%s: [%s]", option_name, value_str)
             else:
@@ -335,7 +352,7 @@ def train(args):
 
         trainer.initialize(network, state, optimizer)
 
-        if not args.validation_file is None:
+        if args.validation_file is not None:
             print("Building text scorer for cross-validation.")
             sys.stdout.flush()
             scorer = TextScorer(network, ignore_unk, unk_penalty, args.profile)
@@ -357,10 +374,10 @@ def train(args):
         sys.stdout.flush()
         trainer.train()
 
-        if not 'layers' in state.keys():
+        if 'layers' not in state.keys():
             print("The model has not been trained. No cross-validations were "
                   "performed or training did not improve the model.")
-        elif not validation_iter is None:
+        elif validation_iter is not None:
             network.set_state(state)
             perplexity = scorer.compute_perplexity(validation_iter)
             print("Best validation set perplexity:", perplexity)

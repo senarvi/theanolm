@@ -1,16 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the "theanolm sample" command.
+"""
 
 import sys
-import os
-import subprocess
+
 import numpy
 import h5py
 import theano
+
 from theanolm import Vocabulary, Architecture, Network, TextSampler
 from theanolm.filetypes import TextFileType
 
 def add_arguments(parser):
+    """Specifies the command line arguments supported by the "theanolm sample"
+    command.
+
+    :type parser: argparse.ArgumentParser
+    :param parser: a command line argument parser
+    """
+
     argument_group = parser.add_argument_group("files")
     argument_group.add_argument(
         'model_path', metavar='MODEL-FILE', type=str,
@@ -35,6 +44,12 @@ def add_arguments(parser):
         help='enables debugging Theano errors')
 
 def sample(args):
+    """A function that performs the "theanolm sample" command.
+
+    :type args: argparse.Namespace
+    :param args: a collection of command line arguments
+    """
+
     numpy.random.seed(args.random_seed)
 
     if args.debug:
@@ -64,6 +79,6 @@ def sample(args):
         try:
             eos_pos = sequence.index('</s>')
             sequence = sequence[:eos_pos+1]
-        except:
+        except ValueError:
             pass
         args.output_file.write(' '.join(sequence) + '\n')

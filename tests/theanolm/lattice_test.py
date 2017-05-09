@@ -6,6 +6,7 @@ import os
 import math
 from theanolm.scoring.lattice import Lattice
 from theanolm.scoring.slflattice import SLFLattice
+from theanolm.scoring.slflattice import _split_slf_field, _split_slf_line
 
 class TestLattice(unittest.TestCase):
     def setUp(self):
@@ -16,11 +17,10 @@ class TestLattice(unittest.TestCase):
         pass
 
     def test_split_slf_line(self):
-        lattice = SLFLattice(None)
-        fields = lattice._split_slf_line('name=value '
-                                         'name="va lue" '
-                                         'WORD=\\"QUOTE '
-                                         "WORD='CAUSE")
+        fields = _split_slf_line('name=value '
+                                 'name="va lue" '
+                                 'WORD=\\"QUOTE '
+                                 "WORD='CAUSE")
         self.assertEqual(fields[0], 'name=value')
         self.assertEqual(fields[1], 'name=va lue')
         self.assertEqual(fields[2], 'WORD="QUOTE')
@@ -28,7 +28,7 @@ class TestLattice(unittest.TestCase):
 
     def test_split_slf_field(self):
         lattice = SLFLattice(None)
-        name, value = lattice._split_slf_field("name=va 'lue")
+        name, value = _split_slf_field("name=va 'lue")
         self.assertEqual(name, 'name')
         self.assertEqual(value, "va 'lue")
 

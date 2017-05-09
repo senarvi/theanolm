@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that defines the Parameters class.
+"""
 
 import logging
 import theano
@@ -97,7 +99,7 @@ class Parameters:
         """
 
         for path, param in self._vars.items():
-            if not path in state:
+            if path not in state:
                 raise IncompatibleStateError(
                     "Parameter `%s' is missing from state." % path)
             new_value = state[path].value

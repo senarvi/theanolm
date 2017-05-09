@@ -134,8 +134,8 @@ class GLULayer(BasicLayer):
 
         filters = self._params[self._param_path(param_name) + '/W']
         return tensor.nnet.conv2d(input_matrix,
-                                    filters,
-                                    input_shape=(None, 1, None, None),
-                                    filter_shape=self._filter_shape,
-                                    border_mode='half',
-                                    filter_flip=False)
+                                  filters,
+                                  input_shape=(None, 1, None, None),
+                                  filter_shape=self._filter_shape,
+                                  border_mode='half',
+                                  filter_flip=False)

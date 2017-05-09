@@ -1,17 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the "theanolm score" command.
+"""
 
 import sys
-import os
-import subprocess
+
 import numpy
-import theano
+
 from theanolm import Network
 from theanolm.parsing import ScoringBatchIterator
 from theanolm.scoring import TextScorer
 from theanolm.filetypes import TextFileType
 
 def add_arguments(parser):
+    """Specifies the command line arguments supported by the "theanolm score"
+    command.
+
+    :type parser: argparse.ArgumentParser
+    :param parser: a command line argument parser
+    """
+
     argument_group = parser.add_argument_group("files")
     argument_group.add_argument(
         'model_path', metavar='MODEL-FILE', type=str,
@@ -47,6 +55,12 @@ def add_arguments(parser):
              'concatenated are prefixed or affixed with +, e.g. "cat+ +s")')
 
 def score(args):
+    """A function that performs the "theanolm score" command.
+
+    :type args: argparse.Namespace
+    :param args: a collection of command line arguments
+    """
+
     network = Network.from_file(args.model_path)
 
     print("Building text scorer.")
@@ -136,7 +150,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
                                                             subword_marking)
 
             # total logprob of this sequence
-            seq_logprob = sum(filter(None, merged_logprobs))
+            seq_logprob = sum(x for x in merged_logprobs if x is not None)
             # total logprob of all sequences
             total_logprob += seq_logprob
             # number of tokens, which may be subwords, including <unk>'s
@@ -144,7 +158,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
             # number of words, including <unk>'s
             num_words += len(merged_words)
             # number of word probabilities computed (may not include <unk>'s)
-            num_probs += sum(not x is None for x in merged_logprobs)
+            num_probs += sum(x is not None for x in merged_logprobs)
             # number of <unk>'s (just for reporting)
             num_unks += sum(x is None for x in merged_logprobs)
             # number of sequences
@@ -166,7 +180,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
         cross_entropy = -total_logprob / num_probs
         perplexity = numpy.exp(cross_entropy)
         output_file.write("Cross entropy (base e): {0}\n".format(cross_entropy))
-        if not log_base is None:
+        if log_base is not None:
             cross_entropy /= log_scale
             output_file.write("Cross entropy (base {1}): {0}\n".format(
                 cross_entropy, log_base))
@@ -273,11 +287,11 @@ def _write_word_scores(words, logprobs, output_file, log_scale):
     logprobs = [None if x is None else x / log_scale for x in logprobs]
     for index, logprob in enumerate(logprobs):
         if index - 2 > 0:
-            history = ['...']
-            history.extend(words[index - 2:index + 1])
+            history_list = ['...']
+            history_list.extend(words[index - 2:index + 1])
         else:
-            history = words[:index + 1]
-        history = ' '.join(history)
+            history_list = words[:index + 1]
+        history = ' '.join(history_list)
         predicted = words[index + 1]
 
         if logprob is None:

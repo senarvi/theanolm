@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that defines file type classes to be used with command-line argument
+parser.
+"""
 
 import io
 import sys
@@ -33,7 +36,8 @@ class TextFileType(object):
             elif ('w' in self._mode) or ('a' in self._mode):
                 return io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
             else:
-                msg = "Cannot use standard input or output (file is opened with mode '%r')." % self._mode
+                msg = "Cannot use standard input or output (file is opened " \
+                      "with mode '%r')." % self._mode
                 raise argparse.ArgumentTypeError(msg)
 
         try:
@@ -77,7 +81,8 @@ class BinaryFileType(object):
             elif ('w' in self._mode) or ('a' in self._mode):
                 return sys.stdout.buffer
             else:
-                msg = "Cannot use standard input or output (file is opened with mode '%r')." % self._mode
+                msg = "Cannot use standard input or output (file is opened " \
+                      "with mode '%r')." % self._mode
                 raise argparse.ArgumentTypeError(msg)
 
         try:

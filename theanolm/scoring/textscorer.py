@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the TextScorer class.
+"""
 
+import numpy
 import theano
 import theano.tensor as tensor
-import numpy
+
 from theanolm.matrixfunctions import test_value
 from theanolm.parsing import utterance_from_line
 from theanolm.exceptions import NumberError
@@ -77,7 +80,7 @@ class TextScorer(object):
         logprobs += tensor.log(membership_probs)
         # If requested, predict <unk> with constant score.
         target_word_ids = batch_word_ids[1:]
-        if not self._unk_penalty is None:
+        if self._unk_penalty is not None:
             unk_mask = tensor.eq(target_word_ids, self._unk_id)
             unk_indices = unk_mask.nonzero()
             logprobs = tensor.set_subtensor(logprobs[unk_indices],

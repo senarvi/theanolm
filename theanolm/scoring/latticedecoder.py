@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the LatticeDecoder class.
+"""
 
 from copy import deepcopy
-import math
 import logging
+import math
+
 import numpy
 import theano
 from theano import tensor
+
 from theanolm.network import RecurrentState
-from theanolm.probfunctions import *
+from theanolm.probfunctions import interpolate_linear, interpolate_loglinear
+from theanolm.probfunctions import logprob_type
 from theanolm.exceptions import InputError
 
 class LatticeDecoder(object):
@@ -23,8 +28,8 @@ class LatticeDecoder(object):
         """
 
         def __init__(self,
-                     history=[],
-                     state=[],
+                     history=None,
+                     state=None,
                      ac_logprob=logprob_type(0.0),
                      lat_lm_logprob=logprob_type(0.0),
                      nn_lm_logprob=logprob_type(0.0)):
@@ -57,16 +62,17 @@ class LatticeDecoder(object):
                                   lattice links
             """
 
-            self.history = history
-            self.state = state
+            self.history = [] if history is None else history
+            self.state = [] if state is None else state
             self.ac_logprob = ac_logprob
             self.lat_lm_logprob = lat_lm_logprob
             self.nn_lm_logprob = nn_lm_logprob
             self.recombination_hash = None
+            self.lm_logprob = None
             self.total_logprob = None
 
         @classmethod
-        def copy(classname, token):
+        def copy(cls, token):
             """Creates a copy of a token.
 
             The recurrent layer states will not be copied - a pointer will be
@@ -82,11 +88,11 @@ class LatticeDecoder(object):
             :returns: a copy of ``token``
             """
 
-            return classname(deepcopy(token.history),
-                             token.state,
-                             token.ac_logprob,
-                             token.lat_lm_logprob,
-                             token.nn_lm_logprob)
+            return cls(deepcopy(token.history),
+                       token.state,
+                       token.ac_logprob,
+                       token.lat_lm_logprob,
+                       token.nn_lm_logprob)
 
         def recompute_hash(self, recombination_order):
             """Computes the hash that will be used to decide if two tokens
@@ -193,7 +199,7 @@ class LatticeDecoder(object):
         """Creates a Theano function that computes the output probabilities for
         a single time step.
 
-        Creates the function self.step_function that takes as input a set of
+        Creates the function self._step_function that takes as input a set of
         word sequences and the current recurrent states. It uses the previous
         states and word IDs to compute the output distributions, and computes
         the probabilities of the target words.
@@ -260,7 +266,7 @@ class LatticeDecoder(object):
         self._linear_interpolation = decoding_options['linear_interpolation']
         self._max_tokens_per_node = decoding_options['max_tokens_per_node']
         self._beam = decoding_options['beam']
-        if not self._beam is None:
+        if self._beam is not None:
             self._beam = logprob_type(self._beam)
         self._recombination_order = decoding_options['recombination_order']
 
@@ -278,12 +284,16 @@ class LatticeDecoder(object):
 
         # Ignore unused input, because is_training is only used by dropout
         # layer.
-        self.step_function = theano.function(
+        self._step_function = theano.function(
             inputs,
             outputs,
             givens=[(network.is_training, numpy.int8(0))],
             name='step_predictor',
+            profile=profile,
             on_unused_input='ignore')
+
+        self._tokens = None
+        self._sorted_nodes = None
 
     def decode(self, lattice):
         """Propagates tokens through given lattice and returns a list of tokens
@@ -300,16 +310,16 @@ class LatticeDecoder(object):
                   order
         """
 
-        if not self._lm_scale is None:
+        if self._lm_scale is not None:
             lm_scale = logprob_type(self._lm_scale)
-        elif not lattice.lm_scale is None:
+        elif lattice.lm_scale is not None:
             lm_scale = logprob_type(lattice.lm_scale)
         else:
             lm_scale = logprob_type(1.0)
 
-        if not self._wi_penalty is None:
+        if self._wi_penalty is not None:
             wi_penalty = logprob_type(self._wi_penalty)
-        if not lattice.wi_penalty is None:
+        if lattice.wi_penalty is not None:
             wi_penalty = logprob_type(lattice.wi_penalty)
         else:
             wi_penalty = logprob_type(0.0)
@@ -396,9 +406,9 @@ class LatticeDecoder(object):
             self._append_word(new_tokens, self._eos_id)
         else:
             for token in new_tokens:
-                if not link.ac_logprob is None:
+                if link.ac_logprob is not None:
                     token.ac_logprob += link.ac_logprob
-                if not link.lm_logprob is None:
+                if link.lm_logprob is not None:
                     token.lat_lm_logprob += link.lm_logprob
             if not link.word.startswith('!'):
                 try:
@@ -411,7 +421,7 @@ class LatticeDecoder(object):
             token.recompute_hash(self._recombination_order)
             token.recompute_total(self._nnlm_weight, lm_scale, wi_penalty,
                                   self._linear_interpolation)
-            if not link is None:
+            if link is not None:
                 if (link.end_node.best_logprob is None) or \
                    (token.total_logprob > link.end_node.best_logprob):
                     link.end_node.best_logprob = token.total_logprob
@@ -429,7 +439,7 @@ class LatticeDecoder(object):
         new_tokens = dict()
         for token in self._tokens[node.id]:
             key = token.recombination_hash
-            if (not key in new_tokens) or \
+            if (key not in new_tokens) or \
                (token.total_logprob > new_tokens[key].total_logprob):
                 new_tokens[key] = token
 
@@ -438,20 +448,20 @@ class LatticeDecoder(object):
                             key=lambda token: token.total_logprob, reverse=True)
 
         # Compare to the best probability at the same or later time.
-        if not self._beam is None:
+        if self._beam is not None:
             if node.time is None:
                 node_ids = [iter_node.id for iter_node in self._sorted_nodes]
                 time_begin = node_ids.index(node.id)
             else:
                 for time_begin, iter_node in enumerate(self._sorted_nodes):
-                    if (not iter_node.time is None) and \
+                    if (iter_node.time is not None) and \
                        (iter_node.time >= node.time):
                         break
             assert time_begin < len(self._sorted_nodes)
 
             best_logprob = max(iter_node.best_logprob
                                for iter_node in self._sorted_nodes[time_begin:]
-                               if not iter_node.best_logprob is None)
+                               if iter_node.best_logprob is not None)
             threshold = best_logprob - self._beam
             token_index = len(new_tokens) - 1
             while (token_index >= 1) and \
@@ -460,7 +470,7 @@ class LatticeDecoder(object):
                 token_index -= 1
 
         # Enforce limit on number of tokens at each node.
-        if not self._max_tokens_per_node is None:
+        if self._max_tokens_per_node is not None:
             new_tokens[self._max_tokens_per_node:] = []
 
         self._tokens[node.id] = new_tokens
@@ -480,6 +490,8 @@ class LatticeDecoder(object):
         """
 
         def str_to_unk(self, word):
+            """Returns the <unk> word ID if the argument is not a word ID.
+            """
             if isinstance(word, int):
                 return word
             else:
@@ -495,10 +507,10 @@ class LatticeDecoder(object):
         target_word_id = str_to_unk(self, target_word)
         target_class_ids = numpy.ones(shape=(1, len(tokens))).astype('int64')
         target_class_ids *= self._vocabulary.word_id_to_class_id[target_word_id]
-        step_result = self.step_function(input_word_ids,
-                                         input_class_ids,
-                                         target_class_ids,
-                                         *recurrent_state.get())
+        step_result = self._step_function(input_word_ids,
+                                          input_class_ids,
+                                          target_class_ids,
+                                          *recurrent_state.get())
         logprobs = step_result[0]
         # Add logprobs from the class membership of the predicted words.
         logprobs += numpy.log(membership_probs)
@@ -508,14 +520,14 @@ class LatticeDecoder(object):
             token.history.append(target_word)
             token.state = RecurrentState(self._network.recurrent_state_size)
             # Slice the sequence that corresponds to this token.
-            token.state.set([layer_state[:,index:index+1]
+            token.state.set([layer_state[:, index:index+1]
                              for layer_state in output_state])
 
             if target_word_id == self._unk_id:
                 if self._ignore_unk:
                     continue
-                if not self._unk_penalty is None:
+                if self._unk_penalty is not None:
                     token.nn_lm_logprob += self._unk_penalty
                     continue
             # logprobs matrix contains only one time step.
-            token.nn_lm_logprob += logprobs[0,index]
+            token.nn_lm_logprob += logprobs[0, index]

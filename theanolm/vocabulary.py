@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the Vocabulary class.
+"""
 
 from collections import OrderedDict
 import numpy
@@ -194,7 +196,7 @@ class Vocabulary(object):
         :param word_classes: list of all the word classes
         """
 
-        if not '<s>' in id_to_word:
+        if '<s>' not in id_to_word:
             word_id = len(id_to_word)
             assert word_id == len(word_id_to_class_id)
             class_id = len(word_classes)
@@ -203,7 +205,7 @@ class Vocabulary(object):
             word_class = Vocabulary.WordClass(class_id, word_id, 1.0)
             word_classes.append(word_class)
 
-        if not '</s>' in id_to_word:
+        if '</s>' not in id_to_word:
             word_id = len(id_to_word)
             assert word_id == len(word_id_to_class_id)
             class_id = len(word_classes)
@@ -212,7 +214,7 @@ class Vocabulary(object):
             word_class = Vocabulary.WordClass(class_id, word_id, 1.0)
             word_classes.append(word_class)
 
-        if not '<unk>' in id_to_word:
+        if '<unk>' not in id_to_word:
             word_id = len(id_to_word)
             assert word_id == len(word_id_to_class_id)
             class_id = len(word_classes)
@@ -242,7 +244,7 @@ class Vocabulary(object):
                            for word_id, word in enumerate(self.id_to_word)}
 
     @classmethod
-    def from_file(classname, input_file, input_format):
+    def from_file(cls, input_file, input_format):
         """Reads vocabulary and possibly word classes from a text file.
 
         ``input_format`` is one of:
@@ -293,10 +295,12 @@ class Vocabulary(object):
                 prob = float(fields[1])
                 word = fields[2]
             else:
-                raise InputError("%d fields on one line of vocabulary file: %s" % (len(fields), line))
+                raise InputError("%d fields on one line of vocabulary file: %s"
+                                 % (len(fields), line))
 
             if word in words:
-                raise InputError("Word `%s' appears more than once in the vocabulary file." % word)
+                raise InputError("Word `%s' appears more than once in the "
+                                 "vocabulary file." % word)
             words.add(word)
             word_id = len(id_to_word)
             id_to_word.append(word)
@@ -309,16 +313,16 @@ class Vocabulary(object):
                 class_id = len(word_classes)
                 word_class = Vocabulary.WordClass(class_id, word_id, prob)
                 word_classes.append(word_class)
-                if not file_id is None:
+                if file_id is not None:
                     file_id_to_class_id[file_id] = class_id
 
             assert word_id == len(word_id_to_class_id)
             word_id_to_class_id.append(class_id)
 
-        return classname(id_to_word, word_id_to_class_id, word_classes)
+        return cls(id_to_word, word_id_to_class_id, word_classes)
 
     @classmethod
-    def from_word_counts(classname, word_counts, num_classes=None):
+    def from_word_counts(cls, word_counts, num_classes=None):
         """Creates a vocabulary and classes from word counts.
 
         :type word_counts: dict
@@ -354,10 +358,10 @@ class Vocabulary(object):
             word_id_to_class_id.append(class_id)
             class_id = (class_id + 1) % num_classes
 
-        return classname(id_to_word, word_id_to_class_id, word_classes)
+        return cls(id_to_word, word_id_to_class_id, word_classes)
 
     @classmethod
-    def from_corpus(classname, input_files, num_classes=None):
+    def from_corpus(cls, input_files, num_classes=None):
         """Creates a vocabulary based on word counts from training set.
 
         :type input_files: list of file or mmap objects
@@ -373,39 +377,39 @@ class Vocabulary(object):
         for subset_file in input_files:
             for line in subset_file:
                 for word in line.split():
-                    if not word in word_counts:
+                    if word not in word_counts:
                         word_counts[word] = 1
                     else:
                         word_counts[word] += 1
 
-        return classname.from_word_counts(word_counts, num_classes)
+        return cls.from_word_counts(word_counts, num_classes)
 
     @classmethod
-    def from_state(classname, state):
+    def from_state(cls, state):
         """Reads the vocabulary from a network state.
 
         :type state: hdf5.File
         :param state: HDF5 file that contains the architecture parameters
         """
 
-        if not 'vocabulary' in state:
+        if 'vocabulary' not in state:
             raise IncompatibleStateError(
                 "Vocabulary is missing from neural network state.")
         h5_vocabulary = state['vocabulary']
 
-        if not 'words' in h5_vocabulary:
+        if 'words' not in h5_vocabulary:
             raise IncompatibleStateError(
                 "Vocabulary parameter 'words' is missing from neural network "
                 "state.")
         id_to_word = h5_vocabulary['words'].value
 
-        if not 'classes' in h5_vocabulary:
+        if 'classes' not in h5_vocabulary:
             raise IncompatibleStateError(
                 "Vocabulary parameter 'classes' is missing from neural network "
                 "state.")
         word_id_to_class_id = h5_vocabulary['classes'].value
 
-        if not 'probs' in h5_vocabulary:
+        if 'probs' not in h5_vocabulary:
             raise IncompatibleStateError(
                 "Vocabulary parameter 'probs' is missing from neural network "
                 "state.")
@@ -420,9 +424,9 @@ class Vocabulary(object):
             else:
                 word_classes[class_id].add(word_id, prob)
 
-        return classname(id_to_word.tolist(),
-                         word_id_to_class_id.tolist(),
-                         word_classes)
+        return cls(id_to_word.tolist(),
+                   word_id_to_class_id.tolist(),
+                   word_classes)
 
     def compute_probs(self, input_files):
         """Recomputes unigram class membership probabilities from text files.

@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the Lattice class used by word lattice decoders.
+"""
 
-from abc import ABCMeta, abstractmethod
 import logging
+
 from theanolm.exceptions import InputError
 
 class Lattice(object):
@@ -45,21 +47,19 @@ class Lattice(object):
         nodes in the topology.
         """
 
-        def __init__(self, id):
+        def __init__(self, node_id):
             """Constructs a node with no links.
 
-            :type id: int
-            :param id: the ID that can be used to access the node in the node
-                       list
+            :type node_id: int
+            :param node_id: the ID that can be used to access the node in the
+                            node list
             """
 
-            self.id = id
+            self.id = node_id
             self.out_links = []
             self.in_links = []
             self.time = None
             self.best_logprob = None
-
-    __metaclass__ = ABCMeta
 
     def __init__(self):
         """Constructs an empty lattice.
@@ -72,18 +72,6 @@ class Lattice(object):
         self.utterance_id = None
         self.lm_scale = None
         self.wi_penalty = None
-
-    @abstractmethod
-    def read(self, lattice_file):
-        """Reads a lattice file.
-
-        Has to be implemented by the subclass.
-
-        :type lattice_file: file object
-        :param lattice_file: a lattice file in the correct format
-        """
-
-        assert False
 
     def sorted_nodes(self):
         """Sorts nodes topologically, then by time.
