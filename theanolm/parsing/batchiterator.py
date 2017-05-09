@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the BatchIterator class, a base class for iterator
+that read mini-batches.
+"""
 
 from abc import abstractmethod, ABCMeta
+
 import numpy
+
 from theanolm.parsing.functions import utterance_from_line
 
 class BatchIterator(object, metaclass=ABCMeta):

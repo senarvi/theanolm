@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Functions related to reading text.
+"""
 
 def utterance_from_line(line):
     """Converts a line of text, read from an input file, into a list of words.
@@ -13,7 +15,7 @@ def utterance_from_line(line):
     :param line: a line of text (read from an input file)
     """
 
-    if type(line) == bytes:
+    if isinstance(line, bytes):
         line = line.decode('utf-8')
     line = line.rstrip()
     if not line:
@@ -49,7 +51,7 @@ def find_sentence_starts(data):
     while True:
         pos = data.find(b'\n', pos)
         if pos == -1:
-            break;
+            break
         pos += 1
         if pos < len(data):
             result.append(pos)

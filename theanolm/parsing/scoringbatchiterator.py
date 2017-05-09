@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements an iterator for reading mini-batches for scoring.
+"""
 
 import numpy
+
 from theanolm.parsing.linearbatchiterator import LinearBatchIterator
 
 class ScoringBatchIterator(LinearBatchIterator):

@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements an iterator for reading mini-batches in linear
+sentence order.
+"""
 
 from theanolm.parsing.batchiterator import BatchIterator
 
