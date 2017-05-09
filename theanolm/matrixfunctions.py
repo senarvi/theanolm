@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Functions related to creating Theano matrices.
+"""
 
 import numpy
 import theano

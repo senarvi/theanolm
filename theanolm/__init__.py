@@ -1,3 +1,9 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""A package that provides functionality for training and applying neural
+network language models.
+"""
+
 from theanolm.exceptions import *
 from theanolm.vocabulary import Vocabulary
 from theanolm.parsing import LinearBatchIterator, ShufflingBatchIterator

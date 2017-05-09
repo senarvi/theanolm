@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that provides functions for operating with probabilities, and
+defines logprob_type.
+"""
+
+from decimal import Decimal, getcontext
 
 import numpy
 import theano
-from decimal import *
 
 logprob_type = numpy.dtype(theano.config.floatX).type
 
@@ -74,13 +78,13 @@ def interpolate_loglinear(logprob1, logprob2, prior1, prior2):
     :param prior2: weight for the second log probability
 
     :rtype: logprob_type
-    :returns: weighted sum of the input log probabilities 
+    :returns: weighted sum of the input log probabilities
     """
 
     result = 0
     if prior1 != 0:
-        result += prior1 * logprob1;
+        result += prior1 * logprob1
     if prior2 != 0:
-        result += prior2 * logprob2;
+        result += prior2 * logprob2
     assert not numpy.isnan(result)
     return result

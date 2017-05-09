@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the TextSampler class.
+"""
 
 import numpy
 import theano
@@ -69,7 +71,6 @@ class TextSampler(object):
 
         sos_id = self._vocabulary.word_to_id['<s>']
         sos_class_id = self._vocabulary.word_id_to_class_id[sos_id]
-        eos_id = self._vocabulary.word_to_id['</s>']
 
         input_word_ids = sos_id * \
                          numpy.ones(shape=(1, num_sequences)).astype('int64')
