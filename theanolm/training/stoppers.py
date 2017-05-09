@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
-from collections import OrderedDict
+"""A module that implements stoppers, classes that decide when to stop training.
+"""
 
 def create_stopper(training_options, *args, **kwargs):
     """Constructs one of the BasicStopper subclasses based on training
@@ -139,7 +139,7 @@ class NoImprovementStopper(BasicStopper):
         # minimum number of epochs to pass. During that time, we may have made
         # improvement.
         new_candidate_cost = self.trainer.candidate_cost()
-        if not new_candidate_cost is None:
+        if new_candidate_cost is not None:
             if (self._candidate_cost is None) or \
                (new_candidate_cost < self._candidate_cost):
                 self._has_improved = True

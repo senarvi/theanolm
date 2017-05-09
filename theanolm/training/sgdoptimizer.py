@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the Stochastic Gradient Descent optimizer.
+"""
 
 import numpy
+
 from theanolm import Parameters
 from theanolm.training.basicoptimizer import BasicOptimizer
 

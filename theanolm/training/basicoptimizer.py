@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the BasicOptimizer class, a base class for
+optimizers.
+"""
 
 from abc import abstractmethod, ABCMeta
-import logging
+
 import numpy
 import theano
 import theano.tensor as tensor
-from theanolm.exceptions import IncompatibleStateError, NumberError
+
+from theanolm.exceptions import IncompatibleStateError
 from theanolm.matrixfunctions import test_value
 
 class BasicOptimizer(object, metaclass=ABCMeta):
     """Superclass for Neural Network Language Model Optimizers
     """
 
-    def __init__(self, optimization_options, network, device=None,
-                 profile=False):
+    def __init__(self, optimization_options, network, profile=False):
         """Creates Theano functions for training a neural network language
         model.
 
@@ -38,9 +41,6 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
         :type network: Network
         :param network: the neural network object
-
-        :type device: str
-        :param device: device where to store the shared variables
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
@@ -98,11 +98,11 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         elif cost_function == 'blackout':
             logprobs = self._get_blackout_cost(sharing=noise_sharing)
         else:
-            raise ValueError("Invalid cost function requested: `{}'".format(
-                             cost_function))
+            raise ValueError("Invalid cost function requested: `{}'".
+                             format(cost_function))
 
         # If requested, predict <unk> with constant score.
-        if not unk_penalty is None:
+        if unk_penalty is not None:
             unk_mask = tensor.eq(self.network.target_word_ids, unk_id)
             unk_indices = unk_mask.nonzero()
             logprobs = tensor.set_subtensor(logprobs[unk_indices], unk_penalty)
@@ -175,11 +175,11 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         :param state: HDF5 file that contains the optimization parameters
         """
 
-        if not 'optimizer' in state:
+        if 'optimizer' not in state:
             raise IncompatibleStateError("Optimizer state is missing.")
         h5_optimizer = state['optimizer']
 
-        if not 'learning_rate' in h5_optimizer.attrs:
+        if 'learning_rate' not in h5_optimizer.attrs:
             raise IncompatibleStateError("Learning rate is missing from "
                                          "optimizer state.")
         self.learning_rate = h5_optimizer.attrs['learning_rate']
@@ -272,8 +272,8 @@ class BasicOptimizer(object, metaclass=ABCMeta):
             # in case of uniform noise), but it will be broadcasted when
             # subtracted from sample_logprobs.
         else:
-            raise ValueError("Unknown noise sample sharing: `{}'".format(
-                             sharing))
+            raise ValueError("Unknown noise sample sharing: `{}'"
+                             .format(sharing))
         if self.network.noise_probs is None:
             sample_prior_logprobs = word_logprob
         else:
@@ -330,8 +330,8 @@ class BasicOptimizer(object, metaclass=ABCMeta):
             # case of uniform noise), but it will be broadcasted when used to
             # divide sample_probs.
         else:
-            raise ValueError("Unknown noise sample sharing: `{}'".format(
-                             sharing))
+            raise ValueError("Unknown noise sample sharing: `{}'"
+                             .format(sharing))
         sample_probs = tensor.exp(sample_logprobs)
         if self.network.noise_probs is None:
             sample_prior_probs = word_prob
@@ -342,7 +342,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         denominators = target_weighted_probs + \
                        sample_weighted_probs.sum(2)
         target_costs = target_weighted_probs / denominators
-        sample_costs = sample_weighted_probs / denominators[:,:,None]
+        sample_costs = sample_weighted_probs / denominators[:, :, None]
         sample_costs = 1.0 - sample_costs
         result = tensor.log(target_costs + self._epsilon)
         result += tensor.log(sample_costs + self._epsilon).sum(2)

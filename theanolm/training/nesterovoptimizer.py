@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the Nesterov momentum optimizer.
+"""
 
 import numpy
+
 from theanolm import Parameters
 from theanolm.training.basicoptimizer import BasicOptimizer
 
@@ -38,7 +41,7 @@ class NesterovOptimizer(BasicOptimizer):
                              numpy.zeros_like(param.get_value()))
 
         # momentum
-        if not 'momentum' in optimization_options:
+        if 'momentum' not in optimization_options:
             raise ValueError("Momentum is not given in optimization options.")
         self._momentum = optimization_options['momentum']
 
