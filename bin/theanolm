@@ -1,21 +1,30 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Executable that launches one of the theanolm subcommands.
+"""
 
 from traceback import format_tb
 import logging
 import sys
 import argparse
-from theanolm.commands import *
-from theanolm.exceptions import *
+
+from theanolm.commands import train, score, decode, sample, version
+from theanolm.exceptions import NumberError, TheanoConfigurationError
 
 # This exception class is not needed, if gpuarray is not used.
 try:
     from theano.gpuarray.type import ContextNotDefined
 except ImportError:
-    class ContextNotDefined(object):
+    class ContextNotDefined(Exception):
+        """Dummy ContextNotDefined Exception
+        """
         pass
 
 def exception_handler(exception_type, exception, traceback):
+    """Exception handler. Writes stack trace in case of uncaught exceptions to
+    debug log.
+    """
+
     print("An unexpected {} exception occurred. Traceback will be written to "
           "debug log. The error message was: {}"
           .format(exception_type.__name__, exception))
@@ -25,6 +34,9 @@ def exception_handler(exception_type, exception, traceback):
     sys.exit(2)
 
 def main():
+    """The main function of theanolm command.
+    """
+
     parser = argparse.ArgumentParser(prog='theanolm')
     subparsers = parser.add_subparsers(
         title='commands',

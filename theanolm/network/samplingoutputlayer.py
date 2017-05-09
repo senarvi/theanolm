@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the SamplingOutputLayer class, a base class for
+output layer that implements sampling.
+"""
 
-from collections import OrderedDict
+from abc import ABCMeta
+
 import numpy
-import theano
 import theano.tensor as tensor
+
 from theanolm.network.basiclayer import BasicLayer
 
-class SamplingOutputLayer(BasicLayer):
+class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
     """Sampling Support for Output Layer
 
     Base class for output layers with support for sampling noise words and

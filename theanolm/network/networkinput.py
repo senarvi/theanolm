@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the NetworkInput class.
+"""
 
-from collections import OrderedDict
-import numpy
-import theano
-import theano.tensor as tensor
 from theanolm.network.basiclayer import BasicLayer
 
 class NetworkInput(BasicLayer):
@@ -35,6 +33,9 @@ class NetworkInput(BasicLayer):
         input_options['size'] = output_size
         input_options['input_layers'] = []
         input_options['devices'] = []
+
+        self.output = None
+
         super().__init__(input_options, network)
 
     def create_structure(self):

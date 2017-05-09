@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the BidirectionalLayer class, a wrapper for creating
+bidirectional layers.
+"""
 
 from copy import copy
+
 import theano.tensor as tensor
+
 from theanolm.network.grulayer import GRULayer
 from theanolm.network.lstmlayer import LSTMLayer
 
@@ -41,13 +46,15 @@ class BidirectionalLayer(object):
         backward_options['size'] = backward_size
         backward_options['reverse_time'] = True
         if layer_type == 'blstm':
-           self._forward_layer = LSTMLayer(forward_options, *args, **kwargs)
-           self._backward_layer = LSTMLayer(backward_options, *args, **kwargs)
+            self._forward_layer = LSTMLayer(forward_options, *args, **kwargs)
+            self._backward_layer = LSTMLayer(backward_options, *args, **kwargs)
         elif layer_type == 'bgru':
-           self._forward_layer = GRULayer(forward_options, *args, **kwargs)
-           self._backward_layer = GRULayer(backward_options, *args, **kwargs)
+            self._forward_layer = GRULayer(forward_options, *args, **kwargs)
+            self._backward_layer = GRULayer(backward_options, *args, **kwargs)
         else:
             raise ValueError("Invalid layer type requested: " + layer_type)
+
+        self.output = None
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.
@@ -72,8 +79,8 @@ class BidirectionalLayer(object):
         :param state: HDF5 file for storing the neural network parameters
         """
 
-        self._forward_layer._params.get_state(state)
-        self._backward_layer._params.get_state(state)
+        self._forward_layer.get_state(state)
+        self._backward_layer.get_state(state)
 
     def set_state(self, state):
         """Sets the values of Theano shared variables.
@@ -82,8 +89,8 @@ class BidirectionalLayer(object):
         :param state: HDF5 file that contains the neural network parameters
         """
 
-        self._forward_layer._params.set_state(state)
-        self._backward_layer._params.set_state(state)
+        self._forward_layer.set_state(state)
+        self._backward_layer.set_state(state)
 
     def num_params(self):
         """Returns the number of parameters in this layer.
@@ -95,8 +102,8 @@ class BidirectionalLayer(object):
         :returns: the number of parameters used by the layer
         """
 
-        return self._forward_layer._params.total_size + \
-               self._backward_layer._params.total_size
+        return self._forward_layer.num_params() + \
+               self._backward_layer.num_params()
 
     def get_variables(self):
         """Returns a dictionary of the shared variables.

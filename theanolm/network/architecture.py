@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the Architecture class, a neural network
+architecture description.
+"""
 
 import os
+
 from theanolm.exceptions import IncompatibleStateError, InputError
 
 class Architecture(object):
@@ -39,7 +43,7 @@ class Architecture(object):
             self.output_layer = output_layer
 
     @classmethod
-    def from_state(classname, state):
+    def from_state(cls, state):
         """Constructs a description of the network architecture stored in a
         state.
 
@@ -47,12 +51,12 @@ class Architecture(object):
         :param state: HDF5 file that contains the architecture parameters
         """
 
-        if not 'architecture' in state:
+        if 'architecture' not in state:
             raise IncompatibleStateError(
                 "Architecture is missing from neural network state.")
         h5_arch = state['architecture']
 
-        if not 'inputs' in h5_arch:
+        if 'inputs' not in h5_arch:
             raise IncompatibleStateError(
                 "Architecture parameter 'inputs' is missing from neural "
                 "network state.")
@@ -60,9 +64,9 @@ class Architecture(object):
         inputs = []
         for input_id in sorted(h5_inputs.keys()):
             h5_input = h5_inputs[input_id]
-            inputs.append(classname._read_h5_dict(h5_input))
+            inputs.append(cls._read_h5_dict(h5_input))
 
-        if not 'layers' in h5_arch:
+        if 'layers' not in h5_arch:
             raise IncompatibleStateError(
                 "Architecture parameter 'layers' is missing from neural "
                 "network state.")
@@ -71,18 +75,18 @@ class Architecture(object):
         layer_ids = [int(x) for x in h5_layers.keys()]
         for layer_id in sorted(layer_ids):
             h5_layer = h5_layers[str(layer_id)]
-            layers.append(classname._read_h5_dict(h5_layer))
+            layers.append(cls._read_h5_dict(h5_layer))
 
-        if not 'output_layer' in h5_arch.attrs:
+        if 'output_layer' not in h5_arch.attrs:
             raise IncompatibleStateError(
                 "Architecture parameter 'output_layer' is missing from "
                 "neural network state.")
         output_layer = h5_arch.attrs['output_layer']
 
-        return classname(inputs, layers, output_layer)
+        return cls(inputs, layers, output_layer)
 
     @classmethod
-    def from_description(classname, description_file):
+    def from_description(cls, description_file):
         """Reads a description of the network architecture from a text file.
 
         :type description_file: file or file-like object
@@ -111,11 +115,11 @@ class Architecture(object):
                             .format(field, description_file.name))
                     variable, value = parts
                     input_description[variable] = value
-                if not 'type' in input_description:
+                if 'type' not in input_description:
                     raise InputError(
                         "'type' is not given in an input description in '{}'."
                         .format(description_file.name))
-                if not 'name' in input_description:
+                if 'name' not in input_description:
                     raise InputError(
                         "'name' is not given in an input description in '{}'."
                         .format(description_file.name))
@@ -139,11 +143,11 @@ class Architecture(object):
                         layer_description['devices'].append(value)
                     else:
                         layer_description[variable] = value
-                if not 'type' in layer_description:
+                if 'type' not in layer_description:
                     raise InputError(
                         "'type' is not given in a layer description in '{}'."
                         .format(description_file.name))
-                if not 'name' in layer_description:
+                if 'name' not in layer_description:
                     raise InputError(
                         "'name' is not given in a layer description in '{}'."
                         .format(description_file.name))
@@ -162,10 +166,10 @@ class Architecture(object):
         if not layers:
             raise InputError("Architecture description contains no layers.")
 
-        return classname(inputs, layers)
+        return cls(inputs, layers)
 
     @classmethod
-    def from_package(classname, name):
+    def from_package(cls, name):
         """Reads network architecture from one of the files packaged with
         TheanoLM.
 
@@ -184,7 +188,7 @@ class Architecture(object):
                                         name + '.arch')
 
         with open(description_path, 'rt', encoding='utf-8') as description_file:
-            return classname.from_description(description_file)
+            return cls.from_description(description_file)
 
     def get_state(self, state):
         """Saves the architecture parameters in a HDF5 file.
@@ -199,9 +203,9 @@ class Architecture(object):
         h5_arch = state.require_group('architecture')
 
         h5_inputs = h5_arch.require_group('inputs')
-        for input_id, input in enumerate(self.inputs):
+        for input_id, input_value in enumerate(self.inputs):
             h5_input = h5_inputs.require_group(str(input_id))
-            self._write_h5_dict(h5_input, input)
+            self._write_h5_dict(h5_input, input_value)
 
         h5_layers = h5_arch.require_group('layers')
         for layer_id, layer in enumerate(self.layers):
@@ -219,21 +223,21 @@ class Architecture(object):
         :param state: HDF5 file that contains the architecture parameters
         """
 
-        if not 'architecture' in state:
+        if 'architecture' not in state:
             raise IncompatibleStateError(
                 "Architecture is missing from neural network state.")
         h5_arch = state['architecture']
 
-        if not 'inputs' in h5_arch:
+        if 'inputs' not in h5_arch:
             raise IncompatibleStateError(
                 "Architecture parameter 'inputs' is missing from neural "
                 "network state.")
         h5_inputs = h5_arch['inputs']
-        for input_id, input in enumerate(self.inputs):
+        for input_id, input_value in enumerate(self.inputs):
             h5_input = h5_inputs[str(input_id)]
-            self._check_h5_dict(h5_input, input)
+            self._check_h5_dict(h5_input, input_value)
 
-        if not 'layers' in h5_arch:
+        if 'layers' not in h5_arch:
             raise IncompatibleStateError(
                 "Architecture parameter 'layers' is missing from neural "
                 "network state.")
@@ -242,7 +246,7 @@ class Architecture(object):
             h5_layer = h5_layers[str(layer_id)]
             self._check_h5_dict(h5_layer, layer)
 
-        if not 'output_layer' in h5_arch.attrs:
+        if 'output_layer' not in h5_arch.attrs:
             raise IncompatibleStateError(
                 "Architecture parameter 'output_layer' is missing from "
                 "neural network state.")

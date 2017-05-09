@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements a highway network layer.
+"""
 
-from collections import OrderedDict
-import numpy
-import theano
 import theano.tensor as tensor
+
 from theanolm.network.weightfunctions import get_submatrix
 from theanolm.network.basiclayer import BasicLayer
 
@@ -36,6 +36,8 @@ class HighwayTanhLayer(BasicLayer):
         self._init_weight('input/W', (input_size, output_size), scale=0.01,
                           count=2)
         self._init_bias('input/b', output_size, [0.0, -1.0])
+
+        self.output = None
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.

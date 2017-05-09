@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the Gated Linear Unit layer.
+"""
 
-from collections import OrderedDict
 import logging
-import numpy
-import theano
+
 import theano.tensor as tensor
-from theanolm.network.weightfunctions import get_submatrix
+
 from theanolm.network.basiclayer import BasicLayer
 
 class GLULayer(BasicLayer):
@@ -55,6 +55,8 @@ class GLULayer(BasicLayer):
         self._input_size = input_size
         self._input_depth = input_depth
 
+        self.output = None
+
     def create_structure(self):
         """Creates the symbolic graph of this layer.
 
@@ -95,10 +97,10 @@ class GLULayer(BasicLayer):
         # dimension too.
         linear = self._tensor_convolution(layer_input, 'linear')
         linear = linear.dimshuffle(2, 0, 3, 1)
-        linear = linear[:num_time_steps,:,:input_size,:]
+        linear = linear[:num_time_steps, :, :input_size, :]
         gate = self._tensor_convolution(layer_input, 'gate')
         gate = gate.dimshuffle(2, 0, 3, 1)
-        gate = gate[:num_time_steps,:,:input_size,:]
+        gate = gate[:num_time_steps, :, :input_size, :]
 
         # Add biases and multiply each element by the gate activation.
         bias = self._params[self._param_path('linear/b')]

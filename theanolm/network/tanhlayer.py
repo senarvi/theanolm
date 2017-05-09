@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the fully-connected tanh layer.
+"""
 
-from collections import OrderedDict
-import numpy
-import theano
 import theano.tensor as tensor
+
 from theanolm.network.basiclayer import BasicLayer
 
 class TanhLayer(BasicLayer):
@@ -24,6 +24,8 @@ class TanhLayer(BasicLayer):
         output_size = self.output_size
         self._init_weight('input/W', (input_size, output_size), scale=0.01)
         self._init_bias('input/b', output_size)
+
+        self.output = None
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.

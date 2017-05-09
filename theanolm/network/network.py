@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the Network class.
+"""
 
-from enum import Enum, unique
 from collections import OrderedDict
 import sys
 import logging
+
 import h5py
 import numpy
 import theano
 import theano.tensor as tensor
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
+
 from theanolm import Vocabulary
 from theanolm.exceptions import IncompatibleStateError, InputError
 from theanolm.network.architecture import Architecture
@@ -161,8 +164,8 @@ class Network(object):
         logging.debug("Creating layers.")
         self.layers = OrderedDict()
         for input_options in architecture.inputs:
-            input = NetworkInput(input_options, self)
-            self.layers[input.name] = input
+            network_input = NetworkInput(input_options, self)
+            self.layers[network_input.name] = network_input
         for layer_description in architecture.layers:
             layer_options = self._layer_options_from_description(
                 layer_description)
@@ -242,7 +245,7 @@ class Network(object):
             layer.create_structure()
 
     @classmethod
-    def from_file(classname, model_path, mode=None):
+    def from_file(cls, model_path, mode=None):
         """Reads a model from an HDF5 file.
 
         :type model_path: str
@@ -261,7 +264,7 @@ class Network(object):
             print("Building neural network.")
             sys.stdout.flush()
             architecture = Architecture.from_state(state)
-            result = classname(architecture, vocabulary, mode=mode)
+            result = cls(architecture, vocabulary, mode=mode)
             print("Restoring neural network state.")
             sys.stdout.flush()
             result.set_state(state)
@@ -424,8 +427,8 @@ class Network(object):
                 return self.output_layer.shared_sample, \
                        self.output_layer.shared_sample_logprobs
             else:
-                raise ValueError("Unknown noise sample sharing: `{}'".format(
-                                 sharing))
+                raise ValueError("Unknown noise sample sharing: `{}'"
+                                 .format(sharing))
         except AttributeError:
             raise RuntimeError(
                 "Trying to read the noise sample when the final layer is not a "
@@ -453,9 +456,8 @@ class Network(object):
                     result['input_layers'] = [self.layers[x] for x in value]
                 except KeyError as e:
                     raise InputError("Input layer `{}' does not exist, when "
-                                     "creating layer `{}'.".format(
-                                     e.args[0],
-                                     description['name']))
+                                     "creating layer `{}'."
+                                     .format(e.args[0], description['name']))
             else:
                 result[variable] = value
         return result

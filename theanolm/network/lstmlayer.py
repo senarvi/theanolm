@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the LSTM layer.
+"""
 
-import numpy
 import theano
 import theano.tensor as tensor
 from theanolm.network.weightfunctions import get_submatrix
@@ -46,6 +47,8 @@ class LSTMLayer(BasicLayer):
                           count=num_gates+1)
         # biases for each gate and the candidate state
         self._init_bias('layer_input/b', output_size, [-1.0, 1.0, -1.0, 0.0])
+
+        self.output = None
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.
@@ -130,8 +133,8 @@ class LSTMLayer(BasicLayer):
             hidden_state_output = state_outputs[1]
 
             # Create a new axis for time step with size 1.
-            cell_state_output = cell_state_output[None,:,:]
-            hidden_state_output = hidden_state_output[None,:,:]
+            cell_state_output = cell_state_output[None, :, :]
+            hidden_state_output = hidden_state_output[None, :, :]
 
             self._network.recurrent_state_output[self.cell_state_index] = \
                 cell_state_output
@@ -198,7 +201,7 @@ class LSTMLayer(BasicLayer):
 
         # Apply the mask. None creates a new axis with size 1, causing the mask
         # to be broadcast to all the outputs.
-        C_out = tensor.switch(mask[:,None], C_out, C_in)
-        h_out = tensor.switch(mask[:,None], h_out, h_in)
+        C_out = tensor.switch(mask[:, None], C_out, C_in)
+        h_out = tensor.switch(mask[:, None], h_out, h_in)
 
         return C_out, h_out
