@@ -343,7 +343,6 @@ def train(args):
         print("Compiling optimization function.")
         sys.stdout.flush()
         optimizer = create_optimizer(optimization_options, network,
-                                     device=args.default_device,
                                      profile=args.profile)
 
         if args.print_graph:
