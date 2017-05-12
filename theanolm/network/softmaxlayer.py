@@ -4,6 +4,7 @@
 """
 
 import numpy
+from theano import tensor
 
 from theanolm.network.samplingoutputlayer import SamplingOutputLayer
 

@@ -11,10 +11,20 @@ import argparse
 from theanolm.commands import train, score, decode, sample, version
 from theanolm.exceptions import NumberError, TheanoConfigurationError
 
-# This exception class is not needed, if gpuarray is not used.
+def _get_message(e):
+    if hasattr(e, 'args') and isinstance(e.args[0], bytes):
+        return e.args[0].decode('utf-8')
+    return str(e)
+
+# These exception classes are not needed, if gpuarray is not used.
 try:
+    from pygpu.gpuarray import GpuArrayException
     from theano.gpuarray.type import ContextNotDefined
 except ImportError:
+    class GpuArrayException(Exception):
+        """Dummy GpuArrayException Exception
+        """
+        pass
     class ContextNotDefined(Exception):
         """Dummy ContextNotDefined Exception
         """
@@ -27,7 +37,7 @@ def exception_handler(exception_type, exception, traceback):
 
     print("An unexpected {} exception occurred. Traceback will be written to "
           "debug log. The error message was: {}"
-          .format(exception_type.__name__, exception))
+          .format(exception_type.__name__, _get_message(exception)))
     logging.debug("Traceback:")
     for item in format_tb(traceback):
         logging.debug(item.strip())
@@ -75,7 +85,7 @@ def main():
             args.command_function(args)
         except FileNotFoundError as e:
             print('Could not open one of the required files. The error message '
-                  'was: ' + str(e))
+                  'was: ' + _get_message(e))
             sys.exit(2)
         except NumberError as e:
             print('A numerical error has occurred. This may happen e.g. when '
@@ -83,18 +93,34 @@ def main():
                   'training, using a smaller learning rate usually helps. '
                   'Another possibility is to use gradient normalization. If '
                   'this happens during inference, there is probably something '
-                  'wrong in the model. The error message was: ' + str(e))
+                  'wrong in the model. The error message was: ' +
+                  _get_message(e))
             sys.exit(2)
         except ContextNotDefined as e:
-            print('Theano returned error "' + str(e) + '". You need to map the '
-                  'device contexts that are used in the architecture file to '
-                  'CUDA devices (e.g. '
-                  'THEANO_FLAGS=contexts=dev0->cuda0;dev1->cuda1).')
+            print('Theano returned error "{}". You need to map the device '
+                  'contexts that are used in the architecture file to CUDA '
+                  'devices '
+                  '(e.g. THEANO_FLAGS=contexts=dev0->cuda0;dev1->cuda1).'
+                  .format(_get_message(e)))
             sys.exit(2)
         except TheanoConfigurationError as e:
             print('There is a problem with Theano configuration. Please check '
                   'THEANO_FLAGS environment variable and .theanorc file. The '
-                  'error message was: ' + str(e))
+                  'error message was: ' + _get_message(e))
+            sys.exit(2)
+        except GpuArrayException as e:
+            if _get_message(e) == 'out of memory':
+                print('Theano could not fit all the required variables in the '
+                      'GPU memory. Memory consumption can be reduced by using '
+                      'a smaller vocabulary, smaller layers, smaller '
+                      'mini-batch size, shorter sequence length, or dividing '
+                      'the model over multiple GPUs. Traceback will be written '
+                      'to debug log.')
+            else:
+                print('Theano returned a gpuarray error "{}". Traceback will '
+                      'be written to debug log.'
+                      .format(_get_message(e)))
+            logging.debug(e, exc_info=True)
             sys.exit(2)
     else:
         parser.print_help()

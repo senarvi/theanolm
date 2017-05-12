@@ -364,7 +364,7 @@ def train(args):
                 LinearBatchIterator(validation_mmap,
                                     vocabulary,
                                     batch_size=args.batch_size,
-                                    max_sequence_length=None)
+                                    max_sequence_length=args.sequence_length)
             trainer.set_validation(validation_iter, scorer)
         else:
             print("Cross-validation will not be performed.")
