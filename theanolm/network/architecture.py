@@ -319,23 +319,33 @@ class Architecture(object):
                          in its attributes
 
         :type variables: dict
-        :param variables: a dictionary that may contain strings and lists of strings
+        :param variables: a dictionary that may contain strings and lists of
+                          strings
         """
 
         for variable, values in variables.items():
             if isinstance(values, list):
+                # For backward compatibility. Remove at some point.
+                if (variable == 'devices') and (not variable in h5_group):
+                    if not values:
+                        continue
+                    else:
+                        raise IncompatibleStateError(
+                            "Neural network state does not specify devices, "
+                            "while this architecture uses {}."
+                            .format(', '.join(str(x) for x in values)))
                 h5_values = h5_group[variable]
                 for value_id, value in enumerate(values):
                     h5_value = h5_values.attrs[str(value_id)]
                     if value != h5_value:
                         raise IncompatibleStateError(
                             "Neural network state has {0}={2}, while this "
-                            "architecture has {0}={1}.".format(
-                                variable, value, h5_value))
+                            "architecture has {0}={1}."
+                            .format(variable, value, h5_value))
             else:
                 h5_value = h5_group.attrs[variable]
                 if values != h5_value:
                     raise IncompatibleStateError(
                         "Neural network state has {0}={2}, while this "
-                        "architecture has {0}={1}.".format(
-                            variable, values, h5_value))
+                        "architecture has {0}={1}."
+                        .format(variable, values, h5_value))

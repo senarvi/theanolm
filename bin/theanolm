@@ -10,6 +10,7 @@ import argparse
 
 from theanolm.commands import train, score, decode, sample, version
 from theanolm.exceptions import NumberError, TheanoConfigurationError
+from theanolm.exceptions import IncompatibleStateError
 
 def _get_message(e):
     if hasattr(e, 'args') and isinstance(e.args[0], bytes):
@@ -85,7 +86,8 @@ def main():
             args.command_function(args)
         except FileNotFoundError as e:
             print('Could not open one of the required files. The error message '
-                  'was: ' + _get_message(e))
+                  'was:',
+                  _get_message(e))
             sys.exit(2)
         except NumberError as e:
             print('A numerical error has occurred. This may happen e.g. when '
@@ -93,7 +95,7 @@ def main():
                   'training, using a smaller learning rate usually helps. '
                   'Another possibility is to use gradient normalization. If '
                   'this happens during inference, there is probably something '
-                  'wrong in the model. The error message was: ' +
+                  'wrong in the model. The error message was:',
                   _get_message(e))
             sys.exit(2)
         except ContextNotDefined as e:
@@ -106,7 +108,8 @@ def main():
         except TheanoConfigurationError as e:
             print('There is a problem with Theano configuration. Please check '
                   'THEANO_FLAGS environment variable and .theanorc file. The '
-                  'error message was: ' + _get_message(e))
+                  'error message was:',
+                  _get_message(e))
             sys.exit(2)
         except GpuArrayException as e:
             if _get_message(e) == 'out of memory':
@@ -121,6 +124,12 @@ def main():
                       'be written to debug log.'
                       .format(_get_message(e)))
             logging.debug(e, exc_info=True)
+            sys.exit(2)
+        except IncompatibleStateError as e:
+            print('The neural network state that you tried to load is invalid. '
+                  'It may have been created with an old version of TheanoLM, '
+                  'or the file may be corrupt. The error message was:',
+                  _get_message(e))
             sys.exit(2)
     else:
         parser.print_help()
