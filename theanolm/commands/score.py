@@ -4,8 +4,10 @@
 """
 
 import sys
+import logging
 
 import numpy
+import theano
 
 from theanolm import Network
 from theanolm.parsing import ScoringBatchIterator
@@ -54,12 +56,47 @@ def add_arguments(parser):
              'separates words), "prefix-affix" (subwords that can be '
              'concatenated are prefixed or affixed with +, e.g. "cat+ +s")')
 
+    argument_group = parser.add_argument_group("logging and debugging")
+    argument_group.add_argument(
+        '--log-file', metavar='FILE', type=str, default='-',
+        help='path where to write log file (default is standard output)')
+    argument_group.add_argument(
+        '--log-level', metavar='LEVEL', type=str, default='info',
+        help='minimum level of events to log, one of "debug", "info", "warn" '
+             '(default "info")')
+    argument_group.add_argument(
+        '--debug', action="store_true",
+        help='use test values to get better error messages from Theano')
+    argument_group.add_argument(
+        '--profile', action="store_true",
+        help='enable profiling Theano functions')
+
 def score(args):
     """A function that performs the "theanolm score" command.
 
     :type args: argparse.Namespace
     :param args: a collection of command line arguments
     """
+
+    log_file = args.log_file
+    log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(log_level, int):
+        print("Invalid logging level requested:", args.log_level)
+        sys.exit(1)
+    log_format = '%(asctime)s %(funcName)s: %(message)s'
+    if args.log_file == '-':
+        logging.basicConfig(stream=sys.stdout, format=log_format, level=log_level)
+    else:
+        logging.basicConfig(filename=log_file, format=log_format, level=log_level)
+
+    if args.debug:
+        theano.config.compute_test_value = 'warn'
+        print("Enabled computing test values for tensor variables.")
+        print("Warning: GpuArray backend will fail random number generation!")
+    else:
+        theano.config.compute_test_value = 'off'
+    theano.config.profile = args.profile
+    theano.config.profile_memory = args.profile
 
     network = Network.from_file(args.model_path)
 

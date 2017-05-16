@@ -171,7 +171,7 @@ class Network(object):
                 layer_description)
             if layer_options['name'] == architecture.output_layer:
                 layer_options['size'] = vocabulary.num_classes()
-            if not layer_options['devices']:
+            if ('devices' not in layer_options) or (not layer_options['devices']):
                 layer_options['devices'] = [default_device]
             layer = create_layer(layer_options, self, profile=profile)
             self.layers[layer.name] = layer
