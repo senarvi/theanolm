@@ -26,7 +26,7 @@ def add_arguments(parser):
     :param parser: a command line argument parser
     """
 
-    argument_group = parser.add_argument_group("files")
+    argument_group = parser.add_argument_group("data")
     argument_group.add_argument(
         'model_path', metavar='MODEL-FILE', type=str,
         help='path where the best model state will be saved in HDF5 binary '
@@ -42,6 +42,8 @@ def add_arguments(parser):
         help='text file containing validation data for early stopping (UTF-8, '
              'one sentence per line, assumed to be compressed if the name ends '
              'in ".gz")')
+
+    argument_group = parser.add_argument_group("vocabulary")
     argument_group.add_argument(
         '--vocabulary', metavar='FILE', type=str, default=None,
         help='word or class vocabulary to be used in the neural network input '
@@ -54,16 +56,21 @@ def add_arguments(parser):
              '"words" (one word per line, default), "classes" (word and class '
              'ID per line), "srilm-classes" (class name, membership '
              'probability, and word per line)')
-    argument_group = parser.add_argument_group("network architecture")
-    argument_group.add_argument(
-        '--architecture', metavar='FILE', type=str, default='lstm300',
-        help='path to neural network architecture description, or a standard '
-             'architecture name, "lstm300" or "lstm1500" (default "lstm300")')
     argument_group.add_argument(
         '--num-classes', metavar='N', type=int, default=None,
         help='generate N classes using a simple word frequency based algorithm '
              'when --vocabulary argument is not given (default is to not use '
              'word classes)')
+    argument_group.add_argument(
+        '--shortlist', action="store_true",
+        help='--vocabulary argument specifies a shortlist and the rest of the '
+             'training set words are added as out-of-shortlist words')
+
+    argument_group = parser.add_argument_group("network architecture")
+    argument_group.add_argument(
+        '--architecture', metavar='FILE', type=str, default='lstm300',
+        help='path to neural network architecture description, or a standard '
+             'architecture name, "lstm300" or "lstm1500" (default "lstm300")')
 
     argument_group = parser.add_argument_group("training process")
     argument_group.add_argument(
@@ -249,9 +256,9 @@ def _read_vocabulary(args, state):
         else:
             oos_words = None
         with open(args.vocabulary, 'rt', encoding='utf-8') as vocab_file:
-            vocabulary = Vocabulary.from_file(vocab_file,
-                                              args.vocabulary_format,
-                                              oos_words=oos_words)
+            result = Vocabulary.from_file(vocab_file,
+                                          args.vocabulary_format,
+                                          oos_words=oos_words)
 
         if args.vocabulary_format == 'classes':
             print("Computing class membership probabilities and unigram "
@@ -262,13 +269,14 @@ def _read_vocabulary(args, state):
             print("Computing unigram probabilities for out-of-shortlist words.")
             sys.stdout.flush()
             update_class_probs = False
-        vocabulary.compute_probs(word_counts,
-                                 update_class_probs=update_class_probs)
-        vocabulary.get_state(state)
+        result.compute_probs(word_counts,
+                             update_class_probs=update_class_probs)
+        result.get_state(state)
 
-    print("Number of words in vocabulary:", vocabulary.num_words())
-    print("Number of words in shortlist:", vocabulary.num_shortlist_words())
-    print("Number of word classes:", vocabulary.num_classes())
+    print("Number of words in vocabulary:", result.num_words())
+    print("Number of words in shortlist:", result.num_shortlist_words())
+    print("Number of word classes:", result.num_classes())
+    return result
 
 def train(args):
     """A function that performs the "theanolm train" command.
