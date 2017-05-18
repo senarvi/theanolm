@@ -11,15 +11,19 @@ import numpy
 from theanolm.parsing.functions import utterance_from_line
 
 class BatchIterator(object, metaclass=ABCMeta):
-    """Iterator for Reading Mini-Batches
+    """Base Class for Mini-Batch Iterators
     """
 
     def __init__(self,
                  vocabulary,
                  batch_size=1,
-                 max_sequence_length=None):
-        """Constructs an iterator for reading mini-batches from given file or
-        memory map.
+                 max_sequence_length=None,
+                 map_oos_to_unk=False):
+        """Constructs an iterator for reading mini-batches.
+
+        The iterator can produce word IDs just for the shortlist words by
+        setting ``map_oos_to_unk=True``. This is used when reading training
+        mini-batches.
 
         :type vocabulary: Vocabulary
         :param vocabulary: vocabulary that provides mapping between words and
@@ -30,15 +34,20 @@ class BatchIterator(object, metaclass=ABCMeta):
                            of file is encountered earlier)
 
         :type max_sequence_length: int
-        :param max_sequence_length: if not None, limit to sequences shorter than
-                                    this
+        :param max_sequence_length: if not ``None``, limit to sequences shorter
+                                    than this
+
+        :type map_oos_to_unk: bool
+        :param map_oos_to_unk: if set to ``True``, out-of-shortlist words will
+                               be mapped to ``<unk>``
         """
 
-        self.vocabulary = vocabulary
-        self.batch_size = batch_size
-        self.max_sequence_length = max_sequence_length
-        self.buffer = []
-        self.end_of_file = False
+        self._vocabulary = vocabulary
+        self._batch_size = batch_size
+        self._max_sequence_length = max_sequence_length
+        self._map_oos_to_unk = map_oos_to_unk
+        self._buffer = []
+        self._end_of_file = False
 
     def __iter__(self):
         return self
@@ -62,8 +71,8 @@ class BatchIterator(object, metaclass=ABCMeta):
 
         # If EOF was reached on the previous call, but a mini-batch was
         # returned, rewind the file pointer now and raise StopIteration.
-        if self.end_of_file:
-            self.end_of_file = False
+        if self._end_of_file:
+            self._end_of_file = False
             self._reset()
             raise StopIteration
 
@@ -75,7 +84,7 @@ class BatchIterator(object, metaclass=ABCMeta):
             if len(sequence) < 2:
                 continue
             sequences.append(sequence)
-            if len(sequences) >= self.batch_size:
+            if len(sequences) >= self._batch_size:
                 return self._prepare_batch(sequences)
 
         # When end of file is reached, if no lines were read, rewind to first
@@ -85,7 +94,7 @@ class BatchIterator(object, metaclass=ABCMeta):
             self._reset()
             raise StopIteration
         else:
-            self.end_of_file = True
+            self._end_of_file = True
             return self._prepare_batch(sequences)
 
     def __len__(self):
@@ -108,7 +117,7 @@ class BatchIterator(object, metaclass=ABCMeta):
             num_sequences += 1
 
         self._reset(False)
-        return (num_sequences + self.batch_size - 1) // self.batch_size
+        return (num_sequences + self._batch_size - 1) // self._batch_size
 
     @abstractmethod
     def _reset(self, shuffle=True):
@@ -123,7 +132,7 @@ class BatchIterator(object, metaclass=ABCMeta):
     def _read_sequence(self):
         """Returns next word sequence. If sequence length is not limited, it
         will be the next line. Otherwise returns the next at most
-        ``self.max_sequence_length`` words.
+        ``self._max_sequence_length`` words.
 
         Start-of-sentence and end-of-sentece tags (``<s>`` and ``</s>``) will be
         inserted at the beginning and the end of the sequence, if they're
@@ -138,22 +147,22 @@ class BatchIterator(object, metaclass=ABCMeta):
                   if no more data
         """
 
-        if not self.buffer:
+        if not self._buffer:
             line_and_file_id = self._readline()
             if line_and_file_id is None:
                 # end of data
                 return None
             line = line_and_file_id[0]
             file_id = line_and_file_id[1]
-            self.buffer = [(word, file_id)
-                           for word in utterance_from_line(line)]
+            self._buffer = [(word, file_id)
+                            for word in utterance_from_line(line)]
 
-        if self.max_sequence_length is None:
-            result = self.buffer
-            self.buffer = []
+        if self._max_sequence_length is None:
+            result = self._buffer
+            self._buffer = []
         else:
-            result = self.buffer[:self.max_sequence_length]
-            self.buffer = self.buffer[self.max_sequence_length:]
+            result = self._buffer[:self._max_sequence_length]
+            self._buffer = self._buffer[self._max_sequence_length:]
         return result
 
     @abstractmethod
@@ -173,10 +182,12 @@ class BatchIterator(object, metaclass=ABCMeta):
         returns word ID, file ID, and mask matrices in a format suitable to be
         input to the neural network.
 
-        The first returned matrix contains the word IDs, the second identifies
-        the file in case of multiple training files, and the third contains a
-        mask that defines which elements are past the sequence end. Where the
-        other values are valid, the mask matrix contains ones.
+        The first returned matrix contains the word IDs. Word other than the
+        shortlist words may be mapped to <unk>, depending on
+        ``self._map_oos_to_unk``. The second matrix identifies the file in case
+        of multiple training files, and the third one contains a mask that
+        defines which elements are past the sequence end. Where the other values
+        are valid, the mask matrix contains ones.
 
         All returned matrices have the same shape. The first dimensions is the
         time step, i.e. the index to a word in a sequence. The second dimension
@@ -194,7 +205,7 @@ class BatchIterator(object, metaclass=ABCMeta):
         num_sequences = len(sequences)
         batch_length = numpy.max([len(s) for s in sequences])
 
-        unk_id = self.vocabulary.word_to_id['<unk>']
+        unk_id = self._vocabulary.word_to_id['<unk>']
         shape = (batch_length, num_sequences)
         word_ids = numpy.ones(shape, numpy.int64) * unk_id
         mask = numpy.zeros(shape, numpy.int8)
@@ -206,8 +217,11 @@ class BatchIterator(object, metaclass=ABCMeta):
             sequence_word_ids = numpy.ones(length, numpy.int64) * unk_id
             sequence_file_ids = numpy.zeros(length, numpy.int8)
             for index, (word, file_id) in enumerate(sequence):
-                if word in self.vocabulary.word_to_id:
-                    sequence_word_ids[index] = self.vocabulary.word_to_id[word]
+                if word in self._vocabulary:
+                    word_id = self._vocabulary.word_to_id[word]
+                    if (not self._map_oos_to_unk) or \
+                       self._vocabulary.in_shortlist(word_id):
+                        sequence_word_ids[index] = word_id
                 sequence_file_ids[index] = file_id
 
             word_ids[:length, i] = sequence_word_ids

@@ -12,10 +12,11 @@ import numpy
 import theano
 
 from theanolm import Vocabulary, Architecture, Network
-from theanolm import LinearBatchIterator
+from theanolm.parsing import LinearBatchIterator
 from theanolm.training import Trainer, create_optimizer
 from theanolm.scoring import TextScorer
 from theanolm.filetypes import TextFileType
+from theanolm.vocabulary import compute_word_counts
 
 def add_arguments(parser):
     """Specifies the command line arguments supported by the "theanolm train"
@@ -198,6 +199,77 @@ def add_arguments(parser):
         '--profile', action="store_true",
         help='enable profiling Theano functions')
 
+def _read_vocabulary(args, state):
+    """If ``state`` contains data, reads the vocabulary from the HDF5 state.
+    Otherwise reads a vocabulary file or constructs the vocabulary from the
+    training set and writes it to the HDF5 state.
+
+    If the state does not contain data and --vocabulary argument is given, reads
+    the vocabulary from the file given after the argument. If also --shortlist
+    argument is given, the rest of the words in the training set are added as
+    out-of-shortlist words.
+
+    If the state does not contain data and no vocabulary is given, constructs a
+    vocabulary that contains all the training set words. In that case,
+    --num-classes argument can be used to control the number of classes.
+
+    :type args: argparse.Namespace
+    :param args: a collection of command line arguments
+
+    :type state: hdf5.File
+    :param state: HDF5 file where the vocabulary should be saved
+
+    :rtype: Vocabulary
+    :returns: the created vocabulary
+    """
+
+    if state.keys():
+        print("Reading vocabulary from existing network state.")
+        sys.stdout.flush()
+        result = Vocabulary.from_state(state)
+        if not result.has_unigram_probs():
+            print("Computing unigram word probabilities from training set.")
+            sys.stdout.flush()
+            word_counts = compute_word_counts(args.training_set)
+            result.compute_probs(word_counts, update_class_probs=False)
+
+    elif args.vocabulary is None:
+        print("Constructing vocabulary from training set.")
+        sys.stdout.flush()
+        word_counts = compute_word_counts(args.training_set)
+        result = Vocabulary.from_word_counts(word_counts, args.num_classes)
+        result.get_state(state)
+
+    else:
+        print("Reading vocabulary from {}.".format(args.vocabulary))
+        sys.stdout.flush()
+        word_counts = compute_word_counts(args.training_set)
+        if args.shortlist:
+            oos_words = word_counts.keys()
+        else:
+            oos_words = None
+        with open(args.vocabulary, 'rt', encoding='utf-8') as vocab_file:
+            vocabulary = Vocabulary.from_file(vocab_file,
+                                              args.vocabulary_format,
+                                              oos_words=oos_words)
+
+        if args.vocabulary_format == 'classes':
+            print("Computing class membership probabilities and unigram "
+                  "probabilities for out-of-shortlist words.")
+            sys.stdout.flush()
+            update_class_probs = True
+        else:
+            print("Computing unigram probabilities for out-of-shortlist words.")
+            sys.stdout.flush()
+            update_class_probs = False
+        vocabulary.compute_probs(word_counts,
+                                 update_class_probs=update_class_probs)
+        vocabulary.get_state(state)
+
+    print("Number of words in vocabulary:", vocabulary.num_words())
+    print("Number of words in shortlist:", vocabulary.num_shortlist_words())
+    print("Number of word classes:", vocabulary.num_classes())
+
 def train(args):
     """A function that performs the "theanolm train" command.
 
@@ -228,32 +300,7 @@ def train(args):
     theano.config.profile_memory = args.profile
 
     with h5py.File(args.model_path, 'a', driver='core') as state:
-        if state.keys():
-            print("Reading vocabulary from existing network state.")
-            sys.stdout.flush()
-            vocabulary = Vocabulary.from_state(state)
-        elif args.vocabulary is None:
-            print("Constructing vocabulary from training set.")
-            sys.stdout.flush()
-            vocabulary = Vocabulary.from_corpus(args.training_set,
-                                                args.num_classes)
-            for training_file in args.training_set:
-                training_file.seek(0)
-            vocabulary.get_state(state)
-        else:
-            print("Reading vocabulary from {}.".format(args.vocabulary))
-            sys.stdout.flush()
-            with open(args.vocabulary, 'rt', encoding='utf-8') as vocab_file:
-                vocabulary = Vocabulary.from_file(vocab_file,
-                                                  args.vocabulary_format)
-                if args.vocabulary_format == 'classes':
-                    print("Computing class membership probabilities from "
-                          "unigram word counts.")
-                    sys.stdout.flush()
-                    vocabulary.compute_probs(args.training_set)
-            vocabulary.get_state(state)
-        print("Number of words in vocabulary:", vocabulary.num_words())
-        print("Number of word classes:", vocabulary.num_classes())
+        vocabulary = _read_vocabulary(args, state)
 
         if args.num_noise_samples > vocabulary.num_classes():
             print("Number of noise samples ({}) is larger than the number of "
@@ -363,7 +410,8 @@ def train(args):
                 LinearBatchIterator(validation_mmap,
                                     vocabulary,
                                     batch_size=args.batch_size,
-                                    max_sequence_length=args.sequence_length)
+                                    max_sequence_length=args.sequence_length,
+                                    map_oos_to_unk=False)
             trainer.set_validation(validation_iter, scorer)
         else:
             print("Cross-validation will not be performed.")

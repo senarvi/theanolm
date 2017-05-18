@@ -84,7 +84,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         batch_word_ids = tensor.matrix('optimizer/batch_word_ids',
                                        dtype='int64')
         batch_word_ids.tag.test_value = test_value(
-            size=(101, 16), high=self.network.vocabulary.num_words())
+            size=(101, 16), high=self.network.vocabulary.num_shortlist_words())
         batch_class_ids = tensor.matrix('optimizer/batch_class_ids',
                                         dtype='int64')
         batch_class_ids.tag.test_value = test_value(

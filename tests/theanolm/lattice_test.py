@@ -4,6 +4,7 @@
 import unittest
 import os
 import math
+
 from theanolm.scoring.lattice import Lattice
 from theanolm.scoring.slflattice import SLFLattice
 from theanolm.scoring.slflattice import _split_slf_field, _split_slf_line

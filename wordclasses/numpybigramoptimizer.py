@@ -13,7 +13,7 @@ class NumpyBigramOptimizer(BigramOptimizer):
     def __init__(self, statistics, vocabulary):
         """Computes initial statistics.
 
-        :type statistics: WordStatistics
+        :type statistics: BigramStatistics
         :param statistics: word statistics from the training corpus
 
         :type vocabulary: theanolm.Vocabulary

@@ -4,10 +4,12 @@
 import unittest
 import math
 import os
+
 import numpy
 from numpy.testing import assert_equal, assert_almost_equal
 import theano
 from theano import tensor
+
 from theanolm import Vocabulary
 from theanolm.network import RecurrentState
 from theanolm.scoring import LatticeDecoder, SLFLattice
@@ -79,16 +81,21 @@ class TestLatticeDecoder(unittest.TestCase):
         self.kaksi_id = self.vocabulary.word_to_id['kaksi']
         self.eos_id = self.vocabulary.word_to_id['</s>']
 
-        projection_vector = tensor.zeros(shape=(self.vocabulary.num_words(),),
-                                         dtype=theano.config.floatX)
+        projection_vector = tensor.zeros(
+            shape=(self.vocabulary.num_shortlist_words(),),
+            dtype=theano.config.floatX)
         self.sos_prob = 0.1
-        projection_vector = tensor.set_subtensor(projection_vector[self.sos_id], self.sos_prob)
+        projection_vector = tensor.set_subtensor(
+            projection_vector[self.sos_id], self.sos_prob)
         self.yksi_prob = 0.2
-        projection_vector = tensor.set_subtensor(projection_vector[self.yksi_id], self.yksi_prob)
+        projection_vector = tensor.set_subtensor(
+            projection_vector[self.yksi_id], self.yksi_prob)
         self.kaksi_prob = 0.3
-        projection_vector = tensor.set_subtensor(projection_vector[self.kaksi_id], self.kaksi_prob)
+        projection_vector = tensor.set_subtensor(
+            projection_vector[self.kaksi_id], self.kaksi_prob)
         self.eos_prob = 0.4
-        projection_vector = tensor.set_subtensor(projection_vector[self.eos_id], self.eos_prob)
+        projection_vector = tensor.set_subtensor(
+            projection_vector[self.eos_id], self.eos_prob)
         self.network = DummyNetwork(self.vocabulary, projection_vector)
 
         lattice_path = os.path.join(script_path, 'lattice.slf')
@@ -293,8 +300,9 @@ class TestLatticeDecoder(unittest.TestCase):
             'THE': 1,
             "DIDN'T": 1,
             'ELABORATE': 1})
-        projection_vector = tensor.ones(shape=(vocabulary.num_words(),),
-                                        dtype=theano.config.floatX)
+        projection_vector = tensor.ones(
+            shape=(vocabulary.num_shortlist_words(),),
+            dtype=theano.config.floatX)
         projection_vector *= 0.05
         network = DummyNetwork(vocabulary, projection_vector)
 

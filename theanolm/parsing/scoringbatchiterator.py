@@ -11,7 +11,7 @@ class ScoringBatchIterator(LinearBatchIterator):
     """Iterator for Reading Mini-Batches for Scoring Text
 
     Returns the actual words in addition to the word IDs. These are needed for
-    subword combination. Only one file can be read.
+    subword combination. File IDs are not returned.
     """
 
     def __init__(self, *args, **kwargs):
@@ -26,16 +26,19 @@ class ScoringBatchIterator(LinearBatchIterator):
         returns word ID and mask matrices in a format suitable to be input to
         the neural network, and words as a list of lists.
 
-        The first returned matrix contains the word IDs, the second contains the
-        word in plane text, and the third contains a mask that defines which
-        elements are past the sequence end. Where the other values are valid,
-        the mask matrix contains ones.
+        The first returned matrix contains the word IDs. Word other than the
+        shortlist words may be mapped to <unk>, depending on
+        ``self._map_oos_to_unk``. The second matrix contains the words in plain
+        text, and the third one contains a mask that defines which elements are
+        past the sequence end. Where the other values are valid, the mask matrix
+        contains ones.
 
-        The returned matrices have the same shape. The first dimensions is the
-        time step, i.e. the index to a word in a sequence. The second dimension
-        selects the sequence. In other words, the first row is the first word of
-        each sequence and so on. However the plain text words are returned as a
-        list of list of strs.
+        The word ID and mask matrices have the same shape. The first dimensions
+        is the time step, i.e. the index to a word in a sequence. The second
+        dimension selects the sequence. In other words, the first row is the
+        first word of each sequence and so on. The plain text words are returned
+        as a list of sequences, each sequence extending only to the sequence
+        end.
 
         :type sequences: list of lists
         :param sequences: list of sequences, each of which is a list of word
@@ -48,7 +51,7 @@ class ScoringBatchIterator(LinearBatchIterator):
         num_sequences = len(sequences)
         batch_length = numpy.max([len(s) for s in sequences])
 
-        unk_id = self.vocabulary.word_to_id['<unk>']
+        unk_id = self._vocabulary.word_to_id['<unk>']
         shape = (batch_length, num_sequences)
         word_ids = numpy.ones(shape, numpy.int64) * unk_id
         words = []
@@ -60,8 +63,11 @@ class ScoringBatchIterator(LinearBatchIterator):
             sequence_word_ids = numpy.ones(length, numpy.int64) * unk_id
             sequence_words = []
             for index, (word, file_id) in enumerate(sequence):
-                if word in self.vocabulary.word_to_id:
-                    sequence_word_ids[index] = self.vocabulary.word_to_id[word]
+                if word in self._vocabulary:
+                    word_id = self._vocabulary.word_to_id[word]
+                    if (not self._map_oos_to_unk) or \
+                       self._vocabulary.in_shortlist(word_id):
+                        sequence_word_ids[index] = word_id
                 sequence_words.append(word)
 
             word_ids[:length, i] = sequence_word_ids

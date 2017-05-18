@@ -4,9 +4,13 @@
 import unittest
 import os
 import mmap
+
 import numpy
 from numpy.testing import assert_equal
-import theanolm
+
+from theanolm import Vocabulary
+from theanolm.parsing import LinearBatchIterator, ScoringBatchIterator
+from theanolm.parsing import ShufflingBatchIterator
 from theanolm.parsing.functions import find_sentence_starts
 
 class TestIterators(unittest.TestCase):
@@ -14,16 +18,23 @@ class TestIterators(unittest.TestCase):
         script_path = os.path.dirname(os.path.realpath(__file__))
         sentences1_path = os.path.join(script_path, 'sentences1.txt')
         sentences2_path = os.path.join(script_path, 'sentences2.txt')
+        sentences3_path = os.path.join(script_path, 'sentences3.txt')
         vocabulary_path = os.path.join(script_path, 'vocabulary.txt')
 
         self.sentences1_file = open(sentences1_path)
         self.sentences2_file = open(sentences2_path)
+        self.sentences3_file = open(sentences3_path)
         self.vocabulary_file = open(vocabulary_path)
-        self.vocabulary = theanolm.Vocabulary.from_file(self.vocabulary_file, 'words')
+        self.vocabulary = Vocabulary.from_file(self.vocabulary_file, 'words')
+        self.vocabulary_file.seek(0)
+        self.shortlist_vocabulary = \
+            Vocabulary.from_file(self.vocabulary_file, 'words',
+                                 oos_words=['yksitoista'])
 
     def tearDown(self):
         self.sentences1_file.close()
         self.sentences2_file.close()
+        self.sentences3_file.close()
         self.vocabulary_file.close()
 
     def test_find_sentence_starts(self):
@@ -60,12 +71,12 @@ class TestIterators(unittest.TestCase):
         self.sentences2_file.seek(0)
 
     def test_shuffling_batch_iterator(self):
-        iterator = theanolm.ShufflingBatchIterator([self.sentences1_file,
-                                                    self.sentences2_file],
-                                                   [],
-                                                   self.vocabulary,
-                                                   batch_size=2,
-                                                   max_sequence_length=5)
+        iterator = ShufflingBatchIterator([self.sentences1_file,
+                                           self.sentences2_file],
+                                          [],
+                                          self.vocabulary,
+                                          batch_size=2,
+                                          max_sequence_length=5)
 
         sentences1 = []
         files1 = []
@@ -115,28 +126,28 @@ class TestIterators(unittest.TestCase):
 
         # The sentences are wraped so that we get more sequences if we limit
         # the maximum length. Sequences shorter than two words will be ignored.
-        iterator = theanolm.ShufflingBatchIterator([self.sentences1_file,
-                                                    self.sentences2_file],
-                                                   [],
-                                                   self.vocabulary,
-                                                   batch_size=2,
-                                                   max_sequence_length=4)
+        iterator = ShufflingBatchIterator([self.sentences1_file,
+                                           self.sentences2_file],
+                                          [],
+                                          self.vocabulary,
+                                          batch_size=2,
+                                          max_sequence_length=4)
         self.assertEqual(len(iterator), 5)
-        iterator = theanolm.ShufflingBatchIterator([self.sentences1_file,
-                                                    self.sentences2_file],
-                                                   [],
-                                                   self.vocabulary,
-                                                   batch_size=2,
-                                                   max_sequence_length=3)
+        iterator = ShufflingBatchIterator([self.sentences1_file,
+                                           self.sentences2_file],
+                                          [],
+                                          self.vocabulary,
+                                          batch_size=2,
+                                          max_sequence_length=3)
         self.assertEqual(len(iterator), 7)
 
         # Sample 2 and 4 sentences (40 % and 80 %).
-        iterator = theanolm.ShufflingBatchIterator([self.sentences1_file,
-                                                    self.sentences2_file],
-                                                   [0.4, 0.8],
-                                                   self.vocabulary,
-                                                   batch_size=1,
-                                                   max_sequence_length=5)
+        iterator = ShufflingBatchIterator([self.sentences1_file,
+                                           self.sentences2_file],
+                                          [0.4, 0.8],
+                                          self.vocabulary,
+                                          batch_size=1,
+                                          max_sequence_length=5)
         self.assertEqual(len(iterator), 2 + 4)
 
         # Make sure there are no duplicates.
@@ -145,8 +156,30 @@ class TestIterators(unittest.TestCase):
         self.assertEqual(numpy.count_nonzero(iterator._order <= 4), 2)
         self.assertEqual(numpy.count_nonzero(iterator._order >= 5), 4)
 
+        # Use shortlist and don't map OOS words to <unk>.
+        iterator = ShufflingBatchIterator([self.sentences1_file,
+                                           self.sentences2_file,
+                                           self.sentences3_file],
+                                          [],
+                                          self.shortlist_vocabulary,
+                                          batch_size=2,
+                                          map_oos_to_unk=False)
+        word_counts = self._compute_word_counts(iterator)
+        self._assert_oos_counts(word_counts)
+
+        # Use shortlist and map OOS words to <unk>.
+        iterator = ShufflingBatchIterator([self.sentences1_file,
+                                           self.sentences2_file,
+                                           self.sentences3_file],
+                                          [],
+                                          self.shortlist_vocabulary,
+                                          batch_size=2,
+                                          map_oos_to_unk=True)
+        word_counts = self._compute_word_counts(iterator)
+        self._assert_shortlist_counts(word_counts)
+
     def test_linear_batch_iterator(self):
-        iterator = theanolm.LinearBatchIterator(self.sentences1_file,
+        iterator = LinearBatchIterator(self.sentences1_file,
                                                 self.vocabulary,
                                                 batch_size=2,
                                                 max_sequence_length=5)
@@ -166,11 +199,11 @@ class TestIterators(unittest.TestCase):
                          '<s> yhdeksän </s> '
                          '<s> kymmenen </s>')
 
-        iterator = theanolm.LinearBatchIterator([self.sentences1_file,
-                                                 self.sentences2_file],
-                                                self.vocabulary,
-                                                batch_size=2,
-                                                max_sequence_length=5)
+        iterator = LinearBatchIterator([self.sentences1_file,
+                                        self.sentences2_file],
+                                       self.vocabulary,
+                                       batch_size=2,
+                                       max_sequence_length=5)
         words = []
         all_file_ids = []
         for word_ids, file_ids, mask in iterator:
@@ -203,6 +236,138 @@ class TestIterators(unittest.TestCase):
                                     1, 1, 1,
                                     1, 1, 1,
                                     1, 1, 1, 1, 1])
+
+        # Use shortlist and don't map OOS words to <unk>.
+        iterator = LinearBatchIterator([self.sentences1_file,
+                                        self.sentences2_file,
+                                        self.sentences3_file],
+                                       self.shortlist_vocabulary,
+                                       batch_size=2,
+                                       map_oos_to_unk=False)
+        word_counts = self._compute_word_counts(iterator)
+        self._assert_oos_counts(word_counts)
+
+        # Use shortlist and map OOS words to <unk>.
+        iterator = LinearBatchIterator([self.sentences1_file,
+                                        self.sentences2_file,
+                                        self.sentences3_file],
+                                       self.shortlist_vocabulary,
+                                       batch_size=2,
+                                       map_oos_to_unk=True)
+        word_counts = self._compute_word_counts(iterator)
+        self._assert_shortlist_counts(word_counts)
+
+    def test_scoring_batch_iterator(self):
+        iterator = ScoringBatchIterator(self.sentences1_file,
+                                        self.vocabulary,
+                                        batch_size=2,
+                                        max_sequence_length=5)
+        all_words = []
+        for word_ids, words, mask in iterator:
+            class_ids = self.vocabulary.word_id_to_class_id[word_ids]
+            assert_equal(word_ids, class_ids)
+            for sequence in range(mask.shape[1]):
+                sequence_words = words[sequence]
+                all_words.extend(sequence_words)
+        self.assertEqual(' '.join(all_words),
+                         '<s> yksi kaksi </s> '
+                         '<s> kolme neljä viisi </s> '
+                         '<s> kuusi seitsemän kahdeksan </s> '
+                         '<s> yhdeksän </s> '
+                         '<s> kymmenen </s>')
+
+        iterator = ScoringBatchIterator([self.sentences1_file,
+                                         self.sentences2_file],
+                                        self.vocabulary,
+                                        batch_size=2,
+                                        max_sequence_length=5)
+        all_words = []
+        for word_ids, words, mask in iterator:
+            class_ids = self.vocabulary.word_id_to_class_id[word_ids]
+            assert_equal(word_ids, class_ids)
+            for sequence in range(mask.shape[1]):
+                sequence_words = words[sequence]
+                all_words.extend(sequence_words)
+        self.assertEqual(' '.join(all_words),
+                         '<s> yksi kaksi </s> '
+                         '<s> kolme neljä viisi </s> '
+                         '<s> kuusi seitsemän kahdeksan </s> '
+                         '<s> yhdeksän </s> '
+                         '<s> kymmenen </s> '
+                         '<s> kymmenen yhdeksän </s> '
+                         '<s> kahdeksan seitsemän kuusi </s> '
+                         '<s> viisi </s> '
+                         '<s> neljä </s> '
+                         '<s> kolme kaksi yksi </s>')
+
+        # Use shortlist and don't map OOS words to <unk>.
+        iterator = ScoringBatchIterator([self.sentences1_file,
+                                         self.sentences2_file,
+                                         self.sentences3_file],
+                                        self.shortlist_vocabulary,
+                                        batch_size=2,
+                                        map_oos_to_unk=False)
+        word_counts = self._compute_word_counts(iterator)
+        self._assert_oos_counts(word_counts)
+
+        # Use shortlist and map OOS words to <unk>.
+        iterator = ScoringBatchIterator([self.sentences1_file,
+                                         self.sentences2_file,
+                                         self.sentences3_file],
+                                        self.shortlist_vocabulary,
+                                        batch_size=2,
+                                        map_oos_to_unk=True)
+        word_counts = self._compute_word_counts(iterator)
+        self._assert_shortlist_counts(word_counts)
+
+    def _compute_word_counts(self, iterator):
+        """Compute words counts using ``iterator``.
+        """
+
+        result = numpy.zeros(self.shortlist_vocabulary.num_words(),
+                             dtype='int64')
+        for word_ids, file_ids, mask in iterator:
+            word_ids = word_ids[mask == 1]
+            numpy.add.at(result, word_ids, 1)
+        return result
+
+    def _assert_oos_counts(self, word_counts):
+        """When not mapping OOS words to ``<unk>``, the shortlist words appear
+        three times each, and the OOS word and ``<unk>`` appear once. Assert
+        that ``word_counts`` matches this.
+        """
+
+        for word in ['yksi', 'kaksi', 'kolme', 'neljä', 'viisi', 'kuusi',
+                     'seitsemän', 'kahdeksan', 'yhdeksän', 'kymmenen']:
+            word_id = self.shortlist_vocabulary.word_to_id[word]
+            self.assertEqual(word_counts[word_id], 3)
+        word_id = self.shortlist_vocabulary.word_to_id['yksitoista']
+        self.assertEqual(word_counts[word_id], 1)
+        word_id = self.shortlist_vocabulary.word_to_id['<unk>']
+        self.assertEqual(word_counts[word_id], 1)
+        word_id = self.shortlist_vocabulary.word_to_id['<s>']
+        self.assertEqual(word_counts[word_id], 15)
+        word_id = self.shortlist_vocabulary.word_to_id['</s>']
+        self.assertEqual(word_counts[word_id], 15)
+
+    def _assert_shortlist_counts(self, word_counts):
+        """When mapping OOS words to ``<unk>``, the shortlist words appear three
+        times each, the OOS word appears zero times, and ``<unk>`` appear twice.
+        Assert that ``word_counts`` matches this.
+        """
+
+        for word in ['yksi', 'kaksi', 'kolme', 'neljä', 'viisi', 'kuusi',
+                     'seitsemän', 'kahdeksan', 'yhdeksän', 'kymmenen']:
+            word_id = self.shortlist_vocabulary.word_to_id[word]
+            self.assertEqual(word_counts[word_id], 3)
+        word_id = self.shortlist_vocabulary.word_to_id['yksitoista']
+        self.assertEqual(word_counts[word_id], 0)
+        word_id = self.shortlist_vocabulary.word_to_id['<unk>']
+        self.assertEqual(word_counts[word_id], 2)
+        word_id = self.shortlist_vocabulary.word_to_id['<s>']
+        self.assertEqual(word_counts[word_id], 15)
+        word_id = self.shortlist_vocabulary.word_to_id['</s>']
+        self.assertEqual(word_counts[word_id], 15)
 
 if __name__ == '__main__':
     unittest.main()

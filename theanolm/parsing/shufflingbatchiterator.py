@@ -93,7 +93,8 @@ class ShufflingBatchIterator(BatchIterator):
                  sampling,
                  vocabulary,
                  batch_size=128,
-                 max_sequence_length=None):
+                 max_sequence_length=None,
+                 map_oos_to_unk=False):
         """Initializes the iterator to read sentences in linear order.
 
         :type input_files: list of file objects
@@ -129,7 +130,8 @@ class ShufflingBatchIterator(BatchIterator):
         self._order = numpy.arange(sum(self._sample_sizes), dtype='int64')
         self._reset()
 
-        super().__init__(vocabulary, batch_size, max_sequence_length)
+        super().__init__(vocabulary, batch_size, max_sequence_length,
+                         map_oos_to_unk)
 
     def get_state(self, state):
         """Saves the iterator state in a HDF5 file.

@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import unittest
+
 import numpy
 from numpy.testing import assert_equal, assert_almost_equal
+
 from theanolm.network.basiclayer import BasicLayer
 
 class DummyParameters(object):

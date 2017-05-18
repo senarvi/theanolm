@@ -164,7 +164,8 @@ def _score_text(input_file, vocabulary, scorer, output_file,
         ScoringBatchIterator(input_file,
                              vocabulary,
                              batch_size=16,
-                             max_sequence_length=None)
+                             max_sequence_length=None,
+                             map_oos_to_unk=False)
     log_scale = 1.0 if log_base is None else numpy.log(log_base)
 
     total_logprob = 0.0

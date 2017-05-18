@@ -141,12 +141,12 @@ class Network(object):
         self.input_class_ids = tensor.matrix('network/input_class_ids', dtype='int64')
         if self.mode.minibatch:
             self.input_word_ids.tag.test_value = test_value(
-                size=(100, 16), high=vocabulary.num_words())
+                size=(100, 16), high=vocabulary.num_shortlist_words())
             self.input_class_ids.tag.test_value = test_value(
                 size=(100, 16), high=vocabulary.num_classes())
         else:
             self.input_word_ids.tag.test_value = test_value(
-                size=(1, 16), high=vocabulary.num_words())
+                size=(1, 16), high=vocabulary.num_shortlist_words())
             self.input_class_ids.tag.test_value = test_value(
                 size=(1, 16), high=vocabulary.num_classes())
 
@@ -201,10 +201,10 @@ class Network(object):
                                              dtype='int64')
         if self.mode.minibatch:
             self.target_word_ids.tag.test_value = test_value(
-                size=(100, 16), high=vocabulary.num_words())
+                size=(100, 16), high=vocabulary.num_shortlist_words())
         else:
             self.target_word_ids.tag.test_value = test_value(
-                size=(1, 16), high=vocabulary.num_words())
+                size=(1, 16), high=vocabulary.num_shortlist_words())
 
         # mask is used to mask out the rest of the input matrix, when a sequence
         # is shorter than the maximum sequence length. The mask is kept as int8
@@ -262,6 +262,7 @@ class Network(object):
             sys.stdout.flush()
             vocabulary = Vocabulary.from_state(state)
             print("Number of words in vocabulary:", vocabulary.num_words())
+            print("Number of words in shortlist:", vocabulary.num_shortlist_words())
             print("Number of word classes:", vocabulary.num_classes())
             print("Building neural network.")
             sys.stdout.flush()

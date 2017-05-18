@@ -6,9 +6,9 @@ import argparse
 import logging
 from time import time
 from theanolm.filetypes import TextFileType
-from theanolm import Vocabulary
 from wordclasses import TheanoBigramOptimizer, NumpyBigramOptimizer
-from wordclasses import WordStatistics
+from theanolm.vocabulary import Vocabulary
+from theanolm.vocabulary import compute_word_counts, BigramStatistics
 from wordclasses.functions import is_scheduled
 
 def save(optimizer, output_file, output_format):
@@ -103,20 +103,21 @@ def main():
         logging.basicConfig(filename=log_file, format=log_format, level=log_level)
 
     if args.vocabulary is None:
-        vocabulary = Vocabulary.from_corpus(args.training_set,
-                                            args.num_classes)
+        word_counts = compute_word_counts(args.training_set)
+        vocabulary = Vocabulary.from_word_counts(word_counts,
+                                                 args.num_classes)
         for subset_file in args.training_set:
             subset_file.seek(0)
     else:
         vocabulary = Vocabulary.from_file(args.vocabulary,
                                           args.vocabulary_format)
 
-    print("Number of words in vocabulary:", vocabulary.num_words())
+    print("Number of words in vocabulary:", vocabulary.num_shortlist_words())
     print("Number of word classes:", vocabulary.num_classes())
     print("Number of normal word classes:", vocabulary.num_normal_classes)
 
     logging.info("Reading word unigram and bigram statistics.")
-    statistics = WordStatistics(args.training_set, vocabulary)
+    statistics = BigramStatistics(args.training_set, vocabulary)
 
     if args.method == 'bigram-theano':
         optimizer = TheanoBigramOptimizer(statistics, vocabulary)
@@ -140,14 +141,14 @@ def main():
                (num_words % args.log_interval == 0):
                 logging.info("[%d] (%.1f %%) of iteration %d -- moves = %d, cost = %.2f, duration = %.1f ms",
                      num_words,
-                     num_words / vocabulary.num_words() * 100,
+                     num_words / vocabulary.num_shortlist_words() * 100,
                      iteration,
                      num_moves,
                      optimizer.log_likelihood(),
                      duration * 100)
             if is_scheduled(num_words,
                             args.output_frequency,
-                            vocabulary.num_words()):
+                            vocabulary.num_shortlist_words()):
                 save(optimizer, args.output_file, args.output_format)
 
         if num_moves == 0:

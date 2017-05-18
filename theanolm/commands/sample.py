@@ -62,6 +62,7 @@ def sample(args):
         sys.stdout.flush()
         vocabulary = Vocabulary.from_state(state)
         print("Number of words in vocabulary:", vocabulary.num_words())
+        print("Number of words in shortlist:", vocabulary.num_shortlist_words())
         print("Number of word classes:", vocabulary.num_classes())
         print("Building neural network.")
         sys.stdout.flush()

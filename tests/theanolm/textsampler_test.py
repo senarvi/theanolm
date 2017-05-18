@@ -3,9 +3,11 @@
 
 import unittest
 import os
+
 from theano import tensor
-from theanolm import Vocabulary, TextSampler
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
+
+from theanolm import Vocabulary, TextSampler
 
 class DummyNetwork(object):
     def __init__(self, vocabulary):
@@ -28,7 +30,7 @@ class DummyNetwork(object):
 
         num_time_steps = self.input_word_ids.shape[0]
         num_sequences = self.input_word_ids.shape[1]
-        num_words = self.vocabulary.num_words()
+        num_words = self.vocabulary.num_shortlist_words()
         projection_matrix = tensor.zeros(shape=(num_words, num_words),
                                          dtype='float32')
         projection_matrix = tensor.set_subtensor(projection_matrix[sos_id, yksi_id], 0.5)

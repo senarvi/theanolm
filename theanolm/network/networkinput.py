@@ -24,7 +24,7 @@ class NetworkInput(BasicLayer):
 
         self.input_type = input_options['type']
         if self.input_type == 'word':
-            output_size = network.vocabulary.num_words()
+            output_size = network.vocabulary.num_shortlist_words()
         elif self.input_type == 'class':
             output_size = network.vocabulary.num_classes()
         else:

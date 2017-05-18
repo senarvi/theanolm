@@ -6,13 +6,16 @@
 def utterance_from_line(line):
     """Converts a line of text, read from an input file, into a list of words.
 
-    Start-of-sentence and end-of-sentece tags (``<s>`` and ``</s>``) will be
+    Start-of-sentence and end-of-sentece tokens (``<s>`` and ``</s>``) will be
     inserted at the beginning and the end of the list, if they're missing. If
     the line is empty, returns an empty list (instead of an empty sentence
     ``['<s>', '</s>']``).
 
     :type line: str or bytes
     :param line: a line of text (read from an input file)
+
+    :rtype: list of strs
+    :returns: list of words / tokens
     """
 
     if isinstance(line, bytes):

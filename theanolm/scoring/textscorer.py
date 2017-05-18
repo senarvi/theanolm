@@ -64,7 +64,7 @@ class TextScorer(object):
         batch_word_ids = tensor.matrix('textscorer/batch_word_ids',
                                        dtype='int64')
         batch_word_ids.tag.test_value = test_value(
-            size=(101, 16), high=self._vocabulary.num_words())
+            size=(101, 16), high=self._vocabulary.num_shortlist_words())
         batch_class_ids = tensor.matrix('textscorer/batch_class_ids',
                                         dtype='int64')
         batch_class_ids.tag.test_value = test_value(

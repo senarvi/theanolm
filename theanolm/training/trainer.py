@@ -12,7 +12,7 @@ import h5py
 import numpy
 import theano
 
-from theanolm import ShufflingBatchIterator, LinearBatchIterator
+from theanolm.parsing import ShufflingBatchIterator, LinearBatchIterator
 from theanolm.exceptions import IncompatibleStateError, NumberError
 from theanolm.training.stoppers import create_stopper
 
@@ -48,13 +48,14 @@ class Trainer(object):
 
         self._vocabulary = vocabulary
 
-        print("Computing unigram probabilities and the number of mini-batches "
-              "in training data.")
+        print("Computing class unigram probabilities and the number of "
+              "mini-batches in training data.")
         linear_iter = LinearBatchIterator(
             training_files,
             vocabulary,
             batch_size=training_options['batch_size'],
-            max_sequence_length=training_options['sequence_length'])
+            max_sequence_length=training_options['sequence_length'],
+            map_oos_to_unk=True)
         sys.stdout.flush()
         self._updates_per_epoch = 0
         class_counts = numpy.zeros(vocabulary.num_classes(), dtype='int64')
@@ -78,7 +79,8 @@ class Trainer(object):
             sampling,
             vocabulary,
             batch_size=training_options['batch_size'],
-            max_sequence_length=training_options['sequence_length'])
+            max_sequence_length=training_options['sequence_length'],
+            map_oos_to_unk=True)
 
         self._stopper = create_stopper(training_options, self)
         self._options = training_options

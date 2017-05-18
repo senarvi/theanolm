@@ -21,7 +21,7 @@ class BigramOptimizer(object):
         """
 
         self._initial_vocabulary = vocabulary
-        self.vocabulary_size = vocabulary.num_words()
+        self.vocabulary_size = vocabulary.num_shortlist_words()
         self.num_classes = vocabulary.num_classes()
         self.num_normal_classes = vocabulary.num_normal_classes
         self._count_type = count_type
@@ -64,7 +64,7 @@ class BigramOptimizer(object):
         :param word_to_class: gives the class ID of each word ID
         """
 
-        class_counts = numpy.zeros(self.num_classes, self._count_type)
+        class_counts = numpy.zeros(self.num_classes, dtype=self._count_type)
         logging.debug("Allocated %s for class counts.",
                       byte_size(class_counts.nbytes))
         cc_counts = numpy.zeros(

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import unittest
+
 from theanolm.training import Trainer
 
 class DummyTrainer(object):

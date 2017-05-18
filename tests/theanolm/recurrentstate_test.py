@@ -3,8 +3,10 @@
 
 import unittest
 import math
+
 import numpy
 from numpy.testing import assert_equal
+
 from theanolm.network import RecurrentState
 
 class TestRecurrentState(unittest.TestCase):
