@@ -154,6 +154,15 @@ class Network(object):
         # unigram probabilities.
         self.class_prior_probs = class_prior_probs
 
+        # A shortlist model adds these logprobs to OOS logprobs predicted by the
+        # network.
+        if vocabulary.has_unigram_probs():
+            self.oos_logprobs = theano.shared(
+                vocabulary.get_oos_logprobs().astype(theano.config.floatX),
+                'network/oos_logprobs')
+        else:
+            self.oos_logprobs = None
+
         # Recurrent layers will create these lists, used to initialize state
         # variables of appropriate sizes, for doing forward passes one step at a
         # time.

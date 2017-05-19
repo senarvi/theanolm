@@ -61,10 +61,6 @@ def add_arguments(parser):
         help='generate N classes using a simple word frequency based algorithm '
              'when --vocabulary argument is not given (default is to not use '
              'word classes)')
-    argument_group.add_argument(
-        '--shortlist', action="store_true",
-        help='--vocabulary argument specifies a shortlist and the rest of the '
-             'training set words are added as out-of-shortlist words')
 
     argument_group = parser.add_argument_group("network architecture")
     argument_group.add_argument(
@@ -251,10 +247,7 @@ def _read_vocabulary(args, state):
         print("Reading vocabulary from {}.".format(args.vocabulary))
         sys.stdout.flush()
         word_counts = compute_word_counts(args.training_set)
-        if args.shortlist:
-            oos_words = word_counts.keys()
-        else:
-            oos_words = None
+        oos_words = word_counts.keys()
         with open(args.vocabulary, 'rt', encoding='utf-8') as vocab_file:
             result = Vocabulary.from_file(vocab_file,
                                           args.vocabulary_format,
@@ -409,7 +402,9 @@ def train(args):
         if args.validation_file is not None:
             print("Building text scorer for cross-validation.")
             sys.stdout.flush()
-            scorer = TextScorer(network, ignore_unk, unk_penalty, args.profile)
+            scorer = TextScorer(network, use_shortlist=True,
+                                ignore_unk=ignore_unk, unk_penalty=unk_penalty,
+                                profile=args.profile)
             print("Validation text:", args.validation_file.name)
             validation_mmap = mmap.mmap(args.validation_file.fileno(),
                                         0,

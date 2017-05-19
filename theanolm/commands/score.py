@@ -55,6 +55,11 @@ def add_arguments(parser):
              'formed from subwords; one of "word-boundary" (<w> token '
              'separates words), "prefix-affix" (subwords that can be '
              'concatenated are prefixed or affixed with +, e.g. "cat+ +s")')
+    argument_group.add_argument(
+        '--shortlist', action="store_true",
+        help='distribute <unk> token probability among the out-of-shortlist '
+             'words according to their unigram frequencies in the training '
+             'data')
 
     argument_group = parser.add_argument_group("logging and debugging")
     argument_group.add_argument(
@@ -111,7 +116,8 @@ def score(args):
     else:
         ignore_unk = False
         unk_penalty = args.unk_penalty
-    scorer = TextScorer(network, ignore_unk, unk_penalty)
+    scorer = TextScorer(network, args.shortlist, ignore_unk, unk_penalty,
+                        args.profile)
 
     print("Scoring text.")
     if args.output == 'perplexity':

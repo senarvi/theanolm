@@ -102,7 +102,7 @@ class Vocabulary(object):
         self._word_classes = numpy.asarray(word_classes)
         self.word_to_id = {word: word_id
                            for word_id, word in enumerate(self.id_to_word)}
-        self.unigram_probs = None
+        self._unigram_probs = None
 
     @classmethod
     def from_file(cls, input_file, input_format, oos_words=None):
@@ -289,7 +289,7 @@ class Vocabulary(object):
                      word_classes)
 
         if 'unigram_probs' in h5_vocabulary:
-            result.unigram_probs = h5_vocabulary['unigram_probs'].value
+            result._unigram_probs = h5_vocabulary['unigram_probs'].value
 
         return result
 
@@ -314,7 +314,7 @@ class Vocabulary(object):
                 word_id = self.word_to_id[word]
                 if word_id < counts.size:
                     counts[word_id] = count
-        self.unigram_probs = counts / counts.sum()
+        self._unigram_probs = counts / counts.sum()
 
         if not update_class_probs:
             return
@@ -372,12 +372,12 @@ class Vocabulary(object):
         else:
             h5_vocabulary.create_dataset('probs', data=probs)
 
-        if self.unigram_probs is not None:
+        if self.has_unigram_probs():
             if 'unigram_probs' in h5_vocabulary:
-                state['unigram_probs'][:] = self.unigram_probs
+                state['unigram_probs'][:] = self._unigram_probs
             else:
                 h5_vocabulary.create_dataset('unigram_probs',
-                                             data=self.unigram_probs)
+                                             data=self._unigram_probs)
 
     def num_words(self):
         """Returns the number of words in the vocabulary. This includes
@@ -470,6 +470,7 @@ class Vocabulary(object):
         """
 
         unk_id = self.word_to_id['<unk>']
+        word_ids = numpy.copy(word_ids)
         word_ids[word_ids >= self.num_shortlist_words()] = unk_id
         class_ids = self.word_id_to_class_id[word_ids]
         word_classes = self._word_classes[class_ids]
@@ -497,6 +498,40 @@ class Vocabulary(object):
         """
 
         return word_id < self.word_id_to_class_id.size
+
+    def has_unigram_probs(self):
+        """Checks if the word unigram probabilities are computed and
+        ``get_oos_logprobs()`` can be called.
+
+        :rtype: bool
+        :returns: ``True`` if the unigram probabilities are computed, ``False``
+                  otherwise
+        """
+
+        return self._unigram_probs is not None
+
+    def get_oos_logprobs(self):
+        """Returns an array that can be indexed by word ID to obtain a log
+        probability that should be added to the log probability predicted by the
+        network.
+
+        The returned probability is one (logprob is zero) for shortlist words,
+        meaning that the shortlist probabilities are not affected. For other
+        words, it's the unigram probability mass of the out-of-shortlist words
+        divided according to their unigram frequencies.
+
+        :rtype: ndarray
+        :returns: an array that maps a word ID to the log probability that
+                  should be added to the log probability predicted by the
+                  network
+        """
+
+        shortlist_size = self.num_shortlist_words()
+        oos_probs = numpy.copy(self._unigram_probs)
+        oos_probs[:shortlist_size] = 1.0
+        total_oos_prob = oos_probs[shortlist_size:].sum()
+        oos_probs[shortlist_size:] /= total_oos_prob
+        return numpy.log(oos_probs)
 
     def __contains__(self, word):
         """Tests if ``word`` is included in the vocabulary.

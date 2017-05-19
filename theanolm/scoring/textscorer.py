@@ -15,8 +15,8 @@ class TextScorer(object):
     """Text Scoring Using a Neural Network Language Model
     """
 
-    def __init__(self, network, ignore_unk=False, unk_penalty=None,
-                 profile=False):
+    def __init__(self, network, use_shortlist=True, ignore_unk=False,
+                 unk_penalty=None, profile=False):
         """Creates two Theano function, ``self._target_logprobs_function()``,
         which computes the log probabilities predicted by the neural network for
         the words in a mini-batch, and ``self._total_logprob_function()``, which
@@ -42,12 +42,16 @@ class TextScorer(object):
         :type network: Network
         :param network: the neural network object
 
+        :type use_shortlist: bool
+        :param use_shortlist: if ``True``, the ``<unk>`` probability is
+                              distributed among the out-of-shortlist words
+
         :type ignore_unk: bool
-        :param ignore_unk: if set to True, <unk> tokens are excluded from
-                           perplexity computation
+        :param ignore_unk: if set to ``True``, ``<unk>`` tokens are excluded
+                           from perplexity computation
 
         :type unk_penalty: float
-        :param unk_penalty: if set to othern than None, used as <unk> token
+        :param unk_penalty: if set to othern than None, used as ``<unk>`` token
                             score
 
         :type profile: bool
@@ -57,7 +61,7 @@ class TextScorer(object):
         self._ignore_unk = ignore_unk
         self._unk_penalty = unk_penalty
         self._vocabulary = network.vocabulary
-        self._unk_id = network.vocabulary.word_to_id['<unk>']
+        self._unk_id = self._vocabulary.word_to_id['<unk>']
 
         # The functions take as input a mini-batch of word IDs and class IDs,
         # and slice input and target IDs for the network.
@@ -74,22 +78,51 @@ class TextScorer(object):
         membership_probs.tag.test_value = test_value(
             size=(100, 16), high=1.0)
 
-        logprobs = tensor.log(network.target_probs())
-        # Add logprobs from the class membership of the predicted word at each
-        # time step of each sequence.
-        logprobs += tensor.log(membership_probs)
-        # If requested, predict <unk> with constant score.
+        # Convert out-of-shortlist words to <unk> in input.
+        shortlist_size = self._vocabulary.num_shortlist_words()
+        input_word_ids = batch_word_ids[:-1]
+        oos_indices = tensor.ge(input_word_ids, shortlist_size).nonzero()
+        input_word_ids = tensor.set_subtensor(input_word_ids[oos_indices],
+                                              self._unk_id)
+        # Out-of-shortlist words are already in <unk> class, because the don't
+        # have own classes.
+        input_class_ids = batch_class_ids[:-1]
+        target_class_ids = batch_class_ids[1:]
+        # Target word IDs are not used by the network. We need also the actual
+        # out-of-shortlist words.
         target_word_ids = batch_word_ids[1:]
-        if self._unk_penalty is not None:
-            unk_mask = tensor.eq(target_word_ids, self._unk_id)
-            unk_indices = unk_mask.nonzero()
-            logprobs = tensor.set_subtensor(logprobs[unk_indices],
-                                            self._unk_penalty)
-        # Ignore logprobs predicting a word that is past the sequence end, and
-        # possibly also those that are predicting <unk> token.
+
+        logprobs = tensor.log(network.target_probs())
+        # Add logprobs from the class membership of the predicted word.
+        logprobs += tensor.log(membership_probs)
+
         mask = network.mask
-        if self._ignore_unk:
-            mask *= tensor.neq(target_word_ids, self._unk_id)
+        if use_shortlist and network.has_unigram_probs():
+            # The probability of out-of-shortlist words (which is the <unk>
+            # probability) is multiplied by the fraction of the actual word
+            # within the set of OOS words.
+            logprobs += network.oos_logprobs[target_word_ids]
+            # If OOV probability is given, use it for unseen words, otherwise
+            # ignore them.
+            if self._ignore_unk or self._unk_penalty is None:
+                mask *= tensor.neq(target_word_ids, self._unk_id)
+            else:
+                unk_mask = tensor.eq(target_word_ids, self._unk_id)
+                unk_indices = unk_mask.nonzero()
+                logprobs = tensor.set_subtensor(logprobs[unk_indices],
+                                                self._unk_penalty)
+        else:
+            # If requested, ignore OOS and OOV probabilities or predict them
+            # with a constant score.
+            if self._ignore_unk:
+                mask *= tensor.neq(target_word_ids, self._unk_id)
+                mask *= tensor.lt(target_word_ids, shortlist_size)
+            elif self._unk_penalty is not None:
+                unk_mask = tensor.eq(target_word_ids, self._unk_id)
+                unk_mask += tensor.ge(target_word_ids, shortlist_size)
+                unk_indices = unk_mask.nonzero()
+                logprobs = tensor.set_subtensor(logprobs[unk_indices],
+                                                self._unk_penalty)
         logprobs *= tensor.cast(mask, theano.config.floatX)
 
         # Ignore unused input variables, because is_training is only used by
@@ -97,9 +130,9 @@ class TextScorer(object):
         self._target_logprobs_function = theano.function(
             [batch_word_ids, batch_class_ids, membership_probs, network.mask],
             [logprobs, mask],
-            givens=[(network.input_word_ids, batch_word_ids[:-1]),
-                    (network.input_class_ids, batch_class_ids[:-1]),
-                    (network.target_class_ids, batch_class_ids[1:]),
+            givens=[(network.input_word_ids, input_word_ids),
+                    (network.input_class_ids, input_class_ids),
+                    (network.target_class_ids, target_class_ids),
                     (network.is_training, numpy.int8(0))],
             name='target_logprobs',
             on_unused_input='ignore',

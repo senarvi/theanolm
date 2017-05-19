@@ -35,12 +35,20 @@ noise-contrastive estimation, or BlackOut. These options are explained below:
   vocabulary. Only normal softmax output layer supports sampling. This is
   explained in the `Cost function` section below.
 
-A vocabulary has to be provided for ``theanolm train`` command using the
-``--vocabulary`` argument. If classes are not used, the vocabulary is simply a
-list of words, one per line, and ``--vocabulary-format words`` argument should
-be given. Words that do not appear in the vocabulary will be mapped to the
-*<unk>* token. The vocabulary file can also contain classes in one of two
-formats, specified by the ``--vocabulary-format`` argument:
+A vocabulary can be provided for ``theanolm train`` command using the
+``--vocabulary`` argument. If a vocabulary is not given, all the words from the
+training set will be added to the vocabulary. If a vocabulary is read from a
+file, those words will be called a *shortlist*. The shortlist words will be
+predicted by the neural network. The rest of the words from the training data
+will be added to the vocabulary, but they will not be predicted b the neural
+network. Their probability can be computed using the *<unk>* token and their
+frequencies in the training data.
+
+If classes are not used, a vocabulary file is simply a list of words, one per
+line, and ``--vocabulary-format words`` argument should be given. Words that do
+not appear in the vocabulary will be mapped to the *<unk>* token. The vocabulary
+file can also contain classes in one of two formats, specified by the
+``--vocabulary-format`` argument:
 
 * ``classes``  Each line contains a word and an integer class ID. Class
   membership probabilities ``p(word | class)`` are computed as unigram maximum
