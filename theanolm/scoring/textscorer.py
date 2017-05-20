@@ -97,7 +97,7 @@ class TextScorer(object):
         logprobs += tensor.log(membership_probs)
 
         mask = network.mask
-        if use_shortlist and network.has_unigram_probs():
+        if use_shortlist and network.oos_logprobs is not None:
             # The probability of out-of-shortlist words (which is the <unk>
             # probability) is multiplied by the fraction of the actual word
             # within the set of OOS words.

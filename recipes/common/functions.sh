@@ -190,6 +190,7 @@ compute_perplexity () {
 	then
 		extra_args+=(--unk-penalty "${UNK_PENALTY}")
 	fi
+	[ -n "${SHORTLIST}" ] && extra_args+=(--shortlist)
 
 	local vocab_file
 	local vocab_format
