@@ -68,7 +68,7 @@ class TextScorer(object):
         batch_word_ids = tensor.matrix('textscorer/batch_word_ids',
                                        dtype='int64')
         batch_word_ids.tag.test_value = test_value(
-            size=(21, 4), high=self._vocabulary.num_shortlist_words())
+            size=(21, 4), high=self._vocabulary.num_words())
         batch_class_ids = tensor.matrix('textscorer/batch_class_ids',
                                         dtype='int64')
         batch_class_ids.tag.test_value = test_value(
@@ -140,9 +140,9 @@ class TextScorer(object):
         self._total_logprob_function = theano.function(
             [batch_word_ids, batch_class_ids, membership_probs, network.mask],
             [logprobs.sum(), mask.sum()],
-            givens=[(network.input_word_ids, batch_word_ids[:-1]),
-                    (network.input_class_ids, batch_class_ids[:-1]),
-                    (network.target_class_ids, batch_class_ids[1:]),
+            givens=[(network.input_word_ids, input_word_ids),
+                    (network.input_class_ids, input_class_ids),
+                    (network.target_class_ids, target_class_ids),
                     (network.is_training, numpy.int8(0))],
             name='total_logprob',
             on_unused_input='ignore',
