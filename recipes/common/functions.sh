@@ -141,6 +141,10 @@ train () {
 	then
 		vocab_file="${CLASSES}"
 		vocab_format="${CLASSES_FORMAT:-srilm-classes}"
+	elif [ -n "${VOCAB}" ]
+	then
+		vocab_file="${VOCAB}"
+		vocab_format=words
 	else
 		vocab_file="${OUTPUT_DIR}/nnlm.vocab"
 		echo "${vocab_file}"

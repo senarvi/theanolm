@@ -68,15 +68,15 @@ class TextScorer(object):
         batch_word_ids = tensor.matrix('textscorer/batch_word_ids',
                                        dtype='int64')
         batch_word_ids.tag.test_value = test_value(
-            size=(101, 16), high=self._vocabulary.num_shortlist_words())
+            size=(21, 4), high=self._vocabulary.num_shortlist_words())
         batch_class_ids = tensor.matrix('textscorer/batch_class_ids',
                                         dtype='int64')
         batch_class_ids.tag.test_value = test_value(
-            size=(101, 16), high=self._vocabulary.num_classes())
+            size=(21, 4), high=self._vocabulary.num_classes())
         membership_probs = tensor.matrix('textscorer/membership_probs',
                                          dtype=theano.config.floatX)
         membership_probs.tag.test_value = test_value(
-            size=(100, 16), high=1.0)
+            size=(20, 4), high=1.0)
 
         # Convert out-of-shortlist words to <unk> in input.
         shortlist_size = self._vocabulary.num_shortlist_words()
