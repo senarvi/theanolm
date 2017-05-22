@@ -294,10 +294,16 @@ class Vocabulary(object):
 
         if 'unigram_probs' in h5_vocabulary:
             result._unigram_probs = h5_vocabulary['unigram_probs'].value
-            logging.debug("Word unigram log probabilities are in the range "
-                          "[%f, %f].",
-                          numpy.log(result._unigram_probs.min()),
-                          numpy.log(result._unigram_probs.max()))
+            if len(result._unigram_probs) != result.num_words():
+                raise IncompatibleStateError(
+                    "Incorrect number of word unigram probabilities in neural "
+                    "network state.")
+            oos_probs = result._unigram_probs[result.num_shortlist_words():]
+            if oos_probs.size:
+                logging.debug("Out-of-shortlist word log probabilities are in "
+                              "the range [%f, %f].",
+                              numpy.log(oos_probs.min()),
+                              numpy.log(oos_probs.max()))
         else:
             logging.debug("Word unigram probabilities are missing from state.")
 
