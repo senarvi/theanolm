@@ -208,9 +208,8 @@ def _read_vocabulary(args, state):
     training set and writes it to the HDF5 state.
 
     If the state does not contain data and --vocabulary argument is given, reads
-    the vocabulary from the file given after the argument. If also --shortlist
-    argument is given, the rest of the words in the training set are added as
-    out-of-shortlist words.
+    the vocabulary from the file given after the argument. The rest of the words
+    in the training set will be added as out-of-shortlist words.
 
     If the state does not contain data and no vocabulary is given, constructs a
     vocabulary that contains all the training set words. In that case,
@@ -231,10 +230,20 @@ def _read_vocabulary(args, state):
         sys.stdout.flush()
         result = Vocabulary.from_state(state)
         if not result.has_unigram_probs():
+            # This is for backward compatibility. Remove at some point.
             print("Computing unigram word probabilities from training set.")
             sys.stdout.flush()
             word_counts = compute_word_counts(args.training_set)
+            shortlist_words = list(result.id_to_word)
+            shortlist_set = set(shortlist_words)
+            oos_words = [x for x in word_counts.keys()
+                         if x not in shortlist_set]
+            result.id_to_word = numpy.asarray(shortlist_words + oos_words,
+                                              dtype=object)
+            result.word_to_id = {word: word_id
+                                 for word_id, word in enumerate(result.id_to_word)}
             result.compute_probs(word_counts, update_class_probs=False)
+            result.get_state(state)
 
     elif args.vocabulary is None:
         print("Constructing vocabulary from training set.")
@@ -398,6 +407,11 @@ def train(args):
             theano.printing.debugprint(optimizer.gradient_update_function)
 
         trainer.initialize(network, state, optimizer)
+        # XXX Write the model instantly back to disk. Just adds word unigram
+        # counts. This is a temporary hack. Remove at some point.
+        trainer.get_state(state)
+        state.flush()
+        # XXX
 
         if args.validation_file is not None:
             print("Building text scorer for cross-validation.")
