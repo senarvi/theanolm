@@ -3,6 +3,8 @@
 """A module that implements the Vocabulary class.
 """
 
+import logging
+
 import numpy
 import h5py
 import theano
@@ -292,6 +294,12 @@ class Vocabulary(object):
 
         if 'unigram_probs' in h5_vocabulary:
             result._unigram_probs = h5_vocabulary['unigram_probs'].value
+            logging.debug("Word unigram log probabilities are in the range "
+                          "[%f, %f].",
+                          numpy.log(result._unigram_probs.min()),
+                          numpy.log(result._unigram_probs.max()))
+        else:
+            logging.debug("Word unigram probabilities are missing from state.")
 
         return result
 
@@ -331,6 +339,10 @@ class Vocabulary(object):
         total = self._unigram_probs.sum()
         if total > 0:
             self._unigram_probs /= total
+        logging.debug("Word unigram log probabilities are in the range [%f, "
+                      "%f].",
+                      numpy.log(self._unigram_probs.min()),
+                      numpy.log(self._unigram_probs.max()))
 
         if not update_class_probs:
             return

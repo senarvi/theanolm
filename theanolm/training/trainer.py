@@ -66,13 +66,17 @@ class Trainer(object):
             numpy.add.at(class_counts, class_ids, 1)
         if self._updates_per_epoch < 1:
             raise ValueError("Training data does not contain any sentences.")
-        logging.debug("One epoch of training data contains %d mini-batch updates.",
+        logging.debug("One epoch of training data contains %d mini-batch "
+                      "updates.",
                       self._updates_per_epoch)
-        self.class_prior_probs = class_counts / class_counts.sum()
-        logging.debug("Class unigram probabilities are in the range [%.8f, "
-                      "%.8f].",
-                      self.class_prior_probs.min(),
-                      self.class_prior_probs.max())
+        total_count = class_counts.sum()
+        self.class_prior_probs = class_counts.astype(theano.config.floatX)
+        if total_count > 0:
+            self.class_prior_probs /= total_count
+        logging.debug("Class unigram log probabilities are in the range [%f, ",
+                      "%f].",
+                      numpy.log(self.class_prior_probs.min()),
+                      numpy.log(self.class_prior_probs.max()))
 
         self._training_iter = ShufflingBatchIterator(
             training_files,
