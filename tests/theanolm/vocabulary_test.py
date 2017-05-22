@@ -130,42 +130,56 @@ class TestVocabulary(unittest.TestCase):
                                            self.sentences2_file])
         vocabulary.compute_probs(word_counts)
 
+        # 10 * </s> + 20 words. <s> is excluded.
+        total_count = 30.0
         word_id = vocabulary.word_to_id['yksi']
-        self.assertAlmostEqual(vocabulary._unigram_probs[word_id], 2.0 / 40.0)
+        self.assertAlmostEqual(vocabulary._unigram_probs[word_id],
+                               2.0 / total_count)
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 1.0)
         word_id = vocabulary.word_to_id['kaksi']
-        self.assertAlmostEqual(vocabulary._unigram_probs[word_id], 2.0 / 40.0)
+        self.assertAlmostEqual(vocabulary._unigram_probs[word_id],
+                               2.0 / total_count)
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 2.0 / 12.0)
         word_id = vocabulary.word_to_id['kolme']
-        self.assertAlmostEqual(vocabulary._unigram_probs[word_id], 2.0 / 40.0)
+        self.assertAlmostEqual(vocabulary._unigram_probs[word_id],
+                               2.0 / total_count)
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 0.5)
         word_id = vocabulary.word_to_id['neljä']
-        self.assertAlmostEqual(vocabulary._unigram_probs[word_id], 2.0 / 40.0)
+        self.assertAlmostEqual(vocabulary._unigram_probs[word_id],
+                               2.0 / total_count)
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 0.5)
         word_id = vocabulary.word_to_id['viisi']
-        self.assertAlmostEqual(vocabulary._unigram_probs[word_id], 2.0 / 40.0)
+        self.assertAlmostEqual(vocabulary._unigram_probs[word_id],
+                               2.0 / total_count)
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 1.0)
         word_id = vocabulary.word_to_id['kuusi']
-        self.assertAlmostEqual(vocabulary._unigram_probs[word_id], 2.0 / 40.0)
+        self.assertAlmostEqual(vocabulary._unigram_probs[word_id],
+                               2.0 / total_count)
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 0.25)
         word_id = vocabulary.word_to_id['seitsemän']
-        self.assertAlmostEqual(vocabulary._unigram_probs[word_id], 2.0 / 40.0)
+        self.assertAlmostEqual(vocabulary._unigram_probs[word_id],
+                               2.0 / total_count)
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 0.25)
         word_id = vocabulary.word_to_id['kahdeksan']
-        self.assertAlmostEqual(vocabulary._unigram_probs[word_id], 2.0 / 40.0)
+        self.assertAlmostEqual(vocabulary._unigram_probs[word_id],
+                               2.0 / total_count)
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 0.25)
         word_id = vocabulary.word_to_id['yhdeksän']
-        self.assertAlmostEqual(vocabulary._unigram_probs[word_id], 2.0 / 40.0)
+        self.assertAlmostEqual(vocabulary._unigram_probs[word_id],
+                               2.0 / total_count)
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 0.25)
         word_id = vocabulary.word_to_id['kymmenen']
-        self.assertAlmostEqual(vocabulary._unigram_probs[word_id], 2.0 / 40.0)
+        self.assertAlmostEqual(vocabulary._unigram_probs[word_id],
+                               2.0 / total_count)
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 1.0)
         word_id = vocabulary.word_to_id['<s>']
-        self.assertAlmostEqual(vocabulary._unigram_probs[word_id], 10.0 / 40.0)
+        self.assertAlmostEqual(vocabulary._unigram_probs[word_id], 0.0)
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 1.0)
         word_id = vocabulary.word_to_id['</s>']
-        self.assertAlmostEqual(vocabulary._unigram_probs[word_id], 10.0 / 40.0)
-        self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 10.0 / 12.0)
+        self.assertAlmostEqual(vocabulary._unigram_probs[word_id],
+                               10.0 / total_count)
+        self.assertAlmostEqual(vocabulary.get_word_prob(word_id),
+                               10.0 / 12.0)
         word_id = vocabulary.word_to_id['<unk>']
         self.assertAlmostEqual(vocabulary._unigram_probs[word_id], 0.0)
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 1.0)

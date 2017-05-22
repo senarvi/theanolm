@@ -5,6 +5,7 @@
 
 import numpy
 import h5py
+import theano
 
 from theanolm.vocabulary.wordclass import WordClass
 from theanolm.parsing import utterance_from_line
@@ -295,8 +296,13 @@ class Vocabulary(object):
 
     def compute_probs(self, word_counts, update_class_probs=True):
         """Computes word unigram probabilities and possibly recomputes class
-        membership probabilities from word counts. Class membership
-        probabilities are updates only for classes whose words occur in
+        membership probabilities from word counts.
+
+        Word unigram probabilities are computed for all words, excluding the
+        start of sentence token.
+
+        Class membership probabilities are updates only if
+        ``update_class_probs`` is ``True`` and for classes whose words occur in
         ``word_counts``.
 
         Ensures that special tokens will always have nonzero probabilities.
@@ -308,20 +314,26 @@ class Vocabulary(object):
         :param input_files: input text files
         """
 
+        sos_id = self.word_to_id['<s>']
+        eos_id = self.word_to_id['</s>']
+        unk_id = self.word_to_id['<unk>']
+
         counts = numpy.zeros(self.num_words(), dtype='int64')
         for word, count in word_counts.items():
             if word in self.word_to_id:
                 word_id = self.word_to_id[word]
                 if word_id < counts.size:
                     counts[word_id] = count
-        self._unigram_probs = counts / counts.sum()
+
+        self._unigram_probs = counts.astype(theano.config.floatX)
+        self._unigram_probs[sos_id] = 0.0
+        total = self._unigram_probs.sum()
+        if total > 0:
+            self._unigram_probs /= total
 
         if not update_class_probs:
             return
 
-        sos_id = self.word_to_id['<s>']
-        eos_id = self.word_to_id['</s>']
-        unk_id = self.word_to_id['<unk>']
         counts[sos_id] = max(counts[sos_id], 1)
         counts[eos_id] = max(counts[eos_id], 1)
         counts[unk_id] = max(counts[unk_id], 1)
