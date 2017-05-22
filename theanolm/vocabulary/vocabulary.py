@@ -20,16 +20,15 @@ class Vocabulary(object):
     mapped to a class and they are not predicted by the neural network.
     """
 
-    def __init__(self, id_to_word, word_id_to_class_id, word_classes,
-                 oos_words=None):
+    def __init__(self, id_to_word, word_id_to_class_id, word_classes):
         """If the special tokens <s>, </s>, and <unk> don't exist in the word
         list, adds them and creates a separate class for each token. Then
         constructs a vocabulary based on given word-to-class mapping.
 
-        The lists ``id_to_word`` and ``word_id_to_class_id`` have to be
-        equal-sized. They are defined for every shortlist word. The list
-        ``oos_words`` may contain out-of-shortlist words that will be added to
-        the vocabulary if they don't exist in ``id_to_word`` already.
+        ``id_to_word`` defines the ID (continuous index) of every word.
+        ``word_id_to_class_id`` defines the classes of shortlist words only. If
+        ``id_to_word`` is longer that ``word_id_to_class_id``, the rest of the
+        words will be considered out-of-shortlist.
 
         :type id_to_word: list of strs
         :param id_to_word: mapping from word IDs to word names
@@ -47,13 +46,11 @@ class Vocabulary(object):
                           ``id_to_word``
         """
 
-        if len(id_to_word) != len(word_id_to_class_id):
-            raise ValueError("Vocabulary constructor requires equal-sized "
-                             "id_to_word and word_id_to_class_id lists.")
-
         if '<s>' not in id_to_word:
             word_id = len(id_to_word)
-            assert word_id == len(word_id_to_class_id)
+            if word_id != len(word_id_to_class_id):
+                raise ValueError("Trying to construct shortlist vocabulary "
+                                 "without <s>.")
             class_id = len(word_classes)
             id_to_word.append('<s>')
             word_id_to_class_id.append(class_id)
@@ -62,7 +59,9 @@ class Vocabulary(object):
 
         if '</s>' not in id_to_word:
             word_id = len(id_to_word)
-            assert word_id == len(word_id_to_class_id)
+            if word_id != len(word_id_to_class_id):
+                raise ValueError("Trying to construct shortlist vocabulary "
+                                 "without </s>.")
             class_id = len(word_classes)
             id_to_word.append('</s>')
             word_id_to_class_id.append(class_id)
@@ -71,17 +70,14 @@ class Vocabulary(object):
 
         if '<unk>' not in id_to_word:
             word_id = len(id_to_word)
-            assert word_id == len(word_id_to_class_id)
+            if word_id != len(word_id_to_class_id):
+                raise ValueError("Trying to construct shortlist vocabulary "
+                                 "without <unk>.")
             class_id = len(word_classes)
             id_to_word.append('<unk>')
             word_id_to_class_id.append(class_id)
             word_class = WordClass(class_id, word_id, 1.0)
             word_classes.append(word_class)
-
-        if oos_words is not None:
-            for word in oos_words:
-                if word not in id_to_word:
-                    id_to_word.append(word)
 
         index = len(word_classes) - 1
         while index >= 0:
@@ -191,7 +187,12 @@ class Vocabulary(object):
             assert word_id == len(word_id_to_class_id)
             word_id_to_class_id.append(class_id)
 
-        return cls(id_to_word, word_id_to_class_id, word_classes, oos_words)
+        if oos_words is not None:
+            for word in oos_words:
+                if word not in id_to_word:
+                    id_to_word.append(word)
+
+        return cls(id_to_word, word_id_to_class_id, word_classes)
 
     @classmethod
     def from_word_counts(cls, word_counts, num_classes=None):
@@ -352,7 +353,13 @@ class Vocabulary(object):
         h5_vocabulary = state.require_group('vocabulary')
 
         if 'words' in h5_vocabulary:
-            state['words'][:] = self.id_to_word
+            # XXX For backward compatibility. Remove at some point. XXX
+            del h5_vocabulary['words']
+            str_dtype = h5py.special_dtype(vlen=str)
+            h5_vocabulary.create_dataset('words',
+                                         data=self.id_to_word,
+                                         dtype=str_dtype)
+#            h5_vocabulary['words'][:] = self.id_to_word
         else:
             str_dtype = h5py.special_dtype(vlen=str)
             h5_vocabulary.create_dataset('words',
@@ -360,7 +367,7 @@ class Vocabulary(object):
                                          dtype=str_dtype)
 
         if 'classes' in h5_vocabulary:
-            state['classes'][:] = self.word_id_to_class_id
+            h5_vocabulary['classes'][:] = self.word_id_to_class_id
         else:
             h5_vocabulary.create_dataset('classes',
                                          data=self.word_id_to_class_id)
@@ -368,13 +375,13 @@ class Vocabulary(object):
         probs = [self._word_classes[class_id].get_prob(word_id)
                  for word_id, class_id in enumerate(self.word_id_to_class_id)]
         if 'probs' in h5_vocabulary:
-            state['probs'][:] = probs
+            h5_vocabulary['probs'][:] = probs
         else:
             h5_vocabulary.create_dataset('probs', data=probs)
 
         if self.has_unigram_probs():
             if 'unigram_probs' in h5_vocabulary:
-                state['unigram_probs'][:] = self._unigram_probs
+                h5_vocabulary['unigram_probs'][:] = self._unigram_probs
             else:
                 h5_vocabulary.create_dataset('unigram_probs',
                                              data=self._unigram_probs)
