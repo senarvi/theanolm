@@ -15,8 +15,8 @@ class TextScorer(object):
     """Text Scoring Using a Neural Network Language Model
     """
 
-    def __init__(self, network, use_shortlist=True, ignore_unk=False,
-                 unk_penalty=None, profile=False):
+    def __init__(self, network, use_shortlist=True, exclude_unk=False,
+                 profile=False):
         """Creates two Theano function, ``self._target_logprobs_function()``,
         which computes the log probabilities predicted by the neural network for
         the words in a mini-batch, and ``self._total_logprob_function()``, which
@@ -35,9 +35,10 @@ class TextScorer(object):
 
         ``self._target_logprobs_function()`` will return a matrix of predicted
         log probabilities for the output words (excluding the first time step)
-        and the mask after possibly applying special UNK handling.
-        ``self._total_logprob_function()`` will return the total log probability
-        of the predicted (unmasked) words and the number of those words.
+        and the mask. ``<unk>`` tokens are also masked out if ``exclude_unk`` is
+        set to ``True``. ``self._total_logprob_function()`` will return the
+        total log probability of the predicted (unmasked) words and the number
+        of those words.
 
         :type network: Network
         :param network: the neural network object
@@ -46,20 +47,14 @@ class TextScorer(object):
         :param use_shortlist: if ``True``, the ``<unk>`` probability is
                               distributed among the out-of-shortlist words
 
-        :type ignore_unk: bool
-        :param ignore_unk: if set to ``True``, ``<unk>`` tokens are excluded
-                           from perplexity computation
-
-        :type unk_penalty: float
-        :param unk_penalty: if set to othern than None, used as ``<unk>`` token
-                            score
+        :type exclude_unk: bool
+        :param exclude_unk: if set to ``True``, ``<unk>`` tokens are excluded
+                            from probability computation
 
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
         """
 
-        self._ignore_unk = ignore_unk
-        self._unk_penalty = unk_penalty
         self._vocabulary = network.vocabulary
         self._unk_id = self._vocabulary.word_to_id['<unk>']
 
@@ -102,27 +97,13 @@ class TextScorer(object):
             # probability) is multiplied by the fraction of the actual word
             # within the set of OOS words.
             logprobs += network.oos_logprobs[target_word_ids]
-            # If OOV probability is given, use it for unseen words, otherwise
-            # ignore them.
-            if self._ignore_unk or self._unk_penalty is None:
-                mask *= tensor.neq(target_word_ids, self._unk_id)
-            else:
-                unk_mask = tensor.eq(target_word_ids, self._unk_id)
-                unk_indices = unk_mask.nonzero()
-                logprobs = tensor.set_subtensor(logprobs[unk_indices],
-                                                self._unk_penalty)
-        else:
-            # If requested, ignore OOS and OOV probabilities or predict them
-            # with a constant score.
-            if self._ignore_unk:
-                mask *= tensor.neq(target_word_ids, self._unk_id)
-                mask *= tensor.lt(target_word_ids, shortlist_size)
-            elif self._unk_penalty is not None:
-                unk_mask = tensor.eq(target_word_ids, self._unk_id)
-                unk_mask += tensor.ge(target_word_ids, shortlist_size)
-                unk_indices = unk_mask.nonzero()
-                logprobs = tensor.set_subtensor(logprobs[unk_indices],
-                                                self._unk_penalty)
+            # Always exclude OOV words when using a shortlist - No probability
+            # mass is left for them.
+            mask *= tensor.neq(target_word_ids, self._unk_id)
+        elif exclude_unk:
+            # If requested, ignore OOS and OOV probabilities.
+            mask *= tensor.neq(target_word_ids, self._unk_id)
+            mask *= tensor.lt(target_word_ids, shortlist_size)
         logprobs *= tensor.cast(mask, theano.config.floatX)
 
         # Ignore unused input variables, because is_training is only used by
@@ -160,7 +141,7 @@ class TextScorer(object):
         transpose of those of the input matrices, so that the first index is the
         sequence, not the time step. The lists will contain ``None`` values in
         place of any <unk> tokens, if the constructor was given
-        ``ignore_unk=True``.
+        ``exclude_unk=True``.
 
         :type word_ids: numpy.ndarray of an integer type
         :param word_ids: a 2-dimensional matrix, indexed by time step and
@@ -322,13 +303,3 @@ class TextScorer(object):
                  for word_id in word_ids]
 
         return self.score_sequence(word_ids, class_ids, probs)
-
-    def unk_ignored(self):
-        """Indicates whether the scorer ignores <unk> tokens.
-
-        :rtype: bool
-        :returns: ``True`` if the scorer ignores <unk> tokens, ``False``
-                  otherwise.
-        """
-
-        return self._ignore_unk

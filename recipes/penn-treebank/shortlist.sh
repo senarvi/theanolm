@@ -42,4 +42,4 @@ LEARNING_RATE=1
 rm -f "${OUTPUT_DIR}/nnlm.h5"
 mv -f "${script_dir}/shortlist.log" "${script_dir}/shortlist.log~" 2>/dev/null || true
 train | tee "${script_dir}/shortlist.log"
-#compute_perplexity | tee --append "${script_dir}/shortlist.log"
+compute_perplexity | tee --append "${script_dir}/shortlist.log"

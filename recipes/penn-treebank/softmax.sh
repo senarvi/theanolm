@@ -37,7 +37,7 @@ COST=cross-entropy
 LEARNING_RATE=1
 #DEBUG=1
 
-rm -f "${OUTPUT_DIR}/nnlm.h5"
-mv -f "${script_dir}/softmax.log" "${script_dir}/softmax.log~" 2>/dev/null || true
-train | tee "${script_dir}/softmax.log"
+#rm -f "${OUTPUT_DIR}/nnlm.h5"
+#mv -f "${script_dir}/softmax.log" "${script_dir}/softmax.log~" 2>/dev/null || true
+#train | tee "${script_dir}/softmax.log"
 compute_perplexity | tee --append "${script_dir}/softmax.log"

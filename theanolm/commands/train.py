@@ -146,10 +146,8 @@ def add_arguments(parser):
              'distribution and 1.0 corresponds to the unigram distribution '
              '(default 0.5)')
     argument_group.add_argument(
-        '--unk-penalty', metavar='LOGPROB', type=float, default=None,
-        help="if LOGPROB is zero, do not include <unk> tokens in perplexity "
-             "computation; otherwise use constant LOGPROB as <unk> token score "
-             "(default is to use the network to predict <unk> probability)")
+        '--exclude-unk', action="store_true",
+        help="exclude <unk> tokens from cost and perplexity computations")
     argument_group.add_argument(
         '--weights', metavar='LAMBDA', type=float, nargs='*', default=[],
         help='scale a mini-batch update by LAMBDA if the data is from the '
@@ -318,16 +316,6 @@ def train(args):
                   "to fail.".format(args.num_noise_samples))
             sys.exit(1)
 
-        if args.unk_penalty is None:
-            ignore_unk = False
-            unk_penalty = None
-        elif args.unk_penalty == 0:
-            ignore_unk = True
-            unk_penalty = None
-        else:
-            ignore_unk = False
-            unk_penalty = args.unk_penalty
-
         num_training_files = len(args.training_set)
         if len(args.weights) > num_training_files:
             print("You specified more weights than training files.")
@@ -362,8 +350,7 @@ def train(args):
             'cost_function': args.cost,
             'num_noise_samples': args.num_noise_samples,
             'noise_sharing': args.noise_sharing,
-            'ignore_unk': ignore_unk,
-            'unk_penalty': unk_penalty
+            'exclude_unk': args.exclude_unk
         }
         logging.debug("OPTIMIZATION OPTIONS")
         for option_name, option_value in optimization_options.items():
@@ -417,7 +404,7 @@ def train(args):
             print("Building text scorer for cross-validation.")
             sys.stdout.flush()
             scorer = TextScorer(network, use_shortlist=True,
-                                ignore_unk=ignore_unk, unk_penalty=unk_penalty,
+                                exclude_unk=args.exclude_unk,
                                 profile=args.profile)
             print("Validation text:", args.validation_file.name)
             validation_mmap = mmap.mmap(args.validation_file.fileno(),

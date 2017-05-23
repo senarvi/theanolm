@@ -88,7 +88,7 @@ class TestTextScorer(unittest.TestCase):
 
         # OOV and OOS words are replaced with None.
         scorer = TextScorer(self.dummy_network, use_shortlist=False,
-                            ignore_unk=True)
+                            exclude_unk=True)
         word_ids = numpy.arange(15).reshape((3, 5)).T
         class_ids, _ = self.vocabulary.get_class_memberships(word_ids)
         membership_probs = numpy.ones_like(word_ids).astype('float32')
@@ -103,44 +103,6 @@ class TestTextScorer(unittest.TestCase):
         self.assertIsNone(logprobs[2][1]) # <unk>
         self.assertIsNone(logprobs[2][2])
         self.assertIsNone(logprobs[2][3])
-
-        # OOV and OOS words are assigned a constant logprob.
-        scorer = TextScorer(self.dummy_network, use_shortlist=False,
-                            ignore_unk=False, unk_penalty=-5)
-        word_ids = numpy.arange(15).reshape((3, 5)).T
-        class_ids, _ = self.vocabulary.get_class_memberships(word_ids)
-        membership_probs = numpy.ones_like(word_ids).astype('float32')
-        mask = numpy.ones_like(word_ids)
-        logprobs = scorer.score_batch(word_ids, class_ids, membership_probs,
-                                      mask)
-        assert_almost_equal(logprobs[0],
-                            numpy.log(word_ids[1:,0].astype('float32') / 5.0))
-        assert_almost_equal(logprobs[1],
-                            numpy.log(word_ids[1:,1].astype('float32') / 5.0))
-        self.assertAlmostEqual(logprobs[2][0], numpy.log(11.0 / 5.0), places=5)  # </s>
-        self.assertAlmostEqual(logprobs[2][1], -5) # <unk>
-        self.assertAlmostEqual(logprobs[2][2], -5)
-        self.assertAlmostEqual(logprobs[2][3], -5)
-
-        # <unk> probability predicted by the network is distributed for OOS
-        # words according to word frequency. OOV words are assigned a constant
-        # logprob.
-        scorer = TextScorer(self.dummy_network, use_shortlist=True,
-                            ignore_unk=False, unk_penalty=-5)
-        word_ids = numpy.arange(15).reshape((3, 5)).T
-        class_ids, _ = self.vocabulary.get_class_memberships(word_ids)
-        membership_probs = numpy.ones_like(word_ids).astype('float32')
-        mask = numpy.ones_like(word_ids)
-        logprobs = scorer.score_batch(word_ids, class_ids, membership_probs,
-                                      mask)
-        assert_almost_equal(logprobs[0],
-                            numpy.log(word_ids[1:,0].astype('float32') / 5.0))
-        assert_almost_equal(logprobs[1],
-                            numpy.log(word_ids[1:,1].astype('float32') / 5.0))
-        self.assertAlmostEqual(logprobs[2][0], numpy.log(11.0 / 5.0), places=5)  # </s>
-        self.assertAlmostEqual(logprobs[2][1], -5, places=5) # <unk>
-        self.assertAlmostEqual(logprobs[2][2], numpy.log(12.0 / 5.0 * 0.3), places=5)
-        self.assertAlmostEqual(logprobs[2][3], numpy.log(12.0 / 5.0 * 0.7), places=5)
 
     def test_score_sequence(self):
         # Network predicts <unk> probability.
@@ -173,7 +135,7 @@ class TestTextScorer(unittest.TestCase):
 
         # OOV and OOS words are excluded from the resulting logprobs.
         scorer = TextScorer(self.dummy_network, use_shortlist=False,
-                            ignore_unk=True)
+                            exclude_unk=True)
         word_ids = numpy.arange(15)
         class_ids, _ = self.vocabulary.get_class_memberships(word_ids)
         membership_probs = numpy.ones_like(word_ids).astype('float32')
@@ -181,40 +143,6 @@ class TestTextScorer(unittest.TestCase):
         correct = word_ids[1:12].astype('float32')
         correct /= 5.0
         correct = numpy.log(correct).sum()
-        self.assertAlmostEqual(logprob, correct, places=5)
-
-        # OOV and OOS words are assigned a constant logprob.
-        scorer = TextScorer(self.dummy_network, use_shortlist=False,
-                            ignore_unk=False, unk_penalty=-5)
-        word_ids = numpy.arange(15)
-        class_ids, _ = self.vocabulary.get_class_memberships(word_ids)
-        membership_probs = numpy.ones_like(word_ids).astype('float32')
-        logprob = scorer.score_sequence(word_ids, class_ids, membership_probs)
-        correct = word_ids[1:].astype('float32')
-        correct /= 5.0
-        correct = numpy.log(correct)
-        correct[11] = -5.0 # <unk>
-        correct[12] = -5.0
-        correct[13] = -5.0
-        correct = correct.sum()
-        self.assertAlmostEqual(logprob, correct, places=5)
-
-        # <unk> probability predicted by the network is distributed for OOS
-        # words according to word frequency. OOV words are assigned a constant
-        # logprob.
-        scorer = TextScorer(self.dummy_network, use_shortlist=True,
-                            ignore_unk=False, unk_penalty=-5)
-        word_ids = numpy.arange(15)
-        class_ids, _ = self.vocabulary.get_class_memberships(word_ids)
-        membership_probs = numpy.ones_like(word_ids).astype('float32')
-        logprob = scorer.score_sequence(word_ids, class_ids, membership_probs)
-        correct = word_ids[1:].astype('float32')
-        correct /= 5.0
-        correct[12] = 12.0 / 5.0 * 0.3
-        correct[13] = 12.0 / 5.0 * 0.7
-        correct = numpy.log(correct)
-        correct[11] = -5.0 # <unk>
-        correct = correct.sum()
         self.assertAlmostEqual(logprob, correct, places=5)
 
 if __name__ == '__main__':

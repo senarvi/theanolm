@@ -13,6 +13,53 @@ from theanolm.vocabulary.wordclass import WordClass
 from theanolm.parsing import utterance_from_line
 from theanolm.exceptions import IncompatibleStateError, InputError
 
+def _add_special_tokens(id_to_word, word_id_to_class_id, word_classes):
+    """Makes sure that the special symbols ``<s>``, ``</s>``, and ``<unk>``
+    exist in the word list ``id_to_word``. If not, creates them and their word
+    classes.
+
+    :type id_to_word: list of strs
+    :param id_to_word: mapping from word IDs to word names
+
+    :type word_id_to_class_id: list of ints
+    :param word_id_to_class_id: mapping from word IDs to indices in
+                                ``word_classes``
+
+    :type word_classes: list of WordClass objects
+    :param word_classes: list of all the word classes
+    """
+
+    if len(id_to_word) != len(word_id_to_class_id):
+        raise ValueError("Every word must be assigned to a class before adding "
+                         "special tokens.")
+
+    if '<s>' not in id_to_word:
+        word_id = len(id_to_word)
+        assert word_id == len(word_id_to_class_id)
+        class_id = len(word_classes)
+        id_to_word.append('<s>')
+        word_id_to_class_id.append(class_id)
+        word_class = WordClass(class_id, word_id, 1.0)
+        word_classes.append(word_class)
+
+    if '</s>' not in id_to_word:
+        word_id = len(id_to_word)
+        assert word_id == len(word_id_to_class_id)
+        class_id = len(word_classes)
+        id_to_word.append('</s>')
+        word_id_to_class_id.append(class_id)
+        word_class = WordClass(class_id, word_id, 1.0)
+        word_classes.append(word_class)
+
+    if '<unk>' not in id_to_word:
+        word_id = len(id_to_word)
+        assert word_id == len(word_id_to_class_id)
+        class_id = len(word_classes)
+        id_to_word.append('<unk>')
+        word_id_to_class_id.append(class_id)
+        word_class = WordClass(class_id, word_id, 1.0)
+        word_classes.append(word_class)
+
 class Vocabulary(object):
     """Word or Class Vocabulary
 
@@ -24,9 +71,10 @@ class Vocabulary(object):
     """
 
     def __init__(self, id_to_word, word_id_to_class_id, word_classes):
-        """If the special tokens <s>, </s>, and <unk> don't exist in the word
-        list, adds them and creates a separate class for each token. Then
-        constructs a vocabulary based on given word-to-class mapping.
+        """Constructs a vocabulary based on given word-to-class mapping.
+
+        Expects the special tokens ``<s>``, ``</s>``, and ``<unk>`` to exist in
+        the word list
 
         ``id_to_word`` defines the ID (continuous index) of every word.
         ``word_id_to_class_id`` defines the classes of shortlist words only. If
@@ -42,45 +90,12 @@ class Vocabulary(object):
 
         :type word_classes: list of WordClass objects
         :param word_classes: list of all the word classes
-
-        :type oos_words: list of strs
-        :param oos_words: add words from this list to the vocabulary as
-                          out-of-shortlist words, if they're not in
-                          ``id_to_word``
         """
 
-        if '<s>' not in id_to_word:
-            word_id = len(id_to_word)
-            if word_id != len(word_id_to_class_id):
-                raise ValueError("Trying to construct shortlist vocabulary "
-                                 "without <s>.")
-            class_id = len(word_classes)
-            id_to_word.append('<s>')
-            word_id_to_class_id.append(class_id)
-            word_class = WordClass(class_id, word_id, 1.0)
-            word_classes.append(word_class)
-
-        if '</s>' not in id_to_word:
-            word_id = len(id_to_word)
-            if word_id != len(word_id_to_class_id):
-                raise ValueError("Trying to construct shortlist vocabulary "
-                                 "without </s>.")
-            class_id = len(word_classes)
-            id_to_word.append('</s>')
-            word_id_to_class_id.append(class_id)
-            word_class = WordClass(class_id, word_id, 1.0)
-            word_classes.append(word_class)
-
-        if '<unk>' not in id_to_word:
-            word_id = len(id_to_word)
-            if word_id != len(word_id_to_class_id):
-                raise ValueError("Trying to construct shortlist vocabulary "
-                                 "without <unk>.")
-            class_id = len(word_classes)
-            id_to_word.append('<unk>')
-            word_id_to_class_id.append(class_id)
-            word_class = WordClass(class_id, word_id, 1.0)
-            word_classes.append(word_class)
+        if ('<s>' not in id_to_word) or ('</s>' not in id_to_word) or \
+           ('<unk>' not in id_to_word):
+            raise ValueError("Trying to construct shortlist vocabulary without "
+                             "the special tokens <s>, </s>, and <unk>.")
 
         index = len(word_classes) - 1
         while index >= 0:
@@ -190,6 +205,8 @@ class Vocabulary(object):
             assert word_id == len(word_id_to_class_id)
             word_id_to_class_id.append(class_id)
 
+        _add_special_tokens(id_to_word, word_id_to_class_id, word_classes)
+
         if oos_words is not None:
             for word in oos_words:
                 if word not in id_to_word:
@@ -211,9 +228,8 @@ class Vocabulary(object):
                             special classes, or None for one class per word
         """
 
-        # The special tokens are created automatically by the constructor. They
-        # should not be included when creating the classes, so create a copy of
-        # the word counts without the special tokens.
+        # The special tokens should not be included when creating the classes.
+        # They are added to separate classes in the end.
         word_counts = dict(word_counts)
         if '<s>' in word_counts:
             del word_counts['<s>']
@@ -245,6 +261,8 @@ class Vocabulary(object):
             assert word_id == len(word_id_to_class_id)
             word_id_to_class_id.append(class_id)
             class_id = (class_id + 1) % num_classes
+
+        _add_special_tokens(id_to_word, word_id_to_class_id, word_classes)
 
         return cls(id_to_word, word_id_to_class_id, word_classes)
 
@@ -345,10 +363,12 @@ class Vocabulary(object):
         total = self._unigram_probs.sum()
         if total > 0:
             self._unigram_probs /= total
-        logging.debug("Word unigram log probabilities are in the range [%f, "
-                      "%f].",
-                      numpy.log(self._unigram_probs.min()),
-                      numpy.log(self._unigram_probs.max()))
+        oos_probs = self._unigram_probs[self.num_shortlist_words():]
+        if oos_probs.size:
+            logging.debug("Out-of-shortlist word log probabilities are in the "
+                          "range [%f, %f].",
+                          numpy.log(oos_probs.min()),
+                          numpy.log(oos_probs.max()))
 
         if not update_class_probs:
             return

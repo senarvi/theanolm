@@ -73,7 +73,7 @@ class Trainer(object):
         self.class_prior_probs = class_counts.astype(theano.config.floatX)
         if total_count > 0:
             self.class_prior_probs /= total_count
-        logging.debug("Class unigram log probabilities are in the range [%f, ",
+        logging.debug("Class unigram log probabilities are in the range [%f, "
                       "%f].",
                       numpy.log(self.class_prior_probs.min()),
                       numpy.log(self.class_prior_probs.max()))

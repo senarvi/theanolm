@@ -67,12 +67,8 @@ class BasicOptimizer(object, metaclass=ABCMeta):
             num_noise_samples = optimization_options['num_noise_samples']
             # noise sample sharing for sampling based output
             noise_sharing = optimization_options['noise_sharing']
-            # ignore <unk> tokens?
-            self._ignore_unk = optimization_options['ignore_unk']
-            # penalty for <unk> tokens
-            unk_penalty = optimization_options['unk_penalty']
-            # ignore <unk> tokens?
-            self._ignore_unk = optimization_options['ignore_unk']
+            # exclude <unk> tokens from cost computation?
+            self._exclude_unk = optimization_options['exclude_unk']
         except KeyError as e:
             raise ValueError("Option {} is missing from optimization options."
                              .format(e))
@@ -101,16 +97,11 @@ class BasicOptimizer(object, metaclass=ABCMeta):
             raise ValueError("Invalid cost function requested: `{}'".
                              format(cost_function))
 
-        # If requested, predict <unk> with constant score.
-        if unk_penalty is not None:
-            unk_mask = tensor.eq(self.network.target_word_ids, unk_id)
-            unk_indices = unk_mask.nonzero()
-            logprobs = tensor.set_subtensor(logprobs[unk_indices], unk_penalty)
         # Do not predict masked and possibly <unk> tokens. The mask has to be
         # cast to floatX, otherwise the result will be float64 and pulled out
         # from the GPU earlier than necessary.
         mask = self.network.mask
-        if self._ignore_unk:
+        if self._exclude_unk:
             mask *= tensor.neq(self.network.target_word_ids, unk_id)
         logprobs *= tensor.cast(mask, theano.config.floatX)
         # Cost is the negative log probability normalized by the number of
@@ -215,7 +206,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         self.gradient_update_function(word_ids, class_ids, mask)
 
         alpha = self.learning_rate
-        if self._ignore_unk:
+        if self._exclude_unk:
             mask *= tensor.neq(target_word_ids, unk_id)
         num_words = numpy.count_nonzero(mask)
         float_type = numpy.dtype(theano.config.floatX).type

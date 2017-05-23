@@ -45,10 +45,8 @@ def add_arguments(parser):
         help='convert output log probabilities to base B (default is the '
              'natural logarithm)')
     argument_group.add_argument(
-        '--unk-penalty', metavar='LOGPROB', type=float, default=None,
-        help='if LOGPROB is zero, do not include <unk> tokens in perplexity '
-             'computation; otherwise use constant LOGPROB as <unk> token score '
-             '(default is to use the network to predict <unk> probability)')
+        '--exclude-unk', action="store_true",
+        help="exclude <unk> tokens from perplexity computation")
     argument_group.add_argument(
         '--subwords', metavar='MARKING', type=str, default=None,
         help='the subword vocabulary uses MARKING to indicate how words are '
@@ -107,17 +105,7 @@ def score(args):
 
     print("Building text scorer.")
     sys.stdout.flush()
-    if args.unk_penalty is None:
-        ignore_unk = False
-        unk_penalty = None
-    elif args.unk_penalty == 0:
-        ignore_unk = True
-        unk_penalty = None
-    else:
-        ignore_unk = False
-        unk_penalty = args.unk_penalty
-    scorer = TextScorer(network, args.shortlist, ignore_unk, unk_penalty,
-                        args.profile)
+    scorer = TextScorer(network, args.shortlist, args.exclude_unk, args.profile)
 
     print("Scoring text.")
     if args.output == 'perplexity':
@@ -166,7 +154,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
     :param word_level: if set to True, also writes word-level statistics
     """
 
-    validation_iter = \
+    scoring_iter = \
         ScoringBatchIterator(input_file,
                              vocabulary,
                              batch_size=16,
@@ -180,7 +168,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
     num_words = 0
     num_unks = 0
     num_probs = 0
-    for word_ids, words, mask in validation_iter:
+    for word_ids, words, mask in scoring_iter:
         class_ids, membership_probs = vocabulary.get_class_memberships(word_ids)
         logprobs = scorer.score_batch(word_ids, class_ids, membership_probs,
                                       mask)
