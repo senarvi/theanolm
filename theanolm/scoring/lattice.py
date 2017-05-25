@@ -37,6 +37,7 @@ class Lattice(object):
             self.start_node = start_node
             self.end_node = end_node
             self.word = None
+            self.graph_logprob = None
             self.ac_logprob = None
             self.lm_logprob = None
 
@@ -60,6 +61,7 @@ class Lattice(object):
             self.in_links = []
             self.time = None
             self.best_logprob = None
+            self.final = False
 
     def __init__(self):
         """Constructs an empty lattice.
@@ -68,7 +70,6 @@ class Lattice(object):
         self.nodes = []
         self.links = []
         self.initial_node = None
-        self.final_node = None
         self.utterance_id = None
         self.lm_scale = None
         self.wi_penalty = None

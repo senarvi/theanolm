@@ -76,7 +76,7 @@ class SLFLattice(Lattice):
         self._log_scale = logprob_type(1.0)
 
         self._initial_node_id = None
-        self._final_node_id = None
+        self._final_node_ids = []
 
         if lattice_file is None:
             self._num_nodes = 0
@@ -125,17 +125,19 @@ class SLFLattice(Lattice):
             if self.initial_node is None:
                 raise InputError("Could not find initial node in SLF lattice.")
 
-        if self._final_node_id is not None:
-            self.final_node = self.nodes[self._final_node_id]
-        else:
-            # Find the node with no outgoing links.
-            self.final_node = None
-            for node in self.nodes:
-                if len(node.out_links) == 0:
-                    self.final_node = node
-                    break
-            if self.final_node is None:
-                raise InputError("Could not find final node in SLF lattice.")
+        final_nodes_found = 0
+        for node in self.nodes:
+            if node.id in self._final_node_ids or len(node.out_links) == 0:
+                node.final = True
+                final_nodes_found += 1
+
+        if final_nodes_found == 0:
+            raise InputError("Could not find final node in SLF lattice.")
+        elif final_nodes_found > 1:
+            # Peter: Not sure if multiple final nodes are allowed, but for now raise an input error. The
+            # decoder supports multiple final nodes no problem
+            raise InputError("More then one final node in SLF lattice.")
+
 
         # If word identity information is not present in node definitions then
         # it must appear in link definitions.
@@ -172,7 +174,7 @@ class SLFLattice(Lattice):
             elif name == 'start':
                 self._initial_node_id = int(value)
             elif name == 'end':
-                self._final_node_id = int(value)
+                self._final_node_ids.append(int(value))
             elif (name == 'NODES') or (name == 'N'):
                 self._num_nodes = int(value)
             elif (name == 'LINKS') or (name == 'L'):
