@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Executable that launches wctool command.
+"""
 
 from traceback import format_tb
 import logging
 import sys
+
 from wordclasses import main
 
 def exception_handler(exception_type, exception, traceback):
+    """Exception handler. Writes stack trace in case of uncaught exceptions to
+    debug log.
+    """
+
     print("{}: {}".format(exception_type.__name__, exception))
     logging.debug("Traceback:")
     for item in format_tb(traceback):

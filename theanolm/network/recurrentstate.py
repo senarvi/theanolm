@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the RecurrentState class, for storing the hidden
+state of recurrent layers.
+"""
 
 import numpy
 import theano
@@ -45,7 +48,7 @@ class RecurrentState:
             self.set(state_variables)
 
     @classmethod
-    def combine_sequences(classname, states):
+    def combine_sequences(cls, states):
         """Creates recurrent state variables that combine all the sequences from
         the given list of state objects.
 
@@ -82,7 +85,7 @@ class RecurrentState:
             sizes.append(state_variable.shape[2])
             state_variables.append(state_variable)
 
-        return classname(sizes, num_sequences, state_variables)
+        return cls(sizes, num_sequences, state_variables)
 
     def reset(self):
         """Resets the state of each recurrent layer to zeros.

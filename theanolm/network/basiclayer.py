@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the BasicLayer class, a base class for all layers.
+"""
 
 from abc import abstractmethod, ABCMeta
 import logging
-import numpy
-import theano
+
 import theano.tensor as tensor
+
 from theanolm import Parameters
 from theanolm.network.weightfunctions import random_matrix, matrix_from_value
 
@@ -51,13 +53,13 @@ class BasicLayer(object, metaclass=ABCMeta):
             self._reverse_time = False
 
         logging.debug("- %s name=%s inputs=[%s] size=%d depth=%d%s devices=[%s]",
-            self.__class__.__name__,
-            self.name,
-            ', '.join([x.name for x in self._input_layers]),
-            self.output_size,
-            self.output_depth,
-            ' reverse,' if self._reverse_time else '',
-            ', '.join([str(x) for x in self._devices]))
+                      self.__class__.__name__,
+                      self.name,
+                      ', '.join([x.name for x in self._input_layers]),
+                      self.output_size,
+                      self.output_depth,
+                      ' reverse,' if self._reverse_time else '',
+                      ', '.join([str(x) for x in self._devices]))
 
         self._network = network
         self._profile = profile
@@ -135,7 +137,7 @@ class BasicLayer(object, metaclass=ABCMeta):
         """
 
         result = 'layers/' + self.name + '/' + param_name
-        if not device is None:
+        if device is not None:
             result += '/' + device
         return result
 
@@ -199,7 +201,7 @@ class BasicLayer(object, metaclass=ABCMeta):
         weight = random_matrix(shape, scale, count)
         if not split_to_devices:
             self._params.add(path, random_matrix(shape, scale, count))
-        elif (len(self._devices) == 1) and (self._devices[0] == None):
+        elif (len(self._devices) == 1) and (self._devices[0] is None):
             # This layer has not been assigned to a specific device.
             self._params.add(path, random_matrix(shape, scale, count))
         else:
@@ -239,7 +241,7 @@ class BasicLayer(object, metaclass=ABCMeta):
         bias = matrix_from_value(shape, value)
         if not split_to_devices:
             self._params.add(path, matrix_from_value(shape, value))
-        elif (len(self._devices) == 1) and (self._devices[0] == None):
+        elif (len(self._devices) == 1) and (self._devices[0] is None):
             # This layer has not been assigned to a specific device.
             self._params.add(path, matrix_from_value(shape, value))
         else:
@@ -273,7 +275,7 @@ class BasicLayer(object, metaclass=ABCMeta):
         split_sizes = self._size_per_device(part_size)
         split_start = 0
         for device, split_size in zip(self._devices, split_sizes):
-            assert not device is None
+            assert device is not None
             split_end = split_start + split_size
             ranges = []
             for part_index in range(part_count):

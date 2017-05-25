@@ -1,20 +1,32 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the "theanolm train" command.
+"""
 
 import sys
 import mmap
 import logging
-import numpy
+
 import h5py
+import numpy
 import theano
+
 from theanolm import Vocabulary, Architecture, Network
-from theanolm import LinearBatchIterator
+from theanolm.parsing import LinearBatchIterator
 from theanolm.training import Trainer, create_optimizer
 from theanolm.scoring import TextScorer
 from theanolm.filetypes import TextFileType
+from theanolm.vocabulary import compute_word_counts
 
 def add_arguments(parser):
-    argument_group = parser.add_argument_group("files")
+    """Specifies the command line arguments supported by the "theanolm train"
+    command.
+
+    :type parser: argparse.ArgumentParser
+    :param parser: a command line argument parser
+    """
+
+    argument_group = parser.add_argument_group("data")
     argument_group.add_argument(
         'model_path', metavar='MODEL-FILE', type=str,
         help='path where the best model state will be saved in HDF5 binary '
@@ -30,6 +42,8 @@ def add_arguments(parser):
         help='text file containing validation data for early stopping (UTF-8, '
              'one sentence per line, assumed to be compressed if the name ends '
              'in ".gz")')
+
+    argument_group = parser.add_argument_group("vocabulary")
     argument_group.add_argument(
         '--vocabulary', metavar='FILE', type=str, default=None,
         help='word or class vocabulary to be used in the neural network input '
@@ -42,16 +56,17 @@ def add_arguments(parser):
              '"words" (one word per line, default), "classes" (word and class '
              'ID per line), "srilm-classes" (class name, membership '
              'probability, and word per line)')
-    argument_group = parser.add_argument_group("network architecture")
-    argument_group.add_argument(
-        '--architecture', metavar='FILE', type=str, default='lstm300',
-        help='path to neural network architecture description, or a standard '
-             'architecture name, "lstm300" or "lstm1500" (default "lstm300")')
     argument_group.add_argument(
         '--num-classes', metavar='N', type=int, default=None,
         help='generate N classes using a simple word frequency based algorithm '
              'when --vocabulary argument is not given (default is to not use '
              'word classes)')
+
+    argument_group = parser.add_argument_group("network architecture")
+    argument_group.add_argument(
+        '--architecture', metavar='FILE', type=str, default='lstm300',
+        help='path to neural network architecture description, or a standard '
+             'architecture name, "lstm300" or "lstm1500" (default "lstm300")')
 
     argument_group = parser.add_argument_group("training process")
     argument_group.add_argument(
@@ -131,10 +146,8 @@ def add_arguments(parser):
              'distribution and 1.0 corresponds to the unigram distribution '
              '(default 0.5)')
     argument_group.add_argument(
-        '--unk-penalty', metavar='LOGPROB', type=float, default=None,
-        help="if LOGPROB is zero, do not include <unk> tokens in perplexity "
-             "computation; otherwise use constant LOGPROB as <unk> token score "
-             "(default is to use the network to predict <unk> probability)")
+        '--exclude-unk', action="store_true",
+        help="exclude <unk> tokens from cost and perplexity computations")
     argument_group.add_argument(
         '--weights', metavar='LAMBDA', type=float, nargs='*', default=[],
         help='scale a mini-batch update by LAMBDA if the data is from the '
@@ -187,7 +200,91 @@ def add_arguments(parser):
         '--profile', action="store_true",
         help='enable profiling Theano functions')
 
+def _read_vocabulary(args, state):
+    """If ``state`` contains data, reads the vocabulary from the HDF5 state.
+    Otherwise reads a vocabulary file or constructs the vocabulary from the
+    training set and writes it to the HDF5 state.
+
+    If the state does not contain data and --vocabulary argument is given, reads
+    the vocabulary from the file given after the argument. The rest of the words
+    in the training set will be added as out-of-shortlist words.
+
+    If the state does not contain data and no vocabulary is given, constructs a
+    vocabulary that contains all the training set words. In that case,
+    --num-classes argument can be used to control the number of classes.
+
+    :type args: argparse.Namespace
+    :param args: a collection of command line arguments
+
+    :type state: hdf5.File
+    :param state: HDF5 file where the vocabulary should be saved
+
+    :rtype: Vocabulary
+    :returns: the created vocabulary
+    """
+
+    if state.keys():
+        print("Reading vocabulary from existing network state.")
+        sys.stdout.flush()
+        result = Vocabulary.from_state(state)
+        if not result.has_unigram_probs():
+            # This is for backward compatibility. Remove at some point.
+            print("Computing unigram word probabilities from training set.")
+            sys.stdout.flush()
+            word_counts = compute_word_counts(args.training_set)
+            shortlist_words = list(result.id_to_word)
+            shortlist_set = set(shortlist_words)
+            oos_words = [x for x in word_counts.keys()
+                         if x not in shortlist_set]
+            result.id_to_word = numpy.asarray(shortlist_words + oos_words,
+                                              dtype=object)
+            result.word_to_id = {word: word_id
+                                 for word_id, word in enumerate(result.id_to_word)}
+            result.compute_probs(word_counts, update_class_probs=False)
+            result.get_state(state)
+
+    elif args.vocabulary is None:
+        print("Constructing vocabulary from training set.")
+        sys.stdout.flush()
+        word_counts = compute_word_counts(args.training_set)
+        result = Vocabulary.from_word_counts(word_counts, args.num_classes)
+        result.get_state(state)
+
+    else:
+        print("Reading vocabulary from {}.".format(args.vocabulary))
+        sys.stdout.flush()
+        word_counts = compute_word_counts(args.training_set)
+        oos_words = word_counts.keys()
+        with open(args.vocabulary, 'rt', encoding='utf-8') as vocab_file:
+            result = Vocabulary.from_file(vocab_file,
+                                          args.vocabulary_format,
+                                          oos_words=oos_words)
+
+        if args.vocabulary_format == 'classes':
+            print("Computing class membership probabilities and unigram "
+                  "probabilities for out-of-shortlist words.")
+            sys.stdout.flush()
+            update_class_probs = True
+        else:
+            print("Computing unigram probabilities for out-of-shortlist words.")
+            sys.stdout.flush()
+            update_class_probs = False
+        result.compute_probs(word_counts,
+                             update_class_probs=update_class_probs)
+        result.get_state(state)
+
+    print("Number of words in vocabulary:", result.num_words())
+    print("Number of words in shortlist:", result.num_shortlist_words())
+    print("Number of word classes:", result.num_classes())
+    return result
+
 def train(args):
+    """A function that performs the "theanolm train" command.
+
+    :type args: argparse.Namespace
+    :param args: a collection of command line arguments
+    """
+
     numpy.random.seed(args.random_seed)
 
     log_file = args.log_file
@@ -211,48 +308,13 @@ def train(args):
     theano.config.profile_memory = args.profile
 
     with h5py.File(args.model_path, 'a', driver='core') as state:
-        if state.keys():
-            print("Reading vocabulary from existing network state.")
-            sys.stdout.flush()
-            vocabulary = Vocabulary.from_state(state)
-        elif args.vocabulary is None:
-            print("Constructing vocabulary from training set.")
-            sys.stdout.flush()
-            vocabulary = Vocabulary.from_corpus(args.training_set,
-                                                args.num_classes)
-            for training_file in args.training_set:
-                training_file.seek(0)
-            vocabulary.get_state(state)
-        else:
-            print("Reading vocabulary from {}.".format(args.vocabulary))
-            sys.stdout.flush()
-            with open(args.vocabulary, 'rt', encoding='utf-8') as vocab_file:
-                vocabulary = Vocabulary.from_file(vocab_file,
-                                                  args.vocabulary_format)
-                if args.vocabulary_format == 'classes':
-                    print("Computing class membership probabilities from "
-                          "unigram word counts.")
-                    sys.stdout.flush()
-                    vocabulary.compute_probs(args.training_set)
-            vocabulary.get_state(state)
-        print("Number of words in vocabulary:", vocabulary.num_words())
-        print("Number of word classes:", vocabulary.num_classes())
+        vocabulary = _read_vocabulary(args, state)
 
-        if (args.num_noise_samples > vocabulary.num_classes()):
+        if args.num_noise_samples > vocabulary.num_classes():
             print("Number of noise samples ({}) is larger than the number of "
                   "classes. This doesn't make sense and would cause sampling "
                   "to fail.".format(args.num_noise_samples))
             sys.exit(1)
-
-        if args.unk_penalty is None:
-            ignore_unk = False
-            unk_penalty = None
-        elif args.unk_penalty == 0:
-            ignore_unk = True
-            unk_penalty = None
-        else:
-            ignore_unk = False
-            unk_penalty = args.unk_penalty
 
         num_training_files = len(args.training_set)
         if len(args.weights) > num_training_files:
@@ -288,12 +350,11 @@ def train(args):
             'cost_function': args.cost,
             'num_noise_samples': args.num_noise_samples,
             'noise_sharing': args.noise_sharing,
-            'ignore_unk': ignore_unk,
-            'unk_penalty': unk_penalty
+            'exclude_unk': args.exclude_unk
         }
         logging.debug("OPTIMIZATION OPTIONS")
         for option_name, option_value in optimization_options.items():
-            if type(option_value) is list:
+            if isinstance(option_value, list):
                 value_str = ', '.join(str(x) for x in option_value)
                 logging.debug("%s: [%s]", option_name, value_str)
             else:
@@ -326,7 +387,6 @@ def train(args):
         print("Compiling optimization function.")
         sys.stdout.flush()
         optimizer = create_optimizer(optimization_options, network,
-                                     device=args.default_device,
                                      profile=args.profile)
 
         if args.print_graph:
@@ -334,11 +394,18 @@ def train(args):
             theano.printing.debugprint(optimizer.gradient_update_function)
 
         trainer.initialize(network, state, optimizer)
+        # XXX Write the model instantly back to disk. Just adds word unigram
+        # counts. This is a temporary hack. Remove at some point.
+        trainer.get_state(state)
+        state.flush()
+        # XXX
 
-        if not args.validation_file is None:
+        if args.validation_file is not None:
             print("Building text scorer for cross-validation.")
             sys.stdout.flush()
-            scorer = TextScorer(network, ignore_unk, unk_penalty, args.profile)
+            scorer = TextScorer(network, use_shortlist=True,
+                                exclude_unk=args.exclude_unk,
+                                profile=args.profile)
             print("Validation text:", args.validation_file.name)
             validation_mmap = mmap.mmap(args.validation_file.fileno(),
                                         0,
@@ -347,7 +414,8 @@ def train(args):
                 LinearBatchIterator(validation_mmap,
                                     vocabulary,
                                     batch_size=args.batch_size,
-                                    max_sequence_length=None)
+                                    max_sequence_length=args.sequence_length,
+                                    map_oos_to_unk=False)
             trainer.set_validation(validation_iter, scorer)
         else:
             print("Cross-validation will not be performed.")
@@ -357,10 +425,10 @@ def train(args):
         sys.stdout.flush()
         trainer.train()
 
-        if not 'layers' in state.keys():
+        if 'layers' not in state.keys():
             print("The model has not been trained. No cross-validations were "
                   "performed or training did not improve the model.")
-        elif not validation_iter is None:
+        elif validation_iter is not None:
             network.set_state(state)
             perplexity = scorer.compute_perplexity(validation_iter)
             print("Best validation set perplexity:", perplexity)

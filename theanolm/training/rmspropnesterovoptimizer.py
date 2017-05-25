@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the RMSProp optimizer with Nesterov momentum.
+"""
 
 import numpy
 import theano.tensor as tensor
+
 from theanolm import Parameters
 from theanolm.training.basicoptimizer import BasicOptimizer
 
@@ -11,7 +14,7 @@ class RMSPropNesterovOptimizer(BasicOptimizer):
 
     At the time of writing, RMSProp is an unpublished method. Usually people
     cite slide 29 of Lecture 6 of Geoff Hinton's Coursera class:
-    http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf 
+    http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf
 
     The idea is simply to maintain a running average of the squared gradient for
     each parameter, and divide the gradient by the root of the mean squared
@@ -53,13 +56,13 @@ class RMSPropNesterovOptimizer(BasicOptimizer):
                              numpy.zeros_like(param.get_value()))
 
         # geometric rate for averaging gradients
-        if not 'gradient_decay_rate' in optimization_options:
+        if 'gradient_decay_rate' not in optimization_options:
             raise ValueError("Gradient decay rate is not given in training "
                              "options.")
         self._gamma = optimization_options['gradient_decay_rate']
 
         # momentum
-        if not 'momentum' in optimization_options:
+        if 'momentum' not in optimization_options:
             raise ValueError("Momentum is not given in optimization options.")
         self._momentum = optimization_options['momentum']
 

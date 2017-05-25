@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Implements the softmax output layer.
+"""
 
-from collections import OrderedDict
 import numpy
-import theano
-import theano.tensor as tensor
+from theano import tensor
+
 from theanolm.network.samplingoutputlayer import SamplingOutputLayer
-from theanolm.debugfunctions import *
 
 class SoftmaxLayer(SamplingOutputLayer):
     """Softmax Output Layer
@@ -30,6 +30,16 @@ class SoftmaxLayer(SamplingOutputLayer):
         else:
             initial_bias = numpy.log(self._network.class_prior_probs + 1e-10)
             self._init_bias('input/b', output_size, initial_bias)
+
+        self.output_probs = None
+        self.target_probs = None
+        self.unnormalized_logprobs = None
+        self.sample = None
+        self.sample_logprobs = None
+        self.seqshared_sample = None
+        self.seqshared_sample_logprobs = None
+        self.shared_sample = None
+        self.shared_sample_logprobs = None
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.

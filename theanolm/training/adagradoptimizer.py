@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the AdaGrad optimizer.
+"""
 
 import numpy
 import theano.tensor as tensor
+
 from theanolm import Parameters
 from theanolm.training.basicoptimizer import BasicOptimizer
 

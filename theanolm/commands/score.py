@@ -1,17 +1,27 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the "theanolm score" command.
+"""
 
 import sys
-import os
-import subprocess
+import logging
+
 import numpy
 import theano
+
 from theanolm import Network
 from theanolm.parsing import ScoringBatchIterator
 from theanolm.scoring import TextScorer
 from theanolm.filetypes import TextFileType
 
 def add_arguments(parser):
+    """Specifies the command line arguments supported by the "theanolm score"
+    command.
+
+    :type parser: argparse.ArgumentParser
+    :param parser: a command line argument parser
+    """
+
     argument_group = parser.add_argument_group("files")
     argument_group.add_argument(
         'model_path', metavar='MODEL-FILE', type=str,
@@ -35,32 +45,67 @@ def add_arguments(parser):
         help='convert output log probabilities to base B (default is the '
              'natural logarithm)')
     argument_group.add_argument(
-        '--unk-penalty', metavar='LOGPROB', type=float, default=None,
-        help='if LOGPROB is zero, do not include <unk> tokens in perplexity '
-             'computation; otherwise use constant LOGPROB as <unk> token score '
-             '(default is to use the network to predict <unk> probability)')
+        '--exclude-unk', action="store_true",
+        help="exclude <unk> tokens from perplexity computation")
     argument_group.add_argument(
         '--subwords', metavar='MARKING', type=str, default=None,
         help='the subword vocabulary uses MARKING to indicate how words are '
              'formed from subwords; one of "word-boundary" (<w> token '
              'separates words), "prefix-affix" (subwords that can be '
              'concatenated are prefixed or affixed with +, e.g. "cat+ +s")')
+    argument_group.add_argument(
+        '--shortlist', action="store_true",
+        help='distribute <unk> token probability among the out-of-shortlist '
+             'words according to their unigram frequencies in the training '
+             'data')
+
+    argument_group = parser.add_argument_group("logging and debugging")
+    argument_group.add_argument(
+        '--log-file', metavar='FILE', type=str, default='-',
+        help='path where to write log file (default is standard output)')
+    argument_group.add_argument(
+        '--log-level', metavar='LEVEL', type=str, default='info',
+        help='minimum level of events to log, one of "debug", "info", "warn" '
+             '(default "info")')
+    argument_group.add_argument(
+        '--debug', action="store_true",
+        help='use test values to get better error messages from Theano')
+    argument_group.add_argument(
+        '--profile', action="store_true",
+        help='enable profiling Theano functions')
 
 def score(args):
+    """A function that performs the "theanolm score" command.
+
+    :type args: argparse.Namespace
+    :param args: a collection of command line arguments
+    """
+
+    log_file = args.log_file
+    log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(log_level, int):
+        print("Invalid logging level requested:", args.log_level)
+        sys.exit(1)
+    log_format = '%(asctime)s %(funcName)s: %(message)s'
+    if args.log_file == '-':
+        logging.basicConfig(stream=sys.stdout, format=log_format, level=log_level)
+    else:
+        logging.basicConfig(filename=log_file, format=log_format, level=log_level)
+
+    if args.debug:
+        theano.config.compute_test_value = 'warn'
+        print("Enabled computing test values for tensor variables.")
+        print("Warning: GpuArray backend will fail random number generation!")
+    else:
+        theano.config.compute_test_value = 'off'
+    theano.config.profile = args.profile
+    theano.config.profile_memory = args.profile
+
     network = Network.from_file(args.model_path)
 
     print("Building text scorer.")
     sys.stdout.flush()
-    if args.unk_penalty is None:
-        ignore_unk = False
-        unk_penalty = None
-    elif args.unk_penalty == 0:
-        ignore_unk = True
-        unk_penalty = None
-    else:
-        ignore_unk = False
-        unk_penalty = args.unk_penalty
-    scorer = TextScorer(network, ignore_unk, unk_penalty)
+    scorer = TextScorer(network, args.shortlist, args.exclude_unk, args.profile)
 
     print("Scoring text.")
     if args.output == 'perplexity':
@@ -109,11 +154,12 @@ def _score_text(input_file, vocabulary, scorer, output_file,
     :param word_level: if set to True, also writes word-level statistics
     """
 
-    validation_iter = \
+    scoring_iter = \
         ScoringBatchIterator(input_file,
                              vocabulary,
                              batch_size=16,
-                             max_sequence_length=None)
+                             max_sequence_length=None,
+                             map_oos_to_unk=False)
     log_scale = 1.0 if log_base is None else numpy.log(log_base)
 
     total_logprob = 0.0
@@ -122,7 +168,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
     num_words = 0
     num_unks = 0
     num_probs = 0
-    for word_ids, words, mask in validation_iter:
+    for word_ids, words, mask in scoring_iter:
         class_ids, membership_probs = vocabulary.get_class_memberships(word_ids)
         logprobs = scorer.score_batch(word_ids, class_ids, membership_probs,
                                       mask)
@@ -136,7 +182,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
                                                             subword_marking)
 
             # total logprob of this sequence
-            seq_logprob = sum(filter(None, merged_logprobs))
+            seq_logprob = sum(x for x in merged_logprobs if x is not None)
             # total logprob of all sequences
             total_logprob += seq_logprob
             # number of tokens, which may be subwords, including <unk>'s
@@ -144,7 +190,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
             # number of words, including <unk>'s
             num_words += len(merged_words)
             # number of word probabilities computed (may not include <unk>'s)
-            num_probs += sum(not x is None for x in merged_logprobs)
+            num_probs += sum(x is not None for x in merged_logprobs)
             # number of <unk>'s (just for reporting)
             num_unks += sum(x is None for x in merged_logprobs)
             # number of sequences
@@ -166,7 +212,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
         cross_entropy = -total_logprob / num_probs
         perplexity = numpy.exp(cross_entropy)
         output_file.write("Cross entropy (base e): {0}\n".format(cross_entropy))
-        if not log_base is None:
+        if log_base is not None:
             cross_entropy /= log_scale
             output_file.write("Cross entropy (base {1}): {0}\n".format(
                 cross_entropy, log_base))
@@ -273,11 +319,11 @@ def _write_word_scores(words, logprobs, output_file, log_scale):
     logprobs = [None if x is None else x / log_scale for x in logprobs]
     for index, logprob in enumerate(logprobs):
         if index - 2 > 0:
-            history = ['...']
-            history.extend(words[index - 2:index + 1])
+            history_list = ['...']
+            history_list.extend(words[index - 2:index + 1])
         else:
-            history = words[:index + 1]
-        history = ' '.join(history)
+            history_list = words[:index + 1]
+        history = ' '.join(history_list)
         predicted = words[index + 1]
 
         if logprob is None:

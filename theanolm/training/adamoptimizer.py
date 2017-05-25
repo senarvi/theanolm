@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the Adam optimizer.
+"""
 
 import numpy
 import theano
 import theano.tensor as tensor
+
 from theanolm import Parameters
 from theanolm.training.basicoptimizer import BasicOptimizer
 
@@ -39,19 +42,19 @@ class AdamOptimizer(BasicOptimizer):
                              numpy.zeros_like(param.get_value()))
 
         # geometric rate for averaging gradients
-        if not 'gradient_decay_rate' in optimization_options:
+        if 'gradient_decay_rate' not in optimization_options:
             raise ValueError("Gradient decay rate is not given in training "
                              "options.")
         self._gamma_m = optimization_options['gradient_decay_rate']
 
         # geometric rate for averaging squared gradients
-        if not 'sqr_gradient_decay_rate' in optimization_options:
+        if 'sqr_gradient_decay_rate' not in optimization_options:
             raise ValueError("Squared gradient decay rate is not given in "
                              "optimization options.")
         self._gamma_ms = optimization_options['sqr_gradient_decay_rate']
 
         # momentum
-        if not 'momentum' in optimization_options:
+        if 'momentum' not in optimization_options:
             raise ValueError("Momentum is not given in optimization options.")
         self._momentum = optimization_options['momentum']
 

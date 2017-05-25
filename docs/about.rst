@@ -15,9 +15,13 @@ Implementations of many currently popular layer types are provided, such as `lon
 short-term memory (LSTM)`_, `gated recurrent units (GRU)`_, `bidirectional
 recurrent networks`_, and `highway networks`_ are provided. Several different
 Stochastic Gradient Descent (SGD) based optimizers are implemented, including
-`RMSProp`_, `AdaGrad`_, `ADADELTA`_, and `Adam`_. In addition to the standard
-cross-entropy cost, one can use sampling based `noise-contrastive estimation
-(NCE)`_  or `BlackOut`_.
+`RMSProp`_, `AdaGrad`_, `ADADELTA`_, and `Adam`_.
+
+There are several features that are especially useful with very large
+vocabularies. The effective vocabulary size can be reduced by using a class
+model. TheanoLM supports also subword vocabularies create e.g. using
+`Morfessor`_. In addition to the standard cross-entropy cost, one can use
+sampling based `noise-contrastive estimation (NCE)`_  or `BlackOut`_.
 
 .. _Theano: http://www.deeplearning.net/software/theano/
 .. _long short-term memory (LSTM): https://www.researchgate.net/publication/13853244_Long_Short-term_Memory
@@ -28,6 +32,7 @@ cross-entropy cost, one can use sampling based `noise-contrastive estimation
 .. _AdaGrad: http://jmlr.org/papers/v12/duchi11a.html
 .. _ADADELTA: https://arxiv.org/abs/1212.5701
 .. _Adam: https://arxiv.org/abs/1412.6980
+.. _Morfessor: https://github.com/aalto-speech/morfessor
 .. _noise-contrastive estimation (NCE): http://www.jmlr.org/papers/v13/gutmann12a.html
 .. _BlackOut: https://arxiv.org/abs/1511.06909
 

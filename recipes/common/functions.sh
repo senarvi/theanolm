@@ -111,13 +111,7 @@ train () {
 
 	declare -a extra_args
 	[ -n "${MAX_GRADIENT_NORM}" ] && extra_args+=(--gradient-normalization "${MAX_GRADIENT_NORM}")
-	if [ -n "${IGNORE_UNK}" ]
-        then
-		extra_args+=(--unk-penalty 0)
-	elif [ -n "${UNK_PENALTY}" ]
-	then
-		extra_args+=(--unk-penalty "${UNK_PENALTY}")
-	fi
+	[ -n "${EXCLUDE_UNK}" ] && extra_args+=(--exclude-unk)
 	if [ -n "${DEBUG}" ]
 	then
 		extra_args+=(--debug)
@@ -141,6 +135,10 @@ train () {
 	then
 		vocab_file="${CLASSES}"
 		vocab_format="${CLASSES_FORMAT:-srilm-classes}"
+	elif [ -n "${VOCAB}" ]
+	then
+		vocab_file="${VOCAB}"
+		vocab_format=words
 	else
 		vocab_file="${OUTPUT_DIR}/nnlm.vocab"
 		echo "${vocab_file}"
@@ -183,13 +181,8 @@ compute_perplexity () {
 	[ -n "${OUTPUT_DIR}" ] || { echo "OUTPUT_DIR required." >&2; exit 1; }
 
 	declare -a extra_args
-	if [ -n "${IGNORE_UNK}" ]
-        then
-		extra_args+=(--unk-penalty 0)
-	elif [ -n "${UNK_PENALTY}" ]
-	then
-		extra_args+=(--unk-penalty "${UNK_PENALTY}")
-	fi
+	[ -n "${EXCLUDE_UNK}" ] && extra_args+=(--exclude-unk)
+	[ -n "${SHORTLIST}" ] && extra_args+=(--shortlist)
 
 	local vocab_file
 	local vocab_format

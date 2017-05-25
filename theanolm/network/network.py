@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the Network class.
+"""
 
-from enum import Enum, unique
 from collections import OrderedDict
 import sys
 import logging
+
 import h5py
 import numpy
 import theano
 import theano.tensor as tensor
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
+
 from theanolm import Vocabulary
 from theanolm.exceptions import IncompatibleStateError, InputError
 from theanolm.network.architecture import Architecture
@@ -138,18 +141,27 @@ class Network(object):
         self.input_class_ids = tensor.matrix('network/input_class_ids', dtype='int64')
         if self.mode.minibatch:
             self.input_word_ids.tag.test_value = test_value(
-                size=(100, 16), high=vocabulary.num_words())
+                size=(20, 4), high=vocabulary.num_shortlist_words())
             self.input_class_ids.tag.test_value = test_value(
-                size=(100, 16), high=vocabulary.num_classes())
+                size=(20, 4), high=vocabulary.num_classes())
         else:
             self.input_word_ids.tag.test_value = test_value(
-                size=(1, 16), high=vocabulary.num_words())
+                size=(1, 4), high=vocabulary.num_shortlist_words())
             self.input_class_ids.tag.test_value = test_value(
-                size=(1, 16), high=vocabulary.num_classes())
+                size=(1, 4), high=vocabulary.num_classes())
 
         # During training, the output layer bias vector is initialized to the
         # unigram probabilities.
         self.class_prior_probs = class_prior_probs
+
+        # A shortlist model adds these logprobs to OOS logprobs predicted by the
+        # network.
+        if vocabulary.has_unigram_probs():
+            self.oos_logprobs = theano.shared(
+                vocabulary.get_oos_logprobs().astype(theano.config.floatX),
+                'network/oos_logprobs')
+        else:
+            self.oos_logprobs = None
 
         # Recurrent layers will create these lists, used to initialize state
         # variables of appropriate sizes, for doing forward passes one step at a
@@ -161,14 +173,16 @@ class Network(object):
         logging.debug("Creating layers.")
         self.layers = OrderedDict()
         for input_options in architecture.inputs:
-            input = NetworkInput(input_options, self)
-            self.layers[input.name] = input
+            network_input = NetworkInput(input_options, self)
+            self.layers[network_input.name] = network_input
         for layer_description in architecture.layers:
             layer_options = self._layer_options_from_description(
                 layer_description)
             if layer_options['name'] == architecture.output_layer:
                 layer_options['size'] = vocabulary.num_classes()
-            if not layer_options['devices']:
+            # 'devices' not in layer_options is for backward compatibility.
+            # Remove at some point.
+            if ('devices' not in layer_options) or (not layer_options['devices']):
                 layer_options['devices'] = [default_device]
             layer = create_layer(layer_options, self, profile=profile)
             self.layers[layer.name] = layer
@@ -186,27 +200,27 @@ class Network(object):
                                               dtype='int64')
         if self.mode.minibatch:
             self.target_class_ids.tag.test_value = test_value(
-                size=(100, 16), high=vocabulary.num_classes())
+                size=(20, 4), high=vocabulary.num_classes())
         else:
             self.target_class_ids.tag.test_value = test_value(
-                size=(1, 16), high=vocabulary.num_classes())
+                size=(1, 4), high=vocabulary.num_classes())
 
         # This input variable is used only for detecting <unk> target words.
         self.target_word_ids = tensor.matrix('network/target_word_ids',
                                              dtype='int64')
         if self.mode.minibatch:
             self.target_word_ids.tag.test_value = test_value(
-                size=(100, 16), high=vocabulary.num_words())
+                size=(20, 4), high=vocabulary.num_shortlist_words())
         else:
             self.target_word_ids.tag.test_value = test_value(
-                size=(1, 16), high=vocabulary.num_words())
+                size=(1, 4), high=vocabulary.num_shortlist_words())
 
         # mask is used to mask out the rest of the input matrix, when a sequence
         # is shorter than the maximum sequence length. The mask is kept as int8
         # data type, which is how Tensor stores booleans.
         if self.mode.minibatch:
             self.mask = tensor.matrix('network/mask', dtype='int8')
-            self.mask.tag.test_value = test_value(size=(100, 16), high=True)
+            self.mask.tag.test_value = test_value(size=(20, 4), high=True)
         else:
             self.mask = tensor.ones(self.input_word_ids.shape, dtype='int8')
 
@@ -218,7 +232,7 @@ class Network(object):
         # to sample.
         self.num_noise_samples = tensor.scalar('network/num_noise_samples',
                                                dtype='int64')
-        self.num_noise_samples.tag.test_value = 25
+        self.num_noise_samples.tag.test_value = 3
 
         # Sampling based methods use this noise distribution, if it's set.
         # Otherwise noise is sampled from uniform distribution.
@@ -242,7 +256,7 @@ class Network(object):
             layer.create_structure()
 
     @classmethod
-    def from_file(classname, model_path, mode=None):
+    def from_file(cls, model_path, mode=None):
         """Reads a model from an HDF5 file.
 
         :type model_path: str
@@ -257,11 +271,12 @@ class Network(object):
             sys.stdout.flush()
             vocabulary = Vocabulary.from_state(state)
             print("Number of words in vocabulary:", vocabulary.num_words())
+            print("Number of words in shortlist:", vocabulary.num_shortlist_words())
             print("Number of word classes:", vocabulary.num_classes())
             print("Building neural network.")
             sys.stdout.flush()
             architecture = Architecture.from_state(state)
-            result = classname(architecture, vocabulary, mode=mode)
+            result = cls(architecture, vocabulary, mode=mode)
             print("Restoring neural network state.")
             sys.stdout.flush()
             result.set_state(state)
@@ -339,7 +354,7 @@ class Network(object):
         # array) to keep the layer functions general.
         variable = tensor.tensor3('network/recurrent_state_' + str(index),
                                   dtype=theano.config.floatX)
-        variable.tag.test_value = test_value(size=(1, 16, size), high=1.0)
+        variable.tag.test_value = test_value(size=(1, 4, size), high=1.0)
 
         self.recurrent_state_size.append(size)
         self.recurrent_state_input.append(variable)
@@ -424,8 +439,8 @@ class Network(object):
                 return self.output_layer.shared_sample, \
                        self.output_layer.shared_sample_logprobs
             else:
-                raise ValueError("Unknown noise sample sharing: `{}'".format(
-                                 sharing))
+                raise ValueError("Unknown noise sample sharing: `{}'"
+                                 .format(sharing))
         except AttributeError:
             raise RuntimeError(
                 "Trying to read the noise sample when the final layer is not a "
@@ -453,9 +468,8 @@ class Network(object):
                     result['input_layers'] = [self.layers[x] for x in value]
                 except KeyError as e:
                     raise InputError("Input layer `{}' does not exist, when "
-                                     "creating layer `{}'.".format(
-                                     e.args[0],
-                                     description['name']))
+                                     "creating layer `{}'."
+                                     .format(e.args[0], description['name']))
             else:
                 result[variable] = value
         return result

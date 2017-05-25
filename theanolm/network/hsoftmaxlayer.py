@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the hierarchical softmax layer.
+"""
 
-from collections import OrderedDict
 import logging
+
 import numpy
-import theano
 import theano.tensor as tensor
+
 from theanolm.network.basiclayer import BasicLayer
 
 class HSoftmaxLayer(BasicLayer):
@@ -45,6 +47,10 @@ class HSoftmaxLayer(BasicLayer):
                           (level1_size, input_size, level2_size),
                           scale=0.01)
         self._init_bias('level1/b', (level1_size, level2_size))
+
+        self.output = None
+        self.output_probs = None
+        self.target_probs = None
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.

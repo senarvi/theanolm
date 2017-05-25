@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Functions for creating matrices and accessing submatrices.
+"""
 
 import numpy
 import theano

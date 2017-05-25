@@ -3,6 +3,7 @@
 
 import unittest
 import math
+
 from theanolm.probfunctions import *
 
 class TestProbFunctions(unittest.TestCase):

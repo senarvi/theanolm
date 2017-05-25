@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements an iterator for reading mini-batches with random
+sentence order.
+"""
 
 import sys
 import mmap
 import logging
+
 import numpy
 from numpy import random
+
 from theanolm.parsing.batchiterator import BatchIterator
 from theanolm.parsing.functions import find_sentence_starts
+from theanolm.exceptions import IncompatibleStateError
 
 class SentencePointers(object):
     """A class that creates a memory map of text files and stores pointers to
@@ -87,7 +93,8 @@ class ShufflingBatchIterator(BatchIterator):
                  sampling,
                  vocabulary,
                  batch_size=128,
-                 max_sequence_length=None):
+                 max_sequence_length=None,
+                 map_oos_to_unk=False):
         """Initializes the iterator to read sentences in linear order.
 
         :type input_files: list of file objects
@@ -123,7 +130,8 @@ class ShufflingBatchIterator(BatchIterator):
         self._order = numpy.arange(sum(self._sample_sizes), dtype='int64')
         self._reset()
 
-        super().__init__(vocabulary, batch_size, max_sequence_length)
+        super().__init__(vocabulary, batch_size, max_sequence_length,
+                         map_oos_to_unk)
 
     def get_state(self, state):
         """Saves the iterator state in a HDF5 file.
@@ -160,11 +168,11 @@ class ShufflingBatchIterator(BatchIterator):
         :param state: HDF5 file that contains the iterator state
         """
 
-        if not 'iterator' in state:
+        if 'iterator' not in state:
             raise IncompatibleStateError("Iterator state is missing.")
         h5_iterator = state['iterator']
 
-        if not 'order' in h5_iterator:
+        if 'order' not in h5_iterator:
             raise IncompatibleStateError("Iteration order is missing from "
                                          "training state.")
         self._order = h5_iterator['order'].value
@@ -172,7 +180,7 @@ class ShufflingBatchIterator(BatchIterator):
             raise IncompatibleStateError("Iteration order is empty in training "
                                          "state.")
 
-        if not 'next_line' in h5_iterator.attrs:
+        if 'next_line' not in h5_iterator.attrs:
             raise IncompatibleStateError("Current iteration position is "
                                          "missing from training state.")
         self._next_line = int(h5_iterator.attrs['next_line'])

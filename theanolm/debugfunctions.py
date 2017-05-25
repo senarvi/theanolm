@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Functions for debugging.
+"""
 
 from theano import tensor, printing
 
@@ -22,6 +24,29 @@ def print_tensor(message, variable):
     return print_op(variable)
 
 def assert_tensor_eq(result, name1, name2, variable1, variable2):
+    """A small helper function that makes it a little bit easier to assert that
+    two Theano variables are equal.
+
+    :type result: TensorVariable
+    :param result: what the result of the operation should be
+
+    :type name1: str
+    :param name1: name of the first variable
+
+    :type name2: str
+    :param name2: name of the second variable
+
+    :type variable1: TensorVariable
+    :param variable1: the first variable
+
+    :type variable2: TensorVariable
+    :param variable2: the second variable
+
+    :rtype: TensorVariable
+    :returns: a tensor variable that returns the same value as ``result``, and
+              asserts that ``variable1`` equals to ``variable2``
+    """
+
 #    print_op = printing.Print(name1 + ":")
 #    variable1 = tensor.switch(tensor.neq(variable1, variable2),
 #                              print_op(variable1),

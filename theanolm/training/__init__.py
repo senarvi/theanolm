@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Modules related to neural network training.
+"""
+
 from theanolm.training.trainer import Trainer
 from theanolm.training.sgdoptimizer import SGDOptimizer
 from theanolm.training.nesterovoptimizer import NesterovOptimizer

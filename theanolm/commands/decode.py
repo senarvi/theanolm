@@ -1,17 +1,27 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the "theanolm decode" command.
+"""
 
 import sys
 import os
 import logging
-import subprocess
+
 import numpy
 import theano
+
 from theanolm import Network
 from theanolm.scoring import LatticeDecoder, SLFLattice
 from theanolm.filetypes import TextFileType
 
 def add_arguments(parser):
+    """Specifies the command line arguments supported by the "theanolm decode"
+    command.
+
+    :type parser: argparse.ArgumentParser
+    :param parser: a command line argument parser
+    """
+
     argument_group = parser.add_argument_group("files")
     argument_group.add_argument(
         'model_path', metavar='MODEL-FILE', type=str,
@@ -112,6 +122,12 @@ def add_arguments(parser):
         help='enables profiling Theano functions')
 
 def decode(args):
+    """A function that performs the "theanolm decode" command.
+
+    :type args: argparse.Namespace
+    :param args: a collection of command line arguments
+    """
+
     log_file = args.log_file
     log_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(log_level, int):
@@ -169,11 +185,11 @@ def decode(args):
 
     # Combine paths from command line and lattice list.
     lattices = args.lattices
-    if not args.lattice_list is None:
+    if args.lattice_list is not None:
         lattices.extend(args.lattice_list.readlines())
     lattices = [path.strip() for path in lattices]
     # Ignore empty lines in the lattice list.
-    lattices = list(filter(None, lattices))
+    lattices = [x for x in lattices if x]
     # Pick every Ith lattice, if --num-jobs is specified and > 1.
     if args.num_jobs < 1:
         print("Invalid number of jobs specified:", args.num_jobs)
@@ -189,7 +205,7 @@ def decode(args):
         lattice_file = file_type(path)
         lattice = SLFLattice(lattice_file)
 
-        if not lattice.utterance_id is None:
+        if lattice.utterance_id is not None:
             utterance_id = lattice.utterance_id
         else:
             utterance_id = os.path.basename(lattice_file.name)
@@ -208,7 +224,7 @@ def decode(args):
                                 args.output)
             args.output_file.write(line + "\n")
 
-def format_token(token, utterance_id, vocabulary, log_scale, format):
+def format_token(token, utterance_id, vocabulary, log_scale, output_format):
     """Formats an output line from a token and an utterance ID.
 
     Reads word IDs from the history list of ``token`` and converts them to words
@@ -228,21 +244,21 @@ def format_token(token, utterance_id, vocabulary, log_scale, format):
     :param log_scale: divide log probabilities by this number to convert the log
                       base
 
-    :type format: str
-    :param format: which format to write, one of "ref" (utterance ID, words),
-                   "trn" (words, utterance ID in parentheses), "full" (utterance
-                   ID, acoustic and LM scores, number of words, words)
+    :type output_format: str
+    :param output_format: which format to write, one of "ref" (utterance ID,
+        words), "trn" (words, utterance ID in parentheses), "full" (utterance
+        ID, acoustic and LM scores, number of words, words)
 
     :rtype: str
     :returns: the formatted output line
     """
 
     words = token.history_words(vocabulary)
-    if format == 'ref':
+    if output_format == 'ref':
         return "{} {}".format(utterance_id, ' '.join(words))
-    elif format == 'trn':
+    elif output_format == 'trn':
         return "{} ({})".format(' '.join(words), utterance_id)
-    elif format == 'full':
+    elif output_format == 'full':
         return "{} {} {} {} {}".format(
             utterance_id,
             token.ac_logprob / log_scale,

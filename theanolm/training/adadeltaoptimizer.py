@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the ADADELTA optimizer.
+"""
 
 import numpy
 import theano.tensor as tensor
+
 from theanolm import Parameters
 from theanolm.training.basicoptimizer import BasicOptimizer
 
@@ -43,7 +46,7 @@ class AdadeltaOptimizer(BasicOptimizer):
                              numpy.zeros_like(param.get_value()))
 
         # geometric rate for averaging gradients
-        if not 'gradient_decay_rate' in optimization_options:
+        if 'gradient_decay_rate' not in optimization_options:
             raise ValueError("Gradient decay rate is not given in optimization "
                              "options.")
         self._gamma = optimization_options['gradient_decay_rate']

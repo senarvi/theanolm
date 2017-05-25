@@ -3,9 +3,12 @@
 
 import unittest
 import os
+
 import numpy
-from wordclasses import TheanoBigramOptimizer, NumpyBigramOptimizer, WordStatistics
-from theanolm import Vocabulary
+
+from wordclasses import TheanoBigramOptimizer, NumpyBigramOptimizer
+from theanolm.vocabulary import Vocabulary
+from theanolm.vocabulary import compute_word_counts, BigramStatistics
 
 class TestBigramOptimizer(unittest.TestCase):
     def setUp(self):
@@ -13,9 +16,11 @@ class TestBigramOptimizer(unittest.TestCase):
         sentences_path = os.path.join(script_path, 'sentences.txt')
         self.sentences_file = open(sentences_path)
         self.num_classes = 2
-        self.vocabulary = Vocabulary.from_corpus([self.sentences_file], self.num_classes)
+        word_counts = compute_word_counts([self.sentences_file])
+        self.vocabulary = Vocabulary.from_word_counts(word_counts,
+                                                      self.num_classes)
         self.sentences_file.seek(0)
-        self.statistics = WordStatistics([self.sentences_file], self.vocabulary)
+        self.statistics = BigramStatistics([self.sentences_file], self.vocabulary)
 
     def tearDown(self):
         self.sentences_file.close()

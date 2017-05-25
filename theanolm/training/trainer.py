@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the Trainer class, the main class responsible for
+the process of training a neural network.
+"""
 
 import sys
 import logging
 from time import time
+
 import h5py
 import numpy
 import theano
-from theanolm import ShufflingBatchIterator, LinearBatchIterator
+
+from theanolm.parsing import ShufflingBatchIterator, LinearBatchIterator
 from theanolm.exceptions import IncompatibleStateError, NumberError
 from theanolm.training.stoppers import create_stopper
 
@@ -43,13 +48,14 @@ class Trainer(object):
 
         self._vocabulary = vocabulary
 
-        print("Computing unigram probabilities and the number of mini-batches "
-              "in training data.")
+        print("Computing class unigram probabilities and the number of "
+              "mini-batches in training data.")
         linear_iter = LinearBatchIterator(
             training_files,
             vocabulary,
             batch_size=training_options['batch_size'],
-            max_sequence_length=training_options['sequence_length'])
+            max_sequence_length=training_options['sequence_length'],
+            map_oos_to_unk=True)
         sys.stdout.flush()
         self._updates_per_epoch = 0
         class_counts = numpy.zeros(vocabulary.num_classes(), dtype='int64')
@@ -60,20 +66,25 @@ class Trainer(object):
             numpy.add.at(class_counts, class_ids, 1)
         if self._updates_per_epoch < 1:
             raise ValueError("Training data does not contain any sentences.")
-        logging.debug("One epoch of training data contains %d mini-batch updates.",
+        logging.debug("One epoch of training data contains %d mini-batch "
+                      "updates.",
                       self._updates_per_epoch)
-        self.class_prior_probs = class_counts / class_counts.sum()
-        logging.debug("Class unigram probabilities are in the range [%.8f, "
-                      "%.8f].",
-                      self.class_prior_probs.min(),
-                      self.class_prior_probs.max())
+        total_count = class_counts.sum()
+        self.class_prior_probs = class_counts.astype(theano.config.floatX)
+        if total_count > 0:
+            self.class_prior_probs /= total_count
+        logging.debug("Class unigram log probabilities are in the range [%f, "
+                      "%f].",
+                      numpy.log(self.class_prior_probs.min()),
+                      numpy.log(self.class_prior_probs.max()))
 
         self._training_iter = ShufflingBatchIterator(
             training_files,
             sampling,
             vocabulary,
             batch_size=training_options['batch_size'],
-            max_sequence_length=training_options['sequence_length'])
+            max_sequence_length=training_options['sequence_length'],
+            map_oos_to_unk=True)
 
         self._stopper = create_stopper(training_options, self)
         self._options = training_options
@@ -101,6 +112,22 @@ class Trainer(object):
         # current candidate for the minimum validation cost state
         self._candidate_state = None
 
+        # index to the cost history that corresponds to the current candidate
+        # state
+        self._candidate_index = None
+        # current training epoch
+        self.epoch_number = 0
+        # number of mini-batch updates performed in this epoch
+        self.update_number = 0
+        # total number of mini-batch updates performed (after restart)
+        self._total_updates = 0
+        # validation set cost history
+        self._cost_history = None
+        # function for averaging cross-validation measurements
+        self._statistics_function = None
+        # duration of the last mini-batch update
+        self._update_duration = None
+
     def set_validation(self, validation_iter, scorer,
                        samples_per_validation=None, statistics_function=None):
         """Sets cross-validation iterator and parameters.
@@ -125,10 +152,10 @@ class Trainer(object):
         self._validation_iter = validation_iter
         self._scorer = scorer
 
-        if not samples_per_validation is None:
+        if samples_per_validation is not None:
             self._samples_per_validation = samples_per_validation
 
-        if not statistics_function is None:
+        if statistics_function is not None:
             self._statistics_function = statistics_function
 
     def set_logging(self, log_interval):
@@ -169,17 +196,11 @@ class Trainer(object):
             sys.stdout.flush()
             self._reset_state()
         else:
-            # index to the cost history that corresponds to the current candidate
-            # state
             self._candidate_index = None
-            # current training epoch
             self.epoch_number = 1
-            # number of mini-batch updates performed in this epoch
             self.update_number = 0
-            # validation set cost history
             self._cost_history = numpy.asarray([], dtype=theano.config.floatX)
 
-        # total number of mini-batch updates performed (after restart)
         self._total_updates = 0
 
     def train(self):
@@ -226,7 +247,7 @@ class Trainer(object):
             message = "Finished training epoch {} in {:.0f} hours {:.1f} minutes." \
                       .format(self.epoch_number, epoch_time_h, epoch_time_m)
             best_cost = self.candidate_cost()
-            if not best_cost is None:
+            if best_cost is not None:
                 message += " Best validation perplexity {:.2f}.".format(
                     best_cost)
             print(message)
@@ -263,10 +284,10 @@ class Trainer(object):
                 'cost_history', data=self._cost_history, maxshape=(None,),
                 chunks=(1000,))
 
-        if not self._network is None:
+        if self._network is not None:
             self._network.get_state(state)
         self._training_iter.get_state(state)
-        if not self._optimizer is None:
+        if self._optimizer is not None:
             self._optimizer.get_state(state)
 
     def _reset_state(self):
@@ -287,16 +308,16 @@ class Trainer(object):
 
         self._network.set_state(self._candidate_state)
 
-        if not 'trainer' in self._candidate_state:
+        if 'trainer' not in self._candidate_state:
             raise IncompatibleStateError("Training state is missing.")
         h5_trainer = self._candidate_state['trainer']
 
-        if not 'epoch_number' in h5_trainer.attrs:
+        if 'epoch_number' not in h5_trainer.attrs:
             raise IncompatibleStateError("Current epoch number is missing from "
                                          "training state.")
         self.epoch_number = int(h5_trainer.attrs['epoch_number'])
 
-        if not 'update_number' in h5_trainer.attrs:
+        if 'update_number' not in h5_trainer.attrs:
             raise IncompatibleStateError("Current update number is missing "
                                          "from training state.")
         self.update_number = int(h5_trainer.attrs['update_number'])
@@ -419,7 +440,7 @@ class Trainer(object):
         """
 
         str_costs = ["%.1f" % x for x in self._cost_history]
-        if not self._candidate_index is None:
+        if self._candidate_index is not None:
             str_costs[self._candidate_index] = \
                 '[' + str_costs[self._candidate_index] + ']'
         logging.debug("[%d] Validation set cost history: %s",
@@ -544,7 +565,7 @@ class Trainer(object):
             # If any validations have been done, the best state has been found
             # and saved. If training has been started from previous state,
             # _candidate_state has been set to the initial state.
-            assert not self._candidate_state is None
+            assert self._candidate_state is not None
 
             self._decrease_learning_rate()
 

@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the dropout layer.
+"""
 
-from collections import OrderedDict
 import logging
+
 import numpy
 import theano
 import theano.tensor as tensor
+
 from theanolm.network.basiclayer import BasicLayer
 
 class DropoutLayer(BasicLayer):
@@ -41,6 +44,8 @@ class DropoutLayer(BasicLayer):
         if input_size != output_size:
             raise ValueError("Dropout layer size has to match the previous "
                              "layer.")
+
+        self.output = None
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.

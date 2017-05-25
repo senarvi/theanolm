@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import unittest
-from theanolm.commands.score import _merge_subwords
+
 from numpy.testing import assert_almost_equal
+
+from theanolm.commands.score import _merge_subwords
 
 class TestScore(unittest.TestCase):
     def setUp(self):

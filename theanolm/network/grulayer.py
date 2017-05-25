@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""A module that implements the Gated Recurrent Unit layer.
+"""
 
-from collections import OrderedDict
-import numpy
 import theano
 import theano.tensor as tensor
+
 from theanolm.network.weightfunctions import get_submatrix
 from theanolm.network.basiclayer import BasicLayer
 
@@ -42,6 +43,8 @@ class GRULayer(BasicLayer):
                           count=num_gates+1)
         # biases for each gate and the candidate state
         self._init_bias('layer_input/b', output_size, [None] * (num_gates + 1))
+
+        self.output = None
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.
@@ -118,7 +121,7 @@ class GRULayer(BasicLayer):
                 hidden_state_weights)
 
             # Create a new axis for time step with size 1.
-            hidden_state_output = hidden_state_output[None,:,:]
+            hidden_state_output = hidden_state_output[None, :, :]
 
             self._network.recurrent_state_output[self.hidden_state_index] = \
                 hidden_state_output
@@ -185,6 +188,6 @@ class GRULayer(BasicLayer):
 
         # Apply the mask. None creates a new axis with size 1, causing the mask
         # to be broadcast to all the outputs.
-        h_out = tensor.switch(mask[:,None], h_out, h_in)
+        h_out = tensor.switch(mask[:, None], h_out, h_in)
 
         return h_out
