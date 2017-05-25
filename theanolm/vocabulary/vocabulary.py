@@ -92,8 +92,7 @@ class Vocabulary(object):
         :param word_classes: list of all the word classes
         """
 
-        if ('<s>' not in id_to_word) or ('</s>' not in id_to_word) or \
-           ('<unk>' not in id_to_word):
+        if not ({'<s>', '</s>', '<unk>'} <= set(id_to_word)):
             raise ValueError("Trying to construct shortlist vocabulary without "
                              "the special tokens <s>, </s>, and <unk>.")
 
@@ -206,10 +205,12 @@ class Vocabulary(object):
             word_id_to_class_id.append(class_id)
 
         _add_special_tokens(id_to_word, word_id_to_class_id, word_classes)
+        words |= {'<s>', '</s>', '<unk>'}
 
         if oos_words is not None:
             for word in oos_words:
-                if word not in id_to_word:
+                if word not in words:
+                    words.add(word)
                     id_to_word.append(word)
 
         return cls(id_to_word, word_id_to_class_id, word_classes)
