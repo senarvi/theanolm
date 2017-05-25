@@ -586,7 +586,7 @@ class LatticeDecoder(object):
                                 token.kaldi_state_id,
                                 target_token.kaldi_state_id,
                                 word_map[link.word],
-                                -(target_token.nn_lm_logprob + link.graph_logprob),
+                                -(target_token.nn_lm_logprob - token.nn_lm_logprob + link.graph_logprob),
                                 -link.ac_logprob,
                                 link.transitions
                             ))
@@ -598,7 +598,7 @@ class LatticeDecoder(object):
                                 next_state_id += 1
                             out.write("{} {},{},{}\n".format(
                                 token.kaldi_state_id,
-                                -(target_token.nn_lm_logprob + node.graph_logprob),
+                                -(target_token.nn_lm_logprob - token.nn_lm_logprob + node.graph_logprob),
                                 -node.ac_logprob,
                                 node.transitions
                             ))
