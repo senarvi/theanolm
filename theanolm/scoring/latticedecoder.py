@@ -346,7 +346,7 @@ class LatticeDecoder(object):
             node_tokens = self._tokens[node.id]
             assert node_tokens
             num_pruned_tokens = len(node_tokens)
-            self._prune(node)
+            counts = self._prune(node)
             node_tokens = self._tokens[node.id]
             assert node_tokens
             num_pruned_tokens -= len(node_tokens)
@@ -371,13 +371,15 @@ class LatticeDecoder(object):
                 num_new_tokens += len(new_tokens)
 
             nodes_processed += 1
-            if nodes_processed % math.ceil(len(self._sorted_nodes) / 20) == 0:
-                logging.debug("[%d] (%.2f %%) -- tokens = %d +%d -%d",
+            #if nodes_processed % math.ceil(len(self._sorted_nodes) / 20) == 0:
+            if True:
+                logging.debug("[%d] (%.2f %%) -- tokens = %d +%d -%d %s",
                               nodes_processed,
                               nodes_processed / len(self._sorted_nodes) * 100,
                               len(node_tokens),
                               num_new_tokens,
-                              num_pruned_tokens)
+                              num_pruned_tokens,
+                              ",".join(str(c) for c in counts))
 
         if len(final_tokens) == 0:
             raise InputError("Could not reach a final node of word lattice.")
@@ -432,7 +434,7 @@ class LatticeDecoder(object):
                 if link.graph_logprob is not None:
                     token.graph_logprob += link.graph_logprob
 
-            if not link.word.startswith('!'):
+            if not link.word.startswith('!') or link.word.startswith('#'):
                 try:
                     word = self._vocabulary.word_to_id[link.word]
                 except KeyError:
@@ -457,7 +459,7 @@ class LatticeDecoder(object):
         :type node: Lattice.Node
         :param node: perform pruning on this node
         """
-
+        orig_amount_tokens = len(self._tokens[node.id])
         new_tokens = dict()
         for token in self._tokens[node.id]:
             key = token.recombination_hash
@@ -465,6 +467,7 @@ class LatticeDecoder(object):
                (token.total_logprob > new_tokens[key].total_logprob):
                 new_tokens[key] = token
 
+        after_recomb_tokens = len(new_tokens)
         # Sort the tokens by descending log probability.
         new_tokens = sorted(new_tokens.values(),
                             key=lambda token: token.total_logprob, reverse=True)
@@ -491,11 +494,15 @@ class LatticeDecoder(object):
                 del new_tokens[token_index]
                 token_index -= 1
 
+        after_beam = len(new_tokens)
         # Enforce limit on number of tokens at each node.
         if self._max_tokens_per_node is not None:
             new_tokens[self._max_tokens_per_node:] = []
 
+        after_max_tokens = len(new_tokens)
         self._tokens[node.id] = new_tokens
+
+        return orig_amount_tokens, after_recomb_tokens, after_beam, after_max_tokens
 
     def _append_word(self, tokens, target_word):
         """Appends a word to each of the given tokens, and updates their scores.

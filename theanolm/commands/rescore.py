@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import sys
-import os
 import logging
 import theano
 from theanolm import Network
@@ -161,66 +160,12 @@ def rescore(args):
 
         lattice = KaldiLattice(lat_lines, id_to_word)
         lattice.utterance_id = key
-        tokens = decoder.decode(lattice)
-        import itertools
+        decoder.decode(lattice)
+
 
         decoder.write_kaldi(key, word_to_id, args.lattices_out)
 
-        #print(len({t.recombination_hash for t in itertools.chain(*tokens)}))
-        # all_tokens = list(itertools.chain(*decoder._tokens))
-        # unique_hashes = {t.recombination_hash for t in all_tokens}
-        # args.lattices_out.write("{} {} \n".format(len(all_tokens), len(unique_hashes)))
-        # 
-        # for index in range(min(args.n_best, len(tokens))):
-        #     line = format_token(tokens[index],
-        #                         key,
-        #                         network.vocabulary,
-        #                         log_scale,
-        #                         args.output)
-        #     args.lattices_out.write(line + "\n")
 
-
-    #
-    # # Combine paths from command line and lattice list.
-    # lattices = args.lattices
-    # if not args.lattice_list is None:
-    #     lattices.extend(args.lattice_list.readlines())
-    # lattices = [path.strip() for path in lattices]
-    # # Ignore empty lines in the lattice list.
-    # lattices = list(filter(None, lattices))
-    # # Pick every Ith lattice, if --num-jobs is specified and > 1.
-    # if args.num_jobs < 1:
-    #     print("Invalid number of jobs specified:", args.num_jobs)
-    #     sys.exit(1)
-    # if (args.job < 0) or (args.job > args.num_jobs - 1):
-    #     print("Invalid job specified:", args.job)
-    #     sys.exit(1)
-    # lattices = lattices[args.job::args.num_jobs]
-    #
-    # file_type = TextFileType('r')
-    # for index, path in enumerate(lattices):
-    #     logging.info("Reading word lattice: %s", path)
-    #     lattice_file = file_type(path)
-    #     lattice = SLFLattice(lattice_file)
-    #
-    #     if not lattice.utterance_id is None:
-    #         utterance_id = lattice.utterance_id
-    #     else:
-    #         utterance_id = os.path.basename(lattice_file.name)
-    #     logging.info("Utterance `%s' -- %d/%d of job %d",
-    #                  utterance_id,
-    #                  index + 1,
-    #                  len(lattices),
-    #                  args.job)
-    #     tokens = decoder.decode(lattice)
-    #
-    #     for index in range(min(args.n_best, len(tokens))):
-    #         line = format_token(tokens[index],
-    #                             utterance_id,
-    #                             network.vocabulary,
-    #                             log_scale,
-    #                             args.output)
-    #         args.output_file.write(line + "\n")
 
 def format_token(token, utterance_id, vocabulary, log_scale, output_format):
     """Formats an output line from a token and an utterance ID.
