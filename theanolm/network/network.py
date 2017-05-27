@@ -157,9 +157,10 @@ class Network(object):
         # A shortlist model adds these logprobs to OOS logprobs predicted by the
         # network.
         if vocabulary.has_unigram_probs():
-            self.oos_logprobs = theano.shared(
-                vocabulary.get_oos_logprobs().astype(theano.config.floatX),
-                'network/oos_logprobs')
+            oos_logprobs = numpy.log(vocabulary.get_oos_probs())
+            oos_logprobs = oos_logprobs.astype(theano.config.floatX)
+            self.oos_logprobs = theano.shared(oos_logprobs,
+                                              'network/oos_logprobs')
         else:
             self.oos_logprobs = None
 

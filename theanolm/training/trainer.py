@@ -48,8 +48,7 @@ class Trainer(object):
 
         self._vocabulary = vocabulary
 
-        print("Computing class unigram probabilities and the number of "
-              "mini-batches in training data.")
+        print("Computing the number of mini-batches in training data.")
         linear_iter = LinearBatchIterator(
             training_files,
             vocabulary,
@@ -58,21 +57,14 @@ class Trainer(object):
             map_oos_to_unk=True)
         sys.stdout.flush()
         self._updates_per_epoch = 0
-        class_counts = numpy.zeros(vocabulary.num_classes(), dtype='int64')
-        for word_ids, _, mask in linear_iter:
+        for _, _, _ in linear_iter:
             self._updates_per_epoch += 1
-            word_ids = word_ids[mask == 1]
-            class_ids = vocabulary.word_id_to_class_id[word_ids]
-            numpy.add.at(class_counts, class_ids, 1)
         if self._updates_per_epoch < 1:
             raise ValueError("Training data does not contain any sentences.")
         logging.debug("One epoch of training data contains %d mini-batch "
                       "updates.",
                       self._updates_per_epoch)
-        total_count = class_counts.sum()
-        self.class_prior_probs = class_counts.astype(theano.config.floatX)
-        if total_count > 0:
-            self.class_prior_probs /= total_count
+        self.class_prior_probs = vocabulary.get_class_probs()
         logging.debug("Class unigram log probabilities are in the range [%f, "
                       "%f].",
                       numpy.log(self.class_prior_probs.min()),

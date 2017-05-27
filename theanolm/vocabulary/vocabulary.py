@@ -92,8 +92,7 @@ class Vocabulary(object):
         :param word_classes: list of all the word classes
         """
 
-        if ('<s>' not in id_to_word) or ('</s>' not in id_to_word) or \
-           ('<unk>' not in id_to_word):
+        if not ({'<s>', '</s>', '<unk>'} <= set(id_to_word)):
             raise ValueError("Trying to construct shortlist vocabulary without "
                              "the special tokens <s>, </s>, and <unk>.")
 
@@ -206,10 +205,12 @@ class Vocabulary(object):
             word_id_to_class_id.append(class_id)
 
         _add_special_tokens(id_to_word, word_id_to_class_id, word_classes)
+        words |= {'<s>', '</s>', '<unk>'}
 
         if oos_words is not None:
             for word in oos_words:
-                if word not in id_to_word:
+                if word not in words:
+                    words.add(word)
                     id_to_word.append(word)
 
         return cls(id_to_word, word_id_to_class_id, word_classes)
@@ -338,7 +339,8 @@ class Vocabulary(object):
         ``update_class_probs`` is ``True`` and for classes whose words occur in
         ``word_counts``.
 
-        Ensures that special tokens will always have nonzero probabilities.
+        Ensures that special tokens will always have nonzero class membership
+        probabilities.
 
         :type word_counts: dict
         :param words_counts: mapping from word strings to counts
@@ -355,11 +357,9 @@ class Vocabulary(object):
         for word, count in word_counts.items():
             if word in self.word_to_id:
                 word_id = self.word_to_id[word]
-                if word_id < counts.size:
-                    counts[word_id] = count
+                counts[word_id] = count
 
         self._unigram_probs = counts.astype(theano.config.floatX)
-        self._unigram_probs[sos_id] = 0.0
         total = self._unigram_probs.sum()
         if total > 0:
             self._unigram_probs /= total
@@ -558,7 +558,7 @@ class Vocabulary(object):
 
     def has_unigram_probs(self):
         """Checks if the word unigram probabilities are computed and
-        ``get_oos_logprobs()`` can be called.
+        ``get_oos_probs()`` can be called.
 
         :rtype: bool
         :returns: ``True`` if the unigram probabilities are computed, ``False``
@@ -567,15 +567,16 @@ class Vocabulary(object):
 
         return self._unigram_probs is not None
 
-    def get_oos_logprobs(self):
-        """Returns an array that can be indexed by word ID to obtain a log
-        probability that should be added to the log probability predicted by the
-        network.
+    def get_oos_probs(self):
+        """Returns an array that can be indexed by word ID to obtain the
+        probability of a word given that the word is an out-of-shortlist word.
 
-        The returned probability is one (logprob is zero) for shortlist words,
-        meaning that the shortlist probabilities are not affected. For other
-        words, it's the unigram probability mass of the out-of-shortlist words
-        divided according to their unigram frequencies.
+        The probabilities predicted by the network should be multiplied by the
+        corresponding elements of the returned array to obtain a correctly
+        normalized probability distribution. The returned probabilities are one
+        for shortlist words, meaning that the shortlist probabilities are not
+        affected. For other words, the probability mass of ``<unk>`` is divided
+        according to their unigram frequencies.
 
         :rtype: ndarray
         :returns: an array that maps a word ID to the log probability that
@@ -584,11 +585,31 @@ class Vocabulary(object):
         """
 
         shortlist_size = self.num_shortlist_words()
-        oos_probs = numpy.copy(self._unigram_probs)
-        oos_probs[:shortlist_size] = 1.0
-        total_oos_prob = oos_probs[shortlist_size:].sum()
-        oos_probs[shortlist_size:] /= total_oos_prob
-        return numpy.log(oos_probs)
+        result = numpy.copy(self._unigram_probs)
+        result[:shortlist_size] = 1.0
+        total_oos_prob = result[shortlist_size:].sum()
+        result[shortlist_size:] /= total_oos_prob
+        return result
+
+    def get_class_probs(self):
+        """Computes the class probabilities by summing the member word
+        probabilities. Normalizes the resulting probability distribution.
+
+        :rtype: ndarray
+        :returns: probability distribution of the word classes
+        """
+
+        shortlist_size = self.num_shortlist_words()
+        class_ids = self.word_id_to_class_id[:shortlist_size]
+        probs = self._unigram_probs[:shortlist_size]
+        result = numpy.zeros(self.num_classes(), dtype=theano.config.floatX)
+        numpy.add.at(result, class_ids, probs)
+
+        total = result.sum()
+        if total > 0:
+            result /= total
+
+        return result
 
     def __contains__(self, word):
         """Tests if ``word`` is included in the vocabulary.
