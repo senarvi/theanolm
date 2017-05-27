@@ -24,7 +24,7 @@ class DummyNetwork(object):
         self.target_class_ids = tensor.matrix('target_class_ids', dtype='int64')
         self.mask = tensor.matrix('mask', dtype='int64')
         self.oos_logprobs = theano.shared(
-            vocabulary.get_oos_logprobs().astype(theano.config.floatX),
+            numpy.log(vocabulary.get_oos_probs()),
             'network/oos_logprobs')
         self.is_training = tensor.scalar('is_training', dtype='int8')
 

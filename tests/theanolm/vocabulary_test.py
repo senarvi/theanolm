@@ -130,8 +130,8 @@ class TestVocabulary(unittest.TestCase):
                                            self.sentences2_file])
         vocabulary.compute_probs(word_counts)
 
-        # 10 * </s> + 20 words. <s> is excluded.
-        total_count = 30.0
+        # 10 * <s> + 10 * </s> + 20 words.
+        total_count = 40.0
         word_id = vocabulary.word_to_id['yksi']
         self.assertAlmostEqual(vocabulary._unigram_probs[word_id],
                                2.0 / total_count)
@@ -173,7 +173,8 @@ class TestVocabulary(unittest.TestCase):
                                2.0 / total_count)
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 1.0)
         word_id = vocabulary.word_to_id['<s>']
-        self.assertAlmostEqual(vocabulary._unigram_probs[word_id], 0.0)
+        self.assertAlmostEqual(vocabulary._unigram_probs[word_id],
+                               10.0 / total_count)
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 1.0)
         word_id = vocabulary.word_to_id['</s>']
         self.assertAlmostEqual(vocabulary._unigram_probs[word_id],
@@ -233,7 +234,7 @@ class TestVocabulary(unittest.TestCase):
                                     5.0 / 6.0,
                                     1.0])
 
-    def test_get_oos_logprobs(self):
+    def test_get_oos_probs(self):
         oos_words = ['yksitoista', 'kaksitoista']
         self.vocabulary_file.seek(0)
         vocabulary = Vocabulary.from_file(self.vocabulary_file, 'words',
@@ -243,10 +244,24 @@ class TestVocabulary(unittest.TestCase):
                        'yhdeksän': 9, 'kymmenen': 10, '<s>': 11, '</s>': 12,
                        '<unk>': 13, 'yksitoista': 3, 'kaksitoista': 7}
         vocabulary.compute_probs(word_counts)
-        oos_logprobs = vocabulary.get_oos_logprobs()
-        assert_almost_equal(oos_logprobs, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                                           numpy.log(0.3), numpy.log(0.7)])
+        oos_logprobs = vocabulary.get_oos_probs()
+        assert_almost_equal(oos_logprobs, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                           1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                           0.3, 0.7])
+
+    def test_get_class_probs(self):
+        word_counts = {'yksi': 1, 'kaksi': 2, 'kolme': 3, 'neljä': 4,
+                       'viisi': 5, 'kuusi': 6, 'seitsemän': 7, 'kahdeksan': 8,
+                       'yhdeksän': 9, 'kymmenen': 10, '<s>': 11, '</s>': 12,
+                       '<unk>': 13, 'yksitoista': 3, 'kaksitoista': 7}
+        vocabulary = Vocabulary.from_word_counts(word_counts, num_classes=4)
+        vocabulary.compute_probs(word_counts)
+        class_probs = vocabulary.get_class_probs()
+        for word_class in vocabulary._word_classes:
+            class_prob = class_probs[word_class.id]
+            unigram_prob_sum = sum(vocabulary._unigram_probs[word_id]
+                                   for word_id, _ in word_class)
+            self.assertEqual(class_prob, unigram_prob_sum)
 
 if __name__ == '__main__':
     unittest.main()
