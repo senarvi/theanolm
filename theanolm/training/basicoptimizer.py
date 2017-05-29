@@ -73,7 +73,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
             raise ValueError("Option {} is missing from optimization options."
                              .format(e))
 
-        unk_id = self.network.vocabulary.word_to_id['<unk>']
+        self._unk_id = self.network.vocabulary.word_to_id['<unk>']
 
         # The functions take as input a mini-batch of word IDs and class IDs,
         # and slice input and target IDs for the network.
@@ -102,7 +102,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         # from the GPU earlier than necessary.
         mask = self.network.mask
         if self._exclude_unk:
-            mask *= tensor.neq(self.network.target_word_ids, unk_id)
+            mask *= tensor.neq(self.network.target_word_ids, self._unk_id)
         logprobs *= tensor.cast(mask, theano.config.floatX)
         # Cost is the negative log probability normalized by the number of
         # training examples in the mini-batch, so that the gradients will also
@@ -207,7 +207,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
         alpha = self.learning_rate
         if self._exclude_unk:
-            mask *= tensor.neq(target_word_ids, unk_id)
+            mask *= tensor.neq(target_word_ids, self._unk_id)
         num_words = numpy.count_nonzero(mask)
         float_type = numpy.dtype(theano.config.floatX).type
         if num_words > 0:
