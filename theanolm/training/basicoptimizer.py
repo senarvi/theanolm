@@ -207,7 +207,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
         alpha = self.learning_rate
         if self._exclude_unk:
-            mask *= tensor.neq(target_word_ids, self._unk_id)
+            mask[target_word_ids == self._unk_id] = 0
         num_words = numpy.count_nonzero(mask)
         float_type = numpy.dtype(theano.config.floatX).type
         if num_words > 0:
