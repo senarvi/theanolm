@@ -220,6 +220,10 @@ class Vocabulary(object):
         """Creates a vocabulary and classes from word counts. All the words will
         be in the shortlist.
 
+        If ``num_classes`` is specified, words will be assigned to classes using
+        modulo arithmetic. The class membership probabilities will be computed
+        from the word counts.
+
         :type word_counts: dict
         :param word_counts: dictionary from words to the number of occurrences
                             in the corpus
@@ -265,7 +269,9 @@ class Vocabulary(object):
 
         _add_special_tokens(id_to_word, word_id_to_class_id, word_classes)
 
-        return cls(id_to_word, word_id_to_class_id, word_classes)
+        result = cls(id_to_word, word_id_to_class_id, word_classes)
+        result.compute_probs(word_counts, update_class_probs=True)
+        return result
 
     @classmethod
     def from_state(cls, state):
