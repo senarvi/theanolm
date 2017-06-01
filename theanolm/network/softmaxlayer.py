@@ -31,6 +31,8 @@ class SoftmaxLayer(SamplingOutputLayer):
             initial_bias = numpy.log(self._network.class_prior_probs + 1e-10)
             self._init_bias('input/b', output_size, initial_bias)
 
+        self._unk_id = self._network.vocabulary.word_to_id['<unk>']
+
         self.output_probs = None
         self.target_probs = None
         self.unnormalized_logprobs = None
@@ -49,8 +51,14 @@ class SoftmaxLayer(SamplingOutputLayer):
         word projection. When generating text, there's just one sequence and one
         time step in the input.
 
-        Sets self.output to a symbolic matrix that describes the output of this
-        layer.
+        Sets ``self.output_probs`` to a symbolic matrix that specifies output
+        probabilities for all classes, ``self.target_probs`` to one that
+        specifies output probabilities for the target classes, and
+        ``self.unnormalized_logprobs``, ``self.sample``,
+        ``self.sample_logprobs``, ``self.seqshared_sample``,
+        ``self.seqshared_sample_logprobs``, ``self.shared_sample``, and
+        ``self.shared_sample_logprobs`` to symbolic matrices that can be used to
+        obtain the data required to compute sampling output costs.
         """
 
         layer_input = tensor.concatenate([x.output for x in self._input_layers],
@@ -58,13 +66,22 @@ class SoftmaxLayer(SamplingOutputLayer):
         preact = self._tensor_preact(layer_input, 'input')
 
         # Combine the first two dimensions so that softmax is taken
-        # independently for each location, over the output classes. This
-        # produces probabilities for the whole vocabulary.
+        # independently for each location, over the output classes.
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
         preact = preact.reshape([num_time_steps * num_sequences,
                                  self.output_size])
         output_probs = tensor.nnet.softmax(preact)
+
+        # If <unk> probability is set to zero, the distribution has to be
+        # renormalized.
+        if self._network.exclude_unk:
+            output_probs = tensor.set_subtensor(output_probs[:, self._unk_id],
+                                                0)
+            total_probs = output_probs.sum(1)
+            output_probs /= total_probs[:, None]
+
+        # This variable contains probabilities for the whole vocabulary.
         self.output_probs = output_probs.reshape([num_time_steps,
                                                   num_sequences,
                                                   self.output_size])
