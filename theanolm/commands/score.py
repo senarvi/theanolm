@@ -187,11 +187,13 @@ def _score_text(input_file, vocabulary, scorer, output_file,
             total_logprob += seq_logprob
             # number of tokens, which may be subwords, including <unk>'s
             num_tokens += len(seq_word_ids)
-            # number of words, including <unk>'s
+            # number of words, including <s>'s and <unk>'s
             num_words += len(merged_words)
             # number of word probabilities computed (may not include <unk>'s)
             num_seq_probs = sum(x is not None for x in merged_logprobs)
             num_probs += num_seq_probs
+            # number of <unk>'s (just for reporting)
+            num_unks += len(merged_logprobs) - num_seq_probs
             # number of sequences
             num_sentences += 1
 
@@ -208,7 +210,7 @@ def _score_text(input_file, vocabulary, scorer, output_file,
     output_file.write("Number of predicted probabilities: {0}\n"
                       .format(num_probs))
     output_file.write("Number of excluded (OOV) words: {0}\n"
-                      .format(num_words - num_probs))
+                      .format(num_unks))
     if num_words > 0:
         cross_entropy = -total_logprob / num_probs
         perplexity = numpy.exp(cross_entropy)
