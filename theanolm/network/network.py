@@ -84,8 +84,8 @@ class Network(object):
             self.nce = nce
 
     def __init__(self, architecture, vocabulary, class_prior_probs=None,
-                 noise_dampening=1.0, mode=None, default_device=None,
-                 profile=False):
+                 noise_dampening=1.0, mode=None, exclude_unk=False,
+                 default_device=None, profile=False):
         """Initializes the neural network parameters for all layers, and
         creates Theano shared variables from them.
 
@@ -114,6 +114,10 @@ class Network(object):
         :type mode: Network.Mode
         :param mode: selects mini-batch or single time step processing
 
+        :type exclude_unk: bool
+        :param exclude_unk: if set to ``True``, sets ``<unk>`` probability to
+                            zero.
+
         :type default_device: str
         :param default_device: default device where to store the shared variables
 
@@ -137,8 +141,10 @@ class Network(object):
         self.random = RandomStreams(random_seed)
 
         # Word and class inputs will be available to NetworkInput layers.
-        self.input_word_ids = tensor.matrix('network/input_word_ids', dtype='int64')
-        self.input_class_ids = tensor.matrix('network/input_class_ids', dtype='int64')
+        self.input_word_ids = tensor.matrix('network/input_word_ids',
+                                            dtype='int64')
+        self.input_class_ids = tensor.matrix('network/input_class_ids',
+                                             dtype='int64')
         if self.mode.minibatch:
             self.input_word_ids.tag.test_value = test_value(
                 size=(20, 4), high=vocabulary.num_shortlist_words())
@@ -149,6 +155,10 @@ class Network(object):
                 size=(1, 4), high=vocabulary.num_shortlist_words())
             self.input_class_ids.tag.test_value = test_value(
                 size=(1, 4), high=vocabulary.num_classes())
+
+        # Should the output layer set the <unk> probability to zero? In that
+        # case OOVs are not counted when computing perplexity.
+        self.exclude_unk = exclude_unk
 
         # During training, the output layer bias vector is initialized to the
         # unigram probabilities.
@@ -257,7 +267,7 @@ class Network(object):
             layer.create_structure()
 
     @classmethod
-    def from_file(cls, model_path, mode=None):
+    def from_file(cls, model_path, mode=None, exclude_unk=False):
         """Reads a model from an HDF5 file.
 
         :type model_path: str
@@ -265,6 +275,10 @@ class Network(object):
 
         :type mode: Network.Mode
         :param mode: selects mini-batch or single time step processing
+
+        :type exclude_unk: bool
+        :param exclude_unk: if set to ``True``, sets ``<unk>`` probability to
+                            zero.
         """
 
         with h5py.File(model_path, 'r') as state:
@@ -277,7 +291,7 @@ class Network(object):
             print("Building neural network.")
             sys.stdout.flush()
             architecture = Architecture.from_state(state)
-            result = cls(architecture, vocabulary, mode=mode)
+            result = cls(architecture, vocabulary, mode=mode, exclude_unk=exclude_unk)
             print("Restoring neural network state.")
             sys.stdout.flush()
             result.set_state(state)
