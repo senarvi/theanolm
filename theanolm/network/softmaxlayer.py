@@ -66,20 +66,18 @@ class SoftmaxLayer(SamplingOutputLayer):
         preact = self._tensor_preact(layer_input, 'input')
 
         # Combine the first two dimensions so that softmax is taken
-        # independently for each location, over the output classes.
+        # independently for each location, over the output classes. If <unk> is
+        # excluded, set those activations to -inf before normalization.
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
         preact = preact.reshape([num_time_steps * num_sequences,
                                  self.output_size])
-        output_probs = tensor.nnet.softmax(preact)
-
-        # If <unk> probability is set to zero, the distribution has to be
-        # renormalized.
         if self._network.exclude_unk:
-            output_probs = tensor.set_subtensor(output_probs[:, self._unk_id],
-                                                0)
-            total_probs = output_probs.sum(1)
-            output_probs /= total_probs[:, None]
+            float_type = numpy.dtype(theano.config.floatX).type
+            log_zero = float_type('-inf')
+            preact = tensor.set_subtensor(output_prob[:, self._unk_id],
+                                          log_zero)
+        output_probs = tensor.nnet.softmax(preact)
 
         # This variable contains probabilities for the whole vocabulary.
         self.output_probs = output_probs.reshape([num_time_steps,
