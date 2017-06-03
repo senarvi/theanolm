@@ -81,8 +81,9 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
 #            denominators = class_probs.sum(1)
 #            denominators = denominators[:, None]
 #            class_probs /= denominators
-            sample = random.multinomial_wo_replacement(pvals=class_probs,
-                                                       n=num_samples)
+            # Only sampling without replacement is currently supported.
+            sample = random.choice(size=num_samples, replace=False,
+                                   p=class_probs)
             # For some reason (maybe a rounding error) it may happen that the
             # sample contains a very high or negative value.
             sample = tensor.maximum(sample, 0)
@@ -124,10 +125,10 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
             # never have a problem with sampling without replacement.
             # Unfortunately that is very inefficient.
 #            class_probs = tensor.tile(class_probs, [num_time_steps, 1])
-#            sample = random.multinomial_wo_replacement(pvals=class_probs,
-#                                                       n=num_samples)
-            sample = random.multinomial_wo_replacement(pvals=class_probs,
-                                                       n=num_batch_samples)
+#            sample = random.choice(size=num_samples, p=class_probs)
+            # Only sampling without replacement is currently supported.
+            sample = random.choice(size=num_batch_samples, replace=False,
+                                   p=class_probs)
             sample.reshape([num_time_steps, num_samples])
             # For some reason (maybe a rounding error) it may happen that the
             # sample contains a very high or negative value.
@@ -165,8 +166,9 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
             # Multinomial sampling is implemented for a 2-dimensional
             # distribution only.
             class_probs = self._network.noise_probs[None, :]
-            sample = random.multinomial_wo_replacement(pvals=class_probs,
-                                                       n=num_samples)
+            # Only sampling without replacement is currently supported.
+            sample = random.choice(size=num_samples, replace=False,
+                                   p=class_probs)
             sample = sample[0, :]
             # For some reason (maybe a rounding error) it may happen that the
             # sample contains a very high or negative value.
