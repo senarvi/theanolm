@@ -282,18 +282,17 @@ class Network(object):
         """
 
         with h5py.File(model_path, 'r') as state:
-            print("Reading vocabulary from network state.")
-            sys.stdout.flush()
+            logging.info("Reading vocabulary from network state.")
+            #sys.stdout.flush()
             vocabulary = Vocabulary.from_state(state)
-            print("Number of words in vocabulary:", vocabulary.num_words())
-            print("Number of words in shortlist:", vocabulary.num_shortlist_words())
-            print("Number of word classes:", vocabulary.num_classes())
-            print("Building neural network.")
-            sys.stdout.flush()
+            logging.info("Number of words in vocabulary:", vocabulary.num_words())
+            logging.info("Number of words in shortlist:", vocabulary.num_shortlist_words())
+            logging.info("Number of word classes:", vocabulary.num_classes())
+            logging.info("Building neural network.")
+            #sys.stdout.flush()
             architecture = Architecture.from_state(state)
             result = cls(architecture, vocabulary, mode=mode, exclude_unk=exclude_unk)
-            print("Restoring neural network state.")
-            sys.stdout.flush()
+            logging.info("Restoring neural network state.")
             result.set_state(state)
             return result
 

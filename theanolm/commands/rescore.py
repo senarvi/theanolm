@@ -128,7 +128,7 @@ def rescore(args):
     for option_name, option_value in decoding_options.items():
         logging.debug("%s: %s", option_name, str(option_value))
 
-    print("Building word lattice decoder.")
+    logging.info("Building word lattice decoder.")
     sys.stdout.flush()
     decoder = LatticeDecoder(network, decoding_options)
 
