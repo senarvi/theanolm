@@ -170,7 +170,7 @@ class OutKaldiLattice(object):
 
             _, from_node = get_node(token.history[:-1])
 
-            from_node.out[label] = recomb_from_node.out[label]._replace(lm_weight=recomb_from_node.out[label].lm_weight - (nnlm_prob - token.nn_lm_logprob))
+            from_node.out[label] = recomb_from_node.out[label]._replace(lm_weight=recomb_from_node.out[label].lm_weight + (nnlm_prob - token.nn_lm_logprob))
 
 
     def write(self, key, out):
