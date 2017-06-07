@@ -27,10 +27,10 @@ class Lattice(object):
         def __init__(self, start_node, end_node):
             """Constructs a link.
 
-            :type start_node: int
+            :type start_node: self.Node
             :param start_node: the node that has this link as an outgoing link
 
-            :type end_node: int
+            :type end_node: self.Node
             :param end_node: the node that has this link as an incoming link
             """
 
@@ -111,10 +111,10 @@ class Lattice(object):
     def _add_link(self, start_node, end_node):
         """Adds a link between two nodes.
 
-        :type start_node: int
+        :type start_node: Node
         :param start_node: creates a link from this node
 
-        :type end_node: int
+        :type end_node: Node
         :param end_node: creates a link to this node
 
         :rtype: Link

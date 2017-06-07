@@ -214,7 +214,7 @@ def decode(args):
                      index + 1,
                      len(lattices),
                      args.job)
-        tokens = decoder.decode(lattice)
+        tokens, _ = decoder.decode(lattice)
 
         for index in range(min(args.n_best, len(tokens))):
             line = format_token(tokens[index],

@@ -5,7 +5,7 @@ import sys
 import logging
 import theano
 from theanolm import Network
-from theanolm.scoring import LatticeDecoder, SLFLattice, KaldiLattice
+from theanolm.scoring import LatticeDecoder, SLFLattice, KaldiLattice, OutKaldiLattice
 from theanolm.filetypes import TextFileType
 
 
@@ -160,11 +160,12 @@ def rescore(args):
 
         lattice = KaldiLattice(lat_lines, id_to_word)
         lattice.utterance_id = key
-        decoder.decode(lattice)
+        final_tokens, recomb_tokens = decoder.decode(lattice)
 
 
-        decoder.write_kaldi(key, word_to_id, args.lattices_out)
-
+        lat_out = OutKaldiLattice()
+        lat_out.create_network(lattice, final_tokens, recomb_tokens, network.vocabulary, word_to_id)
+        lat_out.write(key, args.lattices_out)
 
 
 def format_token(token, utterance_id, vocabulary, log_scale, output_format):

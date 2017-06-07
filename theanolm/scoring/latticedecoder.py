@@ -3,9 +3,7 @@
 """A module that implements the LatticeDecoder class.
 """
 
-from copy import deepcopy
 import logging
-import math
 
 import numpy
 import theano
@@ -26,9 +24,11 @@ class LatticeDecoder(object):
         A token represents a partial path through a word lattice. The decoder
         propagates a set of tokens through the lattice by
         """
+        __slots__ = ("history", "state", "ac_logprob", "graph_logprob", "lat_lm_logprob",
+                     "nn_lm_logprob", "recombination_hash", "total_logprob")
 
         def __init__(self,
-                     history=None,
+                     history=(),
                      state=None,
                      ac_logprob=logprob_type(0.0),
                      graph_logprob=logprob_type(0.0),
@@ -63,14 +63,13 @@ class LatticeDecoder(object):
                                   lattice links
             """
 
-            self.history = [] if history is None else history
+            self.history = history
             self.state = [] if state is None else state
             self.ac_logprob = ac_logprob
             self.graph_logprob = graph_logprob
             self.lat_lm_logprob = lat_lm_logprob
             self.nn_lm_logprob = nn_lm_logprob
             self.recombination_hash = None
-            self.lm_logprob = None
             self.total_logprob = None
 
         @classmethod
@@ -90,7 +89,7 @@ class LatticeDecoder(object):
             :returns: a copy of ``token``
             """
 
-            return cls(deepcopy(token.history),
+            return cls(token.history,
                        token.state,
                        token.ac_logprob,
                        token.graph_logprob,
@@ -110,7 +109,7 @@ class LatticeDecoder(object):
                 limited_history = self.history
             else:
                 limited_history = self.history[-recombination_order:]
-            self.recombination_hash = hash(tuple(limited_history))
+            self.recombination_hash = hash(limited_history)
 
         def recompute_total(self, nn_lm_weight, lm_scale, wi_penalty,
                             linear=False):
@@ -139,18 +138,18 @@ class LatticeDecoder(object):
             """
 
             if linear:
-                self.lm_logprob = interpolate_linear(
+                lm_logprob = interpolate_linear(
                     self.nn_lm_logprob, self.lat_lm_logprob,
                     nn_lm_weight)
             else:
-                self.lm_logprob = interpolate_loglinear(
+                lm_logprob = interpolate_loglinear(
                     self.nn_lm_logprob, self.lat_lm_logprob,
                     nn_lm_weight, (1.0 - nn_lm_weight))
 
             #self.lm_logprob -= self.graph_logprob
 
             self.total_logprob = self.ac_logprob
-            self.total_logprob += (self.lm_logprob + self.graph_logprob) * lm_scale
+            self.total_logprob += (lm_logprob + self.graph_logprob) * lm_scale
             self.total_logprob += wi_penalty * (len(self.history) - 1)
 
         def history_words(self, vocabulary):
@@ -298,9 +297,6 @@ class LatticeDecoder(object):
             profile=profile,
             on_unused_input='ignore')
 
-        self._tokens = None
-        self._sorted_nodes = None
-
     def decode(self, lattice):
         """Propagates tokens through given lattice and returns a list of tokens
         in the final nodes.
@@ -330,44 +326,44 @@ class LatticeDecoder(object):
         else:
             wi_penalty = logprob_type(0.0)
 
-        self._tokens = [list() for _ in lattice.nodes]
+        tokens = [list() for _ in lattice.nodes]
+        recomb_tokens = []
         initial_state = RecurrentState(self._network.recurrent_state_size)
-        initial_token = self.Token(history=[self._sos_id], state=initial_state)
+        initial_token = self.Token(history=(self._sos_id,), state=initial_state)
         initial_token.recompute_hash(self._recombination_order)
         initial_token.recompute_total(self._nnlm_weight, lm_scale, wi_penalty,
                                       self._linear_interpolation)
-        self._tokens[lattice.initial_node.id].append(initial_token)
+        tokens[lattice.initial_node.id].append(initial_token)
         lattice.initial_node.best_logprob = initial_token.total_logprob
 
-        self._sorted_nodes = lattice.sorted_nodes()
+        sorted_nodes = lattice.sorted_nodes()
         nodes_processed = 0
         final_tokens = []
-        for node in self._sorted_nodes:
-            node_tokens = self._tokens[node.id]
+        for node in sorted_nodes:
+            logging.debug("Node {}".format(node.id))
+            node_tokens = tokens[node.id]
             assert node_tokens
             num_pruned_tokens = len(node_tokens)
-            counts = self._prune(node)
-            node_tokens = self._tokens[node.id]
+            if not node.final:
+                counts = self._prune(node,sorted_nodes,tokens,recomb_tokens)
+            else:
+                counts = []
+
+            node_tokens = tokens[node.id]
             assert node_tokens
             num_pruned_tokens -= len(node_tokens)
 
             num_new_tokens = 0
             if node.final:
-                link = None
-                if hasattr(node, 'word'):
-                    link = node
                 new_tokens = self._propagate(
-                    node_tokens, link, lm_scale, wi_penalty)
-                for i, t in enumerate(new_tokens):
-                    t.from_node = node.id
-                    t.from_token_hash = node_tokens[i].recombination_hash
+                    node_tokens, None, lm_scale, wi_penalty)
                 final_tokens.extend(new_tokens)
                 num_new_tokens += len(new_tokens)
 
             for link in node.out_links:
                 new_tokens = self._propagate(
                     node_tokens, link, lm_scale, wi_penalty)
-                self._tokens[link.end_node.id].extend(new_tokens)
+                tokens[link.end_node.id].extend(new_tokens)
                 num_new_tokens += len(new_tokens)
 
             nodes_processed += 1
@@ -375,7 +371,7 @@ class LatticeDecoder(object):
             if True:
                 logging.debug("[%d] (%.2f %%) -- tokens = %d +%d -%d %s",
                               nodes_processed,
-                              nodes_processed / len(self._sorted_nodes) * 100,
+                              nodes_processed / len(sorted_nodes) * 100,
                               len(node_tokens),
                               num_new_tokens,
                               num_pruned_tokens,
@@ -384,10 +380,9 @@ class LatticeDecoder(object):
         if len(final_tokens) == 0:
             raise InputError("Could not reach a final node of word lattice.")
 
-        self._final_tokens = final_tokens
         return sorted(final_tokens,
                       key=lambda token: token.total_logprob,
-                      reverse=True)
+                      reverse=True), recomb_tokens
 
 
     def _propagate(self, tokens, link, lm_scale, wi_penalty):
@@ -452,20 +447,29 @@ class LatticeDecoder(object):
 
         return new_tokens
 
-    def _prune(self, node):
+    def _prune(self, node, sorted_nodes, tokens, recomb_tokens):
         """Prunes tokens from a node according to beam and the maximum number of
         tokens.
 
         :type node: Lattice.Node
         :param node: perform pruning on this node
         """
-        orig_amount_tokens = len(self._tokens[node.id])
+        orig_amount_tokens = len(tokens[node.id])
         new_tokens = dict()
-        for token in self._tokens[node.id]:
+        rc = []
+        for token in tokens[node.id]:
             key = token.recombination_hash
-            if (key not in new_tokens) or \
-               (token.total_logprob > new_tokens[key].total_logprob):
+            if key not in new_tokens:
                 new_tokens[key] = token
+            elif token.total_logprob > new_tokens[key].total_logprob:
+                rc.append(new_tokens[key])
+                new_tokens[key] = token
+            else:
+                rc.append(token)
+
+        for token in rc:
+            key = token.recombination_hash
+            recomb_tokens.append((token, new_tokens[key].history, new_tokens[key].nn_lm_logprob))
 
         after_recomb_tokens = len(new_tokens)
         # Sort the tokens by descending log probability.
@@ -475,17 +479,17 @@ class LatticeDecoder(object):
         # Compare to the best probability at the same or later time.
         if self._beam is not None:
             if node.time is None:
-                node_ids = [iter_node.id for iter_node in self._sorted_nodes]
+                node_ids = [iter_node.id for iter_node in sorted_nodes]
                 time_begin = node_ids.index(node.id)
             else:
-                for time_begin, iter_node in enumerate(self._sorted_nodes):
+                for time_begin, iter_node in enumerate(sorted_nodes):
                     if (iter_node.time is not None) and \
                        (iter_node.time >= node.time):
                         break
-            assert time_begin < len(self._sorted_nodes)
+            assert time_begin < len(sorted_nodes)
 
             best_logprob = max(iter_node.best_logprob
-                               for iter_node in self._sorted_nodes[time_begin:]
+                               for iter_node in sorted_nodes[time_begin:]
                                if iter_node.best_logprob is not None)
             threshold = best_logprob - self._beam
             token_index = len(new_tokens) - 1
@@ -500,7 +504,7 @@ class LatticeDecoder(object):
             new_tokens[self._max_tokens_per_node:] = []
 
         after_max_tokens = len(new_tokens)
-        self._tokens[node.id] = new_tokens
+        tokens[node.id] = new_tokens
 
         return orig_amount_tokens, after_recomb_tokens, after_beam, after_max_tokens
 
@@ -546,7 +550,7 @@ class LatticeDecoder(object):
         output_state = step_result[1:]
 
         for index, token in enumerate(tokens):
-            token.history.append(target_word)
+            token.history = token.history + (target_word, )
             token.state = RecurrentState(self._network.recurrent_state_size)
             # Slice the sequence that corresponds to this token.
             token.state.set([layer_state[:, index:index+1]
@@ -560,56 +564,6 @@ class LatticeDecoder(object):
                     continue
             # logprobs matrix contains only one time step.
             token.nn_lm_logprob += logprobs[0, index]
-
-    def write_kaldi(self, key, word_map, out):
-        out.write("{}\n".format(key))
-        self._tokens[0][0].kaldi_state_id = 0
-        next_state_id = 1
-        for node in self._sorted_nodes:
-            for token in self._tokens[node.id]:
-                assert hasattr(token, 'kaldi_state_id')
-                # if not hasattr(token, 'kaldi_state_id'):
-                #     token.kaldi_state_id = next_state_id
-                #     next_state_id += 1
-
-                for link in node.out_links:
-                    if not link.word.startswith('!'):
-                        try:
-                            word = self._vocabulary.word_to_id[link.word]
-                        except KeyError:
-                            word = link.word
-                    new_hist = token.history + [word]
-                    if self._recombination_order is None:
-                        limited_history = new_hist
-                    else:
-                        limited_history = new_hist[-self._recombination_order:]
-                    new_hash = hash(tuple(limited_history))
-                    for target_token in self._tokens[link.end_node.id]:
-                        if target_token.recombination_hash == new_hash:
-                            if not hasattr(target_token, 'kaldi_state_id'):
-                                target_token.kaldi_state_id = next_state_id
-                                next_state_id += 1
-                            out.write("{} {} {} {},{},{}\n".format(
-                                token.kaldi_state_id,
-                                target_token.kaldi_state_id,
-                                word_map[link.word],
-                                -(target_token.nn_lm_logprob - token.nn_lm_logprob + link.graph_logprob),
-                                -link.ac_logprob,
-                                link.transitions
-                            ))
-                if node.final:
-                    for target_token in self._final_tokens:
-                        if target_token.from_node == node.id and target_token.from_token_hash == token.recombination_hash:
-                            if not hasattr(target_token, 'kaldi_state_id'):
-                                target_token.kaldi_state_id = next_state_id
-                                next_state_id += 1
-                            out.write("{} {},{},{}\n".format(
-                                token.kaldi_state_id,
-                                -(target_token.nn_lm_logprob - token.nn_lm_logprob + node.graph_logprob),
-                                -node.ac_logprob,
-                                node.transitions
-                            ))
-        out.write("\n")
 
 
 
