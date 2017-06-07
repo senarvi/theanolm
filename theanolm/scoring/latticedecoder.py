@@ -364,6 +364,8 @@ class LatticeDecoder(object):
                 new_tokens = self._propagate(
                     node_tokens, link, lm_scale, wi_penalty)
                 tokens[link.end_node.id].extend(new_tokens)
+                if len(tokens[link.end_node.id]) > self._max_tokens_per_node * 2:
+                    self._prune(link.end_node, sorted_nodes, tokens, recomb_tokens)
                 num_new_tokens += len(new_tokens)
 
             nodes_processed += 1
@@ -376,6 +378,8 @@ class LatticeDecoder(object):
                               num_new_tokens,
                               num_pruned_tokens,
                               ",".join(str(c) for c in counts))
+
+            tokens[node.id] = tokens[node.id][:2]
 
         if len(final_tokens) == 0:
             raise InputError("Could not reach a final node of word lattice.")

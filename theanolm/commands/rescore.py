@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import gc
 import sys
 import logging
 import theano
@@ -166,7 +167,8 @@ def rescore(args):
         lat_out = OutKaldiLattice()
         lat_out.create_network(lattice, final_tokens, recomb_tokens, network.vocabulary, word_to_id)
         lat_out.write(key, args.lattices_out)
-
+        del lat_out, final_tokens, recomb_tokens
+        gc.collect()
 
 def format_token(token, utterance_id, vocabulary, log_scale, output_format):
     """Formats an output line from a token and an utterance ID.
