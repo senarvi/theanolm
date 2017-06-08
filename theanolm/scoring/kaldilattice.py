@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 from collections import namedtuple
 
+import logging
+
 from theanolm.probfunctions import logprob_type
 from theanolm.scoring.lattice import Lattice
 
@@ -164,7 +166,11 @@ class OutKaldiLattice(object):
                 _, recomb_from_node = get_node(new_history[:-1], False)
             except NodeNotFoundError:
                 continue
-            label = kaldi_vocabulary[token_vocabulary.id_to_word[token.history[-1]]]
+            label = token.history[-1]
+            if type(label) == int:
+                label = kaldi_vocabulary[token_vocabulary.id_to_word[token.history[-1]]]
+            else:
+                logging.debug("Interesting, label: {}".format(label))
             if label not in recomb_from_node.out:
                 continue
 
