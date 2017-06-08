@@ -498,11 +498,12 @@ class LatticeDecoder(object):
                                for iter_node in sorted_nodes[time_begin:]
                                if iter_node.best_logprob is not None)
             threshold = best_logprob - self._beam
-            logging.debug("Node: {}, #tokens: {}, Best all: {}, Best: {}, Threshold: {}, Average: {}, Pos 10: {}, Pos 50: {}, Pos 100: {}".format(
+            logging.debug("Node: {}, #tokens: {}, Best all: {}, Best: {}, Worst: {}, Threshold: {}, Average: {}, Pos 10: {}, Pos 50: {}, Pos 100: {}".format(
                 node.id,
                 len(new_tokens),
                 best_logprob,
                 new_tokens[0].total_logprob,
+                new_tokens[-1].total_logprob,
                 threshold,
                 sum(t.total_logprob for t in new_tokens) / len(new_tokens),
                 new_tokens[9].total_logprob if len(new_tokens) > 9 else 0,
