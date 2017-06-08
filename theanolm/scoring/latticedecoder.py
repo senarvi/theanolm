@@ -458,8 +458,6 @@ class LatticeDecoder(object):
         :type node: Lattice.Node
         :param node: perform pruning on this node
         """
-        if node.final:
-            return tuple()
         orig_amount_tokens = len(tokens[node.id])
         new_tokens = dict()
         rc = []
@@ -484,27 +482,25 @@ class LatticeDecoder(object):
 
         # Compare to the best probability at the same or later time.
         if self._beam is not None:
-            threshold = new_tokens[0].total_logprob - self._beam
-            new_tokens = [t for t in new_tokens if t.total_logprob > threshold]
-            # if node.time is None:
-            #     node_ids = [iter_node.id for iter_node in sorted_nodes]
-            #     time_begin = node_ids.index(node.id)
-            # else:
-            #     for time_begin, iter_node in enumerate(sorted_nodes):
-            #         if (iter_node.time is not None) and \
-            #            (iter_node.time >= node.time):
-            #             break
-            # assert time_begin < len(sorted_nodes)
-            #
-            # best_logprob = max(iter_node.best_logprob
-            #                    for iter_node in sorted_nodes[time_begin:]
-            #                    if iter_node.best_logprob is not None)
-            # threshold = best_logprob - self._beam
-            # token_index = len(new_tokens) - 1
-            # while (token_index >= 1) and \
-            #       (new_tokens[token_index].total_logprob <= threshold):
-            #     del new_tokens[token_index]
-            #     token_index -= 1
+            if node.time is None:
+                node_ids = [iter_node.id for iter_node in sorted_nodes]
+                time_begin = node_ids.index(node.id)
+            else:
+                for time_begin, iter_node in enumerate(sorted_nodes):
+                    if (iter_node.time is not None) and \
+                       (iter_node.time >= node.time):
+                        break
+            assert time_begin < len(sorted_nodes)
+
+            best_logprob = max(iter_node.best_logprob
+                               for iter_node in sorted_nodes[time_begin:]
+                               if iter_node.best_logprob is not None)
+            threshold = best_logprob - self._beam
+            token_index = len(new_tokens) - 1
+            while (token_index >= 1) and \
+                  (new_tokens[token_index].total_logprob <= threshold):
+                del new_tokens[token_index]
+                token_index -= 1
 
         after_beam = len(new_tokens)
         # Enforce limit on number of tokens at each node.
