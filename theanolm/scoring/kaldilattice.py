@@ -145,7 +145,7 @@ class OutKaldiLattice(object):
 
 
         def get_node(token_hist, create=True):
-            word_path = [token_vocabulary.id_to_word[i] for i in token_hist[1:]]
+            word_path = [token_vocabulary.id_to_word[i] if type(i) == int else i for i in token_hist[1:]]
             word_path = ["!SENT_END" if w == "</s>" else w for w in word_path]
             kaldi_path = [kaldi_vocabulary[w] for w in word_path]
             return self._reconstruct_path(kaldi_path, word_path, orig_lat, create)
