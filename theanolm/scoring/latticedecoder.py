@@ -458,7 +458,7 @@ class LatticeDecoder(object):
         :type node: Lattice.Node
         :param node: perform pruning on this node
         """
-        limit_multiplier = max(1,(len(sorted_nodes) // 2000 +1))
+        limit_multiplier = max(1,(len(sorted_nodes) // 1500 +1))
         if node.final:
             return tuple()
         orig_amount_tokens = len(tokens[node.id])
