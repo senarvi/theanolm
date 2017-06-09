@@ -458,6 +458,7 @@ class LatticeDecoder(object):
         :type node: Lattice.Node
         :param node: perform pruning on this node
         """
+        limit_multiplier = (len(sorted_nodes) // 1000) + 1
         if node.final:
             return tuple()
         orig_amount_tokens = len(tokens[node.id])
@@ -497,7 +498,7 @@ class LatticeDecoder(object):
             best_logprob = max(iter_node.best_logprob
                                for iter_node in sorted_nodes[time_begin:]
                                if iter_node.best_logprob is not None)
-            threshold = best_logprob - self._beam
+            threshold = best_logprob - (self._beam / limit_multiplier)
             logging.debug("Node: {}, #tokens: {}, Best all: {}, Best: {}, Worst: {}, Threshold: {}, Average: {}, Pos 10: {}, Pos 50: {}, Pos 100: {}".format(
                 node.id,
                 len(new_tokens),
@@ -519,7 +520,8 @@ class LatticeDecoder(object):
         after_beam = len(new_tokens)
         # Enforce limit on number of tokens at each node.
         if self._max_tokens_per_node is not None:
-            new_tokens[self._max_tokens_per_node:] = []
+            new_tokens = new_tokens[:int(self._max_tokens_per_node/limit_multiplier)]
+#            new_tokens[self._max_tokens_per_node:] = []
 
         after_max_tokens = len(new_tokens)
         tokens[node.id] = new_tokens
