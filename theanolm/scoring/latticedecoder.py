@@ -498,7 +498,7 @@ class LatticeDecoder(object):
             best_logprob = max(iter_node.best_logprob
                                for iter_node in sorted_nodes[time_begin:]
                                if iter_node.best_logprob is not None)
-            threshold = best_logprob - (self._beam / limit_multiplier)
+            threshold = best_logprob - max(self._beam / limit_multiplier,100)
             logging.debug("Node: {}, #tokens: {}, Best all: {}, Best: {}, Worst: {}, Threshold: {}, Average: {}, Pos 10: {}, Pos 50: {}, Pos 100: {}".format(
                 node.id,
                 len(new_tokens),
@@ -512,7 +512,7 @@ class LatticeDecoder(object):
                 new_tokens[99].total_logprob if len(new_tokens) > 99 else 0,
             ))
             token_index = len(new_tokens) - 1
-            while (token_index >= 1) and \
+            while (token_index >= 10) and \
                   (new_tokens[token_index].total_logprob <= threshold):
                 del new_tokens[token_index]
                 token_index -= 1
@@ -520,7 +520,7 @@ class LatticeDecoder(object):
         after_beam = len(new_tokens)
         # Enforce limit on number of tokens at each node.
         if self._max_tokens_per_node is not None:
-            new_tokens = new_tokens[:int(self._max_tokens_per_node/limit_multiplier)]
+            new_tokens = new_tokens[:max(int(self._max_tokens_per_node/limit_multiplier),30)]
 #            new_tokens[self._max_tokens_per_node:] = []
 
         after_max_tokens = len(new_tokens)
