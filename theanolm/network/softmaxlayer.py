@@ -4,6 +4,7 @@
 """
 
 import numpy
+import theano
 from theano import tensor
 
 from theanolm.network.samplingoutputlayer import SamplingOutputLayer
@@ -31,7 +32,9 @@ class SoftmaxLayer(SamplingOutputLayer):
             initial_bias = numpy.log(self._network.class_prior_probs + 1e-10)
             self._init_bias('input/b', output_size, initial_bias)
 
-        self._unk_id = self._network.vocabulary.word_to_id['<unk>']
+        vocabulary = self._network.vocabulary
+        self._unk_id = vocabulary.word_to_id['<unk>']
+        self._unk_class_id = vocabulary.word_id_to_class_id[self._unk_id]
 
         self.output_probs = None
         self.target_probs = None
@@ -68,6 +71,8 @@ class SoftmaxLayer(SamplingOutputLayer):
         # Combine the first two dimensions so that softmax is taken
         # independently for each location, over the output classes. If <unk> is
         # excluded, set those activations to -inf before normalization.
+        # NOTE: We're checking the class ID so this will fail if there are other
+        # words in the same class with <unk> word!
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
         preact = preact.reshape([num_time_steps * num_sequences,
@@ -75,7 +80,7 @@ class SoftmaxLayer(SamplingOutputLayer):
         if self._network.exclude_unk:
             float_type = numpy.dtype(theano.config.floatX).type
             log_zero = float_type('-inf')
-            preact = tensor.set_subtensor(output_prob[:, self._unk_id],
+            preact = tensor.set_subtensor(preact[:, self._unk_class_id],
                                           log_zero)
         output_probs = tensor.nnet.softmax(preact)
 

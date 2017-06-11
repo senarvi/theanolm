@@ -224,12 +224,16 @@ class LatticeDecoder(object):
           penalize word insertion by adding this value to the total log
           probability of a token as many times as there are words
 
-        ignore_unk : bool
-          if set to ``True``, <unk> tokens are excluded from perplexity
-          computation
-
         unk_penalty : float
           if set to othern than None, used as <unk> token score
+
+        use_shortlist : bool
+          if set to ``True``, <unk> token probability is distributed among the
+          out-of-shortlist words according to their unigram probabilities
+
+        unk_from_lattice : bool
+          if set to ``True``, the probability for <unk> tokens is taken from the
+          lattice alone
 
         linear_interpolation : bool
           if set to ``True``, use linear instead of (pseudo) log-linear
@@ -261,14 +265,21 @@ class LatticeDecoder(object):
         self._nnlm_weight = logprob_type(decoding_options['nnlm_weight'])
         self._lm_scale = decoding_options['lm_scale']
         self._wi_penalty = decoding_options['wi_penalty']
-        self._ignore_unk = decoding_options['ignore_unk']
         self._unk_penalty = decoding_options['unk_penalty']
+        self._unk_from_lattice = decoding_options['unk_from_lattice']
         self._linear_interpolation = decoding_options['linear_interpolation']
         self._max_tokens_per_node = decoding_options['max_tokens_per_node']
         self._beam = decoding_options['beam']
         if self._beam is not None:
             self._beam = logprob_type(self._beam)
         self._recombination_order = decoding_options['recombination_order']
+
+        if decoding_options['use_shortlist'] and \
+           self._vocabulary.has_unigram_probs():
+            oos_logprobs = numpy.log(self._vocabulary.get_oos_probs())
+            self._oos_logprobs = oos_logprobs.astype(theano.config.floatX)
+        else:
+            self._oos_logprobs = None
 
         self._sos_id = self._vocabulary.word_to_id['<s>']
         self._eos_id = self._vocabulary.word_to_id['</s>']
@@ -415,7 +426,12 @@ class LatticeDecoder(object):
                     word = self._vocabulary.word_to_id[link.word]
                 except KeyError:
                     word = link.word
-                self._append_word(new_tokens, word)
+                if self._unk_from_lattice:
+                    self._append_word(new_tokens, word, link.lm_logprob)
+                elif self._unk_penalty is not None:
+                    self._append_word(new_tokens, word, self._unk_penalty)
+                else:
+                    self._append_word(new_tokens, word)
 
         for token in new_tokens:
             token.recompute_hash(self._recombination_order)
@@ -475,7 +491,7 @@ class LatticeDecoder(object):
 
         self._tokens[node.id] = new_tokens
 
-    def _append_word(self, tokens, target_word):
+    def _append_word(self, tokens, target_word, oov_logprob=None):
         """Appends a word to each of the given tokens, and updates their scores.
 
         :type tokens: list of LatticeDecoder.Tokens
@@ -487,24 +503,28 @@ class LatticeDecoder(object):
                             word will be considered ``<unk>`` and this variable
                             will be taken literally as the word that will be
                             used in the resulting transcript
+
+        :type oov_logprob: float
+        :param oov_logprob: log probability to be assigned to OOV words
         """
 
-        def str_to_unk(self, word):
-            """Returns the <unk> word ID if the argument is not a word ID.
+        def limit_to_shortlist(self, word):
+            """Returns the ``<unk>`` word ID if the argument is not a shortlist
+            word ID.
             """
-            if isinstance(word, int):
+            if isinstance(word, int) and self._vocabulary.in_shortlist(word):
                 return word
             else:
                 return self._unk_id
 
-        input_word_ids = [[str_to_unk(self, token.history[-1])
+        input_word_ids = [[limit_to_shortlist(self, token.history[-1])
                            for token in tokens]]
         input_word_ids = numpy.asarray(input_word_ids).astype('int64')
         input_class_ids, membership_probs = \
             self._vocabulary.get_class_memberships(input_word_ids)
         recurrent_state = [token.state for token in tokens]
         recurrent_state = RecurrentState.combine_sequences(recurrent_state)
-        target_word_id = str_to_unk(self, target_word)
+        target_word_id = limit_to_shortlist(self, target_word)
         target_class_ids = numpy.ones(shape=(1, len(tokens))).astype('int64')
         target_class_ids *= self._vocabulary.word_id_to_class_id[target_word_id]
         step_result = self._step_function(input_word_ids,
@@ -523,11 +543,19 @@ class LatticeDecoder(object):
             token.state.set([layer_state[:, index:index+1]
                              for layer_state in output_state])
 
-            if target_word_id == self._unk_id:
-                if self._ignore_unk:
+            # Special treatment for OOS and OOV words.
+            if self._oos_logprobs is not None:
+                if isinstance(target_word, int):
+                    # The probability of out-of-shortlist words (which is the
+                    # <unk> probability) is multiplied by the fraction of the
+                    # actual word within the set of OOS words.
+                    token.nn_lm_logprob += self._oos_logprobs[target_word]
+                elif oov_logprob is not None:
+                    token.nn_lm_logprob += oov_logprob
                     continue
-                if self._unk_penalty is not None:
-                    token.nn_lm_logprob += self._unk_penalty
-                    continue
+            elif (target_word_id == self._unk_id) and (oov_logprob is not None):
+                token.nn_lm_logprob += oov_logprob
+                continue
+
             # logprobs matrix contains only one time step.
             token.nn_lm_logprob += logprobs[0, index]

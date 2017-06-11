@@ -79,12 +79,12 @@ class TextScorer(object):
         oos_indices = tensor.ge(input_word_ids, shortlist_size).nonzero()
         input_word_ids = tensor.set_subtensor(input_word_ids[oos_indices],
                                               self._unk_id)
-        # Out-of-shortlist words are already in <unk> class, because the don't
+        # Out-of-shortlist words are already in <unk> class, because they don't
         # have own classes.
         input_class_ids = batch_class_ids[:-1]
         target_class_ids = batch_class_ids[1:]
-        # Target word IDs are not used by the network. We need also the actual
-        # out-of-shortlist words.
+        # Target word IDs are not used by the network. We need them to compute
+        # probabilities for out-of-shortlist word.
         target_word_ids = batch_word_ids[1:]
 
         logprobs = tensor.log(network.target_probs())
