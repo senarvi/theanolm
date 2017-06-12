@@ -33,12 +33,25 @@ values are meaningful to compare only when the vocabularies are identical. If
 you want to compare perplexities with back-off model perplexities computed e.g.
 using `SRILM <http://www.speech.sri.com/projects/srilm/>`_, note that SRILM
 ignores OOV words when computing the perplexity. You get the same behaviour from
-TheanoLM, if you use ``--unk-penalty 0``. TheanoLM includes sentence end tokens
+TheanoLM, if you use ``--exclude-unk``. TheanoLM includes sentence end tokens
 in the perplexity computation, so you should look at the ``ppl`` value from
 SRILM output. The example below shows how one can compute the perplexity of a
 model on evaluation data, while ignoring OOV words::
 
-    theanolm score model.h5 test-data.txt --output perplexity --unk-penalty 0
+    theanolm score model.h5 test-data.txt --output perplexity --exclude-unk
+
+When the vocabulary of the neural network model is limited to a subset of the
+words that occur in the training data (called *shortlist*), it is possible to
+estimate the probability of the out-of-shortlist words using their unigram
+frequencies in the training data. This approach is enabled using ``--shortlist``
+argument, e.g.::
+
+    theanolm score model.h5 test-data.txt --output perplexity --shortlist
+
+The probability of the *<unk>* token is distributed among the out-of-shortlist
+words that appear in the training data. Words that didn't appear in the training
+data will be ignored. For this to work correctly, ``--exclude-unk`` shouldn't be
+used when training the model.
 
 Probabilities of individual words can be useful for debugging problems. The
 ``word-scores`` output can be compared to the ``-ppl -debug 2`` output of SRILM.
@@ -163,15 +176,23 @@ its own set of lattices, limiting the number of tokens at each node to 10::
         --max-tokens-per-node 64 --beam 500 --recombination-order 20 \
         --num-jobs 50 --job "${SLURM_ARRAY_TASK_ID}"
 
-If the frequency of OOV words in the training data is high, the model may favor
-paths that contain OOV words. It may be better to penalize OOV words by manually
-setting their log probability using the ``--unk-penalty`` argument. By setting
-``--unk-penalty=-inf``, paths that contain OOV words will get zero probability.
-The effect of interpolation weight can be confusing if either the lattice or the
-neural network model assigns -inf log probability to some word. The result of
-interpolation will be -inf regardless of the weight, as long as the weight of
--inf is greater than zero. If -inf is weighted by zero, it will be ignored and
-the other probability will be used.
+When the vocabulary of the neural network model is limited, but the vocabulary
+used to create the lattices is larger, the decoder needs to consider how to
+score the out-of-vocabulary words. The frequency of the OOV words in the
+training data may easily be so high that the model favors paths that contain
+many OOV words. It may be better to penalize OOV words by manually setting their
+log probability using the ``--unk-penalty`` argument. It is also possible to
+distribute the *<unk>* token probability to out-of-shortlist words using the
+``--shortlist`` argument, in the same way as with ``theanolm score`` command.
+However, the lattice decoder needs to assign some probability to words that did
+not exist in the training data, so you may want to combine these two arguments.
+
+By setting ``--unk-penalty=-inf``, paths that contain OOV words will get zero
+probability. The effect of interpolation weight can be confusing if either the
+lattice or the neural network model assigns -inf log probability to some word.
+The result of interpolation will be -inf regardless of the weight, as long as
+the weight of -inf is greater than zero. If -inf is weighted by zero, it will be
+ignored and the other probability will be used.
 
 Generating text
 ---------------
