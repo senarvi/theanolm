@@ -542,20 +542,50 @@ class LatticeDecoder(object):
             # Slice the sequence that corresponds to this token.
             token.state.set([layer_state[:, index:index+1]
                              for layer_state in output_state])
-
-            # Special treatment for OOS and OOV words.
-            if self._oos_logprobs is not None:
-                if isinstance(target_word, int):
-                    # The probability of out-of-shortlist words (which is the
-                    # <unk> probability) is multiplied by the fraction of the
-                    # actual word within the set of OOS words.
-                    token.nn_lm_logprob += self._oos_logprobs[target_word]
-                elif oov_logprob is not None:
-                    token.nn_lm_logprob += oov_logprob
-                    continue
-            elif (target_word_id == self._unk_id) and (oov_logprob is not None):
-                token.nn_lm_logprob += oov_logprob
-                continue
-
             # logprobs matrix contains only one time step.
-            token.nn_lm_logprob += logprobs[0, index]
+            token.nn_lm_logprob += self._handle_unk_logprob(target_word,
+                                                            logprobs[0, index],
+                                                            oov_logprob)
+
+    def _handle_unk_logprob(self, word, network_logprob, oov_logprob):
+        """Returns the log probability after applying <unk> processing.
+
+        If ``self._oos_logprobs`` is set and the word is in vocabulary, the
+        corresponding value will be added to the network log probability. In
+        effect, the probability of out-of-shortlist words (which is the <unk>
+        probability) is multiplied by the fraction of the actual word within the
+        set of OOS words. For out-of-vocabulary words returns ``oov_logprob`` or
+        the value predicted by the network.
+
+        Otherwise, for both out-of-shortlist and out-of-vocabulary words returns
+        ``oov_logprob`` or the value predicted by the network.
+
+        For shortlist words returns the value predicted by the network.
+
+        :type word: int or str
+        :param word: target word ID or word; if not an integer, the word will be
+                     considered ``<unk>``
+
+        :type network_logprob: float
+        :param network_logprob: log probability predicted by the network
+
+        :type oov_logprob: float
+        :param oov_logprob: log probability to be assigned to OOV words
+        """
+
+        in_vocabulary = isinstance(word, int)
+        in_shortlist = in_vocabulary and self._vocabulary.in_shortlist(word)
+
+        if self._oos_logprobs is not None:
+            if in_vocabulary:
+                return network_logprob + self._oos_logprobs[word]
+            elif oov_logprob is not None:
+                logging.debug("Replacing <unk> logprob %f with %f.",
+                              network_logprob, oov_logprob)
+                return oov_logprob
+        elif (not in_shortlist) and (oov_logprob is not None):
+            logging.debug("Replacing <unk> logprob %f with %f.",
+                          network_logprob, oov_logprob)
+            return oov_logprob
+
+        return network_logprob
