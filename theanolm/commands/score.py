@@ -200,8 +200,8 @@ def _score_text(input_file, vocabulary, scorer, output_file,
 
             if word_level:
                 output_file.write("# Sentence {0}\n".format(num_sentences))
-                _write_word_scores(merged_words, merged_logprobs, output_file,
-                                   log_scale)
+                _write_word_scores(vocabulary, merged_words, merged_logprobs,
+                                   output_file, log_scale)
                 output_file.write("Sentence perplexity: {0}\n\n".format(
                     numpy.exp(-seq_logprob / num_seq_probs)))
 
@@ -240,9 +240,10 @@ def _merge_subwords(subwords, subword_logprobs, marking):
                     with + when they can be concatenated
 
     :rtype: tuple of (list of strs, list of floats)
-    :returns: the first item is a list of words; the second item is a list of
-              log probabilities for each word starting from the second one,
-              containing ``None`` in place of any ignored <unk>'s
+    :returns: the first item is a list of lists, containing a list of subwords
+              for each words; the second item is a list of log probabilities for
+              each word starting from the second one, containing ``None`` in
+              place of any ignored <unk>'s
     """
 
     if len(subword_logprobs) != len(subwords) - 1:
@@ -255,7 +256,7 @@ def _merge_subwords(subwords, subword_logprobs, marking):
 
     words = [subwords[0]]
     logprobs = []
-    current_word = ''
+    current_word = []
     current_logprob = 0.0
 
     if marking == 'word-boundary':
@@ -267,44 +268,50 @@ def _merge_subwords(subwords, subword_logprobs, marking):
             else:
                 current_logprob += logprob
             if subword == '<w>':
-                if current_word != '':
+                if current_word:
                     words.append(current_word)
                     logprobs.append(current_logprob)
-                    current_word = ''
+                    current_word = []
                 current_logprob = 0.0
-            elif (current_word == '<unk>') or (subword == '<unk>'):
-                current_word = '<unk>'
+            elif ('<unk>' in current_word) or (subword == '<unk>'):
+                current_word = ['<unk>']
             else:
-                current_word += subword
+                current_word.append(subword)
     elif marking == 'prefix-affix':
         # Merge subword to the current word if the current word ends in + and
         # the subword starts with +.
         for subword, logprob in zip(subwords[1:], subword_logprobs):
-            if current_word.endswith('+') and subword.startswith('+'):
-                current_word = current_word[:-1] + subword[1:]
+            if current_word and current_word[-1].endswith('+') and \
+               subword.startswith('+'):
+                current_word.append(subword)
                 if (current_logprob is None) or (logprob is None):
                     current_logprob = None
                 else:
                     current_logprob += logprob
             else:
-                if current_word != '':
+                if current_word:
                     words.append(current_word)
                     logprobs.append(current_logprob)
-                current_word = subword
+                current_word = [subword]
                 current_logprob = logprob
     else:
         raise ValueError("Invalid subword marking type: " + marking)
 
-    if current_word != '':
+    if current_word:
         words.append(current_word)
         logprobs.append(current_logprob)
     return words, logprobs
 
-def _write_word_scores(words, logprobs, output_file, log_scale):
+def _write_word_scores(vocabulary, words, logprobs, output_file, log_scale):
     """Writes word-level scores to an output file.
 
-    :type words: list of strs
-    :param words: sequence of words
+    :type vocabulary: Vocabulary
+    :param vocabulary: vocabulary for printing information about which word are
+                       predicted by the network
+
+    :type words: list
+    :param words: either word strings or one list for each word that contains
+                  the subwords
 
     :type logprobs: list of floats
     :param logprobs: logprob of each word starting from the second word
@@ -315,6 +322,18 @@ def _write_word_scores(words, logprobs, output_file, log_scale):
     :type log_scale: float
     :param log_scale: divide logprobs by this amount to convert to correct base
     """
+
+    def word_info(vocabulary, word):
+        """Returns information whether a word is in the vocabulary and in the
+        shortlist.
+        """
+        if not word in vocabulary:
+            return word + ':OOV'
+        word_id = vocabulary.word_to_id[word]
+        if vocabulary.in_shortlist(word_id):
+            return word + ':shortlist'
+        else:
+            return word + ':OOS'
 
     if len(logprobs) != len(words) - 1:
         raise ValueError("Number of logprobs should be exactly one less than "
@@ -327,15 +346,24 @@ def _write_word_scores(words, logprobs, output_file, log_scale):
             history_list.extend(words[index - 2:index + 1])
         else:
             history_list = words[:index + 1]
+        history_list = [' '.join(word) if isinstance(word, list) else word
+                        for word in history_list]
         history = ' '.join(history_list)
+
         predicted = words[index + 1]
+        if isinstance(predicted, list):
+            info = ' '.join(word_info(vocabulary, subword)
+                            for subword in predicted)
+            predicted = ' '.join(predicted)
+        else:
+            info = word_info(vocabulary, predicted)
 
         if logprob is None:
-            output_file.write("p({0} | {1}) is not predicted\n".format(
-                predicted, history))
+            output_file.write("p({0} | {1}) is not predicted  [{2}]\n".format(
+                predicted, history, info))
         else:
-            output_file.write("log(p({0} | {1})) = {2}\n".format(
-                predicted, history, logprob))
+            output_file.write("log(p({0} | {1})) = {2}  [{3}]\n".format(
+                predicted, history, logprob, info))
 
 def _score_utterances(input_file, vocabulary, scorer, output_file,
                       log_base=None):
