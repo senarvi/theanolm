@@ -101,8 +101,8 @@ def score(args):
     theano.config.profile = args.profile
     theano.config.profile_memory = args.profile
 
-    network = Network.from_file(args.model_path,
-                                exclude_unk=args.exclude_unk)
+    exclude_unk = args.exclude_unk and not args.shortlist
+    network = Network.from_file(args.model_path, exclude_unk=exclude_unk)
 
     print("Building text scorer.")
     sys.stdout.flush()
