@@ -22,4 +22,7 @@ def exception_handler(exception_type, exception, traceback):
 
 if __name__ == "__main__":
     sys.excepthook = exception_handler
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print('Interrupted from keyboard.')

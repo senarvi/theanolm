@@ -13,7 +13,7 @@ from theanolm.exceptions import NumberError, TheanoConfigurationError
 from theanolm.exceptions import IncompatibleStateError
 
 def _get_message(e):
-    if hasattr(e, 'args') and isinstance(e.args[0], bytes):
+    if hasattr(e, 'args') and len(e.args) > 0 and isinstance(e.args[0], bytes):
         return e.args[0].decode('utf-8')
     return str(e)
 
@@ -131,6 +131,8 @@ def main():
                   'or the file may be corrupt. The error message was:',
                   _get_message(e))
             sys.exit(2)
+        except KeyboardInterrupt:
+            print('Interrupted from keyboard.')
     else:
         parser.print_help()
 

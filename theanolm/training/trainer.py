@@ -489,10 +489,6 @@ class Trainer(object):
             return  # We don't have to validate now.
 
         perplexity = self._scorer.compute_perplexity(self._validation_iter)
-        if numpy.isnan(perplexity) or numpy.isinf(perplexity):
-            raise NumberError("Validation set perplexity computation resulted "
-                              "in a numerical error.")
-
         self._local_perplexities.append(perplexity)
         if len(self._local_perplexities) == 1:
             logging.debug("[%d] First validation sample, perplexity %.2f.",

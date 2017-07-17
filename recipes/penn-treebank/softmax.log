@@ -5,191 +5,191 @@ Computing unigram probabilities for out-of-shortlist words.
 Number of words in vocabulary: 10001
 Number of words in shortlist: 10001
 Number of word classes: 10001
-2017-05-27 09:52:10,291 train: TRAINING OPTIONS
-2017-05-27 09:52:10,291 train: max_annealing_count: 0
-2017-05-27 09:52:10,291 train: sequence_length: 25
-2017-05-27 09:52:10,291 train: validation_frequency: 1
-2017-05-27 09:52:10,292 train: batch_size: 32
-2017-05-27 09:52:10,292 train: stopping_criterion: no-improvement
-2017-05-27 09:52:10,292 train: patience: 0
-2017-05-27 09:52:10,292 train: max_epochs: 15
-2017-05-27 09:52:10,292 train: min_epochs: 1
-2017-05-27 09:52:10,292 train: OPTIMIZATION OPTIONS
-2017-05-27 09:52:10,292 train: learning_rate: 1.0
-2017-05-27 09:52:10,292 train: method: adagrad
-2017-05-27 09:52:10,292 train: weights: [ 1.]
-2017-05-27 09:52:10,292 train: num_noise_samples: 1
-2017-05-27 09:52:10,292 train: max_gradient_norm: 5.0
-2017-05-27 09:52:10,292 train: momentum: 0.9
-2017-05-27 09:52:10,292 train: noise_sharing: None
-2017-05-27 09:52:10,292 train: cost_function: cross-entropy
-2017-05-27 09:52:10,292 train: exclude_unk: False
-2017-05-27 09:52:10,293 train: gradient_decay_rate: 0.9
-2017-05-27 09:52:10,293 train: sqr_gradient_decay_rate: 0.999
-2017-05-27 09:52:10,293 train: epsilon: 1e-06
+2017-07-17 12:09:09,375 train: TRAINING OPTIONS
+2017-07-17 12:09:09,375 train: validation_frequency: 1
+2017-07-17 12:09:09,375 train: min_epochs: 1
+2017-07-17 12:09:09,375 train: stopping_criterion: no-improvement
+2017-07-17 12:09:09,375 train: max_annealing_count: 0
+2017-07-17 12:09:09,375 train: max_epochs: 15
+2017-07-17 12:09:09,375 train: batch_size: 32
+2017-07-17 12:09:09,375 train: patience: 0
+2017-07-17 12:09:09,376 train: sequence_length: 25
+2017-07-17 12:09:09,376 train: OPTIMIZATION OPTIONS
+2017-07-17 12:09:09,376 train: gradient_decay_rate: 0.9
+2017-07-17 12:09:09,376 train: noise_sharing: None
+2017-07-17 12:09:09,376 train: exclude_unk: False
+2017-07-17 12:09:09,376 train: sqr_gradient_decay_rate: 0.999
+2017-07-17 12:09:09,376 train: momentum: 0.9
+2017-07-17 12:09:09,376 train: method: adagrad
+2017-07-17 12:09:09,376 train: max_gradient_norm: 5.0
+2017-07-17 12:09:09,376 train: num_noise_samples: 1
+2017-07-17 12:09:09,376 train: weights: [ 1.]
+2017-07-17 12:09:09,376 train: epsilon: 1e-06
+2017-07-17 12:09:09,376 train: learning_rate: 1.0
+2017-07-17 12:09:09,376 train: cost_function: cross-entropy
 Creating trainer.
-Computing class unigram probabilities and the number of mini-batches in training data.
-2017-05-27 09:52:11,889 __init__: One epoch of training data contains 1778 mini-batch updates.
-2017-05-27 09:52:11,890 __init__: Class unigram log probabilities are in the range [-13.785263, -2.950202].
-2017-05-27 09:52:11,890 __init__: Finding sentence start positions in /teamwork/t40511_asr/c/penn-treebank-project/ptb.train.txt.
-2017-05-27 09:52:11,913 _reset: Generating a random order of input lines.
+Computing the number of mini-batches in training data.
+2017-07-17 12:09:10,849 __init__: One epoch of training data contains 1778 mini-batch updates.
+2017-07-17 12:09:10,850 __init__: Class unigram log probabilities are in the range [-13.786758, -2.951697].
+2017-07-17 12:09:10,852 __init__: Finding sentence start positions in /teamwork/t40511_asr/c/penn-treebank-project/ptb.train.txt.
+2017-07-17 12:09:10,875 _reset: Generating a random order of input lines.
 Building neural network.
-2017-05-27 09:52:11,923 __init__: Creating layers.
-2017-05-27 09:52:11,924 __init__: - NetworkInput name=word_input inputs=[] size=10001 depth=1 devices=[]
-2017-05-27 09:52:11,924 __init__: - ProjectionLayer name=projection_layer inputs=[word_input] size=100 depth=1 devices=[None]
-2017-05-27 09:52:12,002 add:      * layers/projection_layer/W size=1000100 type=float32 device=None
-2017-05-27 09:52:12,002 __init__: - LSTMLayer name=hidden_layer inputs=[projection_layer] size=256 depth=1 devices=[None]
-2017-05-27 09:52:12,011 add:      * layers/hidden_layer/layer_input/W size=102400 type=float32 device=None
-2017-05-27 09:52:12,273 add:      * layers/hidden_layer/step_input/W size=262144 type=float32 device=None
-2017-05-27 09:52:12,274 add:      * layers/hidden_layer/layer_input/b size=1024 type=float32 device=None
-2017-05-27 09:52:12,274 __init__: - SoftmaxLayer name=output_layer inputs=[hidden_layer] size=10001 depth=1 devices=[None]
-2017-05-27 09:52:12,493 add:      * layers/output_layer/input/W size=2560256 type=float32 device=None
-2017-05-27 09:52:12,494 add:      * layers/output_layer/input/b size=10001 type=float32 device=None
-2017-05-27 09:52:12,494 __init__: Total number of parameters: 3935925
+2017-07-17 12:09:10,935 __init__: Creating layers.
+2017-07-17 12:09:10,935 __init__: - NetworkInput name=word_input inputs=[] size=10001 depth=1 devices=[]
+2017-07-17 12:09:10,935 __init__: - ProjectionLayer name=projection_layer inputs=[word_input] size=100 depth=1 devices=[None]
+2017-07-17 12:09:11,013 add:      * layers/projection_layer/W size=1000100 type=float32 device=None
+2017-07-17 12:09:11,013 __init__: - LSTMLayer name=hidden_layer inputs=[projection_layer] size=256 depth=1 devices=[None]
+2017-07-17 12:09:11,023 add:      * layers/hidden_layer/layer_input/W size=102400 type=float32 device=None
+2017-07-17 12:09:11,336 add:      * layers/hidden_layer/step_input/W size=262144 type=float32 device=None
+2017-07-17 12:09:11,337 add:      * layers/hidden_layer/layer_input/b size=1024 type=float32 device=None
+2017-07-17 12:09:11,337 __init__: - SoftmaxLayer name=output_layer inputs=[hidden_layer] size=10001 depth=1 devices=[None]
+2017-07-17 12:09:11,565 add:      * layers/output_layer/input/W size=2560256 type=float32 device=None
+2017-07-17 12:09:11,565 add:      * layers/output_layer/input/b size=10001 type=float32 device=None
+2017-07-17 12:09:11,565 __init__: Total number of parameters: 3935925
 Compiling optimization function.
-2017-05-27 09:52:14,107 add:      * layers/hidden_layer/layer_input/W_gradient size=102400 type=float32 device=None
-2017-05-27 09:52:14,107 add:      * layers/hidden_layer/layer_input/W_sum_sqr_gradient size=102400 type=float32 device=None
-2017-05-27 09:52:14,107 add:      * layers/hidden_layer/layer_input/b_gradient size=1024 type=float32 device=None
-2017-05-27 09:52:14,108 add:      * layers/hidden_layer/layer_input/b_sum_sqr_gradient size=1024 type=float32 device=None
-2017-05-27 09:52:14,112 add:      * layers/output_layer/input/W_gradient size=2560256 type=float32 device=None
-2017-05-27 09:52:14,117 add:      * layers/output_layer/input/W_sum_sqr_gradient size=2560256 type=float32 device=None
-2017-05-27 09:52:14,118 add:      * layers/output_layer/input/b_gradient size=10001 type=float32 device=None
-2017-05-27 09:52:14,118 add:      * layers/output_layer/input/b_sum_sqr_gradient size=10001 type=float32 device=None
-2017-05-27 09:52:14,120 add:      * layers/projection_layer/W_gradient size=1000100 type=float32 device=None
-2017-05-27 09:52:14,122 add:      * layers/projection_layer/W_sum_sqr_gradient size=1000100 type=float32 device=None
-2017-05-27 09:52:14,123 add:      * layers/hidden_layer/step_input/W_gradient size=262144 type=float32 device=None
-2017-05-27 09:52:14,123 add:      * layers/hidden_layer/step_input/W_sum_sqr_gradient size=262144 type=float32 device=None
+2017-07-17 12:09:15,471 add:      * layers/output_layer/input/W_gradient size=2560256 type=float32 device=None
+2017-07-17 12:09:15,475 add:      * layers/output_layer/input/W_sum_sqr_gradient size=2560256 type=float32 device=None
+2017-07-17 12:09:15,475 add:      * layers/hidden_layer/layer_input/b_gradient size=1024 type=float32 device=None
+2017-07-17 12:09:15,475 add:      * layers/hidden_layer/layer_input/b_sum_sqr_gradient size=1024 type=float32 device=None
+2017-07-17 12:09:15,475 add:      * layers/output_layer/input/b_gradient size=10001 type=float32 device=None
+2017-07-17 12:09:15,476 add:      * layers/output_layer/input/b_sum_sqr_gradient size=10001 type=float32 device=None
+2017-07-17 12:09:15,477 add:      * layers/projection_layer/W_gradient size=1000100 type=float32 device=None
+2017-07-17 12:09:15,479 add:      * layers/projection_layer/W_sum_sqr_gradient size=1000100 type=float32 device=None
+2017-07-17 12:09:15,479 add:      * layers/hidden_layer/step_input/W_gradient size=262144 type=float32 device=None
+2017-07-17 12:09:15,479 add:      * layers/hidden_layer/step_input/W_sum_sqr_gradient size=262144 type=float32 device=None
+2017-07-17 12:09:15,480 add:      * layers/hidden_layer/layer_input/W_gradient size=102400 type=float32 device=None
+2017-07-17 12:09:15,480 add:      * layers/hidden_layer/layer_input/W_sum_sqr_gradient size=102400 type=float32 device=None
 Building text scorer for cross-validation.
 Validation text: /teamwork/t40511_asr/c/penn-treebank-project/ptb.valid.txt
 Training neural network.
-2017-05-27 09:53:23,903 _log_update: [200] (11.2 %) of epoch 1 -- lr = 1, duration = 12.5 ms
-2017-05-27 09:53:49,041 _log_update: [400] (22.5 %) of epoch 1 -- lr = 1, duration = 12.4 ms
-2017-05-27 09:54:14,162 _log_update: [600] (33.7 %) of epoch 1 -- lr = 1, duration = 12.4 ms
-2017-05-27 09:54:39,308 _log_update: [800] (45.0 %) of epoch 1 -- lr = 1, duration = 12.4 ms
-2017-05-27 09:55:04,416 _log_update: [1000] (56.2 %) of epoch 1 -- lr = 1, duration = 12.4 ms
-2017-05-27 09:55:29,531 _log_update: [1200] (67.5 %) of epoch 1 -- lr = 1, duration = 12.4 ms
-2017-05-27 09:55:54,650 _log_update: [1400] (78.7 %) of epoch 1 -- lr = 1, duration = 12.4 ms
-2017-05-27 09:56:19,745 _log_update: [1600] (90.0 %) of epoch 1 -- lr = 1, duration = 12.4 ms
-2017-05-27 09:56:45,108 _validate: [1772] First validation sample, perplexity 169.41.
-2017-05-27 09:56:56,742 _validate: [1775] Center of validation, perplexity 169.79.
-2017-05-27 09:57:08,407 _validate: [1778] Last validation sample, perplexity 169.18.
-2017-05-27 09:57:08,431 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
-2017-05-27 09:57:08,431 _log_validation: [1778] Validation set cost history: [169.3]
-2017-05-27 09:57:08,432 _reset: Generating a random order of input lines.
-Finished training epoch 1 in 0 hours 4.2 minutes. Best validation perplexity 169.34.
-2017-05-27 09:57:11,180 _log_update: [22] (1.2 %) of epoch 2 -- lr = 1, duration = 12.4 ms
-2017-05-27 09:57:36,275 _log_update: [222] (12.5 %) of epoch 2 -- lr = 1, duration = 12.4 ms
-2017-05-27 09:58:01,378 _log_update: [422] (23.7 %) of epoch 2 -- lr = 1, duration = 12.4 ms
-2017-05-27 09:58:26,487 _log_update: [622] (35.0 %) of epoch 2 -- lr = 1, duration = 12.5 ms
-2017-05-27 09:58:51,591 _log_update: [822] (46.2 %) of epoch 2 -- lr = 1, duration = 12.5 ms
-2017-05-27 09:59:16,735 _log_update: [1022] (57.5 %) of epoch 2 -- lr = 1, duration = 12.4 ms
-2017-05-27 09:59:41,839 _log_update: [1222] (68.7 %) of epoch 2 -- lr = 1, duration = 12.4 ms
-2017-05-27 10:00:06,942 _log_update: [1422] (80.0 %) of epoch 2 -- lr = 1, duration = 12.4 ms
-2017-05-27 10:00:32,029 _log_update: [1622] (91.2 %) of epoch 2 -- lr = 1, duration = 12.4 ms
-2017-05-27 10:00:54,650 _validate: [1772] First validation sample, perplexity 143.80.
-2017-05-27 10:01:06,281 _validate: [1775] Center of validation, perplexity 143.98.
-2017-05-27 10:01:17,931 _validate: [1778] Last validation sample, perplexity 143.57.
-2017-05-27 10:01:17,953 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
-2017-05-27 10:01:17,953 _log_validation: [1778] Validation set cost history: 169.3 [143.8]
-2017-05-27 10:01:17,955 _reset: Generating a random order of input lines.
-Finished training epoch 2 in 0 hours 4.2 minutes. Best validation perplexity 143.80.
-2017-05-27 10:01:23,471 _log_update: [44] (2.5 %) of epoch 3 -- lr = 1, duration = 12.5 ms
-2017-05-27 10:01:48,639 _log_update: [244] (13.7 %) of epoch 3 -- lr = 1, duration = 12.4 ms
-2017-05-27 10:02:14,114 _log_update: [444] (25.0 %) of epoch 3 -- lr = 1, duration = 12.4 ms
-2017-05-27 10:02:39,222 _log_update: [644] (36.2 %) of epoch 3 -- lr = 1, duration = 12.4 ms
-2017-05-27 10:03:04,340 _log_update: [844] (47.5 %) of epoch 3 -- lr = 1, duration = 12.4 ms
-2017-05-27 10:03:29,454 _log_update: [1044] (58.7 %) of epoch 3 -- lr = 1, duration = 12.5 ms
-2017-05-27 10:03:54,559 _log_update: [1244] (70.0 %) of epoch 3 -- lr = 1, duration = 12.4 ms
-2017-05-27 10:04:19,680 _log_update: [1444] (81.2 %) of epoch 3 -- lr = 1, duration = 12.4 ms
-2017-05-27 10:04:44,795 _log_update: [1644] (92.5 %) of epoch 3 -- lr = 1, duration = 12.4 ms
-2017-05-27 10:05:04,649 _validate: [1772] First validation sample, perplexity 141.28.
-2017-05-27 10:05:16,275 _validate: [1775] Center of validation, perplexity 141.05.
-2017-05-27 10:05:27,925 _validate: [1778] Last validation sample, perplexity 140.87.
-2017-05-27 10:05:27,947 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
-2017-05-27 10:05:27,947 _log_validation: [1778] Validation set cost history: 169.3 143.8 [141.1]
-2017-05-27 10:05:27,949 _reset: Generating a random order of input lines.
-Finished training epoch 3 in 0 hours 4.2 minutes. Best validation perplexity 141.09.
-2017-05-27 10:05:36,217 _log_update: [66] (3.7 %) of epoch 4 -- lr = 1, duration = 12.4 ms
-2017-05-27 10:06:01,346 _log_update: [266] (15.0 %) of epoch 4 -- lr = 1, duration = 12.4 ms
-2017-05-27 10:06:26,486 _log_update: [466] (26.2 %) of epoch 4 -- lr = 1, duration = 12.4 ms
-2017-05-27 10:06:51,578 _log_update: [666] (37.5 %) of epoch 4 -- lr = 1, duration = 12.4 ms
-2017-05-27 10:07:16,718 _log_update: [866] (48.7 %) of epoch 4 -- lr = 1, duration = 12.5 ms
-2017-05-27 10:07:41,826 _log_update: [1066] (60.0 %) of epoch 4 -- lr = 1, duration = 12.5 ms
-2017-05-27 10:08:06,985 _log_update: [1266] (71.2 %) of epoch 4 -- lr = 1, duration = 12.4 ms
-2017-05-27 10:08:32,107 _log_update: [1466] (82.5 %) of epoch 4 -- lr = 1, duration = 12.4 ms
-2017-05-27 10:08:57,212 _log_update: [1666] (93.7 %) of epoch 4 -- lr = 1, duration = 12.4 ms
-2017-05-27 10:09:14,300 _validate: [1772] First validation sample, perplexity 146.08.
-2017-05-27 10:09:25,934 _validate: [1775] Center of validation, perplexity 145.84.
-2017-05-27 10:09:37,603 _validate: [1778] Last validation sample, perplexity 146.25.
-2017-05-27 10:09:37,603 _log_validation: [1778] Validation set cost history: 169.3 143.8 [141.1] 146.0
-2017-05-27 10:09:37,605 set_state: layers/projection_layer/W <- array(10001, 100)
-2017-05-27 10:09:37,606 set_state: layers/hidden_layer/layer_input/W <- array(100, 1024)
-2017-05-27 10:09:37,606 set_state: layers/hidden_layer/layer_input/b <- array(1024,)
-2017-05-27 10:09:37,607 set_state: layers/hidden_layer/step_input/W <- array(256, 1024)
-2017-05-27 10:09:37,607 set_state: layers/output_layer/input/b <- array(10001,)
-2017-05-27 10:09:37,611 set_state: layers/output_layer/input/W <- array(256, 10001)
-2017-05-27 10:09:37,612 _reset_state: [1775] (99.83 %) of epoch 3
-2017-05-27 10:09:37,613 _log_validation: [1775] Validation set cost history: 169.3 143.8 [141.1]
-2017-05-27 10:09:37,613 set_state: Restored iterator to line 42004 of 42068.
-2017-05-27 10:09:37,614 set_state: layers/output_layer/input/b_sum_sqr_gradient <- array(10001,)
-2017-05-27 10:09:37,614 set_state: layers/hidden_layer/step_input/W_sum_sqr_gradient <- array(256, 1024)
-2017-05-27 10:09:37,615 set_state: layers/output_layer/input/b_gradient <- array(10001,)
-2017-05-27 10:09:37,616 set_state: layers/projection_layer/W_gradient <- array(10001, 100)
-2017-05-27 10:09:37,617 set_state: layers/projection_layer/W_sum_sqr_gradient <- array(10001, 100)
-2017-05-27 10:09:37,618 set_state: layers/hidden_layer/layer_input/b_gradient <- array(1024,)
-2017-05-27 10:09:37,618 set_state: layers/hidden_layer/layer_input/W_gradient <- array(100, 1024)
-2017-05-27 10:09:37,619 set_state: layers/hidden_layer/step_input/W_gradient <- array(256, 1024)
-2017-05-27 10:09:37,622 set_state: layers/output_layer/input/W_sum_sqr_gradient <- array(256, 10001)
-2017-05-27 10:09:37,626 set_state: layers/output_layer/input/W_gradient <- array(256, 10001)
-2017-05-27 10:09:37,627 set_state: layers/hidden_layer/layer_input/W_sum_sqr_gradient <- array(100, 1024)
-2017-05-27 10:09:37,628 set_state: layers/hidden_layer/layer_input/b_sum_sqr_gradient <- array(1024,)
+2017-07-17 12:11:28,701 _log_update: [200] (11.2 %) of epoch 1 -- lr = 1, duration = 59.9 ms
+2017-07-17 12:13:29,197 _log_update: [400] (22.5 %) of epoch 1 -- lr = 1, duration = 60.2 ms
+2017-07-17 12:15:29,652 _log_update: [600] (33.7 %) of epoch 1 -- lr = 1, duration = 59.9 ms
+2017-07-17 12:17:30,113 _log_update: [800] (45.0 %) of epoch 1 -- lr = 1, duration = 60.0 ms
+2017-07-17 12:19:30,573 _log_update: [1000] (56.2 %) of epoch 1 -- lr = 1, duration = 60.0 ms
+2017-07-17 12:21:31,169 _log_update: [1200] (67.5 %) of epoch 1 -- lr = 1, duration = 60.1 ms
+2017-07-17 12:23:31,753 _log_update: [1400] (78.7 %) of epoch 1 -- lr = 1, duration = 59.8 ms
+2017-07-17 12:25:32,343 _log_update: [1600] (90.0 %) of epoch 1 -- lr = 1, duration = 60.1 ms
+2017-07-17 12:28:01,282 _validate: [1772] First validation sample, perplexity 169.90.
+2017-07-17 12:30:18,649 _validate: [1775] Center of validation, perplexity 170.40.
+2017-07-17 12:32:37,869 _validate: [1778] Last validation sample, perplexity 169.74.
+2017-07-17 12:32:37,905 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-07-17 12:32:37,905 _log_validation: [1778] Validation set cost history: [169.9]
+2017-07-17 12:32:37,907 _reset: Generating a random order of input lines.
+Finished training epoch 1 in 0 hours 23.2 minutes. Best validation perplexity 169.90.
+2017-07-17 12:32:51,162 _log_update: [22] (1.2 %) of epoch 2 -- lr = 1, duration = 59.9 ms
+2017-07-17 12:34:51,534 _log_update: [222] (12.5 %) of epoch 2 -- lr = 1, duration = 60.1 ms
+2017-07-17 12:36:51,939 _log_update: [422] (23.7 %) of epoch 2 -- lr = 1, duration = 59.7 ms
+2017-07-17 12:38:52,216 _log_update: [622] (35.0 %) of epoch 2 -- lr = 1, duration = 60.0 ms
+2017-07-17 12:40:52,489 _log_update: [822] (46.2 %) of epoch 2 -- lr = 1, duration = 59.7 ms
+2017-07-17 12:42:52,871 _log_update: [1022] (57.5 %) of epoch 2 -- lr = 1, duration = 66.4 ms
+2017-07-17 12:44:53,347 _log_update: [1222] (68.7 %) of epoch 2 -- lr = 1, duration = 60.1 ms
+2017-07-17 12:46:54,199 _log_update: [1422] (80.0 %) of epoch 2 -- lr = 1, duration = 60.0 ms
+2017-07-17 12:48:54,550 _log_update: [1622] (91.2 %) of epoch 2 -- lr = 1, duration = 59.9 ms
+2017-07-17 12:51:10,038 _validate: [1772] First validation sample, perplexity 145.03.
+2017-07-17 12:53:27,616 _validate: [1775] Center of validation, perplexity 145.02.
+2017-07-17 12:55:44,913 _validate: [1778] Last validation sample, perplexity 144.52.
+2017-07-17 12:55:44,940 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-07-17 12:55:44,940 _log_validation: [1778] Validation set cost history: 169.9 [145.0]
+2017-07-17 12:55:44,942 _reset: Generating a random order of input lines.
+Finished training epoch 2 in 0 hours 23.1 minutes. Best validation perplexity 145.02.
+2017-07-17 12:56:11,439 _log_update: [44] (2.5 %) of epoch 3 -- lr = 1, duration = 60.0 ms
+2017-07-17 12:58:11,915 _log_update: [244] (13.7 %) of epoch 3 -- lr = 1, duration = 60.7 ms
+2017-07-17 13:00:12,537 _log_update: [444] (25.0 %) of epoch 3 -- lr = 1, duration = 61.9 ms
+2017-07-17 13:02:17,180 _log_update: [644] (36.2 %) of epoch 3 -- lr = 1, duration = 60.1 ms
+2017-07-17 13:04:20,767 _log_update: [844] (47.5 %) of epoch 3 -- lr = 1, duration = 60.4 ms
+2017-07-17 13:06:25,261 _log_update: [1044] (58.7 %) of epoch 3 -- lr = 1, duration = 60.0 ms
+2017-07-17 13:08:26,122 _log_update: [1244] (70.0 %) of epoch 3 -- lr = 1, duration = 60.2 ms
+2017-07-17 13:10:27,061 _log_update: [1444] (81.2 %) of epoch 3 -- lr = 1, duration = 59.9 ms
+2017-07-17 13:12:28,375 _log_update: [1644] (92.5 %) of epoch 3 -- lr = 1, duration = 60.8 ms
+2017-07-17 13:14:31,034 _validate: [1772] First validation sample, perplexity 141.40.
+2017-07-17 13:16:48,634 _validate: [1775] Center of validation, perplexity 141.33.
+2017-07-17 13:19:07,970 _validate: [1778] Last validation sample, perplexity 141.05.
+2017-07-17 13:19:07,996 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-07-17 13:19:07,996 _log_validation: [1778] Validation set cost history: 169.9 145.0 [141.4]
+2017-07-17 13:19:07,999 _reset: Generating a random order of input lines.
+Finished training epoch 3 in 0 hours 23.4 minutes. Best validation perplexity 141.39.
+2017-07-17 13:19:47,872 _log_update: [66] (3.7 %) of epoch 4 -- lr = 1, duration = 60.3 ms
+2017-07-17 13:21:48,827 _log_update: [266] (15.0 %) of epoch 4 -- lr = 1, duration = 60.0 ms
+2017-07-17 13:23:50,029 _log_update: [466] (26.2 %) of epoch 4 -- lr = 1, duration = 60.4 ms
+2017-07-17 13:25:50,915 _log_update: [666] (37.5 %) of epoch 4 -- lr = 1, duration = 60.1 ms
+2017-07-17 13:27:52,472 _log_update: [866] (48.7 %) of epoch 4 -- lr = 1, duration = 60.0 ms
+2017-07-17 13:29:53,905 _log_update: [1066] (60.0 %) of epoch 4 -- lr = 1, duration = 61.3 ms
+2017-07-17 13:31:55,106 _log_update: [1266] (71.2 %) of epoch 4 -- lr = 1, duration = 60.4 ms
+2017-07-17 13:33:56,188 _log_update: [1466] (82.5 %) of epoch 4 -- lr = 1, duration = 60.4 ms
+2017-07-17 13:35:56,687 _log_update: [1666] (93.7 %) of epoch 4 -- lr = 1, duration = 60.1 ms
+2017-07-17 13:37:48,127 _validate: [1772] First validation sample, perplexity 145.38.
+2017-07-17 13:40:10,803 _validate: [1775] Center of validation, perplexity 144.73.
+2017-07-17 13:42:30,925 _validate: [1778] Last validation sample, perplexity 144.93.
+2017-07-17 13:42:30,926 _log_validation: [1778] Validation set cost history: 169.9 145.0 [141.4] 144.9
+2017-07-17 13:42:30,927 set_state: layers/projection_layer/W <- array(10001, 100)
+2017-07-17 13:42:30,928 set_state: layers/hidden_layer/layer_input/b <- array(1024,)
+2017-07-17 13:42:30,929 set_state: layers/hidden_layer/step_input/W <- array(256, 1024)
+2017-07-17 13:42:30,929 set_state: layers/hidden_layer/layer_input/W <- array(100, 1024)
+2017-07-17 13:42:30,932 set_state: layers/output_layer/input/W <- array(256, 10001)
+2017-07-17 13:42:30,933 set_state: layers/output_layer/input/b <- array(10001,)
+2017-07-17 13:42:30,935 _reset_state: [1775] (99.83 %) of epoch 3
+2017-07-17 13:42:30,935 _log_validation: [1775] Validation set cost history: 169.9 145.0 [141.4]
+2017-07-17 13:42:30,936 set_state: Restored iterator to line 42004 of 42068.
+2017-07-17 13:42:30,936 set_state: layers/hidden_layer/layer_input/W_gradient <- array(100, 1024)
+2017-07-17 13:42:30,937 set_state: layers/output_layer/input/b_gradient <- array(10001,)
+2017-07-17 13:42:30,937 set_state: layers/output_layer/input/b_sum_sqr_gradient <- array(10001,)
+2017-07-17 13:42:30,940 set_state: layers/output_layer/input/W_sum_sqr_gradient <- array(256, 10001)
+2017-07-17 13:42:30,941 set_state: layers/projection_layer/W_gradient <- array(10001, 100)
+2017-07-17 13:42:30,943 set_state: layers/projection_layer/W_sum_sqr_gradient <- array(10001, 100)
+2017-07-17 13:42:30,944 set_state: layers/hidden_layer/step_input/W_sum_sqr_gradient <- array(256, 1024)
+2017-07-17 13:42:30,946 set_state: layers/output_layer/input/W_gradient <- array(256, 10001)
+2017-07-17 13:42:30,947 set_state: layers/hidden_layer/layer_input/b_gradient <- array(1024,)
+2017-07-17 13:42:30,948 set_state: layers/hidden_layer/layer_input/b_sum_sqr_gradient <- array(1024,)
+2017-07-17 13:42:30,948 set_state: layers/hidden_layer/layer_input/W_sum_sqr_gradient <- array(100, 1024)
+2017-07-17 13:42:30,949 set_state: layers/hidden_layer/step_input/W_gradient <- array(256, 1024)
 Model performance stopped improving. Decreasing learning rate from 1.0 to 0.5 and resetting state to 100 % of epoch 3.
-2017-05-27 10:09:37,629 _reset: Generating a random order of input lines.
-Finished training epoch 3 in 0 hours 4.2 minutes. Best validation perplexity 141.09.
-2017-05-27 10:09:48,675 _log_update: [88] (4.9 %) of epoch 4 -- lr = 0.5, duration = 12.4 ms
-2017-05-27 10:10:13,792 _log_update: [288] (16.2 %) of epoch 4 -- lr = 0.5, duration = 12.4 ms
-2017-05-27 10:10:38,914 _log_update: [488] (27.4 %) of epoch 4 -- lr = 0.5, duration = 12.4 ms
-2017-05-27 10:11:04,028 _log_update: [688] (38.7 %) of epoch 4 -- lr = 0.5, duration = 12.4 ms
-2017-05-27 10:11:29,086 _log_update: [888] (49.9 %) of epoch 4 -- lr = 0.5, duration = 12.4 ms
-2017-05-27 10:11:54,149 _log_update: [1088] (61.2 %) of epoch 4 -- lr = 0.5, duration = 12.4 ms
-2017-05-27 10:12:19,280 _log_update: [1288] (72.4 %) of epoch 4 -- lr = 0.5, duration = 12.5 ms
-2017-05-27 10:12:44,433 _log_update: [1488] (83.7 %) of epoch 4 -- lr = 0.5, duration = 12.5 ms
-2017-05-27 10:13:09,591 _log_update: [1688] (94.9 %) of epoch 4 -- lr = 0.5, duration = 12.5 ms
-2017-05-27 10:13:23,909 _validate: [1772] First validation sample, perplexity 142.63.
-2017-05-27 10:13:35,540 _validate: [1775] Center of validation, perplexity 142.43.
-2017-05-27 10:13:47,196 _validate: [1778] Last validation sample, perplexity 142.44.
-2017-05-27 10:13:47,196 _log_validation: [1778] Validation set cost history: 169.3 143.8 [141.1] 142.4
-2017-05-27 10:13:47,198 set_state: layers/projection_layer/W <- array(10001, 100)
-2017-05-27 10:13:47,198 set_state: layers/hidden_layer/layer_input/W <- array(100, 1024)
-2017-05-27 10:13:47,199 set_state: layers/hidden_layer/layer_input/b <- array(1024,)
-2017-05-27 10:13:47,199 set_state: layers/hidden_layer/step_input/W <- array(256, 1024)
-2017-05-27 10:13:47,200 set_state: layers/output_layer/input/b <- array(10001,)
-2017-05-27 10:13:47,204 set_state: layers/output_layer/input/W <- array(256, 10001)
-2017-05-27 10:13:47,205 _reset_state: [1775] (99.83 %) of epoch 3
-2017-05-27 10:13:47,205 _log_validation: [1775] Validation set cost history: 169.3 143.8 [141.1]
-2017-05-27 10:13:47,206 set_state: Restored iterator to line 42004 of 42068.
-2017-05-27 10:13:47,206 set_state: layers/output_layer/input/b_sum_sqr_gradient <- array(10001,)
-2017-05-27 10:13:47,207 set_state: layers/hidden_layer/step_input/W_sum_sqr_gradient <- array(256, 1024)
-2017-05-27 10:13:47,207 set_state: layers/output_layer/input/b_gradient <- array(10001,)
-2017-05-27 10:13:47,209 set_state: layers/projection_layer/W_gradient <- array(10001, 100)
-2017-05-27 10:13:47,210 set_state: layers/projection_layer/W_sum_sqr_gradient <- array(10001, 100)
-2017-05-27 10:13:47,210 set_state: layers/hidden_layer/layer_input/b_gradient <- array(1024,)
-2017-05-27 10:13:47,211 set_state: layers/hidden_layer/layer_input/W_gradient <- array(100, 1024)
-2017-05-27 10:13:47,212 set_state: layers/hidden_layer/step_input/W_gradient <- array(256, 1024)
-2017-05-27 10:13:47,215 set_state: layers/output_layer/input/W_sum_sqr_gradient <- array(256, 10001)
-2017-05-27 10:13:47,219 set_state: layers/output_layer/input/W_gradient <- array(256, 10001)
-2017-05-27 10:13:47,220 set_state: layers/hidden_layer/layer_input/W_sum_sqr_gradient <- array(100, 1024)
-2017-05-27 10:13:47,220 set_state: layers/hidden_layer/layer_input/b_sum_sqr_gradient <- array(1024,)
+2017-07-17 13:42:30,951 _reset: Generating a random order of input lines.
+Finished training epoch 3 in 0 hours 23.4 minutes. Best validation perplexity 141.39.
+2017-07-17 13:43:24,268 _log_update: [88] (4.9 %) of epoch 4 -- lr = 0.5, duration = 61.6 ms
+2017-07-17 13:45:26,025 _log_update: [288] (16.2 %) of epoch 4 -- lr = 0.5, duration = 60.2 ms
+2017-07-17 13:47:27,501 _log_update: [488] (27.4 %) of epoch 4 -- lr = 0.5, duration = 59.8 ms
+2017-07-17 13:49:28,243 _log_update: [688] (38.7 %) of epoch 4 -- lr = 0.5, duration = 60.1 ms
+2017-07-17 13:51:29,052 _log_update: [888] (49.9 %) of epoch 4 -- lr = 0.5, duration = 60.1 ms
+2017-07-17 13:53:29,858 _log_update: [1088] (61.2 %) of epoch 4 -- lr = 0.5, duration = 60.2 ms
+2017-07-17 13:55:30,714 _log_update: [1288] (72.4 %) of epoch 4 -- lr = 0.5, duration = 60.2 ms
+2017-07-17 13:57:31,499 _log_update: [1488] (83.7 %) of epoch 4 -- lr = 0.5, duration = 60.2 ms
+2017-07-17 13:59:32,266 _log_update: [1688] (94.9 %) of epoch 4 -- lr = 0.5, duration = 60.3 ms
+2017-07-17 14:01:10,000 _validate: [1772] First validation sample, perplexity 142.32.
+2017-07-17 14:03:35,032 _validate: [1775] Center of validation, perplexity 142.22.
+2017-07-17 14:06:00,521 _validate: [1778] Last validation sample, perplexity 142.17.
+2017-07-17 14:06:00,521 _log_validation: [1778] Validation set cost history: 169.9 145.0 [141.4] 142.2
+2017-07-17 14:06:00,523 set_state: layers/projection_layer/W <- array(10001, 100)
+2017-07-17 14:06:00,523 set_state: layers/hidden_layer/layer_input/b <- array(1024,)
+2017-07-17 14:06:00,524 set_state: layers/hidden_layer/step_input/W <- array(256, 1024)
+2017-07-17 14:06:00,524 set_state: layers/hidden_layer/layer_input/W <- array(100, 1024)
+2017-07-17 14:06:00,527 set_state: layers/output_layer/input/W <- array(256, 10001)
+2017-07-17 14:06:00,528 set_state: layers/output_layer/input/b <- array(10001,)
+2017-07-17 14:06:00,530 _reset_state: [1775] (99.83 %) of epoch 3
+2017-07-17 14:06:00,530 _log_validation: [1775] Validation set cost history: 169.9 145.0 [141.4]
+2017-07-17 14:06:00,530 set_state: Restored iterator to line 42004 of 42068.
+2017-07-17 14:06:00,531 set_state: layers/hidden_layer/layer_input/W_gradient <- array(100, 1024)
+2017-07-17 14:06:00,532 set_state: layers/output_layer/input/b_gradient <- array(10001,)
+2017-07-17 14:06:00,532 set_state: layers/output_layer/input/b_sum_sqr_gradient <- array(10001,)
+2017-07-17 14:06:00,535 set_state: layers/output_layer/input/W_sum_sqr_gradient <- array(256, 10001)
+2017-07-17 14:06:00,536 set_state: layers/projection_layer/W_gradient <- array(10001, 100)
+2017-07-17 14:06:00,538 set_state: layers/projection_layer/W_sum_sqr_gradient <- array(10001, 100)
+2017-07-17 14:06:00,539 set_state: layers/hidden_layer/step_input/W_sum_sqr_gradient <- array(256, 1024)
+2017-07-17 14:06:00,542 set_state: layers/output_layer/input/W_gradient <- array(256, 10001)
+2017-07-17 14:06:00,543 set_state: layers/hidden_layer/layer_input/b_gradient <- array(1024,)
+2017-07-17 14:06:00,543 set_state: layers/hidden_layer/layer_input/b_sum_sqr_gradient <- array(1024,)
+2017-07-17 14:06:00,544 set_state: layers/hidden_layer/layer_input/W_sum_sqr_gradient <- array(100, 1024)
+2017-07-17 14:06:00,545 set_state: layers/hidden_layer/step_input/W_gradient <- array(256, 1024)
 Model performance stopped improving. Decreasing learning rate from 0.5 to 0.25 and resetting state to 100 % of epoch 3.
-Finished training epoch 3 in 0 hours 4.2 minutes. Best validation perplexity 141.09.
-Training finished in 0 hours 20.8 minutes.
-2017-05-27 10:13:47,223 set_state: layers/projection_layer/W <- array(10001, 100)
-2017-05-27 10:13:47,224 set_state: layers/hidden_layer/layer_input/W <- array(100, 1024)
-2017-05-27 10:13:47,224 set_state: layers/hidden_layer/layer_input/b <- array(1024,)
-2017-05-27 10:13:47,225 set_state: layers/hidden_layer/step_input/W <- array(256, 1024)
-2017-05-27 10:13:47,225 set_state: layers/output_layer/input/b <- array(10001,)
-2017-05-27 10:13:47,228 set_state: layers/output_layer/input/W <- array(256, 10001)
-Best validation set perplexity: 141.048147402
+Finished training epoch 3 in 0 hours 23.5 minutes. Best validation perplexity 141.39.
+Training finished in 1 hours 56.5 minutes.
+2017-07-17 14:06:00,548 set_state: layers/projection_layer/W <- array(10001, 100)
+2017-07-17 14:06:00,549 set_state: layers/hidden_layer/layer_input/b <- array(1024,)
+2017-07-17 14:06:00,550 set_state: layers/hidden_layer/step_input/W <- array(256, 1024)
+2017-07-17 14:06:00,550 set_state: layers/hidden_layer/layer_input/W <- array(100, 1024)
+2017-07-17 14:06:00,553 set_state: layers/output_layer/input/W <- array(256, 10001)
+2017-07-17 14:06:00,554 set_state: layers/output_layer/input/b <- array(10001,)
+Best validation set perplexity: 141.326666474
 train finished.
 Computing evaluation set perplexity.
 Reading vocabulary from network state.
@@ -199,11 +199,11 @@ Number of word classes: 10001
 Building neural network.
 Restoring neural network state.
 Building text scorer.
-Scoring text.
 Number of sentences: 3761
 Number of words: 86191
 Number of tokens: 86191
 Number of predicted probabilities: 82430
 Number of excluded (OOV) words: 0
-Cross entropy (base e): 4.768903365696342
-Perplexity: 117.78999855420425
+Number of zero probabilities: 0
+Cross entropy (base e): 4.775099733242394
+Perplexity: 118.52213462807157
