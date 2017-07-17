@@ -166,8 +166,9 @@ def _score_text(input_file, vocabulary, scorer, output_file,
     num_sentences = 0
     num_tokens = 0
     num_words = 0
-    num_unks = 0
     num_probs = 0
+    num_unks = 0
+    num_zeroprobs = 0
     for word_ids, words, mask in scoring_iter:
         class_ids, membership_probs = vocabulary.get_class_memberships(word_ids)
         logprobs = scorer.score_batch(word_ids, class_ids, membership_probs,
@@ -182,7 +183,8 @@ def _score_text(input_file, vocabulary, scorer, output_file,
                                                             subword_marking)
 
             # total logprob of this sequence
-            seq_logprob = sum(x for x in merged_logprobs if x is not None)
+            seq_logprob = sum(lp for lp in merged_logprobs
+                              if (lp is not None) and (not numpy.isneginf(lp)))
             # total logprob of all sequences
             total_logprob += seq_logprob
             # number of tokens, which may be subwords, including <unk>'s
@@ -190,10 +192,12 @@ def _score_text(input_file, vocabulary, scorer, output_file,
             # number of words, including <s>'s and <unk>'s
             num_words += len(merged_words)
             # number of word probabilities computed (may not include <unk>'s)
-            num_seq_probs = sum(x is not None for x in merged_logprobs)
+            num_seq_probs = sum((lp is not None) and (not numpy.isneginf(lp))
+                                for lp in merged_logprobs)
             num_probs += num_seq_probs
-            # number of <unk>'s (just for reporting)
-            num_unks += len(merged_logprobs) - num_seq_probs
+            # number of unks and zeroprobs (just for reporting)
+            num_unks += sum(lp is None for lp in merged_logprobs)
+            num_zeroprobs += sum(numpy.isneginf(lp) for lp in merged_logprobs)
             # number of sequences
             num_sentences += 1
 
@@ -211,6 +215,8 @@ def _score_text(input_file, vocabulary, scorer, output_file,
                       .format(num_probs))
     output_file.write("Number of excluded (OOV) words: {0}\n"
                       .format(num_unks))
+    output_file.write("Number of zero probabilities: {0}\n"
+                      .format(num_zeroprobs))
     if num_words > 0:
         cross_entropy = -total_logprob / num_probs
         perplexity = numpy.exp(cross_entropy)

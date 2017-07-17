@@ -3,6 +3,8 @@
 """A module that implements the TextScorer class.
 """
 
+import logging
+
 import numpy
 import theano
 import theano.tensor as tensor
@@ -104,13 +106,13 @@ class TextScorer(object):
             # If requested, ignore OOS and OOV probabilities.
             mask *= tensor.neq(target_word_ids, self._unk_id)
             mask *= tensor.lt(target_word_ids, shortlist_size)
-        logprobs *= tensor.cast(mask, theano.config.floatX)
 
         # Ignore unused input variables, because is_training is only used by
         # dropout layer.
+        masked_logprobs = logprobs * tensor.cast(mask, theano.config.floatX)
         self._target_logprobs_function = theano.function(
             [batch_word_ids, batch_class_ids, membership_probs, network.mask],
-            [logprobs, mask],
+            [masked_logprobs, mask],
             givens=[(network.input_word_ids, input_word_ids),
                     (network.input_class_ids, input_class_ids),
                     (network.target_class_ids, target_class_ids),
@@ -118,9 +120,15 @@ class TextScorer(object):
             name='target_logprobs',
             on_unused_input='ignore',
             profile=profile)
+
+        # If some word is not in the training data, its class membership
+        # probability will be zero. We want to ignore those words. Multiplying
+        # by the mask is not possible, because those logprobs will be -inf.
+        mask *= tensor.neq(membership_probs, 0.0)
+        masked_logprobs = tensor.switch(mask, logprobs, 0.0)
         self._total_logprob_function = theano.function(
             [batch_word_ids, batch_class_ids, membership_probs, network.mask],
-            [logprobs.sum(), mask.sum()],
+            [masked_logprobs.sum(), mask.sum()],
             givens=[(network.input_word_ids, input_word_ids),
                     (network.input_class_ids, input_class_ids),
                     (network.target_class_ids, target_class_ids),
@@ -140,8 +148,11 @@ class TextScorer(object):
         The result will be returned in a list of lists. The indices will be a
         transpose of those of the input matrices, so that the first index is the
         sequence, not the time step. The lists will contain ``None`` values in
-        place of any <unk> tokens, if the constructor was given
-        ``exclude_unk=True``.
+        place of any ``<unk>`` tokens, if the constructor was given
+        ``exclude_unk=True``. When using a shortlist, the lists will always
+        contain ``None`` in place of OOV words, and if ``exclude_unk=True`` was
+        given, also in place of OOS words. Words with zero class membership
+        probability will have ``-inf`` log probability.
 
         :type word_ids: numpy.ndarray of an integer type
         :param word_ids: a 2-dimensional matrix, indexed by time step and
@@ -193,6 +204,12 @@ class TextScorer(object):
         The first matrix contains the word IDs, the second one masks out
         elements past the sequence ends.
 
+        ``<unk>`` tokens will be excluded from the perplexity computation, if
+        the constructor was given ``exclude_unk=True``. When using a shortlist,
+        OOV words are always excluded, and if ``exclude_unk=True`` was given,
+        OOS words are also excluded. Words with zero class membership
+        probability are always excluded.
+
         :type batch_iter: BatchIterator
         :param batch_iter: an iterator that creates mini-batches from the input
                            data
@@ -218,9 +235,14 @@ class TextScorer(object):
                                              membership_probs[1:],
                                              mask[1:])
             if numpy.isnan(batch_logprob):
+                self._debug_log_batch(word_ids, class_ids, membership_probs, mask)
                 raise NumberError("Log probability of a mini-batch is NaN.")
-            if numpy.isinf(batch_logprob):
-                raise NumberError("Log probability of a mini-batch is +/- infinity.")
+            if numpy.isneginf(batch_logprob):
+                self._debug_log_batch(word_ids, class_ids, membership_probs, mask)
+                raise NumberError("Probability of a mini-batch is zero.")
+            if batch_logprob > 0.0:
+                self._debug_log_batch(word_ids, class_ids, membership_probs, mask)
+                raise NumberError("Probability of a mini-batch is greater than one.")
 
             logprob += batch_logprob
             num_words += batch_num_words
@@ -233,6 +255,12 @@ class TextScorer(object):
 
     def score_sequence(self, word_ids, class_ids, membership_probs):
         """Computes the log probability of a word sequence.
+
+        ``<unk>`` tokens will be excluded from the probability computation, if
+        the constructor was given ``exclude_unk=True``. When using a shortlist,
+        OOV words are always excluded, and if ``exclude_unk=True`` was given,
+        OOS words are also excluded. Words with zero class membership
+        probability are always excluded.
 
         :type word_ids: ndarray
         :param word_ids: a vector of word IDs
@@ -263,9 +291,14 @@ class TextScorer(object):
                                                   membership_probs[1:],
                                                   mask[1:])
         if numpy.isnan(logprob):
+            self._debug_log_batch(word_ids, class_ids, membership_probs, mask)
             raise NumberError("Log probability of a sequence is NaN.")
-        if numpy.isinf(logprob):
-            raise NumberError("Log probability of a sequence is +/- infinity.")
+        if numpy.isneginf(logprob):
+            self._debug_log_batch(word_ids, class_ids, membership_probs, mask)
+            raise NumberError("Probability of a sequence is zero.")
+        if logprob > 0.0:
+            self._debug_log_batch(word_ids, class_ids, membership_probs, mask)
+            raise NumberError("Probability of a sequence is greater than one.")
 
         return logprob
 
@@ -276,6 +309,12 @@ class TextScorer(object):
         inserted at the beginning and the end of the line, if they're missing.
         If the line is empty, ``None`` will be returned, instead of interpreting
         it as the empty sentence ``<s> </s>``.
+
+        ``<unk>`` tokens will be excluded from the probability computation, if
+        the constructor was given ``exclude_unk=True``. When using a shortlist,
+        OOV words are always excluded, and if ``exclude_unk=True`` was given,
+        OOS words are also excluded. Words with zero class membership
+        probability are always excluded.
 
         :type line: str
         :param line: a sequence of words
@@ -303,3 +342,47 @@ class TextScorer(object):
                  for word_id in word_ids]
 
         return self.score_sequence(word_ids, class_ids, probs)
+
+    def _debug_log_batch(self, word_ids, class_ids, membership_probs, mask):
+        """Writes the target word IDs, their log probabilities, and the mask to
+        the debug log.
+
+        :type word_ids: numpy.ndarray of an integer type
+        :param word_ids: a 2-dimensional matrix, indexed by time step and
+                         sequence, that contains the word IDs
+
+        :type class_ids: numpy.ndarray of an integer type
+        :param class_ids: a 2-dimensional matrix, indexed by time step and
+                          sequence, that contains the class IDs
+
+        :type membership_probs: numpy.ndarray of a floating point type
+        :param membership_probs: a 2-dimensional matrix, indexed by time step
+                                 and sequences, that contains the class
+                                 membership probabilities of the words
+
+        :type mask: numpy.ndarray of a floating point type
+        :param mask: a 2-dimensional matrix, indexed by time step and sequence,
+                     that masks out elements past the sequence ends
+        """
+
+        membership_probs = membership_probs.astype(theano.config.floatX)
+
+        # target_logprobs_function() uses the word and class IDs of the entire
+        # mini-batch, but membership probs and mask are only for the output.
+        logprobs, new_mask = self._target_logprobs_function(word_ids,
+                                                            class_ids,
+                                                            membership_probs[1:],
+                                                            mask[1:])
+        for seq_index in range(logprobs.shape[1]):
+            target_word_ids = word_ids[1:, seq_index]
+            seq_mask = mask[1:, seq_index]
+            seq_word_ids = target_word_ids[seq_mask == 1]
+            seq_logprobs = logprobs[seq_mask == 1, seq_index]
+            # The new mask also masks excluded tokens.
+            seq_mask = new_mask[seq_mask == 1, seq_index]
+            logging.debug("Sequence %i target word IDs: [%s]",
+                          seq_index, ", ".join(str(x) for x in seq_word_ids))
+            logging.debug("Sequence %i mask: [%s]",
+                          seq_index, ", ".join(str(x) for x in seq_mask))
+            logging.debug("Sequence %i logprobs: [%s]",
+                          seq_index, ", ".join(str(x) for x in seq_logprobs))
