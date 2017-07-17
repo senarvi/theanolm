@@ -245,11 +245,11 @@ def _merge_subwords(subwords, subword_logprobs, marking):
                     is used and "prefix-affix" if subwords are prefixed/affixed
                     with + when they can be concatenated
 
-    :rtype: tuple of (list of strs, list of floats)
-    :returns: the first item is a list of lists, containing a list of subwords
-              for each words; the second item is a list of log probabilities for
-              each word starting from the second one, containing ``None`` in
-              place of any ignored <unk>'s
+    :rtype: tuple of two lists
+    :returns: the first item is a list of words, where each word is either a
+              string or a list of subword strings; the second item is a list of
+              log probabilities for each word, starting from the second one,
+              containing ``None`` in place of any ignored <unk>'s
     """
 
     if len(subword_logprobs) != len(subwords) - 1:
@@ -260,7 +260,7 @@ def _merge_subwords(subwords, subword_logprobs, marking):
         # Vocabulary is already words.
         return subwords, subword_logprobs
 
-    words = [subwords[0]]
+    words = [[subwords[0]]]
     logprobs = []
     current_word = []
     current_logprob = 0.0

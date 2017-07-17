@@ -225,7 +225,7 @@ class LatticeDecoder(object):
           probability of a token as many times as there are words
 
         unk_penalty : float
-          if set to othern than None, used as <unk> token score
+          if set to other than None, used as <unk> token score
 
         use_shortlist : bool
           if set to ``True``, <unk> token probability is distributed among the
