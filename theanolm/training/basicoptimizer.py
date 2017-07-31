@@ -230,7 +230,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
                         'seq' for k samples per time step, or 'batch' for k
                         samples in total
 
-        :rtype: TensorVariable
+        :rtype: Variable
         :returns: a symbolic 2-dimensional matrix that contains the log
                   probability of each time step of each sequence
         """
@@ -292,7 +292,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
                         'seq' for k samples per time step, or 'batch' for k
                         samples in total
 
-        :rtype: TensorVariable
+        :rtype: Variable
         :returns: a symbolic 2-dimensional matrix that contains the log
                   probability of each time step of each sequence
         """
@@ -355,7 +355,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         """Returns Theano expressions for updating the model parameter, given
         the gradient expressions. Implemented by every optimizer subclass.
 
-        :type alpha: TensorVariable
+        :type alpha: Variable
         :param alpha: a scale to be applied to the parameter updates
 
         :rtype: iterable over pairs (shared variable, new expression)
@@ -367,12 +367,12 @@ class BasicOptimizer(object, metaclass=ABCMeta):
     def _normalize(self, updates):
         """Normalizes the norm of a parameter update to given maximum value.
 
-        :type updates: dict of str to TensorVariable
+        :type updates: dict of str to Variable
         :param updates: dictionary of symbolic variables that describe the
                         negative gradient of each parameter, after any
                         optimization method specific adaptation
 
-        :rtype: dict of str to TensorVariable
+        :rtype: dict of str to Variable
         :returns: dictionary of symbolic variables that describe ``updates``
                   after normalization has been applied
         """

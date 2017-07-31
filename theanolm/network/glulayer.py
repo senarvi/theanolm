@@ -120,7 +120,7 @@ class GLULayer(BasicLayer):
         ``input_matrix`` and the result have the shape expected by ``conv2d()``:
         [sequences, channels (depth), time steps, data].
 
-        :type input_matrix: TensorVariable
+        :type input_matrix: Variable
         :param input_matrix: one or more sequences (first dimension) and one or
                              more channels (second dimension), each containing
                              two-dimensional data, first data dimension being
@@ -130,7 +130,7 @@ class GLULayer(BasicLayer):
         :param param_name: name of a parameter group that contains a filter
                            matrix
 
-        :rtype: TensorVariable
+        :rtype: Variable
         :returns: the input convolved with the filters
         """
 

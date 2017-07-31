@@ -21,10 +21,50 @@ def multinomial(random, probs, num_samples):
 
     :type random: MRG_RandomStreams
     :param random: a random number generator
+
+    :type probs: Variable
+    :param probs: a 2-dimensional tensor variable that defines the distribution
+                  where to sample from, for each mini-batch element
+
+    :type num_samples: int
+    :param num_samples: number of samples to draw for each mini-batch element
+
+    :rtype: Variable
+    :returns: a 2-dimensional tensor variable describing the random samples for
+              each mini-batch element
     """
 
 #    return random.multinomial_wo_replacement(pvals=probs, n=num_samples)
-    return random.choice(size=num_samples, replace=False, p=probs)
+    sample = random.choice(size=num_samples, replace=False, p=probs)
+    # Some versions of Theano seem to return crazy high or low numbers because
+    # of some rounding errors, so take the modulo to be safe.
+    sample %= probs.shape[1]
+    return sample
+
+def log_uniform(random, support, num_samples):
+    """Returns an operation that samples random integers whose logarithm is
+    uniformly distributed.
+
+    :type random: MRG_RandomStreams
+    :param random: a random number generator
+
+    :type support: int
+    :param support: the returned values will be in the range from 0 to
+                    support - 1
+
+    :type num_samples: int
+    :param num_samples: number of values to sample
+
+    :rtype: Variable
+    :returns: a 2-dimensional tensor variable describing the random samples for
+              each mini-batch element
+    """
+
+    # Create random numbers in the range [0, log(support + 1)[.
+    log_support = numpy.log(support + 1)
+    logs = random.uniform(size=num_samples, high=log_support)
+    # The exponent will be in the range [1, support + 1[.
+    return tensor.exp(logs) - 1
 
 
 class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
@@ -39,7 +79,7 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
         """Creates tensor variable that computes unnormalized output
         (preactivations).
 
-        :type layer_input: TensorVariable
+        :type layer_input: Variable
         :param layer_input: a 3-dimensional tensor that contains the input
                             vector for each time step in each sequence
 
@@ -58,11 +98,11 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
         """Creates tensor variables for sampling k unique noise words per
         mini-batch element for NCE and BlackOut.
 
-        :type layer_input: TensorVariable
+        :type layer_input: Variable
         :param layer_input: a 3-dimensional tensor that contains the input
                             vector for each time step in each sequence
 
-        :rtype: tuple of two TensorVariables
+        :rtype: tuple of two Variables
         :returns: 3-dimensional tensors that contain the k sampled class IDs and
                   their log probabilities for each time step in each sequence
         """
@@ -111,11 +151,11 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
         Creates k samples for each time step. These are shared across the
         sequences in the mini-batch.
 
-        :type layer_input: TensorVariable
+        :type layer_input: Variable
         :param layer_input: a 3-dimensional tensor that contains the input
                             vector for each time step in each sequence
 
-        :rtype: tuple of two TensorVariables
+        :rtype: tuple of two Variables
         :returns: a 2-dimensional tensor that contains k sampled class IDs for
                   each time step, and a 3-dimensional tensors that contains
                   their log probabilities for each time step in each sequence
@@ -153,11 +193,11 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
         Creates k samples for each time step. These are shared across the
         sequences in the mini-batch.
 
-        :type layer_input: TensorVariable
+        :type layer_input: Variable
         :param layer_input: a 3-dimensional tensor that contains the input
                             vector for each time step in each sequence
 
-        :rtype: tuple of two TensorVariables
+        :rtype: tuple of two Variables
         :returns: k sampled class IDs and a 3-dimensional tensor that contain
                   their log probabilities for each time step in each sequence
         """
@@ -189,16 +229,16 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
         """Constructs the preactivations for given targets. One or more target
         outputs are given for each element in the mini-batch.
 
-        :type layer_input: TensorVariable
+        :type layer_input: Variable
         :param layer_input: a 3-dimensional tensor that contains the input
                             vector for each time step in each sequence
 
-        :type target_class_ids: TensorVariable
+        :type target_class_ids: Variable
         :param target_class_ids: a 3-dimensional tensor that contains one or
                                  more target class IDs for each time step in
                                  each sequence
 
-        :rtype: TensorVariable
+        :rtype: Variable
         :returns: a 3-dimensional tensor that contains the preactivation for
                   each target class, for each time step in each sequence
         """
@@ -219,15 +259,15 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
         """Constructs the preactivations for given targets. One or more target
         outputs are given for each time step in a 2-dimensional matrix.
 
-        :type layer_input: TensorVariable
+        :type layer_input: Variable
         :param layer_input: a 3-dimensional tensor that contains the input
                             vector for each time step in each sequence
 
-        :type target_class_ids: TensorVariable
+        :type target_class_ids: Variable
         :param target_class_ids: a 2-dimensional tensor that contains one or
                                  more target class IDs for each time step
 
-        :rtype: TensorVariable
+        :rtype: Variable
         :returns: a 3-dimensional tensor that contains the preactivation for
                   each target class, for each time step in each sequence
         """
@@ -251,14 +291,14 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
         """Structures the preactivations for a list of target classes.
         Preactivations at each word are computed for all the targets.
 
-        :type layer_input: TensorVariable
+        :type layer_input: Variable
         :param layer_input: a 3-dimensional tensor that contains the input
                             vector for each time step in each sequence
 
-        :type target_class_ids: TensorVariable
+        :type target_class_ids: Variable
         :param target_class_ids: a list of target classes
 
-        :rtype: TensorVariable
+        :rtype: Variable
         :returns: a 3-dimensional tensor that contains the preactivation for
                   every target word, at each time step of each sequence
         """

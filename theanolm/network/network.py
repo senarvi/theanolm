@@ -379,7 +379,7 @@ class Network(object):
     def output_probs(self):
         """Returns the output probabilities for the whole vocabulary.
 
-        :rtype: TensorVariable
+        :rtype: Variable
         :returns: a symbolic 3-dimensional matrix that contains a probability
                   for each time step, each sequence, and each output class
         """
@@ -393,7 +393,7 @@ class Network(object):
 
         Can be used only when target_class_ids is given.
 
-        :rtype: TensorVariable
+        :rtype: Variable
         :returns: a symbolic 2-dimensional matrix that contains the target word
                   probability for each time step and each sequence
         """
@@ -411,7 +411,7 @@ class Network(object):
 
         Only computed when target_class_ids is given and using softmax output.
 
-        :rtype: TensorVariable
+        :rtype: Variable
         :returns: a symbolic 2-dimensional matrix that contains the unnormalized
                   target word probability for each time step and each sequence
         """
@@ -439,7 +439,7 @@ class Network(object):
                         'seq' for k samples per time step, or 'batch' for k
                         samples in total
 
-        :rtype: tuple of two TensorVariables
+        :rtype: tuple of two Variables
         :returns: noise class IDs and their log probabilities
         """
 

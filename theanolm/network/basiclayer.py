@@ -152,7 +152,7 @@ class BasicLayer(object, metaclass=ABCMeta):
                        only; otherwise returns the part of the parameter that
                        resides on the given device
 
-        :rtype: TensorVariable
+        :rtype: Variable
         :returns: the corresponding tensor variable
         """
 
@@ -328,7 +328,7 @@ class BasicLayer(object, metaclass=ABCMeta):
         vector, and the second dimension of the weight vector defines the size
         of the output data vector.
 
-        :type input_matrix: TensorVariable
+        :type input_matrix: Variable
         :param input_matrix: the preactivations will be computed by multiplying
                              the data vectors (the last dimension of this
                              matrix) by the weight matrix, and adding bias
@@ -337,7 +337,7 @@ class BasicLayer(object, metaclass=ABCMeta):
         :param param_name: name of a parameter group that contains a weight
                            matrix and a bias vector
 
-        :rtype: TensorVariable
+        :rtype: Variable
         :returns: a matrix that has the same number of dimensions as
                   ``input_matrix``, but the data vectors (the last dimension of
                   this matrix) are the preactivations

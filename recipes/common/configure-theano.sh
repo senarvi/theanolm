@@ -13,4 +13,3 @@ if [ ${#devices[@]} -gt 1 ]
 then
 	THEANO_FLAGS=$(IFS=,; echo "${THEANO_FLAGS},contexts=${contexts[*]}")
 fi
-THEANO_FLAGS="${THEANO_FLAGS},nvcc.fastmath=True"

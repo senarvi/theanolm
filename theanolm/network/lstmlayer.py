@@ -158,30 +158,30 @@ class LSTMLayer(BasicLayer):
         mini-batch - each value corresponds to the same time step in a different
         sequence.
 
-        :type mask: TensorVariable
+        :type mask: Variable
         :param mask: a symbolic vector that masks out sequences that are past
                      the last word
 
-        :type x_preact: TensorVariable
+        :type x_preact: Variable
         :param x_preact: concatenation of the input x_(t) pre-activations
                          computed using the gate and candidate state weights and
                          biases; shape is (the number of sequences, state size *
                          4)
 
-        :type C_in: TensorVariable
+        :type C_in: Variable
         :param C_in: C_(t-1), cell state output of the previous time step; shape
                      is (the number of sequences, state size)
 
-        :type h_in: TensorVariable
+        :type h_in: Variable
         :param h_in: h_(t-1), hidden state output of the previous time step;
                      shape is (the number of sequences, state size)
 
-        :type h_weights: TensorVariable
+        :type h_weights: Variable
         :param h_weights: concatenation of the gate and candidate state weights
                           to be applied to h_(t-1); shape is (state size, state
                           size * 4)
 
-        :rtype: a tuple of two TensorVariables
+        :rtype: a tuple of two Variables
         :returns: C_(t) and h_(t), the cell state and hidden state outputs
         """
 
