@@ -8,9 +8,7 @@ import sys
 import logging
 
 import h5py
-import numpy
 import theano
-import theano.tensor as tensor
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 from theanolm import Vocabulary
@@ -27,6 +25,7 @@ from theanolm.network.softmaxlayer import SoftmaxLayer
 from theanolm.network.hsoftmaxlayer import HSoftmaxLayer
 from theanolm.network.dropoutlayer import DropoutLayer
 from theanolm.network.bidirectionallayer import BidirectionalLayer
+from theanolm.network.noisesampler import *
 from theanolm.matrixfunctions import test_value
 
 def create_layer(layer_options, *args, **kwargs):
@@ -245,11 +244,10 @@ class Network(object):
                                                dtype='int64')
         self.num_noise_samples.tag.test_value = 3
 
-        # Sampling based methods use this noise distribution, if it's set.
-        # Otherwise noise is sampled from uniform distribution.
+        # Sampling based methods use this noise sampler.
         if (class_prior_probs is None) or (noise_dampening == 0.0):
-            # Use uniform() for sampling based training.
-            self.noise_probs = None
+            self.noise_sampler = UniformSampler(self.random,
+                                                self.vocabulary.num_classes())
         else:
             noise_probs = numpy.power(class_prior_probs, noise_dampening)
             noise_probs /= noise_probs.sum()
@@ -262,6 +260,7 @@ class Network(object):
                     theano.shared(noise_probs.astype(theano.config.floatX),
                                   'network/noise_probs',
                                   target=default_device)
+            self.noise_sampler = MultinomialSampler(self.random, noise_probs)
 
         for layer in self.layers.values():
             layer.create_structure()

@@ -31,6 +31,7 @@ encoding//theanolm/network/hsoftmaxlayer.py=utf-8
 encoding//theanolm/network/lstmlayer.py=utf-8
 encoding//theanolm/network/network.py=utf-8
 encoding//theanolm/network/networkinput.py=utf-8
+encoding//theanolm/network/noisesampler.py=utf-8
 encoding//theanolm/network/projectionlayer.py=utf-8
 encoding//theanolm/network/recurrentstate.py=utf-8
 encoding//theanolm/network/samplingoutputlayer.py=utf-8

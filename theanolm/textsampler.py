@@ -38,7 +38,13 @@ class TextSampler(object):
         # multinomial() is only implemented for dimension <= 2, but the matrix
         # contains only one time step anyway.
         output_probs = network.output_probs()[0]
+        # Theano doesn't set a test value to some of it's internal variables.
+        # Disable the warning since there's nothing we can do.
+        compute_test_value = theano.config.compute_test_value
+        theano.config.compute_test_value = 'off'
         class_ids = self._random.multinomial(pvals=output_probs).argmax(1)
+        class_ids.tag.test_value = numpy.zeros(4, dtype='int64')
+        theano.config.compute_test_value = compute_test_value
         class_ids = class_ids.reshape([1, class_ids.shape[0]])
         outputs = [class_ids]
         outputs.extend(network.recurrent_state_output)

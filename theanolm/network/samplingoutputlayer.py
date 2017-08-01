@@ -12,61 +12,6 @@ import theano.tensor as tensor
 from theanolm.network.basiclayer import BasicLayer
 
 
-def multinomial(random, probs, num_samples):
-    """Returns an operation that samples from multinomial distribution.
-
-    Theano supports currently only sampling without replacement. The old
-    interface, ``multinomial_wo_replacement()`` was faster, but is not
-    supported anymore.
-
-    :type random: MRG_RandomStreams
-    :param random: a random number generator
-
-    :type probs: Variable
-    :param probs: a 2-dimensional tensor variable that defines the distribution
-                  where to sample from, for each mini-batch element
-
-    :type num_samples: int
-    :param num_samples: number of samples to draw for each mini-batch element
-
-    :rtype: Variable
-    :returns: a 2-dimensional tensor variable describing the random samples for
-              each mini-batch element
-    """
-
-#    return random.multinomial_wo_replacement(pvals=probs, n=num_samples)
-    sample = random.choice(size=num_samples, replace=False, p=probs)
-    # Some versions of Theano seem to return crazy high or low numbers because
-    # of some rounding errors, so take the modulo to be safe.
-    sample %= probs.shape[1]
-    return sample
-
-def log_uniform(random, support, num_samples):
-    """Returns an operation that samples random integers whose logarithm is
-    uniformly distributed.
-
-    :type random: MRG_RandomStreams
-    :param random: a random number generator
-
-    :type support: int
-    :param support: the returned values will be in the range from 0 to
-                    support - 1
-
-    :type num_samples: int
-    :param num_samples: number of values to sample
-
-    :rtype: Variable
-    :returns: a 2-dimensional tensor variable describing the random samples for
-              each mini-batch element
-    """
-
-    # Create random numbers in the range [0, log(support + 1)[.
-    log_support = numpy.log(support + 1)
-    logs = random.uniform(size=num_samples, high=log_support)
-    # The exponent will be in the range [1, support + 1[.
-    return tensor.exp(logs) - 1
-
-
 class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
     """Sampling Support for Output Layer
 
@@ -111,38 +56,10 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
         num_sequences = layer_input.shape[1]
         num_samples = self._network.num_noise_samples
         num_classes = numpy.int64(self._network.vocabulary.num_classes())
-        random = self._network.random
+        noise_sampler = self._network.noise_sampler
 
         minibatch_size = num_time_steps * num_sequences
-        if self._network.noise_probs is None:
-            # The upper bound is exclusive, so this always creates samples that
-            # are < num_classes.
-            num_batch_samples = minibatch_size * num_samples
-            sample = random.uniform((num_batch_samples,)) * num_classes
-            sample = sample.astype('int64')
-        else:
-            # We repeat the distribution for each mini-batch element, and sample
-            # k noise words per mini-batch element. k < number of outpus, so
-            # it's possible without replacement.
-            class_probs = self._network.noise_probs[None, :]
-            class_probs = tensor.tile(class_probs, [minibatch_size, 1])
-            # Since we sample different noise words for different data words, we
-            # could set the probability of the correct data words to zero, as
-            # suggested in the BlackOut paper. That seems to result in a little
-            # bit worse model with NCE and BlackOut.
-#            target_class_ids = self._network.target_class_ids.flatten()
-#            target_sample_ids = tensor.arange(minibatch_size)
-#            class_probs = tensor.set_subtensor(
-#                class_probs[(target_sample_ids, target_class_ids)], 0)
-#            denominators = class_probs.sum(1)
-#            denominators = denominators[:, None]
-#            class_probs /= denominators
-            sample = multinomial(random, class_probs, num_samples)
-            # For some reason (maybe a rounding error) it may happen that the
-            # sample contains a very high or negative value.
-            sample = tensor.maximum(sample, 0)
-            sample = tensor.minimum(sample, num_classes - 1)
-
+        sample = noise_sampler.sample(minibatch_size, num_samples)
         sample = sample.reshape([num_time_steps, num_sequences, num_samples])
         return sample, self._get_target_preact(layer_input, sample)
 
@@ -165,26 +82,10 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
         num_samples = self._network.num_noise_samples
         num_batch_samples = num_time_steps * num_samples
         num_classes = numpy.int64(self._network.vocabulary.num_classes())
-        random = self._network.random
+        noise_sampler = self._network.noise_sampler
 
-        if self._network.noise_probs is None:
-            # The upper bound is exclusive, so this always creates samples that
-            # are < num_classes.
-            sample = random.uniform((num_batch_samples,)) * num_classes
-            sample = sample.astype('int64')
-        else:
-            class_probs = self._network.noise_probs[None, :]
-            # We could repeat the distribution for each time step, and sample k
-            # noise words per time step. Since k < number of outputs, we would
-            # never have a problem with sampling without replacement.
-            # Unfortunately that is very inefficient.
-            sample = multinomial(random, class_probs, num_batch_samples)
-            sample.reshape([num_time_steps, num_samples])
-            # For some reason (maybe a rounding error) it may happen that the
-            # sample contains a very high or negative value.
-            sample = tensor.maximum(sample, 0)
-            sample = tensor.minimum(sample, num_classes - 1)
-
+        # Sampling k noise words per time step is inefficient with multinomial.
+        sample = noise_sampler.sample(1, num_batch_samples)
         sample = sample.reshape([num_time_steps, num_samples])
         return sample, self._get_target_seq_preact(layer_input, sample)
 
@@ -204,25 +105,11 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
 
         num_samples = self._network.num_noise_samples
         num_classes = numpy.int64(self._network.vocabulary.num_classes())
-        random = self._network.random
+        noise_sampler = self._network.noise_sampler
 
         # Sample k noise words in total. These are shared across mini-batch.
-        if self._network.noise_probs is None:
-            # The upper bound is exclusive, so this always creates samples that
-            # are < num_classes
-            sample = random.uniform((num_samples,)) * num_classes
-            sample = sample.astype('int64')
-        else:
-            # Multinomial sampling is implemented for a 2-dimensional
-            # distribution only.
-            class_probs = self._network.noise_probs[None, :]
-            sample = multinomial(random, class_probs, num_samples)
-            sample = sample[0, :]
-            # For some reason (maybe a rounding error) it may happen that the
-            # sample contains a very high or negative value.
-            sample = tensor.maximum(sample, 0)
-            sample = tensor.minimum(sample, num_classes - 1)
-
+        sample = noise_sampler.sample(1, num_samples)
+        sample = sample[0, :]
         return sample, self._get_target_list_preact(layer_input, sample)
 
     def _get_target_preact(self, layer_input, target_class_ids):
