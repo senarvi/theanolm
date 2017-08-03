@@ -17,7 +17,8 @@ class BasicOptimizer(object, metaclass=ABCMeta):
     """Superclass for Neural Network Language Model Optimizers
     """
 
-    def __init__(self, optimization_options, network, profile=False):
+    def __init__(self, optimization_options, network, cost_function,
+                 profile=False):
         """Creates Theano functions for training a neural network language
         model.
 
@@ -42,6 +43,10 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         :type network: Network
         :param network: the neural network object
 
+        :type cost_function: Cost
+        :param cost_function: an object from one of the cost function classes
+                              that defined the training objective
+
         :type profile: bool
         :param profile: if set to True, creates a Theano profile object
         """
@@ -61,14 +66,10 @@ class BasicOptimizer(object, metaclass=ABCMeta):
             # maximum norm for parameter updates
             self._max_gradient_norm = float_type(
                 optimization_options['max_gradient_norm'])
-            # cost function
-            cost_function = optimization_options['cost_function']
             # number of noise samples for sampling based output
             num_noise_samples = optimization_options['num_noise_samples']
             # noise sample sharing for sampling based output
             noise_sharing = optimization_options['noise_sharing']
-            # exclude <unk> tokens from cost computation?
-            self._exclude_unk = optimization_options['exclude_unk']
         except KeyError as e:
             raise ValueError("Option {} is missing from optimization options."
                              .format(e))
@@ -86,31 +87,9 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         batch_class_ids.tag.test_value = test_value(
             size=(101, 16), high=self.network.vocabulary.num_classes())
 
-        if cost_function == 'cross-entropy':
-            # Derive the symbolic expression for log probability of each word.
-            logprobs = tensor.log(self.network.target_probs())
-        elif cost_function == 'nce':
-            logprobs = self._get_nce_cost(sharing=noise_sharing)
-        elif cost_function == 'blackout':
-            logprobs = self._get_blackout_cost(sharing=noise_sharing)
-        else:
-            raise ValueError("Invalid cost function requested: `{}'".
-                             format(cost_function))
-
-        # Do not predict masked and possibly <unk> tokens. The mask has to be
-        # cast to floatX, otherwise the result will be float64 and pulled out
-        # from the GPU earlier than necessary.
-        mask = self.network.mask
-        if self._exclude_unk:
-            mask *= tensor.neq(self.network.target_word_ids, self._unk_id)
-        logprobs *= tensor.cast(mask, theano.config.floatX)
-        # Cost is the negative log probability normalized by the number of
-        # training examples in the mini-batch, so that the gradients will also
-        # be normalized by the number of training examples.
-        cost = -logprobs.sum() / tensor.cast(mask.sum(), theano.config.floatX)
-
         # Derive the symbolic expression for updating the gradient with regard
         # to each parameter.
+        cost, num_words = cost_function.get_tensor()
         self._gradient_exprs = \
             tensor.grad(cost, wrt=list(self.network.get_variables().values()))
 
@@ -118,7 +97,7 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         # layer.
         self.gradient_update_function = theano.function(
             [batch_word_ids, batch_class_ids, self.network.mask],
-            [],
+            [cost, num_words],
             givens=[(network.input_word_ids, batch_word_ids[:-1]),
                     (network.input_class_ids, batch_class_ids[:-1]),
                     (network.target_word_ids, batch_word_ids[1:]),
@@ -203,12 +182,9 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         # step.
         target_word_ids = word_ids[1:]
         mask = mask[1:]
-        self.gradient_update_function(word_ids, class_ids, mask)
+        cost, num_words = self.gradient_update_function(word_ids, class_ids, mask)
 
         alpha = self.learning_rate
-        if self._exclude_unk:
-            mask[target_word_ids == self._unk_id] = 0
-        num_words = numpy.count_nonzero(mask)
         float_type = numpy.dtype(theano.config.floatX).type
         if num_words > 0:
             file_ids = file_ids[:-1]

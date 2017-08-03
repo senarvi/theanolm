@@ -5,159 +5,157 @@ Computing unigram probabilities for out-of-shortlist words.
 Number of words in vocabulary: 10001
 Number of words in shortlist: 10001
 Number of word classes: 10001
-2017-07-31 14:31:44,663 train: TRAINING OPTIONS
-2017-07-31 14:31:44,663 train: max_annealing_count: 0
-2017-07-31 14:31:44,663 train: batch_size: 24
-2017-07-31 14:31:44,664 train: min_epochs: 1
-2017-07-31 14:31:44,664 train: max_epochs: 15
-2017-07-31 14:31:44,664 train: sequence_length: 25
-2017-07-31 14:31:44,664 train: patience: 0
-2017-07-31 14:31:44,664 train: stopping_criterion: no-improvement
-2017-07-31 14:31:44,664 train: validation_frequency: 1
-2017-07-31 14:31:44,664 train: OPTIMIZATION OPTIONS
-2017-07-31 14:31:44,664 train: num_noise_samples: 25
-2017-07-31 14:31:44,664 train: sqr_gradient_decay_rate: 0.999
-2017-07-31 14:31:44,664 train: noise_sharing: None
-2017-07-31 14:31:44,664 train: method: sgd
-2017-07-31 14:31:44,665 train: weights: [ 1.]
-2017-07-31 14:31:44,665 train: epsilon: 1e-06
-2017-07-31 14:31:44,665 train: max_gradient_norm: 5.0
-2017-07-31 14:31:44,665 train: learning_rate: 20.0
-2017-07-31 14:31:44,665 train: gradient_decay_rate: 0.9
-2017-07-31 14:31:44,665 train: cost_function: blackout
-2017-07-31 14:31:44,665 train: exclude_unk: False
-2017-07-31 14:31:44,665 train: momentum: 0.9
+2017-08-03 08:22:50,697 train: TRAINING OPTIONS
+2017-08-03 08:22:50,697 train: patience: 0
+2017-08-03 08:22:50,697 train: max_annealing_count: 0
+2017-08-03 08:22:50,697 train: batch_size: 24
+2017-08-03 08:22:50,697 train: max_epochs: 15
+2017-08-03 08:22:50,697 train: min_epochs: 1
+2017-08-03 08:22:50,697 train: validation_frequency: 1
+2017-08-03 08:22:50,697 train: stopping_criterion: no-improvement
+2017-08-03 08:22:50,698 train: sequence_length: 25
+2017-08-03 08:22:50,698 train: OPTIMIZATION OPTIONS
+2017-08-03 08:22:50,698 train: gradient_decay_rate: 0.9
+2017-08-03 08:22:50,698 train: max_gradient_norm: 5.0
+2017-08-03 08:22:50,698 train: num_noise_samples: 25
+2017-08-03 08:22:50,698 train: epsilon: 1e-06
+2017-08-03 08:22:50,698 train: learning_rate: 20.0
+2017-08-03 08:22:50,698 train: weights: [ 1.]
+2017-08-03 08:22:50,698 train: momentum: 0.9
+2017-08-03 08:22:50,698 train: sqr_gradient_decay_rate: 0.999
+2017-08-03 08:22:50,698 train: noise_sharing: None
+2017-08-03 08:22:50,698 train: method: sgd
 Creating trainer.
 Computing the number of mini-batches in training data.
-2017-07-31 14:31:45,981 __init__: One epoch of training data contains 2371 mini-batch updates.
-2017-07-31 14:31:45,982 __init__: Class unigram log probabilities are in the range [-13.786758, -2.951697].
-2017-07-31 14:31:45,983 __init__: Finding sentence start positions in /teamwork/t40511_asr/c/penn-treebank-project/ptb.train.txt.
-2017-07-31 14:31:46,003 _reset: Generating a random order of input lines.
+2017-08-03 08:22:52,021 __init__: One epoch of training data contains 2371 mini-batch updates.
+2017-08-03 08:22:52,023 __init__: Class unigram log probabilities are in the range [-13.786758, -2.951697].
+2017-08-03 08:22:52,023 __init__: Finding sentence start positions in /teamwork/t40511_asr/c/penn-treebank-project/ptb.train.txt.
+2017-08-03 08:22:52,043 _reset: Generating a random order of input lines.
 Building neural network.
-2017-07-31 14:31:46,012 __init__: Creating layers.
-2017-07-31 14:31:46,012 __init__: - NetworkInput name=word_input inputs=[] size=10001 depth=1 devices=[]
-2017-07-31 14:31:46,013 __init__: - ProjectionLayer name=projection_layer inputs=[word_input] size=100 depth=1 devices=[None]
-2017-07-31 14:31:46,100 add:      * layers/projection_layer/W size=1000100 type=float32 device=None
-2017-07-31 14:31:46,100 __init__: - LSTMLayer name=hidden_layer inputs=[projection_layer] size=256 depth=1 devices=[None]
-2017-07-31 14:31:46,109 add:      * layers/hidden_layer/layer_input/W size=102400 type=float32 device=None
-2017-07-31 14:31:46,372 add:      * layers/hidden_layer/step_input/W size=262144 type=float32 device=None
-2017-07-31 14:31:46,372 add:      * layers/hidden_layer/layer_input/b size=1024 type=float32 device=None
-2017-07-31 14:31:46,373 __init__: - SoftmaxLayer name=output_layer inputs=[hidden_layer] size=10001 depth=1 devices=[None]
-2017-07-31 14:31:46,627 add:      * layers/output_layer/input/W size=2560256 type=float32 device=None
-2017-07-31 14:31:46,628 add:      * layers/output_layer/input/b size=10001 type=float32 device=None
-2017-07-31 14:31:46,628 __init__: Total number of parameters: 3935925
-Compiling optimization function.
-2017-07-31 14:31:48,879 add:      * layers/output_layer/input/b_gradient size=10001 type=float32 device=None
-2017-07-31 14:31:48,881 add:      * layers/projection_layer/W_gradient size=1000100 type=float32 device=None
-2017-07-31 14:31:48,881 add:      * layers/hidden_layer/layer_input/W_gradient size=102400 type=float32 device=None
-2017-07-31 14:31:48,886 add:      * layers/output_layer/input/W_gradient size=2560256 type=float32 device=None
-2017-07-31 14:31:48,887 add:      * layers/hidden_layer/step_input/W_gradient size=262144 type=float32 device=None
-2017-07-31 14:31:48,887 add:      * layers/hidden_layer/layer_input/b_gradient size=1024 type=float32 device=None
+2017-08-03 08:22:52,050 __init__: Creating layers.
+2017-08-03 08:22:52,050 __init__: - NetworkInput name=word_input inputs=[] size=10001 depth=1 devices=[]
+2017-08-03 08:22:52,050 __init__: - ProjectionLayer name=projection_layer inputs=[word_input] size=100 depth=1 devices=[None]
+2017-08-03 08:22:52,128 add:      * layers/projection_layer/W size=1000100 type=float32 device=None
+2017-08-03 08:22:52,128 __init__: - LSTMLayer name=hidden_layer inputs=[projection_layer] size=256 depth=1 devices=[None]
+2017-08-03 08:22:52,136 add:      * layers/hidden_layer/layer_input/W size=102400 type=float32 device=None
+2017-08-03 08:22:52,415 add:      * layers/hidden_layer/step_input/W size=262144 type=float32 device=None
+2017-08-03 08:22:52,416 add:      * layers/hidden_layer/layer_input/b size=1024 type=float32 device=None
+2017-08-03 08:22:52,416 __init__: - SoftmaxLayer name=output_layer inputs=[hidden_layer] size=10001 depth=1 devices=[None]
+2017-08-03 08:22:52,635 add:      * layers/output_layer/input/W size=2560256 type=float32 device=None
+2017-08-03 08:22:52,635 add:      * layers/output_layer/input/b size=10001 type=float32 device=None
+2017-08-03 08:22:52,635 __init__: Total number of parameters: 3935925
+Building optimizer.
+2017-08-03 08:22:54,817 add:      * layers/output_layer/input/b_gradient size=10001 type=float32 device=None
+2017-08-03 08:22:54,817 add:      * layers/hidden_layer/layer_input/b_gradient size=1024 type=float32 device=None
+2017-08-03 08:22:54,818 add:      * layers/hidden_layer/step_input/W_gradient size=262144 type=float32 device=None
+2017-08-03 08:22:54,818 add:      * layers/hidden_layer/layer_input/W_gradient size=102400 type=float32 device=None
+2017-08-03 08:22:54,823 add:      * layers/output_layer/input/W_gradient size=2560256 type=float32 device=None
+2017-08-03 08:22:54,825 add:      * layers/projection_layer/W_gradient size=1000100 type=float32 device=None
 Building text scorer for cross-validation.
 Validation text: /teamwork/t40511_asr/c/penn-treebank-project/ptb.valid.txt
 Training neural network.
-2017-07-31 14:34:26,107 _log_update: [200] (8.4 %) of epoch 1 -- lr = 2e+01, duration = 32.0 ms
-2017-07-31 14:35:30,133 _log_update: [400] (16.9 %) of epoch 1 -- lr = 2e+01, duration = 31.8 ms
-2017-07-31 14:36:34,226 _log_update: [600] (25.3 %) of epoch 1 -- lr = 2e+01, duration = 32.1 ms
-2017-07-31 14:37:38,750 _log_update: [800] (33.7 %) of epoch 1 -- lr = 2e+01, duration = 31.7 ms
-2017-07-31 14:38:43,142 _log_update: [1000] (42.2 %) of epoch 1 -- lr = 2e+01, duration = 31.8 ms
-2017-07-31 14:39:47,429 _log_update: [1200] (50.6 %) of epoch 1 -- lr = 2e+01, duration = 31.9 ms
-2017-07-31 14:40:51,527 _log_update: [1400] (59.0 %) of epoch 1 -- lr = 2e+01, duration = 31.8 ms
-2017-07-31 14:41:55,762 _log_update: [1600] (67.5 %) of epoch 1 -- lr = 2e+01, duration = 31.9 ms
-2017-07-31 14:43:00,021 _log_update: [1800] (75.9 %) of epoch 1 -- lr = 2e+01, duration = 33.0 ms
-2017-07-31 14:44:04,289 _log_update: [2000] (84.4 %) of epoch 1 -- lr = 2e+01, duration = 31.7 ms
-2017-07-31 14:45:08,443 _log_update: [2200] (92.8 %) of epoch 1 -- lr = 2e+01, duration = 32.0 ms
-2017-07-31 14:46:05,288 _validate: [2365] First validation sample, perplexity 246.77.
-2017-07-31 14:46:17,785 _validate: [2368] Center of validation, perplexity 244.65.
-2017-07-31 14:46:30,319 _validate: [2371] Last validation sample, perplexity 250.14.
-2017-07-31 14:46:30,337 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
-2017-07-31 14:46:30,337 _log_validation: [2371] Validation set cost history: [247.4]
-2017-07-31 14:46:30,339 _reset: Generating a random order of input lines.
-Finished training epoch 1 in 0 hours 13.2 minutes. Best validation perplexity 247.40.
-2017-07-31 14:46:39,599 _log_update: [29] (1.2 %) of epoch 2 -- lr = 2e+01, duration = 32.0 ms
-2017-07-31 14:47:43,661 _log_update: [229] (9.7 %) of epoch 2 -- lr = 2e+01, duration = 32.0 ms
-2017-07-31 14:48:47,727 _log_update: [429] (18.1 %) of epoch 2 -- lr = 2e+01, duration = 32.2 ms
-2017-07-31 14:49:51,810 _log_update: [629] (26.5 %) of epoch 2 -- lr = 2e+01, duration = 32.3 ms
-2017-07-31 14:50:55,896 _log_update: [829] (35.0 %) of epoch 2 -- lr = 2e+01, duration = 32.1 ms
-2017-07-31 14:51:59,973 _log_update: [1029] (43.4 %) of epoch 2 -- lr = 2e+01, duration = 31.9 ms
-2017-07-31 14:53:04,339 _log_update: [1229] (51.8 %) of epoch 2 -- lr = 2e+01, duration = 33.3 ms
-2017-07-31 14:54:09,200 _log_update: [1429] (60.3 %) of epoch 2 -- lr = 2e+01, duration = 32.5 ms
-2017-07-31 14:55:13,631 _log_update: [1629] (68.7 %) of epoch 2 -- lr = 2e+01, duration = 32.4 ms
-2017-07-31 14:56:18,082 _log_update: [1829] (77.1 %) of epoch 2 -- lr = 2e+01, duration = 32.7 ms
-2017-07-31 14:57:22,502 _log_update: [2029] (85.6 %) of epoch 2 -- lr = 2e+01, duration = 32.3 ms
-2017-07-31 14:58:26,714 _log_update: [2229] (94.0 %) of epoch 2 -- lr = 2e+01, duration = 32.2 ms
-2017-07-31 14:59:10,370 _debug_log_batch: Sequence 0 target word IDs: [1984, 5496, 9678, 9116, 5810, 9015, 8943, 39, 5215, 1669, 9116, 9009, 9328, 8045, 9999]
-2017-07-31 14:59:10,371 _debug_log_batch: Sequence 0 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-2017-07-31 14:59:10,371 _debug_log_batch: Sequence 0 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,371 _debug_log_batch: Sequence 1 target word IDs: [10000, 10000, 9715, 48, 7797, 5748, 5990, 3648, 1332, 6070, 9645, 2876, 10000, 3651, 9009, 3993, 6651, 4462, 5855, 9962, 3764, 394, 3701, 6232]
-2017-07-31 14:59:10,371 _debug_log_batch: Sequence 1 mask: [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-2017-07-31 14:59:10,371 _debug_log_batch: Sequence 1 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,371 _debug_log_batch: Sequence 2 target word IDs: [10000, 10000, 9999]
-2017-07-31 14:59:10,371 _debug_log_batch: Sequence 2 mask: [0, 0, 1]
-2017-07-31 14:59:10,371 _debug_log_batch: Sequence 2 logprobs: [nan, nan, nan]
-2017-07-31 14:59:10,371 _debug_log_batch: Sequence 3 target word IDs: [9335, 9755, 275, 9595, 6136, 8059, 5899, 10000, 1982, 7981, 8512, 1314, 39, 5855, 6078, 3651, 214, 6180, 9542, 10000, 4753, 9999]
-2017-07-31 14:59:10,372 _debug_log_batch: Sequence 3 mask: [1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1]
-2017-07-31 14:59:10,372 _debug_log_batch: Sequence 3 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,372 _debug_log_batch: Sequence 4 target word IDs: [414, 9009, 5961, 8845, 7234, 8154, 4112, 2077, 7293, 9595, 0, 6214, 3651, 6747, 304, 6180, 9009, 5978, 2320, 7797, 8154, 9999]
-2017-07-31 14:59:10,372 _debug_log_batch: Sequence 4 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-2017-07-31 14:59:10,372 _debug_log_batch: Sequence 4 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,372 _debug_log_batch: Sequence 5 target word IDs: [4656, 8942, 8935, 4133, 8868, 39, 5961, 5065, 4462, 10000, 414, 8947, 6956, 546, 7148, 9116, 3311, 9009, 6745, 9999]
-2017-07-31 14:59:10,372 _debug_log_batch: Sequence 5 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-2017-07-31 14:59:10,372 _debug_log_batch: Sequence 5 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,372 _debug_log_batch: Sequence 6 target word IDs: [3201, 9595, 5496, 4022, 10000, 9867, 9009, 8935, 414, 10000, 9009, 2105, 9999]
-2017-07-31 14:59:10,372 _debug_log_batch: Sequence 6 mask: [1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1]
-2017-07-31 14:59:10,372 _debug_log_batch: Sequence 6 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,372 _debug_log_batch: Sequence 7 target word IDs: [1270, 7665, 6070, 6956, 546, 3509, 9007, 9595, 9809, 546, 1269, 2574, 9466, 39, 7181, 6136, 8041, 5496, 7102, 2794, 9015, 10000, 2032, 10000]
-2017-07-31 14:59:10,373 _debug_log_batch: Sequence 7 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0]
-2017-07-31 14:59:10,373 _debug_log_batch: Sequence 7 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,373 _debug_log_batch: Sequence 8 target word IDs: [8534, 10000, 9999]
-2017-07-31 14:59:10,373 _debug_log_batch: Sequence 8 mask: [1, 0, 1]
-2017-07-31 14:59:10,373 _debug_log_batch: Sequence 8 logprobs: [nan, nan, nan]
-2017-07-31 14:59:10,373 _debug_log_batch: Sequence 9 target word IDs: [9729, 9548, 888, 8426, 39, 5279, 6136, 9097, 4462, 5270, 420, 8878, 9116, 9328, 6937, 6483, 7868, 5649, 6387, 6837, 6136, 1309, 4656, 9797]
-2017-07-31 14:59:10,373 _debug_log_batch: Sequence 9 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-2017-07-31 14:59:10,373 _debug_log_batch: Sequence 9 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,373 _debug_log_batch: Sequence 10 target word IDs: [8935, 3651, 1088, 48, 8452, 414, 5899, 7797, 1982, 5698, 9999]
-2017-07-31 14:59:10,373 _debug_log_batch: Sequence 10 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-2017-07-31 14:59:10,373 _debug_log_batch: Sequence 10 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,373 _debug_log_batch: Sequence 11 target word IDs: [9867, 9009, 1826, 6136, 9009, 8947, 5436, 9030, 2321, 3206, 4740, 5259, 3651, 39, 9725, 9116, 3893, 9595, 5776, 3238, 9999]
-2017-07-31 14:59:10,373 _debug_log_batch: Sequence 11 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-2017-07-31 14:59:10,373 _debug_log_batch: Sequence 11 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,373 _debug_log_batch: Sequence 12 target word IDs: [6182, 6136, 9009, 5058, 900, 9009, 3276, 9498, 6136, 5855, 6080, 4740, 1309, 4656, 39, 4828, 9557, 6136, 3899, 387, 3327, 1688, 414, 387]
-2017-07-31 14:59:10,374 _debug_log_batch: Sequence 12 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-2017-07-31 14:59:10,374 _debug_log_batch: Sequence 12 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,374 _debug_log_batch: Sequence 13 target word IDs: [4, 8941, 1687, 9999]
-2017-07-31 14:59:10,374 _debug_log_batch: Sequence 13 mask: [1, 1, 1, 1]
-2017-07-31 14:59:10,374 _debug_log_batch: Sequence 13 logprobs: [nan, nan, nan, nan]
-2017-07-31 14:59:10,374 _debug_log_batch: Sequence 14 target word IDs: [3678, 4462, 700, 9009, 9557, 10000, 660, 7797, 5969, 3276, 5855, 8040, 9867, 5855, 10000, 1859, 4462, 387, 3327, 7797, 6176, 5913, 8040, 1462]
-2017-07-31 14:59:10,374 _debug_log_batch: Sequence 14 mask: [1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-2017-07-31 14:59:10,374 _debug_log_batch: Sequence 14 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,374 _debug_log_batch: Sequence 15 target word IDs: [6260, 5250, 1397, 4144, 361, 896, 5440, 3081, 5855, 8040, 414, 8397, 1978, 546, 10000, 9466, 9116, 3311, 9009, 5961, 9136, 9999]
-2017-07-31 14:59:10,374 _debug_log_batch: Sequence 15 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1]
-2017-07-31 14:59:10,374 _debug_log_batch: Sequence 15 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,374 _debug_log_batch: Sequence 16 target word IDs: [1000, 3099, 39, 5961, 9975, 3555, 9007, 219, 9328, 8527, 414, 8000, 196, 3651, 9017, 4133, 4870, 3678, 39, 8687, 5855, 1000, 9116, 507]
-2017-07-31 14:59:10,374 _debug_log_batch: Sequence 16 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-2017-07-31 14:59:10,374 _debug_log_batch: Sequence 16 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,374 _debug_log_batch: Sequence 17 target word IDs: [8935, 9116, 8947, 9999]
-2017-07-31 14:59:10,375 _debug_log_batch: Sequence 17 mask: [1, 1, 1, 1]
-2017-07-31 14:59:10,375 _debug_log_batch: Sequence 17 logprobs: [nan, nan, nan, nan]
-2017-07-31 14:59:10,375 _debug_log_batch: Sequence 18 target word IDs: [9009, 9498, 6136, 5855, 9126, 6080, 4133, 888, 3277, 7191, 4462, 7266, 9962, 9999]
-2017-07-31 14:59:10,375 _debug_log_batch: Sequence 18 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-2017-07-31 14:59:10,375 _debug_log_batch: Sequence 18 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,375 _debug_log_batch: Sequence 19 target word IDs: [3651, 39, 9799, 10000, 10000, 5187, 414, 8041, 9007, 10000, 1558, 9116, 2573, 414, 10000, 5815, 6232, 5845, 4556, 2898, 9009, 8040, 39, 8345]
-2017-07-31 14:59:10,375 _debug_log_batch: Sequence 19 mask: [1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-2017-07-31 14:59:10,375 _debug_log_batch: Sequence 19 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,375 _debug_log_batch: Sequence 20 target word IDs: [4417, 1270, 5961, 5088, 7570, 546, 296, 648, 9268, 3231, 9999]
-2017-07-31 14:59:10,375 _debug_log_batch: Sequence 20 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-2017-07-31 14:59:10,375 _debug_log_batch: Sequence 20 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,375 _debug_log_batch: Sequence 21 target word IDs: [9009, 2105, 6136, 39, 5855, 1309, 4740, 8045, 1282, 9009, 10000, 48, 8452, 3651, 3219, 9867, 9009, 1534, 8513, 648, 5855, 1468, 9999]
-2017-07-31 14:59:10,375 _debug_log_batch: Sequence 21 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-2017-07-31 14:59:10,375 _debug_log_batch: Sequence 21 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,375 _debug_log_batch: Sequence 22 target word IDs: [976, 4740, 4481, 4462, 39, 1312, 7797, 7370, 6569, 974, 9999]
-2017-07-31 14:59:10,376 _debug_log_batch: Sequence 22 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-2017-07-31 14:59:10,376 _debug_log_batch: Sequence 22 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
-2017-07-31 14:59:10,376 _debug_log_batch: Sequence 23 target word IDs: [3764, 9009, 3458, 9009, 5235, 6569, 1807, 414, 9009, 5250, 1396, 3339, 9015, 2111, 9116, 1399, 9009, 1309, 6419, 9009, 7555, 6136, 9009, 5750]
-2017-07-31 14:59:10,376 _debug_log_batch: Sequence 23 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-2017-07-31 14:59:10,376 _debug_log_batch: Sequence 23 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:25:30,889 _log_update: [200] (8.4 %) of epoch 1 -- lr = 2e+01, duration = 32.1 ms
+2017-08-03 08:26:35,089 _log_update: [400] (16.9 %) of epoch 1 -- lr = 2e+01, duration = 31.9 ms
+2017-08-03 08:27:39,337 _log_update: [600] (25.3 %) of epoch 1 -- lr = 2e+01, duration = 32.3 ms
+2017-08-03 08:28:43,526 _log_update: [800] (33.7 %) of epoch 1 -- lr = 2e+01, duration = 31.9 ms
+2017-08-03 08:29:47,745 _log_update: [1000] (42.2 %) of epoch 1 -- lr = 2e+01, duration = 31.9 ms
+2017-08-03 08:30:51,969 _log_update: [1200] (50.6 %) of epoch 1 -- lr = 2e+01, duration = 32.1 ms
+2017-08-03 08:31:56,237 _log_update: [1400] (59.0 %) of epoch 1 -- lr = 2e+01, duration = 32.0 ms
+2017-08-03 08:33:00,540 _log_update: [1600] (67.5 %) of epoch 1 -- lr = 2e+01, duration = 32.0 ms
+2017-08-03 08:34:04,785 _log_update: [1800] (75.9 %) of epoch 1 -- lr = 2e+01, duration = 32.2 ms
+2017-08-03 08:35:09,039 _log_update: [2000] (84.4 %) of epoch 1 -- lr = 2e+01, duration = 31.9 ms
+2017-08-03 08:36:13,299 _log_update: [2200] (92.8 %) of epoch 1 -- lr = 2e+01, duration = 32.1 ms
+2017-08-03 08:37:10,152 _validate: [2365] First validation sample, perplexity 246.32.
+2017-08-03 08:37:22,647 _validate: [2368] Center of validation, perplexity 246.76.
+2017-08-03 08:37:35,192 _validate: [2371] Last validation sample, perplexity 248.91.
+2017-08-03 08:37:35,214 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-08-03 08:37:35,214 _log_validation: [2371] Validation set cost history: [248.9]
+2017-08-03 08:37:35,215 _reset: Generating a random order of input lines.
+Finished training epoch 1 in 0 hours 13.2 minutes. Best validation perplexity 248.91.
+2017-08-03 08:37:44,486 _log_update: [29] (1.2 %) of epoch 2 -- lr = 2e+01, duration = 31.9 ms
+2017-08-03 08:38:48,463 _log_update: [229] (9.7 %) of epoch 2 -- lr = 2e+01, duration = 32.0 ms
+2017-08-03 08:39:52,426 _log_update: [429] (18.1 %) of epoch 2 -- lr = 2e+01, duration = 32.0 ms
+2017-08-03 08:40:56,421 _log_update: [629] (26.5 %) of epoch 2 -- lr = 2e+01, duration = 32.2 ms
+2017-08-03 08:42:00,439 _log_update: [829] (35.0 %) of epoch 2 -- lr = 2e+01, duration = 32.0 ms
+2017-08-03 08:43:04,455 _log_update: [1029] (43.4 %) of epoch 2 -- lr = 2e+01, duration = 31.8 ms
+2017-08-03 08:44:08,471 _log_update: [1229] (51.8 %) of epoch 2 -- lr = 2e+01, duration = 32.3 ms
+2017-08-03 08:45:12,417 _log_update: [1429] (60.3 %) of epoch 2 -- lr = 2e+01, duration = 32.1 ms
+2017-08-03 08:46:16,416 _log_update: [1629] (68.7 %) of epoch 2 -- lr = 2e+01, duration = 32.0 ms
+2017-08-03 08:47:20,407 _log_update: [1829] (77.1 %) of epoch 2 -- lr = 2e+01, duration = 32.3 ms
+2017-08-03 08:48:24,369 _log_update: [2029] (85.6 %) of epoch 2 -- lr = 2e+01, duration = 32.2 ms
+2017-08-03 08:49:28,369 _log_update: [2229] (94.0 %) of epoch 2 -- lr = 2e+01, duration = 32.1 ms
+2017-08-03 08:50:11,966 _debug_log_batch: Sequence 0 target word IDs: [1984, 5496, 9678, 9116, 5810, 9015, 8943, 39, 5215, 1669, 9116, 9009, 9328, 8045, 9999]
+2017-08-03 08:50:11,966 _debug_log_batch: Sequence 0 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+2017-08-03 08:50:11,966 _debug_log_batch: Sequence 0 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,966 _debug_log_batch: Sequence 1 target word IDs: [10000, 10000, 9715, 48, 7797, 5748, 5990, 3648, 1332, 6070, 9645, 2876, 10000, 3651, 9009, 3993, 6651, 4462, 5855, 9962, 3764, 394, 3701, 6232]
+2017-08-03 08:50:11,967 _debug_log_batch: Sequence 1 mask: [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+2017-08-03 08:50:11,967 _debug_log_batch: Sequence 1 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,967 _debug_log_batch: Sequence 2 target word IDs: [10000, 10000, 9999]
+2017-08-03 08:50:11,967 _debug_log_batch: Sequence 2 mask: [0, 0, 1]
+2017-08-03 08:50:11,967 _debug_log_batch: Sequence 2 logprobs: [nan, nan, nan]
+2017-08-03 08:50:11,967 _debug_log_batch: Sequence 3 target word IDs: [9335, 9755, 275, 9595, 6136, 8059, 5899, 10000, 1982, 7981, 8512, 1314, 39, 5855, 6078, 3651, 214, 6180, 9542, 10000, 4753, 9999]
+2017-08-03 08:50:11,967 _debug_log_batch: Sequence 3 mask: [1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1]
+2017-08-03 08:50:11,967 _debug_log_batch: Sequence 3 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,967 _debug_log_batch: Sequence 4 target word IDs: [414, 9009, 5961, 8845, 7234, 8154, 4112, 2077, 7293, 9595, 0, 6214, 3651, 6747, 304, 6180, 9009, 5978, 2320, 7797, 8154, 9999]
+2017-08-03 08:50:11,967 _debug_log_batch: Sequence 4 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+2017-08-03 08:50:11,967 _debug_log_batch: Sequence 4 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,967 _debug_log_batch: Sequence 5 target word IDs: [4656, 8942, 8935, 4133, 8868, 39, 5961, 5065, 4462, 10000, 414, 8947, 6956, 546, 7148, 9116, 3311, 9009, 6745, 9999]
+2017-08-03 08:50:11,968 _debug_log_batch: Sequence 5 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+2017-08-03 08:50:11,968 _debug_log_batch: Sequence 5 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,968 _debug_log_batch: Sequence 6 target word IDs: [3201, 9595, 5496, 4022, 10000, 9867, 9009, 8935, 414, 10000, 9009, 2105, 9999]
+2017-08-03 08:50:11,968 _debug_log_batch: Sequence 6 mask: [1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1]
+2017-08-03 08:50:11,968 _debug_log_batch: Sequence 6 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,968 _debug_log_batch: Sequence 7 target word IDs: [1270, 7665, 6070, 6956, 546, 3509, 9007, 9595, 9809, 546, 1269, 2574, 9466, 39, 7181, 6136, 8041, 5496, 7102, 2794, 9015, 10000, 2032, 10000]
+2017-08-03 08:50:11,968 _debug_log_batch: Sequence 7 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0]
+2017-08-03 08:50:11,968 _debug_log_batch: Sequence 7 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,968 _debug_log_batch: Sequence 8 target word IDs: [8534, 10000, 9999]
+2017-08-03 08:50:11,968 _debug_log_batch: Sequence 8 mask: [1, 0, 1]
+2017-08-03 08:50:11,968 _debug_log_batch: Sequence 8 logprobs: [nan, nan, nan]
+2017-08-03 08:50:11,968 _debug_log_batch: Sequence 9 target word IDs: [9729, 9548, 888, 8426, 39, 5279, 6136, 9097, 4462, 5270, 420, 8878, 9116, 9328, 6937, 6483, 7868, 5649, 6387, 6837, 6136, 1309, 4656, 9797]
+2017-08-03 08:50:11,968 _debug_log_batch: Sequence 9 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+2017-08-03 08:50:11,968 _debug_log_batch: Sequence 9 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,969 _debug_log_batch: Sequence 10 target word IDs: [8935, 3651, 1088, 48, 8452, 414, 5899, 7797, 1982, 5698, 9999]
+2017-08-03 08:50:11,969 _debug_log_batch: Sequence 10 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+2017-08-03 08:50:11,969 _debug_log_batch: Sequence 10 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,969 _debug_log_batch: Sequence 11 target word IDs: [9867, 9009, 1826, 6136, 9009, 8947, 5436, 9030, 2321, 3206, 4740, 5259, 3651, 39, 9725, 9116, 3893, 9595, 5776, 3238, 9999]
+2017-08-03 08:50:11,969 _debug_log_batch: Sequence 11 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+2017-08-03 08:50:11,969 _debug_log_batch: Sequence 11 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,969 _debug_log_batch: Sequence 12 target word IDs: [6182, 6136, 9009, 5058, 900, 9009, 3276, 9498, 6136, 5855, 6080, 4740, 1309, 4656, 39, 4828, 9557, 6136, 3899, 387, 3327, 1688, 414, 387]
+2017-08-03 08:50:11,969 _debug_log_batch: Sequence 12 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+2017-08-03 08:50:11,969 _debug_log_batch: Sequence 12 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,969 _debug_log_batch: Sequence 13 target word IDs: [4, 8941, 1687, 9999]
+2017-08-03 08:50:11,969 _debug_log_batch: Sequence 13 mask: [1, 1, 1, 1]
+2017-08-03 08:50:11,969 _debug_log_batch: Sequence 13 logprobs: [nan, nan, nan, nan]
+2017-08-03 08:50:11,969 _debug_log_batch: Sequence 14 target word IDs: [3678, 4462, 700, 9009, 9557, 10000, 660, 7797, 5969, 3276, 5855, 8040, 9867, 5855, 10000, 1859, 4462, 387, 3327, 7797, 6176, 5913, 8040, 1462]
+2017-08-03 08:50:11,969 _debug_log_batch: Sequence 14 mask: [1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+2017-08-03 08:50:11,969 _debug_log_batch: Sequence 14 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,970 _debug_log_batch: Sequence 15 target word IDs: [6260, 5250, 1397, 4144, 361, 896, 5440, 3081, 5855, 8040, 414, 8397, 1978, 546, 10000, 9466, 9116, 3311, 9009, 5961, 9136, 9999]
+2017-08-03 08:50:11,970 _debug_log_batch: Sequence 15 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1]
+2017-08-03 08:50:11,970 _debug_log_batch: Sequence 15 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,970 _debug_log_batch: Sequence 16 target word IDs: [1000, 3099, 39, 5961, 9975, 3555, 9007, 219, 9328, 8527, 414, 8000, 196, 3651, 9017, 4133, 4870, 3678, 39, 8687, 5855, 1000, 9116, 507]
+2017-08-03 08:50:11,970 _debug_log_batch: Sequence 16 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+2017-08-03 08:50:11,970 _debug_log_batch: Sequence 16 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,970 _debug_log_batch: Sequence 17 target word IDs: [8935, 9116, 8947, 9999]
+2017-08-03 08:50:11,970 _debug_log_batch: Sequence 17 mask: [1, 1, 1, 1]
+2017-08-03 08:50:11,970 _debug_log_batch: Sequence 17 logprobs: [nan, nan, nan, nan]
+2017-08-03 08:50:11,970 _debug_log_batch: Sequence 18 target word IDs: [9009, 9498, 6136, 5855, 9126, 6080, 4133, 888, 3277, 7191, 4462, 7266, 9962, 9999]
+2017-08-03 08:50:11,970 _debug_log_batch: Sequence 18 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+2017-08-03 08:50:11,970 _debug_log_batch: Sequence 18 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,970 _debug_log_batch: Sequence 19 target word IDs: [3651, 39, 9799, 10000, 10000, 5187, 414, 8041, 9007, 10000, 1558, 9116, 2573, 414, 10000, 5815, 6232, 5845, 4556, 2898, 9009, 8040, 39, 8345]
+2017-08-03 08:50:11,970 _debug_log_batch: Sequence 19 mask: [1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+2017-08-03 08:50:11,970 _debug_log_batch: Sequence 19 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,971 _debug_log_batch: Sequence 20 target word IDs: [4417, 1270, 5961, 5088, 7570, 546, 296, 648, 9268, 3231, 9999]
+2017-08-03 08:50:11,971 _debug_log_batch: Sequence 20 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+2017-08-03 08:50:11,971 _debug_log_batch: Sequence 20 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,971 _debug_log_batch: Sequence 21 target word IDs: [9009, 2105, 6136, 39, 5855, 1309, 4740, 8045, 1282, 9009, 10000, 48, 8452, 3651, 3219, 9867, 9009, 1534, 8513, 648, 5855, 1468, 9999]
+2017-08-03 08:50:11,971 _debug_log_batch: Sequence 21 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+2017-08-03 08:50:11,971 _debug_log_batch: Sequence 21 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,971 _debug_log_batch: Sequence 22 target word IDs: [976, 4740, 4481, 4462, 39, 1312, 7797, 7370, 6569, 974, 9999]
+2017-08-03 08:50:11,971 _debug_log_batch: Sequence 22 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+2017-08-03 08:50:11,971 _debug_log_batch: Sequence 22 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2017-08-03 08:50:11,971 _debug_log_batch: Sequence 23 target word IDs: [3764, 9009, 3458, 9009, 5235, 6569, 1807, 414, 9009, 5250, 1396, 3339, 9015, 2111, 9116, 1399, 9009, 1309, 6419, 9009, 7555, 6136, 9009, 5750]
+2017-08-03 08:50:11,971 _debug_log_batch: Sequence 23 mask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+2017-08-03 08:50:11,971 _debug_log_batch: Sequence 23 logprobs: [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
 A numerical error has occurred. This may happen e.g. when network parameters go to infinity. If this happens during training, using a smaller learning rate usually helps. Another possibility is to use gradient normalization. If this happens during inference, there is probably something wrong in the model. The error message was: Log probability of a mini-batch is NaN.
 Computing evaluation set perplexity.
 Reading vocabulary from network state.
@@ -173,5 +171,5 @@ Number of tokens: 86191
 Number of predicted probabilities: 82430
 Number of excluded (OOV) words: 0
 Number of zero probabilities: 0
-Cross entropy (base e): 5.331013023188632
-Perplexity: 206.64720657189403
+Cross entropy (base e): 5.332369890181665
+Perplexity: 206.92778965961105

@@ -20,18 +20,19 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
     estimation and BlackOut.
     """
 
-    def _get_unnormalized_logprobs(self, layer_input):
+    def _get_unnormalized_logprobs(self):
         """Creates tensor variable that computes unnormalized output
         (preactivations).
-
-        :type layer_input: Variable
-        :param layer_input: a 3-dimensional tensor that contains the input
-                            vector for each time step in each sequence
 
         Unnormalized probabilities and noise probabilities are used by noise-
         contrastive estimation. Softmax output is exponential, so the
         preactivations can be seen as unnormalized log probabilities.
         """
+
+        layer_input = self._layer_input
+        if layer_input is None:
+            raise RuntimeError("Unnormalized outputs requested before "
+                               "constructing the network structure.")
 
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
@@ -39,78 +40,93 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
         result = self._get_target_preact(layer_input, target_class_ids)
         return result.reshape([num_time_steps, num_sequences])
 
-    def _get_sample_tensors(self, layer_input):
+    def get_sample_tensors(self, noise_distribution):
         """Creates tensor variables for sampling k unique noise words per
         mini-batch element for NCE and BlackOut.
 
-        :type layer_input: Variable
-        :param layer_input: a 3-dimensional tensor that contains the input
-                            vector for each time step in each sequence
+        :type noise_distribution: ClassDistribution
+        :param noise_distribution: defines the distribution where the noise
+                                   words should be drawn from
 
         :rtype: tuple of two Variables
         :returns: 3-dimensional tensors that contain the k sampled class IDs and
                   their log probabilities for each time step in each sequence
         """
 
+        layer_input = self._layer_input
+        if layer_input is None:
+            raise RuntimeError("Sampling-based output requested before "
+                               "constructing the network structure.")
+
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
         num_samples = self._network.num_noise_samples
         num_classes = numpy.int64(self._network.vocabulary.num_classes())
-        noise_sampler = self._network.noise_sampler
 
         minibatch_size = num_time_steps * num_sequences
-        sample = noise_sampler.sample(minibatch_size, num_samples)
+        sample = noise_distribution.sample(minibatch_size, num_samples)
         sample = sample.reshape([num_time_steps, num_sequences, num_samples])
         return sample, self._get_target_preact(layer_input, sample)
 
-    def _get_seqshared_sample_tensors(self, layer_input):
+    def get_seqshared_sample_tensors(self, noise_distribution):
         """Creates tensor variables for sampling noise for NCE and BlackOut.
         Creates k samples for each time step. These are shared across the
         sequences in the mini-batch.
 
-        :type layer_input: Variable
-        :param layer_input: a 3-dimensional tensor that contains the input
-                            vector for each time step in each sequence
+        :type noise_distribution: ClassDistribution
+        :param noise_distribution: defines the distribution where the noise
+                                   words should be drawn from
 
         :rtype: tuple of two Variables
-        :returns: a 2-dimensional tensor that contains k sampled class IDs for
-                  each time step, and a 3-dimensional tensors that contains
-                  their log probabilities for each time step in each sequence
+        :returns: 3-dimensional tensors that contain the k sampled class IDs for
+                  each time step (the second dimension being empty), and their
+                  log probabilities for each time step in each sequence
         """
+
+        layer_input = self._layer_input
+        if layer_input is None:
+            raise RuntimeError("Sampling-based output requested before "
+                               "constructing the network structure.")
 
         num_time_steps = layer_input.shape[0]
         num_samples = self._network.num_noise_samples
         num_batch_samples = num_time_steps * num_samples
         num_classes = numpy.int64(self._network.vocabulary.num_classes())
-        noise_sampler = self._network.noise_sampler
 
         # Sampling k noise words per time step is inefficient with multinomial.
-        sample = noise_sampler.sample(1, num_batch_samples)
+        sample = noise_distribution.sample(1, num_batch_samples)
         sample = sample.reshape([num_time_steps, num_samples])
-        return sample, self._get_target_seq_preact(layer_input, sample)
+        return sample[:, None, :], \
+               self._get_target_seq_preact(layer_input, sample)
 
-    def _get_shared_sample_tensors(self, layer_input):
+    def get_shared_sample_tensors(self, noise_distribution):
         """Creates tensor variables for sampling noise for NCE and BlackOut.
         Creates k samples for each time step. These are shared across the
         sequences in the mini-batch.
 
-        :type layer_input: Variable
-        :param layer_input: a 3-dimensional tensor that contains the input
-                            vector for each time step in each sequence
+        :type noise_distribution: ClassDistribution
+        :param noise_distribution: defines the distribution where the noise
+                                   words should be drawn from
 
         :rtype: tuple of two Variables
-        :returns: k sampled class IDs and a 3-dimensional tensor that contain
-                  their log probabilities for each time step in each sequence
+        :returns: 3-dimensional tensors that contain the k sampled class IDs
+                  (the first and second dimension being empty) and their log
+                  probabilities for each time step in each sequence
         """
+
+        layer_input = self._layer_input
+        if layer_input is None:
+            raise RuntimeError("Sampling-based output requested before "
+                               "constructing the network structure.")
 
         num_samples = self._network.num_noise_samples
         num_classes = numpy.int64(self._network.vocabulary.num_classes())
-        noise_sampler = self._network.noise_sampler
 
         # Sample k noise words in total. These are shared across mini-batch.
-        sample = noise_sampler.sample(1, num_samples)
+        sample = noise_distribution.sample(1, num_samples)
         sample = sample[0, :]
-        return sample, self._get_target_list_preact(layer_input, sample)
+        return sample[None, None, :], \
+               self._get_target_list_preact(layer_input, sample)
 
     def _get_target_preact(self, layer_input, target_class_ids):
         """Constructs the preactivations for given targets. One or more target

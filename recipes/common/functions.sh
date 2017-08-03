@@ -105,7 +105,8 @@ train () {
 	local gradient_decay_rate="${GRADIENT_DECAY_RATE:-0.9}"
 	local epsilon="${EPSILON:-1e-6}"
         local num_noise_samples="${NUM_NOISE_SAMPLES:-1}"
-        local noise_dampening="${NOISE_DAMPENING:-0.75}"
+        local noise_distribution="${NOISE_DISTRIBUTION:-unigram}"
+        local noise_dampening="${NOISE_DAMPENING:-0.5}"
 	local validation_freq="${VALIDATION_FREQ:-8}"
 	local patience="${PATIENCE:-4}"
 
@@ -163,6 +164,7 @@ train () {
 	  --gradient-decay-rate "${gradient_decay_rate}" \
 	  --numerical-stability-term "${epsilon}" \
 	  --num-noise-samples "${num_noise_samples}" \
+	  --noise-distribution "${noise_distribution}" \
 	  --noise-dampening "${noise_dampening}" \
 	  --validation-frequency "${validation_freq}" \
 	  --patience "${patience}" \

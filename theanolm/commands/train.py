@@ -13,7 +13,8 @@ import theano
 
 from theanolm import Vocabulary, Architecture, Network
 from theanolm.parsing import LinearBatchIterator
-from theanolm.training import Trainer, create_optimizer
+from theanolm.training import Trainer, create_optimizer, CrossEntropyCost, \
+                              NCECost, BlackoutCost
 from theanolm.scoring import TextScorer
 from theanolm.filetypes import TextFileType
 from theanolm.vocabulary import compute_word_counts
@@ -134,17 +135,23 @@ def add_arguments(parser):
         help='sampling based costs sample K noise words per one training word '
              '(default 5)')
     argument_group.add_argument(
-        '--noise-sharing', metavar='SHARING', type=str, default=None,
-        help='can be "seq" for sharing noise samples between mini-batch '
-             'sequences, or "batch" for sharing noise samples across einter '
-             'mini-batch for improved speed (default is no sharing, which is '
-             'very slow)')
+        '--noise-distribution', metavar='DIST', type=str, default='uniform',
+        help='sample noise from DIST; one of "uniform" (default, but less '
+             'accurate), "log-uniform" (the vocabulary should be ordered by '
+             'decreasing frequency), "unigram" (unigram distribution of words '
+             'in training data, slow)')
     argument_group.add_argument(
         '--noise-dampening', metavar='ALPHA', type=float, default=0.5,
         help='the empirical unigram distribution is raised to the power ALPHA '
              'before sampling noise words; 0.0 corresponds to the uniform '
              'distribution and 1.0 corresponds to the unigram distribution '
-             '(default 0.5)')
+             '(only applicable with --noise-distribution=unigram, default 0.5)')
+    argument_group.add_argument(
+        '--noise-sharing', metavar='SHARING', type=str, default=None,
+        help='can be "seq" for sharing noise samples between mini-batch '
+             'sequences, or "batch" for sharing noise samples across einter '
+             'mini-batch for improved speed (default is no sharing, which is '
+             'very slow)')
     argument_group.add_argument(
         '--exclude-unk', action="store_true",
         help="exclude <unk> tokens from cost and perplexity computations")
@@ -312,8 +319,8 @@ def train(args):
 
         if args.num_noise_samples > vocabulary.num_classes():
             print("Number of noise samples ({}) is larger than the number of "
-                  "classes. This doesn't make sense and would cause sampling "
-                  "to fail.".format(args.num_noise_samples))
+                  "classes. This doesn't make sense and would cause unigram "
+                  "sampling to fail.".format(args.num_noise_samples))
             sys.exit(1)
 
         num_training_files = len(args.training_set)
@@ -347,10 +354,8 @@ def train(args):
             'weights': weights,
             'momentum': args.momentum,
             'max_gradient_norm': args.gradient_normalization,
-            'cost_function': args.cost,
             'num_noise_samples': args.num_noise_samples,
             'noise_sharing': args.noise_sharing,
-            'exclude_unk': args.exclude_unk
         }
         logging.debug("OPTIMIZATION OPTIONS")
         for option_name, option_value in optimization_options.items():
@@ -380,25 +385,34 @@ def train(args):
                 architecture = Architecture.from_description(arch_file)
 
         network = Network(architecture, vocabulary, trainer.class_prior_probs,
-                          args.noise_dampening,
                           default_device=args.default_device,
                           profile=args.profile)
 
-        print("Compiling optimization function.")
+        network.set_sampling(args.noise_distribution, args.noise_dampening,
+                             args.noise_sharing)
+
+        print("Building optimizer.")
         sys.stdout.flush()
+        exclude_id = vocabulary.word_to_id['<unk>'] if args.exclude_unk \
+                     else None
+        epsilon = args.numerical_stability_term
+        if args.cost == 'cross-entropy':
+            cost_function = CrossEntropyCost(network, exclude_id, epsilon)
+        elif args.cost == 'nce':
+            cost_function = NCECost(network, exclude_id, epsilon)
+        elif args.cost == 'blackout':
+            cost_function = BlackoutCost(network, exclude_id, epsilon)
+        else:
+            print("Invalid cost function requested: `{}'".format(args.cost))
+            sys.exit(1)
         optimizer = create_optimizer(optimization_options, network,
-                                     profile=args.profile)
+                                     cost_function, profile=args.profile)
 
         if args.print_graph:
             print("Cost function computation graph:")
             theano.printing.debugprint(optimizer.gradient_update_function)
 
         trainer.initialize(network, state, optimizer)
-        # XXX Write the model instantly back to disk. Just adds word unigram
-        # counts. This is a temporary hack. Remove at some point.
-        trainer.get_state(state)
-        state.flush()
-        # XXX
 
         if args.validation_file is not None:
             print("Building text scorer for cross-validation.")

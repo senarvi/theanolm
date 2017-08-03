@@ -39,12 +39,7 @@ class SoftmaxLayer(SamplingOutputLayer):
         self.output_probs = None
         self.target_probs = None
         self.unnormalized_logprobs = None
-        self.sample = None
-        self.sample_logprobs = None
-        self.seqshared_sample = None
-        self.seqshared_sample_logprobs = None
-        self.shared_sample = None
-        self.shared_sample_logprobs = None
+        self._layer_input = None
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.
@@ -97,12 +92,8 @@ class SoftmaxLayer(SamplingOutputLayer):
         self.target_probs = target_probs.reshape([num_time_steps,
                                                   num_sequences])
 
-        # Compute unnormalized output and noise samples for NCE.
+        # Define layer input and unnormalized logprobs for computing
+        # sampling-based costs.
+        self._layer_input = layer_input
         self.unnormalized_logprobs = \
-            self._get_unnormalized_logprobs(layer_input)
-        self.sample, self.sample_logprobs = \
-            self._get_sample_tensors(layer_input)
-        self.seqshared_sample, self.seqshared_sample_logprobs = \
-            self._get_seqshared_sample_tensors(layer_input)
-        self.shared_sample, self.shared_sample_logprobs = \
-            self._get_shared_sample_tensors(layer_input)
+            self._get_unnormalized_logprobs()
