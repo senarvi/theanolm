@@ -312,7 +312,8 @@ class Network(object):
             distribution = UniformDistribution(self.random,
                                                self.vocabulary.num_classes())
         elif type == 'log-uniform':
-            distribution = LogUniformDistribution(self.random)
+            distribution = LogUniformDistribution(self.random,
+                                                  self.vocabulary.num_classes())
         elif type == 'unigram':
             probs = numpy.power(self.class_prior_probs, dampening)
             probs /= probs.sum()

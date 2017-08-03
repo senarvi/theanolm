@@ -21,6 +21,8 @@ select_vocabulary () {
 		cat "${TRAIN_FILES[@]}" |
 		  ngram-count -order 1 -text - -no-sos -no-eos -write-vocab - |
 		  egrep -v '^(<unk>|<s>|</s>|-pau-)' |
+		  sort -s -g -k 2,2 -r |
+		  cut -f 1 |
 		  sort \
 		  >"${vocab_file}"
 	fi
