@@ -274,6 +274,11 @@ class LatticeDecoder(object):
         if self._beam is not None:
             self._beam = logprob_type(self._beam)
         self._recombination_order = decoding_options['recombination_order']
+        self._prune_extra_limit = decoding_options['prune_extra_limit']
+        self._abs_min_beam = decoding_options['abs_min_beam']
+        self._abs_min_max_tokens = decoding_options['abs_min_max_tokens']
+        if self._prune_extra_limit is None:
+            self._abs_min_beam = self._abs_min_max_tokens = 0
 
         self._sos_id = self._vocabulary.word_to_id['<s>']
         self._eos_id = self._vocabulary.word_to_id['</s>']
@@ -458,7 +463,10 @@ class LatticeDecoder(object):
         :type node: Lattice.Node
         :param node: perform pruning on this node
         """
-        limit_multiplier = max(1,(len(sorted_nodes) // 1500 +1))
+        limit_multiplier = 1
+        if self._prune_extra_limit is not None:
+            limit_multiplier = max(1,(len(sorted_nodes) // self._prune_extra_limit +1))
+
         if node.final:
             return tuple()
         orig_amount_tokens = len(tokens[node.id])
@@ -498,7 +506,7 @@ class LatticeDecoder(object):
             best_logprob = max(iter_node.best_logprob
                                for iter_node in sorted_nodes[time_begin:]
                                if iter_node.best_logprob is not None)
-            threshold = best_logprob - max(self._beam / limit_multiplier,150)
+            threshold = best_logprob - max(self._beam / limit_multiplier,self._abs_min_beam)
             logging.debug("Node: {}, #tokens: {}, Best all: {}, Best: {}, Worst: {}, Threshold: {}, Average: {}, Pos 10: {}, Pos 50: {}, Pos 100: {}".format(
                 node.id,
                 len(new_tokens),
@@ -520,7 +528,7 @@ class LatticeDecoder(object):
         after_beam = len(new_tokens)
         # Enforce limit on number of tokens at each node.
         if self._max_tokens_per_node is not None:
-            new_tokens = new_tokens[:max(int(self._max_tokens_per_node/limit_multiplier),30)]
+            new_tokens = new_tokens[:max(int(self._max_tokens_per_node/limit_multiplier),self._abs_min_max_tokens)]
 #            new_tokens[self._max_tokens_per_node:] = []
 
         after_max_tokens = len(new_tokens)

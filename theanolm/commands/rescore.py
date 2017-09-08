@@ -65,6 +65,23 @@ def add_arguments(parser):
              "identical (default is to recombine tokens only if the entire "
              "word history matches)")
 
+    argument_group.add_argument(
+        '--prune-extra-limit', type=int, default=None,
+        help="if set, tighten the beam and recombination-order linearly if the "
+             "number of nodes in the lattice go over prune-extra-limit. "
+             "This is especially useful in cases such as character language "
+             "models.")
+    argument_group.add_argument(
+        '--abs-min-beam', type=float, default=150,
+        help='If prune-extra-limit is used, do not tighten the beam further'
+             ' than this'
+    )
+    argument_group.add_argument(
+        '--abs-min-max-tokens', type=float, default=30,
+        help='If prune-extra-limit is used, do not tighten the max-tokens-active'
+             ' further than this'
+    )
+
     argument_group = parser.add_argument_group("logging and debugging")
     argument_group.add_argument(
         '--log-file', metavar='FILE', type=str, default='-',
@@ -123,7 +140,10 @@ def rescore(args):
         'linear_interpolation': False,
         'max_tokens_per_node': args.max_tokens_per_node,
         'beam': args.beam,
-        'recombination_order': args.recombination_order
+        'recombination_order': args.recombination_order,
+        'prune_extra_limit': args.prune_extra_limit,
+        'abs_min_beam': args.abs_min_beam,
+        'abs_min_max_tokens': args.abs_min_max_tokens,
     }
     logging.debug("DECODING OPTIONS")
     for option_name, option_value in decoding_options.items():

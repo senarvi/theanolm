@@ -262,7 +262,6 @@ def format_token(token, utterance_id, vocabulary, log_scale, output_format):
         return "{} {} {} {} {} {}".format(
             utterance_id,
             token.ac_logprob / log_scale,
-            #token.lm_logprob / log_scale,
             token.graph_logprob / log_scale,
             token.total_logprob / log_scale,
             len(words),
