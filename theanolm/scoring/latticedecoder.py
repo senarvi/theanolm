@@ -274,9 +274,9 @@ class LatticeDecoder(object):
         if self._beam is not None:
             self._beam = logprob_type(self._beam)
         self._recombination_order = decoding_options['recombination_order']
-        self._prune_extra_limit = decoding_options['prune_extra_limit']
-        self._abs_min_beam = decoding_options['abs_min_beam']
-        self._abs_min_max_tokens = decoding_options['abs_min_max_tokens']
+        self._prune_extra_limit = decoding_options.get('prune_extra_limit', None)
+        self._abs_min_beam = decoding_options.get('abs_min_beam', 0)
+        self._abs_min_max_tokens = decoding_options.get('abs_min_max_tokens', 0)
         if self._prune_extra_limit is None:
             self._abs_min_beam = self._abs_min_max_tokens = 0
 
@@ -369,7 +369,7 @@ class LatticeDecoder(object):
                 new_tokens = self._propagate(
                     node_tokens, link, lm_scale, wi_penalty)
                 tokens[link.end_node.id].extend(new_tokens)
-                if len(tokens[link.end_node.id]) > self._max_tokens_per_node * 2:
+                if self._max_tokens_per_node is not None and len(tokens[link.end_node.id]) > self._max_tokens_per_node * 2:
                     self._prune(link.end_node, sorted_nodes, tokens, recomb_tokens)
                 num_new_tokens += len(new_tokens)
 
