@@ -17,10 +17,4 @@ def version(args):
 
     print("TheanoLM", __version__)
     print("Theano", theano.version.version)
-    try:
-        pygpu_versions = pygpu._version.get_versions()
-        print("pygpu {} (revision {})"
-              .format(pygpu_versions["version"],
-                      pygpu_versions["full-revisionid"]))
-    except AttributeError:
-        print("Old pygpu? Unable to get version information.")
+    print("pygpu", pygpu.__version__)
