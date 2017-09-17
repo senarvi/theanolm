@@ -23,7 +23,7 @@ Installing all Python modules into a single environment can make managing the
 packages and dependencies somewhat difficult. A convenient alternative is to
 install TheanoLM in an isolated Python environment created using `virtualenv`_
 or the standard library module venv that is shipped with Python 3.3 and later.
-You have to install whell before installing other packages. For example, to
+You have to install wheel before installing other packages. For example, to
 create a virtual environment for TheanoLM in ``~/theanolm``, use::
 
     python3 -m venv ~/theanolm
