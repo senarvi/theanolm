@@ -3,9 +3,10 @@
 """A module that implements the "theanolm version" command.
 """
 
-from theanolm import __version__
-
 import theano
+import pygpu
+
+from theanolm import __version__
 
 def version(args):
     """A function that performs the "theanolm version" command.
@@ -16,3 +17,4 @@ def version(args):
 
     print("TheanoLM", __version__)
     print("Theano", theano.version.version)
+    print("pygpu", pygpu.__version__)

@@ -183,7 +183,8 @@ class MultinomialDistribution(ClassDistribution):
         repeat the distribution for each mini-batch element.
 
         At some point the old interface, ``multinomial_wo_replacement()`` was
-        faster, but is not supported anymore.
+        faster, but is not supported anymore. In the future ``target='cpu'`` may
+        improve the speed.
 
         :type minibatch_size: int
         :param minibatch_size: number of mini-batch elements
@@ -199,7 +200,8 @@ class MultinomialDistribution(ClassDistribution):
         probs = self._probs[None, :]
         probs = tensor.tile(probs, [minibatch_size, 1])
 #        return self._random.multinomial_wo_replacement(pvals=probs, n=num_samples)
-        sample = self._random.choice(size=num_samples, replace=False, p=probs)
+        sample = self._random.choice(size=num_samples, replace=False, p=probs,
+                                     target='cpu')
         # Some versions of Theano seem to return crazy high or low numbers because
         # of some rounding errors, so we take the modulo to be safe.
         sample %= probs.shape[1]
