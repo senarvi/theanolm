@@ -44,6 +44,11 @@ Neural Network Language Modeling <https://arxiv.org/abs/1605.00942>`_. In
 Proceedings of the 17th Annual Conference of the International Speech
 Communication Association (INTERSPEECH).
 
+Seppo Enarvi, Peter Smit, Sami Virpioja, and Mikko Kurimo (2017), `Automatic
+Speech Recognition with Very Large Conversational Finnish and Estonian
+Vocabularies <https://arxiv.org/abs/1707.04227>`_. In IEEE/ACM Transactions on
+Audio, Speech, and Language Processing.
+
 License
 =======
 
