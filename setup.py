@@ -52,5 +52,5 @@ setup(name='TheanoLM',
       packages=find_packages(exclude=['tests']),
       package_data={'theanolm': ['architectures/*.arch']},
       scripts=['bin/theanolm', 'bin/wctool'],
-      install_requires=['numpy', 'scipy', 'Theano', 'h5py'],
+      install_requires=['numpy', 'Theano', 'h5py'],
       test_suite='tests')
