@@ -35,13 +35,21 @@ You'll continue working in the virtual environment until you deactivate it with
 the ``deactivate`` command. It can be activated again using ``source
 ~/theanolm/bin/activate``.
 
-.. _virtualenv: https://virtualenv.pypa.io/en/stable/
-
 Anaconda
 --------
 
-It is now possible to install all the dependencies and TheanoLM through
-`Anaconda3 <https://www.continuum.io/downloads>`_.
+Perhaps a more convenient tool for managing a large collection of Python
+packages is the conda package manager. `Anaconda`_ distribution includes the
+package manager and a number of packages for scientific computing. Make sure to
+select the Python 3 version.
+
+Most of the dependencies are included in the distribution. The rest of the
+dependencies and TheanoLM can be installed through the conda-forge channel. It
+is also very easy to install the libgpuarray and pygpu dependencies, required
+for GPU computation, in the same way::
+
+    conda install -c conda-forge pygpu
+    conda install -c conda-forge TheanoLM 
 
 Linux
 -----
@@ -72,3 +80,6 @@ forked repository to, say, ``$HOME/git/theanolm``, and add that directory to
     git clone https://github.com/my-username/theanolm.git
     export PYTHONPATH="$PYTHONPATH:$HOME/git/theanolm"
     export PATH="$PATH:$HOME/git/theanolm/bin"
+
+.. _virtualenv: https://virtualenv.pypa.io/en/stable/
+.. _Anaconda: https://www.continuum.io/downloads
