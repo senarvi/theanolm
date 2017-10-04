@@ -16,6 +16,8 @@ from theanolm.parsing import ShufflingBatchIterator, LinearBatchIterator
 from theanolm.exceptions import IncompatibleStateError, NumberError
 from theanolm.training.stoppers import create_stopper
 
+sys.setrecursionlimit(100000)
+
 class Trainer(object):
     """Training Process
 

@@ -39,6 +39,12 @@ class BasicLayer(object, metaclass=ABCMeta):
             self.output_size = \
                 sum([x.output_size for x in self._input_layers])
 
+        if 'activation' in layer_options:
+            if layer_options['activation'] == 'tanh':
+                self._activation = tensor.tanh
+            elif layer_options['activation'] == 'relu':
+                self._activation = tensor.nnet.relu
+
         # Convolutional layers may produce two-dimensional output. In that case,
         # the state matrix is four-dimensional and the size of the last
         # dimension is self.output_depth.

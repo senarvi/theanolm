@@ -19,6 +19,7 @@ from theanolm.network.architecture import Architecture
 from theanolm.network.networkinput import NetworkInput
 from theanolm.network.projectionlayer import ProjectionLayer
 from theanolm.network.tanhlayer import TanhLayer
+from theanolm.network.residuallayer import ResidualLayer
 from theanolm.network.grulayer import GRULayer
 from theanolm.network.lstmlayer import LSTMLayer
 from theanolm.network.highwaytanhlayer import HighwayTanhLayer
@@ -44,6 +45,8 @@ def create_layer(layer_options, *args, **kwargs):
         return ProjectionLayer(layer_options, *args, **kwargs)
     elif layer_type == 'tanh':
         return TanhLayer(layer_options, *args, **kwargs)
+    elif layer_type == 'residual':
+        return ResidualLayer(layer_options, *args, **kwargs)
     elif layer_type == 'lstm':
         return LSTMLayer(layer_options, *args, **kwargs)
     elif layer_type == 'gru':
