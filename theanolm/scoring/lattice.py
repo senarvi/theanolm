@@ -5,7 +5,7 @@
 
 import logging
 
-from theanolm.exceptions import InputError
+from theanolm.backend import InputError
 
 class Lattice(object):
     """Word Lattice

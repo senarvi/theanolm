@@ -6,12 +6,11 @@ optimizers.
 
 from abc import abstractmethod, ABCMeta
 
-import numpy
 import theano
 import theano.tensor as tensor
 
-from theanolm.exceptions import IncompatibleStateError
-from theanolm.matrixfunctions import test_value
+from theanolm.backend import IncompatibleStateError
+from theanolm.backend import test_value
 
 
 class Cost(object, metaclass=ABCMeta):

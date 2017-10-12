@@ -11,8 +11,8 @@ import numpy
 import theano
 
 from theanolm import Network
+from theanolm.backend import TextFileType
 from theanolm.scoring import LatticeDecoder, SLFLattice
-from theanolm.filetypes import TextFileType
 
 def add_arguments(parser):
     """Specifies the command line arguments supported by the "theanolm decode"

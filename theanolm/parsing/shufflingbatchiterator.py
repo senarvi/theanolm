@@ -11,9 +11,9 @@ import logging
 import numpy
 from numpy import random
 
+from theanolm.backend import IncompatibleStateError
 from theanolm.parsing.batchiterator import BatchIterator
 from theanolm.parsing.functions import find_sentence_starts
-from theanolm.exceptions import IncompatibleStateError
 
 class SentencePointers(object):
     """A class that creates a memory map of text files and stores pointers to

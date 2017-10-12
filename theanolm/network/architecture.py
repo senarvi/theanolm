@@ -6,7 +6,7 @@ architecture description.
 
 import os
 
-from theanolm.exceptions import IncompatibleStateError, InputError
+from theanolm.backend import IncompatibleStateError, InputError
 
 class Architecture(object):
     """Neural Network Architecture Description

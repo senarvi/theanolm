@@ -9,9 +9,9 @@ import numpy
 import theano
 import theano.tensor as tensor
 
-from theanolm.matrixfunctions import test_value
+from theanolm.backend import NumberError
+from theanolm.backend import test_value
 from theanolm.parsing import utterance_from_line
-from theanolm.exceptions import NumberError
 
 class TextScorer(object):
     """Text Scoring Using a Neural Network Language Model

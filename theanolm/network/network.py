@@ -14,7 +14,10 @@ import theano.tensor as tensor
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 from theanolm import Vocabulary
-from theanolm.exceptions import IncompatibleStateError, InputError
+from theanolm.backend import IncompatibleStateError, InputError
+from theanolm.backend import UniformDistribution, LogUniformDistribution
+from theanolm.backend import MultinomialDistribution
+from theanolm.backend import test_value
 from theanolm.network.architecture import Architecture
 from theanolm.network.networkinput import NetworkInput
 from theanolm.network.projectionlayer import ProjectionLayer
@@ -27,10 +30,6 @@ from theanolm.network.softmaxlayer import SoftmaxLayer
 from theanolm.network.hsoftmaxlayer import HSoftmaxLayer
 from theanolm.network.dropoutlayer import DropoutLayer
 from theanolm.network.bidirectionallayer import BidirectionalLayer
-from theanolm.classdistribution import UniformDistribution, \
-                                       LogUniformDistribution, \
-                                       MultinomialDistribution
-from theanolm.matrixfunctions import test_value
 
 def create_layer(layer_options, *args, **kwargs):
     """Constructs one of the Layer classes based on a layer definition.

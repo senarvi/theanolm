@@ -4,9 +4,7 @@
 network language models.
 """
 
-from theanolm.exceptions import *
 from theanolm.vocabulary import Vocabulary
-from theanolm.parameters import Parameters
 from theanolm.network import Network, Architecture, RecurrentState
 from theanolm.scoring import TextScorer
 from theanolm.textsampler import TextSampler

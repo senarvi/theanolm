@@ -8,7 +8,7 @@ import logging
 
 import theano.tensor as tensor
 
-from theanolm import Parameters
+from theanolm.backend import Parameters
 from theanolm.network.weightfunctions import random_matrix, matrix_from_value
 
 class BasicLayer(object, metaclass=ABCMeta):

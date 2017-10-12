@@ -12,11 +12,11 @@ import numpy
 import theano
 
 from theanolm import Vocabulary, Architecture, Network
+from theanolm.backend import TextFileType
 from theanolm.parsing import LinearBatchIterator
 from theanolm.training import Trainer, create_optimizer, CrossEntropyCost, \
                               NCECost, BlackoutCost
 from theanolm.scoring import TextScorer
-from theanolm.filetypes import TextFileType
 from theanolm.vocabulary import compute_word_counts
 
 def add_arguments(parser):

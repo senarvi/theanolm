@@ -5,7 +5,7 @@ import sys
 import argparse
 import logging
 from time import time
-from theanolm.filetypes import TextFileType
+from theanolm.backend import TextFileType
 from wordclasses import TheanoBigramOptimizer, NumpyBigramOptimizer
 from theanolm.vocabulary import Vocabulary
 from theanolm.vocabulary import compute_word_counts, BigramStatistics
