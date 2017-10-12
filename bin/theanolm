@@ -8,9 +8,9 @@ import logging
 import sys
 import argparse
 
+from theanolm.backend import NumberError, TheanoConfigurationError
+from theanolm.backend import IncompatibleStateError
 from theanolm.commands import train, score, decode, sample, version
-from theanolm.exceptions import NumberError, TheanoConfigurationError
-from theanolm.exceptions import IncompatibleStateError
 
 def _get_message(e):
     if hasattr(e, 'args') and len(e.args) > 0 and isinstance(e.args[0], bytes):
