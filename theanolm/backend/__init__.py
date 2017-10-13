@@ -13,3 +13,4 @@ from theanolm.backend.matrixfunctions import test_value
 from theanolm.backend.probfunctions import interpolate_linear
 from theanolm.backend.probfunctions import interpolate_loglinear
 from theanolm.backend.probfunctions import logprob_type
+from theanolm.backend.operations import conv1d, conv2d
