@@ -1,8 +1,19 @@
 input type=word name=word_input
-layer type=projection name=projection_layer input=word_input size=100
-layer type=glu name=hidden_layer_1 input=projection_layer size=256 filter_size=3
-layer type=glu name=hidden_layer_2 input=hidden_layer_1 size=256 filter_size=3
-layer type=glu name=hidden_layer_3 input=hidden_layer_2 size=256 filter_size=3
-layer type=glu name=hidden_layer_4 input=hidden_layer_3 size=256 filter_size=3
-layer type=glu name=hidden_layer_5 input=hidden_layer_4 size=256 filter_size=3
-layer type=softmax name=output_layer input=hidden_layer_5
+layer type=projection name=projection_layer input=word_input size=256
+
+layer type=tanh name=block1_layer1 input=projection_layer size=128
+layer type=glu name=block1_layer2 input=block1_layer1 size=128 filter_size=5
+layer type=tanh name=block1_layer3 input=block1_layer2 size=256
+layer type=add name=block1_residual input=block1_layer3 input=projection_layer
+
+layer type=tanh name=block2_layer1 input=block1_residual size=128
+layer type=glu name=block2_layer2 input=block2_layer1 size=128 filter_size=5
+layer type=tanh name=block2_layer3 input=block2_layer2 size=256
+layer type=add name=block2_residual input=block2_layer3 input=projection_layer
+
+layer type=tanh name=block3_layer1 input=block2_residual size=128
+layer type=glu name=block3_layer2 input=block3_layer1 size=128 filter_size=5
+layer type=tanh name=block3_layer3 input=block3_layer2 size=256
+layer type=add name=block3_residual input=block3_layer3 input=projection_layer
+
+layer type=softmax name=output_layer input=block3_residual

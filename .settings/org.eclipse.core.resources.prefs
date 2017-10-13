@@ -28,6 +28,7 @@ encoding//theanolm/commands/score.py=utf-8
 encoding//theanolm/commands/train.py=utf-8
 encoding//theanolm/commands/version.py=utf-8
 encoding//theanolm/network/__init__.py=utf-8
+encoding//theanolm/network/additionlayer.py=utf-8
 encoding//theanolm/network/architecture.py=utf-8
 encoding//theanolm/network/basiclayer.py=utf-8
 encoding//theanolm/network/bidirectionallayer.py=utf-8

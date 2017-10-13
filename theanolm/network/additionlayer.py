@@ -14,18 +14,27 @@ class AdditionLayer(BasicLayer):
     be equal size.
     """
 
-    def __init__(self, *args, **kwargs):
-        """This layer has no parameters. Just verifies that all inputs are equal
-        size.
+    def __init__(self, layer_options, *args, **kwargs):
+        """This layer has no parameters. The constructor just verifies that all
+        inputs are equal size and the output is the same size.
+
+        :type layer_options: dict
+        :param layer_options: dictionary of layer options
         """
 
-        super().__init__(*args, **kwargs)
+        super().__init__(layer_options, *args, **kwargs)
 
         input_size = self._input_layers[0].output_size
         for input_layer in self._input_layers[1:]:
             if input_layer.output_size != input_size:
-               raise ValueError("All inputs of an addition layer have to be "
-                                "equal size.")
+                raise ValueError("All inputs of an addition layer have to be "
+                                 "equal size.")
+
+        self.output_size = input_size
+        if 'size' in layer_options:
+            if int(layer_options['size']) != self.output_size:
+                raise ValueError("Addition layer cannot change the number of "
+                                 "features.")
 
         self.output = None
 
