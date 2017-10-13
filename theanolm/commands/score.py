@@ -10,9 +10,9 @@ import numpy
 import theano
 
 from theanolm import Network
+from theanolm.backend import TextFileType
 from theanolm.parsing import ScoringBatchIterator
 from theanolm.scoring import TextScorer
-from theanolm.filetypes import TextFileType
 
 def add_arguments(parser):
     """Specifies the command line arguments supported by the "theanolm score"

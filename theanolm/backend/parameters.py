@@ -5,7 +5,8 @@
 
 import logging
 import theano
-from theanolm.exceptions import IncompatibleStateError, TheanoConfigurationError
+from theanolm.backend.exceptions import IncompatibleStateError
+from theanolm.backend.exceptions import TheanoConfigurationError
 
 class Parameters:
     """Theano Function Parameters

@@ -3,4 +3,4 @@
 """A module that defines the version number constant.
 """
 
-__version__ = '1.2.1'
+__version__ = '1.2.2'

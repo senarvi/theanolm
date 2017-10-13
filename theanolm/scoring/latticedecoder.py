@@ -11,10 +11,10 @@ import numpy
 import theano
 from theano import tensor
 
+from theanolm.backend import InputError
+from theanolm.backend import interpolate_linear, interpolate_loglinear
+from theanolm.backend import logprob_type
 from theanolm.network import RecurrentState
-from theanolm.probfunctions import interpolate_linear, interpolate_loglinear
-from theanolm.probfunctions import logprob_type
-from theanolm.exceptions import InputError
 
 class LatticeDecoder(object):
     """Word Lattice Decoding Using a Neural Network Language Model
