@@ -83,6 +83,9 @@ def main():
     if hasattr(args, 'command_function'):
         sys.excepthook = exception_handler
         try:
+            # Increasing recursion limit is necessary with deep networks.
+            sys.setrecursionlimit(100000)
+
             args.command_function(args)
         except FileNotFoundError as e:
             print('Could not open one of the required files. The error message '
