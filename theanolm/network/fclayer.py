@@ -7,7 +7,7 @@ import theano.tensor as tensor
 
 from theanolm.network.basiclayer import BasicLayer
 
-class TanhLayer(BasicLayer):
+class FullyConnectedLayer(BasicLayer):
     """Layer with Hyperbolic Tangent Activation
 
     A layer that uses hyperbolic tangent activation function.
@@ -37,4 +37,4 @@ class TanhLayer(BasicLayer):
         layer_input = tensor.concatenate([x.output for x in self._input_layers],
                                          axis=2)
         preact = self._tensor_preact(layer_input, 'input')
-        self.output = tensor.tanh(preact)
+        self.output = self._activation(preact)
