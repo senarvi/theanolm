@@ -58,7 +58,7 @@ class BasicLayer(object, metaclass=ABCMeta):
         else:
             self._reverse_time = False
 
-        logging.debug("- %s name=%s inputs=[%s] size=%d activation=%s%s ",
+        logging.debug("- %s name=%s inputs=[%s] size=%d activation=%s%s "
                       "devices=[%s]",
                       self.__class__.__name__,
                       self.name,
