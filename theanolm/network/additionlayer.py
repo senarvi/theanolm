@@ -15,26 +15,28 @@ class AdditionLayer(BasicLayer):
     """
 
     def __init__(self, layer_options, *args, **kwargs):
-        """This layer has no parameters. The constructor just verifies that all
-        inputs are equal size and the output is the same size.
+        """If the input dimensionality does not change, this layer has no
+        parameters. A weight matrix for matching the dimensions is created for
+        every input that has different dimensionality than the output.
+
+        If the output size is not specified, the size of the first input will be
+        assumed.
 
         :type layer_options: dict
         :param layer_options: dictionary of layer options
         """
 
+        if 'size' not in layer_options:
+            layer_options['size'] = layer_options['input_layers'][0].output_size
+
         super().__init__(layer_options, *args, **kwargs)
 
-        input_size = self._input_layers[0].output_size
-        for input_layer in self._input_layers[1:]:
-            if input_layer.output_size != input_size:
-                raise ValueError("All inputs of an addition layer have to be "
-                                 "equal size.")
-
-        self.output_size = input_size
-        if 'size' in layer_options:
-            if int(layer_options['size']) != self.output_size:
-                raise ValueError("Addition layer cannot change the number of "
-                                 "features.")
+        for input_index, input_layer in enumerate(self._input_layers):
+            input_size = input_layer.output_size
+            if input_size != self.output_size:
+                param_name = 'input{}/W'.format(input_index)
+                self._init_weight(param_name, (input_size, self.output_size),
+                                  scale=0.01)
 
         self.output = None
 
@@ -42,9 +44,21 @@ class AdditionLayer(BasicLayer):
         """Creates the symbolic graph of this layer.
 
         Sets self.output to a symbolic matrix that describes the output of this
-        layer, which is the sum of its inputs.
+        layer. If the inputs are the same size as the output, the output will be
+        the elementwise sum of the inputs. If needed, the inputs will be
+        projected to the same size.
         """
 
-        self.output = self._input_layers[0].output
-        for input_layer in self._input_layers[1:]:
-            self.output = tensor.add(self.output, input_layer.output)
+        for input_index, input_layer in enumerate(self._input_layers):
+            input_size = input_layer.output_size
+            if input_size == self.output_size:
+                input_matrix = input_layer.output
+            else:
+                param_name = 'input{}/W'.format(input_index)
+                weight = self._params[self._param_path(param_name)]
+                input_matrix = tensor.dot(input_layer.output, weight)
+
+            if self.output is None:
+                self.output = input_matrix
+            else:
+                self.output = tensor.add(self.output, input_matrix)
