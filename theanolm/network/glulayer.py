@@ -15,9 +15,9 @@ class GLULayer(BasicLayer):
 
     Implements a convolution layer with a gating mechanism.
 
-    Y. N. Dauphin (2016)
+    Y. N. Dauphin (2017)
     Language Modeling with Gated Convolutional Networks
-    https://arxiv.org/abs/1612.08083
+    Proc. International Conference on Machine Learning 
     """
 
     def __init__(self, layer_options, *args, **kwargs):

@@ -22,7 +22,7 @@ from theanolm.network.architecture import Architecture
 from theanolm.network.networkinput import NetworkInput
 from theanolm.network.projectionlayer import ProjectionLayer
 from theanolm.network.fclayer import FullyConnectedLayer
-from theanolm.network.residuallayer import ResidualLayer
+from theanolm.network.additionlayer import AdditionLayer
 from theanolm.network.grulayer import GRULayer
 from theanolm.network.lstmlayer import LSTMLayer
 from theanolm.network.highwaylayer import HighwayLayer
@@ -44,8 +44,8 @@ def create_layer(layer_options, *args, **kwargs):
         return ProjectionLayer(layer_options, *args, **kwargs)
     elif layer_type == 'fc' or layer_type == 'tanh':
         return FullyConnectedLayer(layer_options, *args, **kwargs)
-    elif layer_type == 'residual':
-        return ResidualLayer(layer_options, *args, **kwargs)
+    elif layer_type == 'add':
+        return AdditionLayer(layer_options, *args, **kwargs)
     elif layer_type == 'lstm':
         return LSTMLayer(layer_options, *args, **kwargs)
     elif layer_type == 'gru':

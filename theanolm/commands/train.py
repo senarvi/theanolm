@@ -405,8 +405,14 @@ def train(args):
         else:
             print("Invalid cost function requested: `{}'".format(args.cost))
             sys.exit(1)
-        optimizer = create_optimizer(optimization_options, network,
-                                     cost_function, profile=args.profile)
+        try:
+            optimizer = create_optimizer(optimization_options, network,
+                                         cost_function, profile=args.profile)
+        except theano.gradient.DisconnectedInputError as e:
+            print("Cannot train the neural network because some of the "
+                  "parameters are disconnected from the output. Make sure all "
+                  "the layers are correctly connected in the network "
+                  "architecture. The error message was: `{}'".format(e))
 
         if args.print_graph:
             print("Cost function computation graph:")
