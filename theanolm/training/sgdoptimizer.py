@@ -5,7 +5,7 @@
 
 import numpy
 
-from theanolm import Parameters
+from theanolm.backend import Parameters
 from theanolm.training.basicoptimizer import BasicOptimizer
 
 class SGDOptimizer(BasicOptimizer):

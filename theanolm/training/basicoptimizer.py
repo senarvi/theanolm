@@ -10,8 +10,8 @@ import numpy
 import theano
 import theano.tensor as tensor
 
-from theanolm.exceptions import IncompatibleStateError
-from theanolm.matrixfunctions import test_value
+from theanolm.backend import IncompatibleStateError
+from theanolm.backend import test_value
 
 class BasicOptimizer(object, metaclass=ABCMeta):
     """Superclass for Neural Network Language Model Optimizers

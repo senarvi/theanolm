@@ -8,9 +8,8 @@ import theano
 import theano.tensor as tensor
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
-from theanolm.classdistribution import UniformDistribution, \
-                                       LogUniformDistribution, \
-                                       MultinomialDistribution
+from theanolm.backend import UniformDistribution, LogUniformDistribution
+from theanolm.backend import MultinomialDistribution
 
 class TestClassDistribution(unittest.TestCase):
     def setUp(self):

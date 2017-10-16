@@ -9,9 +9,9 @@ import numpy
 import h5py
 import theano
 
+from theanolm.backend import IncompatibleStateError, InputError
 from theanolm.vocabulary.wordclass import WordClass
 from theanolm.parsing import utterance_from_line
-from theanolm.exceptions import IncompatibleStateError, InputError
 
 def _add_special_tokens(id_to_word, word_id_to_class_id, word_classes):
     """Makes sure that the special symbols ``<s>``, ``</s>``, and ``<unk>``

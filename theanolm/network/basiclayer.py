@@ -8,7 +8,7 @@ import logging
 
 import theano.tensor as tensor
 
-from theanolm import Parameters
+from theanolm.backend import Parameters
 from theanolm.network.weightfunctions import random_matrix, matrix_from_value
 
 class BasicLayer(object, metaclass=ABCMeta):
@@ -53,28 +53,19 @@ class BasicLayer(object, metaclass=ABCMeta):
             raise InputError("Unsupported activation function: {}"
                              .format(activation))
 
-        # Convolutional layers may produce two-dimensional output. In that case,
-        # the state matrix is four-dimensional and the size of the last
-        # dimension is self.output_depth.
-        if 'depth' in layer_options:
-            self.output_depth = int(layer_options['depth'])
-        else:
-            self.output_depth = 1
-
         if 'reverse_time' in layer_options:
             self._reverse_time = bool(layer_options['reverse_time'])
         else:
             self._reverse_time = False
 
-        logging.debug("- %s name=%s inputs=[%s] size=%d depth=%d%s "
-                      "activation=%s devices=[%s]",
+        logging.debug("- %s name=%s inputs=[%s] size=%d activation=%s%s ",
+                      "devices=[%s]",
                       self.__class__.__name__,
                       self.name,
                       ', '.join([x.name for x in self._input_layers]),
                       self.output_size,
-                      self.output_depth,
-                      ' reverse,' if self._reverse_time else '',
                       activation,
+                      ' reverse,' if self._reverse_time else '',
                       ', '.join([str(x) for x in self._devices]))
 
         self._network = network

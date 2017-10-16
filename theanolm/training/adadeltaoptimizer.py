@@ -6,7 +6,7 @@
 import numpy
 import theano.tensor as tensor
 
-from theanolm import Parameters
+from theanolm.backend import Parameters
 from theanolm.training.basicoptimizer import BasicOptimizer
 
 class AdadeltaOptimizer(BasicOptimizer):
