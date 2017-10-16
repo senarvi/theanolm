@@ -43,12 +43,15 @@ packages is the conda package manager. `Anaconda`_ distribution includes the
 package manager and a number of packages for scientific computing. Make sure to
 select the Python 3 version.
 
-Most of the dependencies are included in the distribution. The rest of the
-dependencies and TheanoLM can be installed through the conda-forge channel. It
-is also very easy to install the libgpuarray and pygpu dependencies, required
-for GPU computation, in the same way::
+Most of the dependencies are included in the distribution. Currently the
+bleeding-edge version of Theano is required. It can be installed through the
+mila-udem channel. It is also very easy to install the libgpuarray and pygpu
+dependencies, required for GPU computation, in the same way::
 
-    conda install -c conda-forge pygpu
+    conda install -c mila-udem theano pygpu libgpuarray
+
+TheanoLM can be installed through the conda-forge channel.
+
     conda install -c conda-forge TheanoLM 
 
 Linux
