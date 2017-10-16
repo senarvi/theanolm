@@ -21,7 +21,7 @@ from theanolm.backend import test_value
 from theanolm.network.architecture import Architecture
 from theanolm.network.networkinput import NetworkInput
 from theanolm.network.projectionlayer import ProjectionLayer
-from theanolm.network.fclayer import FullyConnectedLayer
+from theanolm.network.fullyconnectedlayer import FullyConnectedLayer
 from theanolm.network.additionlayer import AdditionLayer
 from theanolm.network.grulayer import GRULayer
 from theanolm.network.lstmlayer import LSTMLayer
@@ -31,6 +31,7 @@ from theanolm.network.softmaxlayer import SoftmaxLayer
 from theanolm.network.hsoftmaxlayer import HSoftmaxLayer
 from theanolm.network.dropoutlayer import DropoutLayer
 from theanolm.network.bidirectionallayer import BidirectionalLayer
+from theanolm.network.samplingoutputlayer import SamplingOutputLayer
 
 def create_layer(layer_options, *args, **kwargs):
     """Constructs one of the Layer classes based on a layer definition.
@@ -330,7 +331,10 @@ class Network(object):
             raise ValueError("Invalid noise distribution requested: `{}'"
                              .format(type))
 
-        if sharing is None:
+        if not isinstance(output_layer, SamplingOutputLayer):
+            self._noise_sample = None
+            self._noise_sample_logprobs = None
+        elif sharing is None:
             self._noise_sample, self._noise_sample_logprobs = \
                 output_layer.get_sample_tensors(distribution)
         elif sharing == 'seq':
@@ -488,8 +492,8 @@ class Network(object):
 
         if (self._noise_sample is None) or \
            (self._noise_sample_logprobs is None):
-            raise RuntimeError(
-                "Trying to read the noise sample before defining sampling.")
+            raise InputError(
+                "The output layer does not support sampling noise words.")
 
         return self._noise_sample, self._noise_sample_logprobs
 
