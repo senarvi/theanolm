@@ -21,11 +21,11 @@ from theanolm.backend import test_value
 from theanolm.network.architecture import Architecture
 from theanolm.network.networkinput import NetworkInput
 from theanolm.network.projectionlayer import ProjectionLayer
-from theanolm.network.tanhlayer import TanhLayer
+from theanolm.network.fclayer import FullyConnectedLayer
 from theanolm.network.residuallayer import ResidualLayer
 from theanolm.network.grulayer import GRULayer
 from theanolm.network.lstmlayer import LSTMLayer
-from theanolm.network.highwaytanhlayer import HighwayTanhLayer
+from theanolm.network.highwaylayer import HighwayLayer
 from theanolm.network.glulayer import GLULayer
 from theanolm.network.softmaxlayer import SoftmaxLayer
 from theanolm.network.hsoftmaxlayer import HSoftmaxLayer
@@ -42,8 +42,8 @@ def create_layer(layer_options, *args, **kwargs):
     layer_type = layer_options['type']
     if layer_type == 'projection':
         return ProjectionLayer(layer_options, *args, **kwargs)
-    elif layer_type == 'tanh':
-        return TanhLayer(layer_options, *args, **kwargs)
+    elif layer_type == 'fc' or layer_type == 'tanh':
+        return FullyConnectedLayer(layer_options, *args, **kwargs)
     elif layer_type == 'residual':
         return ResidualLayer(layer_options, *args, **kwargs)
     elif layer_type == 'lstm':
@@ -52,8 +52,8 @@ def create_layer(layer_options, *args, **kwargs):
         return GRULayer(layer_options, *args, **kwargs)
     elif layer_type == 'blstm' or layer_type == 'bgru':
         return BidirectionalLayer(layer_options, *args, **kwargs)
-    elif layer_type == 'highwaytanh':
-        return HighwayTanhLayer(layer_options, *args, **kwargs)
+    elif layer_type == 'highway' or layer_type == 'highwaytanh':
+        return HighwayLayer(layer_options, *args, **kwargs)
     elif layer_type == 'glu':
         return GLULayer(layer_options, *args, **kwargs)
     elif layer_type == 'softmax':

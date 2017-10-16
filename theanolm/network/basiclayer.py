@@ -40,21 +40,31 @@ class BasicLayer(object, metaclass=ABCMeta):
                 sum([x.output_size for x in self._input_layers])
 
         if 'activation' in layer_options:
-            if layer_options['activation'] == 'tanh':
-                self._activation = tensor.tanh
-            elif layer_options['activation'] == 'relu':
-                self._activation = tensor.nnet.relu
+            activation = layer_options['activation']
+        else:
+            activation = 'tanh'
+        if activation == 'tanh':
+            self._activation = tensor.tanh
+        elif activation == 'relu':
+            self._activation = tensor.nnet.relu
+        elif activation == 'leakyrelu':
+            self._activation = lambda x: tensor.nnet.relu(x, 0.3)
+        else:
+            raise InputError("Unsupported activation function: {}"
+                             .format(activation))
 
         if 'reverse_time' in layer_options:
             self._reverse_time = bool(layer_options['reverse_time'])
         else:
             self._reverse_time = False
 
-        logging.debug("- %s name=%s inputs=[%s] size=%d%s devices=[%s]",
+        logging.debug("- %s name=%s inputs=[%s] size=%d activation=%s%s ",
+                      "devices=[%s]",
                       self.__class__.__name__,
                       self.name,
                       ', '.join([x.name for x in self._input_layers]),
                       self.output_size,
+                      activation,
                       ' reverse,' if self._reverse_time else '',
                       ', '.join([str(x) for x in self._devices]))
 

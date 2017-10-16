@@ -197,7 +197,7 @@ class LSTMLayer(BasicLayer):
         # cell state and hidden state outputs
         C_candidate = tensor.tanh(get_submatrix(preact, 3, self.output_size))
         C_out = f * C_in + i * C_candidate
-        h_out = o * tensor.tanh(C_out)
+        h_out = o * self._activation(C_out)
 
         # Apply the mask. None creates a new axis with size 1, causing the mask
         # to be broadcast to all the outputs.
