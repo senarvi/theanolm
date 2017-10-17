@@ -48,7 +48,7 @@ bleeding-edge version of Theano is required. It can be installed through the
 mila-udem channel. It is also very easy to install the libgpuarray and pygpu
 dependencies, required for GPU computation, in the same way::
 
-    conda install -c mila-udem theano pygpu libgpuarray
+    conda install -c mila-udem/label/pre theano pygpu libgpuarray
 
 TheanoLM can be installed through the conda-forge channel.
 
