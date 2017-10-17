@@ -198,7 +198,7 @@ class Network(object):
             self.layers[layer.name] = layer
         self.output_layer = self.layers[architecture.output_layer]
         num_params = sum(layer.num_params() for layer in self.layers.values())
-        logging.debug("Total number of parameters: %d", num_params)
+        logging.debug("Total number of model parameters: %d", num_params)
 
         # This list will be filled by the recurrent layers to contain the
         # recurrent state outputs, for doing forward passes one step at a time.

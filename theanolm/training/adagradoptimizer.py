@@ -39,35 +39,35 @@ class AdaGradOptimizer(BasicOptimizer):
 
         self._params = Parameters()
         for path, param in network.get_variables().items():
-            self._params.add(path + '_gradient',
-                             numpy.zeros_like(param.get_value()))
             self._params.add(path + '_sum_sqr_gradient',
                              numpy.zeros_like(param.get_value()))
 
         super().__init__(optimization_options, network, *args, **kwargs)
 
-    def _gradient_update_exprs(self):
-        result = []
-        for path, gradient_new in zip(self.network.get_variables(),
-                                      self._gradient_exprs):
-            gradient = self._params[path + '_gradient']
-            ss_gradient = self._params[path + '_sum_sqr_gradient']
-            ss_gradient_new = ss_gradient + tensor.sqr(gradient_new)
-            result.append((gradient, gradient_new))
-            result.append((ss_gradient, ss_gradient_new))
-        return result
+    def _get_param_updates(self, alpha):
+        """Returns Theano expressions for updating the model parameters and any
+        additional parameters required by the optimizer.
 
-    def _model_update_exprs(self, alpha):
-        updates = dict()
-        for path, param in self.network.get_variables().items():
-            gradient = self._params[path + '_gradient']
-            ss_gradient = self._params[path + '_sum_sqr_gradient']
+        :type alpha: Variable
+        :param alpha: a scale to be applied to the model parameter updates
+
+        :rtype: iterable over pairs (shared variable, new expression)
+        :returns: expressions how to update the optimizer parameters
+        """
+
+        result = []
+        deltas = dict()
+        for path, gradient in zip(self.network.get_variables(),
+                                  self._gradients):
+            ss_gradient_old = self._params[path + '_sum_sqr_gradient']
+            ss_gradient = ss_gradient_old + tensor.sqr(gradient)
+            result.append((ss_gradient_old, ss_gradient))
+
             rss_gradient = tensor.sqrt(ss_gradient + self._epsilon)
-            updates[path] = -gradient / rss_gradient
-        self._normalize(updates)
+            deltas[path] = -gradient / rss_gradient
+        self._normalize(deltas)
 
-        result = []
-        for path, param in self.network.get_variables().items():
-            update = updates[path]
-            result.append((param, param + alpha * update))
+        for path, param_old in self.network.get_variables().items():
+            delta = deltas[path]
+            result.append((param_old, param_old + alpha * delta))
         return result

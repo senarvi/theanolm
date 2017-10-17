@@ -23,12 +23,13 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         model.
 
         The subclass constructor is expected to create the optimizer parameters
-        in ``self._params``. This constructor will then create two update
-        functions, ``self.gradient_update_function``, which updates the gradient
-        parameters and returns the cost, and ``self.model_update_function``,
-        which updates model state given the gradients and the learning rate.
+        in ``self._params``. This constructor will then create a function
+        ``self.update_function``, which updates the optimizer parameters, and
+        then the model state given the gradients, the optimizer parameters, and the
+        learning rate.
 
-        The gradient update functions takes as arguments three matrices:
+        The update functions takes as arguments four matrices and the alpha
+        hyperparameter:
 
         1. Word IDs in the shape of a mini-batch. The functions will slice this
            into input and output.
@@ -36,6 +37,9 @@ class BasicOptimizer(object, metaclass=ABCMeta):
            into input and output.
         3. Mask in the shape of a mini-batch, but only for the output words (not
            for the first time step).
+        4. Weights in the shape of a mini-batch, but only for the output words
+           (not for the first time step).
+        4. Alpha or learning rate is used to scale the size of the update.
 
         :type optimization_options: dict
         :param optimization_options: a dictionary of optimization options
@@ -76,8 +80,8 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
         self._unk_id = self.network.vocabulary.word_to_id['<unk>']
 
-        # The functions take as input a mini-batch of word IDs and class IDs,
-        # and slice input and target IDs for the network.
+        # The function takes as inputs a mini-batch of word IDs and class IDs,
+        # and slices the input and target IDs for the network.
         batch_word_ids = tensor.matrix('optimizer/batch_word_ids',
                                        dtype='int64')
         batch_word_ids.tag.test_value = test_value(
@@ -90,13 +94,31 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         # Derive the symbolic expression for updating the gradient with regard
         # to each parameter.
         cost, num_words = cost_function.get_tensor()
-        self._gradient_exprs = \
+        self._gradients = \
             tensor.grad(cost, wrt=list(self.network.get_variables().values()))
+
+        # The function takes as input the learning rate.
+        alpha = tensor.scalar('optimizer/alpha',
+                              dtype=theano.config.floatX)
+        alpha.tag.test_value = 0.1
+
+        # The function takes as input a matrix of weights, one for each
+        # target word. These are used to scale the parameter updates.
+        weights = tensor.matrix('optimizer/weights',
+                                dtype=theano.config.floatX)
+        weights.tag.test_value = test_value(size=(100, 16), high=1.0)
+        word_positions = tensor.eq(self.network.mask, 1).nonzero()
+        weight = weights[word_positions].sum()
+        num_words_float = tensor.cast(num_words, theano.config.floatX)
+        modified_alpha = tensor.switch(tensor.gt(num_words, 0),
+                                       alpha * weight / num_words_float,
+                                       alpha)
 
         # Ignore unused input, because is_training is only used by dropout
         # layer.
-        self.gradient_update_function = theano.function(
-            [batch_word_ids, batch_class_ids, self.network.mask],
+        self.update_function = theano.function(
+            [batch_word_ids, batch_class_ids, self.network.mask, weights,
+             alpha],
             [cost, num_words],
             givens=[(network.input_word_ids, batch_word_ids[:-1]),
                     (network.input_class_ids, batch_class_ids[:-1]),
@@ -105,19 +127,9 @@ class BasicOptimizer(object, metaclass=ABCMeta):
                     (self.network.is_training, numpy.int8(1)),
                     (self.network.num_noise_samples,
                      numpy.int64(num_noise_samples))],
-            updates=self._gradient_update_exprs(),
-            name='gradient_update_function',
+            updates=self._get_param_updates(alpha),
+            name='update_function',
             on_unused_input='ignore',
-            profile=profile)
-
-        alpha = tensor.scalar('optimizer/update_weight',
-                              dtype=theano.config.floatX)
-        alpha.tag.test_value = 0.1
-        self.model_update_function = theano.function(
-            [alpha],
-            [],
-            updates=self._model_update_exprs(alpha),
-            name='model_update_function',
             profile=profile)
 
     def get_state(self, state):
@@ -180,17 +192,11 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
         # We should predict probabilities of the words at the following time
         # step.
-        target_word_ids = word_ids[1:]
         mask = mask[1:]
-        cost, num_words = self.gradient_update_function(word_ids, class_ids, mask)
-
+        file_ids = file_ids[1:]
+        weights = self._weights[file_ids]
         alpha = self.learning_rate
-        float_type = numpy.dtype(theano.config.floatX).type
-        if num_words > 0:
-            file_ids = file_ids[:-1]
-            weights = self._weights[file_ids]
-            alpha *= weights[mask == 1].sum() / float_type(num_words)
-        self.model_update_function(alpha)
+        self.update_function(word_ids, class_ids, mask, weights, alpha)
 
     def _get_nce_cost(self, sharing):
         """Returns a tensor variable that represents the mini-batch cost as
@@ -316,26 +322,16 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         return result
 
     @abstractmethod
-    def _gradient_update_exprs(self):
-        """Returns Theano expressions for updating the any gradient variables
-        needed by the optimizer. Implemented by every optimizer subclass.
-
-        :rtype: iterable over pairs (shared variable, new expression)
-        :returns: expressions how to update the gradient variables
-        """
-
-        assert False
-
-    @abstractmethod
-    def _model_update_exprs(self, alpha):
-        """Returns Theano expressions for updating the model parameter, given
-        the gradient expressions. Implemented by every optimizer subclass.
+    def _get_param_updates(self, alpha):
+        """Returns Theano expressions for updating the model parameters and any
+        additional parameters required by the optimizer. Implemented by every
+        optimizer subclass.
 
         :type alpha: Variable
-        :param alpha: a scale to be applied to the parameter updates
+        :param alpha: a scale to be applied to the model parameter updates
 
         :rtype: iterable over pairs (shared variable, new expression)
-        :returns: expressions how to update the model parameters
+        :returns: expressions how to update the optimizer parameters
         """
 
         assert False

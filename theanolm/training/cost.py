@@ -42,9 +42,8 @@ class Cost(object, metaclass=ABCMeta):
         """Returns a symbolic variable that represents the log probabilities of
         the target outputs, computed either exactly or using some approximation.
 
-        :rtype: Variable
-        :returns: a symbolic 2-dimensional matrix that contains the log
-                  probability of each time step of each sequence
+        :rtype: symbolic 2D tensor
+        :returns: the log probability of each time step of each sequence
         """
 
         assert False
@@ -52,10 +51,9 @@ class Cost(object, metaclass=ABCMeta):
     def get_tensor(self):
         """Returns a symbolic variable that represents the mini-batch cost.
 
-        :rtype: a tuple of two Variables
-        :returns: a symbolic 2-dimensional matrix that contains the cost value
-                  for each time step of each sequence, and the number of words
-                  in the mini-batch
+        :rtype: a tuple of a symbolic 2D tensor and a symbolic integer
+        :returns: the cost value for each time step of each sequence, and the
+                  number of words in the mini-batch
         """
 
         # Do not predict masked and possibly <unk> tokens. The mask has to be
@@ -68,7 +66,7 @@ class Cost(object, metaclass=ABCMeta):
         # Cost is the negative log probability normalized by the number of
         # training examples in the mini-batch, so that the gradients will also
         # be normalized by the number of training examples.
-        num_words = tensor.cast(mask.sum(), theano.config.floatX)
+        num_words = mask.sum()
         cost = -logprobs.sum() / num_words
         return cost, num_words
 

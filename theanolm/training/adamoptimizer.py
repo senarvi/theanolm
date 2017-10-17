@@ -34,8 +34,6 @@ class AdamOptimizer(BasicOptimizer):
         self._params.add('optimizer/timestep', float_type(0.0))
 
         for path, param in network.get_variables().items():
-            self._params.add(path + '_gradient',
-                             numpy.zeros_like(param.get_value()))
             self._params.add(path + '_mean_gradient',
                              numpy.zeros_like(param.get_value()))
             self._params.add(path + '_mean_sqr_gradient',
@@ -60,41 +58,43 @@ class AdamOptimizer(BasicOptimizer):
 
         super().__init__(optimization_options, network, *args, **kwargs)
 
-    def _gradient_update_exprs(self):
+    def _get_param_updates(self, alpha):
+        """Returns Theano expressions for updating the model parameters and any
+        additional parameters required by the optimizer.
+
+        :type alpha: Variable
+        :param alpha: a scale to be applied to the model parameter updates
+
+        :rtype: iterable over pairs (shared variable, new expression)
+        :returns: expressions how to update the optimizer parameters
+        """
+
+        timestep_old = self._params['optimizer/timestep']
+        timestep = timestep_old + 1.0
+        alpha *= tensor.sqrt(1.0 - (self._gamma_ms ** timestep))
+        alpha /= 1.0 - (self._gamma_m ** timestep)
+
         result = []
-        for path, gradient_new in zip(self.network.get_variables(),
-                                      self._gradient_exprs):
-            gradient = self._params[path + '_gradient']
-            m_gradient = self._params[path + '_mean_gradient']
-            ms_gradient = self._params[path + '_mean_sqr_gradient']
-            m_gradient_new = \
-                self._gamma_m * m_gradient + \
+        deltas = dict()
+        for path, gradient in zip(self.network.get_variables(),
+                                  self._gradients):
+            m_gradient_old = self._params[path + '_mean_gradient']
+            ms_gradient_old = self._params[path + '_mean_sqr_gradient']
+            m_gradient = \
+                self._gamma_m * m_gradient_old + \
                 (1.0 - self._gamma_m) * gradient
-            ms_gradient_new = \
-                self._gamma_ms * ms_gradient + \
+            ms_gradient = \
+                self._gamma_ms * ms_gradient_old + \
                 (1.0 - self._gamma_ms) * tensor.sqr(gradient)
-            result.append((gradient, gradient_new))
-            result.append((m_gradient, m_gradient_new))
-            result.append((ms_gradient, ms_gradient_new))
-        return result
+            result.append((m_gradient_old, m_gradient))
+            result.append((ms_gradient_old, ms_gradient))
 
-    def _model_update_exprs(self, alpha):
-        timestep = self._params['optimizer/timestep']
-        timestep_new = timestep + 1.0
-        alpha *= tensor.sqrt(1.0 - (self._gamma_ms ** timestep_new))
-        alpha /= 1.0 - (self._gamma_m ** timestep_new)
-
-        updates = dict()
-        for path, param in self.network.get_variables().items():
-            m_gradient = self._params[path + '_mean_gradient']
-            ms_gradient = self._params[path + '_mean_sqr_gradient']
             rms_gradient = tensor.sqrt(ms_gradient) + self._epsilon
-            updates[path] = -m_gradient / rms_gradient
-        self._normalize(updates)
+            deltas[path] = -m_gradient / rms_gradient
+        self._normalize(deltas)
 
-        result = []
-        for path, param in self.network.get_variables().items():
-            update = updates[path]
-            result.append((param, param + alpha * update))
-        result.append((timestep, timestep_new))
+        for path, param_old in self.network.get_variables().items():
+            delta = deltas[path]
+            result.append((param_old, param_old + alpha * delta))
+        result.append((timestep_old, timestep))
         return result
