@@ -46,7 +46,7 @@ class NesterovOptimizer(BasicOptimizer):
 
         super().__init__(optimization_options, network, *args, **kwargs)
 
-    def _get_param_updates(self):
+    def _get_param_updates(self, alpha):
         """Returns Theano expressions for updating the model parameters and any
         additional parameters required by the optimizer.
 
