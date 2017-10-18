@@ -48,7 +48,7 @@ class RMSPropSGDOptimizer(BasicOptimizer):
 
         super().__init__(optimization_options, network, *args, **kwargs)
 
-    def _optimizer_update_exprs(self, alpha):
+    def _get_param_updates(self, alpha):
         """Returns Theano expressions for updating the model parameters and any
         additional parameters required by the optimizer.
 
