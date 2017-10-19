@@ -7,8 +7,8 @@ import logging
 
 import theano.tensor as tensor
 
-from theanolm.backend import conv1d
 from theanolm.network.basiclayer import BasicLayer
+from theanolm.network.weightfunctions import get_submatrix
 
 class GLULayer(BasicLayer):
     """Gated Linear Unit Layer
@@ -17,7 +17,7 @@ class GLULayer(BasicLayer):
 
     Y. N. Dauphin (2017)
     Language Modeling with Gated Convolutional Networks
-    Proc. International Conference on Machine Learning 
+    Proc. International Conference on Machine Learning
     """
 
     def __init__(self, layer_options, *args, **kwargs):
@@ -36,14 +36,13 @@ class GLULayer(BasicLayer):
         input_size = self._input_layers[0].output_size
         output_size = self.output_size
 
-        # convolution filters for the linear projection and its gate
+        # concatenation of convolution filters for the linear projection and its
+        # gate
         filter_shape = (filter_size, input_size, output_size)
-        self._init_weight('linear/W', filter_shape, scale=0.01)
-        self._init_weight('gate/W', filter_shape, scale=0.01)
+        self._init_weight('input/W', filter_shape, scale=0.01, count=2)
 
-        # biases for the linear projection and its gate
-        self._init_bias('linear/b', output_size)
-        self._init_bias('gate/b', output_size)
+        # concatenation of biases for the linear projection and its gate
+        self._init_bias('input/b', output_size * 2)
 
         self._filter_size = filter_size
         self._input_size = input_size
@@ -75,43 +74,10 @@ class GLULayer(BasicLayer):
         padding = tensor.zeros([padding_size, num_sequences, input_size])
         layer_input = tensor.concatenate([padding, layer_input])
 
-        # Compute the linear projection and the gate pre-activation. Because of
-        # the padding, there are now more time steps than we want.
-        linear = self._tensor_conv1d(layer_input, 'linear')
-        gate = self._tensor_conv1d(layer_input, 'gate')
+        # Compute the linear projection and the gate pre-activation in a single
+        # convolution operation.
+        preact = self._tensor_conv1d(layer_input, 'input')
+        linear = get_submatrix(preact, 0, self.output_size)
+        gate = get_submatrix(preact, 1, self.output_size)
 
-        # Add biases and multiply each element by the gate activation.
-        bias = self._params[self._param_path('linear/b')]
-        linear += bias
-        bias = self._params[self._param_path('gate/b')]
-        gate += bias
         self.output = linear * tensor.nnet.sigmoid(gate)
-
-    def _tensor_conv1d(self, input_matrix, param_name):
-        """Convolves ``input_matrix`` using filters.
-
-        :type input_matrix: symbolic 3D tensor
-        :param input_matrix: one or more sequences of features in the shape
-                             (time steps, sequences, features)
-
-        :type param_name: str
-        :param param_name: name of a parameter group that contains a filter
-                           matrix
-
-        :rtype: symbolic 3D tensor
-        :returns: the input convolved with the filters in the shape (time steps,
-                  sequences, features)
-        """
-
-        # Permutate input dimensions from (time steps, sequences, features) to
-        # (samples, elements, features).
-        input_matrix = input_matrix.dimshuffle(1, 0, 2)
-
-        filters = self._params[self._param_path(param_name) + '/W']
-        result = conv1d(input_matrix,
-                        filters,
-                        padding='valid')
-
-        # Permutate input dimensions from (samples, elements, features) to
-        # (time steps, sequences, features).
-        return result.dimshuffle(1, 0, 2)
