@@ -71,7 +71,7 @@ class GLULayer(BasicLayer):
         # Shift the input right by k - 1 time steps, where k is the filter size,
         # so that the output at any time step does not contain information from
         # future words.
-        padding_size = self._filter_síze - 1
+        padding_size = self._filter_size - 1
         padding = tensor.zeros([padding_size, num_sequences, input_size])
         layer_input = tensor.concatenate([padding, layer_input])
 
