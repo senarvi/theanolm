@@ -37,7 +37,6 @@ class GLULayer(BasicLayer):
         output_size = self.output_size
 
         # convolution filters for the linear projection and its gate
-        # The width of the filter is fixed to the width of the input vector.
         filter_shape = (filter_size, input_size, output_size)
         self._init_weight('linear/W', filter_shape, scale=0.01)
         self._init_weight('gate/W', filter_shape, scale=0.01)
@@ -46,7 +45,7 @@ class GLULayer(BasicLayer):
         self._init_bias('linear/b', output_size)
         self._init_bias('gate/b', output_size)
 
-        self._filter_shape = filter_shape
+        self._filter_size = filter_size
         self._input_size = input_size
 
         self.output = None
@@ -69,19 +68,17 @@ class GLULayer(BasicLayer):
         num_sequences = layer_input.shape[1]
         input_size = self._input_size
 
-        # Shift the input right by k/2 time steps, where k is the filter size,
+        # Shift the input right by k - 1 time steps, where k is the filter size,
         # so that the output at any time step does not contain information from
         # future words.
-        padding_size = self._filter_shape[2] // 2
+        padding_size = self._filter_síze - 1
         padding = tensor.zeros([padding_size, num_sequences, input_size])
         layer_input = tensor.concatenate([padding, layer_input])
 
         # Compute the linear projection and the gate pre-activation. Because of
         # the padding, there are now more time steps than we want.
         linear = self._tensor_conv1d(layer_input, 'linear')
-        linear = linear[:num_time_steps]
         gate = self._tensor_conv1d(layer_input, 'gate')
-        gate = gate[:num_time_steps]
 
         # Add biases and multiply each element by the gate activation.
         bias = self._params[self._param_path('linear/b')]
@@ -113,7 +110,7 @@ class GLULayer(BasicLayer):
         filters = self._params[self._param_path(param_name) + '/W']
         result = conv1d(input_matrix,
                         filters,
-                        padding='same')
+                        padding='valid')
 
         # Permutate input dimensions from (samples, elements, features) to
         # (time steps, sequences, features).
