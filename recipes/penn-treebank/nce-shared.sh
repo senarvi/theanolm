@@ -1,11 +1,13 @@
 #!/bin/bash -e
+
 #
 # Examples for training TheanoLM models on Penn Treebank corpus. The results (in
-# comments) have been obtained using the processed data that is distributed with
-# RNNLM basic examples. The vocabulary is 10002 words including the <s> and </s>
-# symbols. With such a small vocabulary, noise-contrastive estimation does not
-# improve training speed. Hierarchical softmax improves training speed with only
-# a small degradation in model performance.
+# the log files) have been obtained using the processed data that is distributed
+# with RNNLM basic examples. The vocabulary is 10002 words including the <s> and
+# </s> symbols. With such a small vocabulary, noise-contrastive estimation does
+# not improve training speed. Hierarchical softmax improves training speed with
+# only a small degradation in model performance.
+#
 
 script_dir=$(dirname "${0}")
 script_dir=$(readlink -e "${script_dir}")

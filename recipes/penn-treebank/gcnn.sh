@@ -1,14 +1,25 @@
 #!/bin/bash -e
+#SBATCH --partition gpushort
+#SBATCH --time=4:00:00
+#SBATCH --gres=gpu:1
+#SBATCH --mem=4G
+
 #
 # Examples for training TheanoLM models on Penn Treebank corpus. The results (in
-# comments) have been obtained using the processed data that is distributed with
-# RNNLM basic examples. The vocabulary is 10002 words including the <s> and </s>
-# symbols. With such a small vocabulary, noise-contrastive estimation does not
-# improve training speed. Hierarchical softmax improves training speed with only
-# a small degradation in model performance.
+# the log files) have been obtained using the processed data that is distributed
+# with RNNLM basic examples. The vocabulary is 10002 words including the <s> and
+# </s> symbols. With such a small vocabulary, noise-contrastive estimation does
+# not improve training speed. Hierarchical softmax improves training speed with
+# only a small degradation in model performance.
+#
 
-script_dir=$(dirname "${0}")
-script_dir=$(readlink -e "${script_dir}")
+if [ -z "${SLURM_SUBMIT_DIR}" ]
+then
+	script_dir=$(dirname "${0}")
+	script_dir=$(readlink -e "${script_dir}")
+else
+	script_dir="${SLURM_SUBMIT_DIR}"
+fi
 arch_dir="${script_dir}/../architectures"
 
 # Load paths to the corpus files. You need to download the Penn Treebank corpus
