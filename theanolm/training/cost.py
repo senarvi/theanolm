@@ -90,9 +90,9 @@ class Cost(object, metaclass=ABCMeta):
         l1_weight = self._l1_regularization
         l2_weight = self._l2_regularization
         if l1_weight is not None:
-            cost += l1_weight * l1_norm(model_parameters)
+            cost += l1_weight * l1_norm(model_params)
         if l2_weight is not None:
-            cost += l2_weight * sum_of_squares(model_parameters)
+            cost += l2_weight * sum_of_squares(model_params)
 
         return cost, num_words
 

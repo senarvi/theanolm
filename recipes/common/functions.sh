@@ -126,6 +126,8 @@ train () {
 		export CUDA_LAUNCH_BLOCKING=1
 	fi
 	[ -n "${ARCHITECTURE_FILE}" ] && extra_args+=(--architecture "${ARCHITECTURE_FILE}")
+	[ -n "${L1_REGULARIZATION}" ] && extra_args+=(--l1-regularization "${L1_REGULARIZATION}")
+	[ -n "${L2_REGULARIZATION}" ] && extra_args+=(--l2-regularization "${L2_REGULARIZATION}")
 	[ -n "${NOISE_SHARING}" ] && extra_args+=(--noise-sharing "${NOISE_SHARING}")
 	[ -n "${DEVEL_FILE}" ] && extra_args+=(--validation-file "${DEVEL_FILE}")
 
