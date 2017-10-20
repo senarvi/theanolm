@@ -12,6 +12,7 @@ import theano.tensor as tensor
 
 from theanolm.backend import IncompatibleStateError
 from theanolm.backend import test_value
+from theanolm.backend import sum_of_squares
 
 class BasicOptimizer(object, metaclass=ABCMeta):
     """Superclass for Neural Network Language Model Optimizers
@@ -198,129 +199,6 @@ class BasicOptimizer(object, metaclass=ABCMeta):
         alpha = self.learning_rate
         self.update_function(word_ids, class_ids, mask, weights, alpha)
 
-    def _get_nce_cost(self, sharing):
-        """Returns a tensor variable that represents the mini-batch cost as
-        defined by noise-contrastive estimation.
-
-        M. U. Gutmann (2012)
-        Noise-Contrastive Estimation of Unnormalized Statistical Models, with
-        Applications to Natural Image Statistics
-        http://www.jmlr.org/papers/v13/gutmann12a.html
-
-        :type sharing: str
-        :param sharing: either ``None`` for k samples per mini-batch element,
-                        'seq' for k samples per time step, or 'batch' for k
-                        samples in total
-
-        :rtype: Variable
-        :returns: a symbolic 2-dimensional matrix that contains the log
-                  probability of each time step of each sequence
-        """
-
-        target_logprobs = self.network.unnormalized_logprobs()
-        target_class_ids = self.network.target_class_ids
-        if self.network.noise_probs is None:
-            word_prob = 1.0 / self.network.vocabulary.num_classes()
-            word_logprob = numpy.log(word_prob)
-            word_logprob = self.float_type(word_logprob)
-            target_prior_logprobs = word_logprob
-            # target_prior_logprobs will be broadcasted to the mini-batch shape,
-            # when subtracted from target_logprobs.
-        else:
-            noise_probs = self.network.noise_probs[target_class_ids]
-            target_prior_logprobs = tensor.log(noise_probs + self._epsilon)
-        # In the article, h = 1 / (1 + e^-G). log(h) can be expressed using the
-        # softplus function: log(h) = -log(1 + e^-G) = -softplus(-G)
-        G = target_logprobs - target_prior_logprobs
-        target_log_h = -tensor.nnet.softplus(-G)
-
-        if sharing is None:
-            sample, sample_logprobs = self.network.noise_sample(sharing)
-        elif sharing == 'seq':
-            sample, sample_logprobs = self.network.noise_sample(sharing)
-            sample = sample[:, None, :]
-        elif sharing == 'batch':
-            sample, sample_logprobs = self.network.noise_sample(sharing)
-            # sample_prior_logprobs will be a one-dimensional array (or a scalar
-            # in case of uniform noise), but it will be broadcasted when
-            # subtracted from sample_logprobs.
-        else:
-            raise ValueError("Unknown noise sample sharing: `{}'"
-                             .format(sharing))
-        if self.network.noise_probs is None:
-            sample_prior_logprobs = word_logprob
-        else:
-            noise_probs = self.network.noise_probs[sample]
-            sample_prior_logprobs = tensor.log(noise_probs + self._epsilon)
-        # log(1 - h) = log(1 - e^G / (e^G + 1))
-        #            = log((e^G + 1 - e^G) / (e^G + 1))
-        #            = log(1) - log(e^G + 1)
-        #            = -softplus(G)
-        G = sample_logprobs - sample_prior_logprobs
-        sample_log_one_minus_h = -tensor.nnet.softplus(G)
-        return target_log_h + sample_log_one_minus_h.sum(2)
-
-    def _get_blackout_cost(self, sharing):
-        """Returns a tensor variable that represents the mini-batch cost as
-        defined by BlackOut.
-
-        S. Ji (2016)
-        BlackOut: Speeding up Recurrent Neural Network Language Models With Very
-        Large Vocabularies
-        https://arxiv.org/abs/1511.06909
-
-        :type sharing: str
-        :param sharing: either ``None`` for k samples per mini-batch element,
-                        'seq' for k samples per time step, or 'batch' for k
-                        samples in total
-
-        :rtype: Variable
-        :returns: a symbolic 2-dimensional matrix that contains the log
-                  probability of each time step of each sequence
-        """
-
-        target_logprobs = self.network.unnormalized_logprobs()
-        target_probs = tensor.exp(target_logprobs)
-        target_class_ids = self.network.target_class_ids
-        if self.network.noise_probs is None:
-            word_prob = 1.0 / self.network.vocabulary.num_classes()
-            target_prior_probs = word_prob
-            # target_prior_probs will be broadcasted to the mini-batch shape,
-            # when it is used to divide target_probs.
-        else:
-            target_prior_probs = \
-                self.network.noise_probs[target_class_ids]
-        target_weighted_probs = target_probs / target_prior_probs
-
-        if sharing is None:
-            sample, sample_logprobs = self.network.noise_sample(sharing)
-        elif sharing == 'seq':
-            sample, sample_logprobs = self.network.noise_sample(sharing)
-            sample = sample[:, None, :]
-        elif sharing == 'batch':
-            sample, sample_logprobs = self.network.noise_sample(sharing)
-            # sample_prior_probs will be a one-dimensional array (or a scalar in
-            # case of uniform noise), but it will be broadcasted when used to
-            # divide sample_probs.
-        else:
-            raise ValueError("Unknown noise sample sharing: `{}'"
-                             .format(sharing))
-        sample_probs = tensor.exp(sample_logprobs)
-        if self.network.noise_probs is None:
-            sample_prior_probs = word_prob
-        else:
-            sample_prior_probs = self.network.noise_probs[sample]
-        sample_weighted_probs = sample_probs / sample_prior_probs
-
-        denominators = target_weighted_probs + \
-                       sample_weighted_probs.sum(2)
-        target_costs = target_weighted_probs / denominators
-        sample_costs = sample_weighted_probs / denominators[:, :, None]
-        sample_costs = 1.0 - sample_costs
-        result = tensor.log(target_costs + self._epsilon)
-        result += tensor.log(sample_costs + self._epsilon).sum(2)
-        return result
-
     @abstractmethod
     def _get_param_updates(self, alpha):
         """Returns Theano expressions for updating the model parameters and any
@@ -336,27 +214,24 @@ class BasicOptimizer(object, metaclass=ABCMeta):
 
         assert False
 
-    def _normalize(self, updates):
-        """Normalizes the norm of a parameter update to given maximum value.
+    def _normalize(self, deltas):
+        """Normalizes the norm of parameter updates to given maximum value.
 
-        :type updates: dict of str to Variable
-        :param updates: dictionary of symbolic variables that describe the
-                        negative gradient of each parameter, after any
-                        optimization method specific adaptation
+        :type deltas: dict of strs to symbolic tensors
+        :param deltas: mapping from variable names to symbolic tensors that
+                       describe the amount and direction of parameter updates
+                       (normally the negative gradient of each parameter), after
+                       any adaptation applied by the optimization method
 
-        :rtype: dict of str to Variable
-        :returns: dictionary of symbolic variables that describe ``updates``
-                  after normalization has been applied
+        :rtype: dict of strs to symbolic tensors
+        :returns: mapping from variable names to symbolic tensors that describe
+                  ``deltas`` after normalization has been applied
         """
 
         max_norm = self._max_gradient_norm
-        if max_norm is None:
-            return
-
-        squares = [tensor.sqr(update) for update in updates.values()]
-        sums = [tensor.sum(square) for square in squares]
-        total_sum = sum(sums)  # sum over parameter variables
-        norm = tensor.sqrt(total_sum)
-        target_norm = tensor.clip(norm, 0.0, max_norm)
-        for name, update in updates.items():
-            updates[name] = update * target_norm / (self._epsilon + norm)
+        if max_norm is not None:
+            norm = tensor.sqrt(sum_of_squares(deltas.values()))
+            target_norm = tensor.clip(norm, 0.0, max_norm)
+            for name, delta in deltas.items():
+                deltas[name] = delta * target_norm / (self._epsilon + norm)
+        return deltas

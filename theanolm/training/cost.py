@@ -11,13 +11,14 @@ import theano.tensor as tensor
 
 from theanolm.backend import IncompatibleStateError
 from theanolm.backend import test_value
-
+from theanolm.backend import l1_norm, sum_of_squares
 
 class Cost(object, metaclass=ABCMeta):
     """Base Class for Cost Functions
     """
 
-    def __init__(self, network, exclude_id=None, epsilon=1e-6):
+    def __init__(self, network, exclude_id=None, l1_regularization=None,
+                 l2_regularization=None, epsilon=1e-6):
         """Constructs a cost function.
 
         :type network: Network
@@ -28,6 +29,14 @@ class Cost(object, metaclass=ABCMeta):
         :param exclude_id: if other than ``None``, exclude these class IDs from
                            the cost (useful for excluding <unk> tokens)
 
+        :type l1_regularization: float
+        :param l1_regularization: if other than ``None``, the cost will include
+            a term that is the L1 norm weighted by this value
+
+        :type l2_regularization: float
+        :param l2_regularization: if other than ``None``, the cost will include
+            a term that is the L2 norm weighted by this value
+
         :type epsilon: float
         :param epsilon: numerical stability term, added to probabilities before
                         taking the logarithm
@@ -35,6 +44,8 @@ class Cost(object, metaclass=ABCMeta):
 
         self._network = network
         self._exclude_id = exclude_id
+        self._l1_regularization = l1_regularization
+        self._l2_regularization = l2_regularization
         self._epsilon = epsilon
 
     @abstractmethod
@@ -51,25 +62,39 @@ class Cost(object, metaclass=ABCMeta):
     def get_tensor(self):
         """Returns a symbolic variable that represents the mini-batch cost.
 
+        The cost is the negative log probability normalized by the number of
+        tokens in the mini-batch, so that the gradients will also be normalized
+        by the number of tokens. Tokens that are outside the mask will be
+        excluded from the cost. If ``exclude_id`` is given to the constructor,
+        that class ID will be excluded too.
+
+        If ``l1_regularization`` or ``l2_regularization`` is given to the
+        constructor, a term will be added to the cost that penalizes for large
+        norm accordingly.
+
         :rtype: a tuple of a symbolic 2D tensor and a symbolic integer
         :returns: the cost value for each time step of each sequence, and the
                   number of words in the mini-batch
         """
 
-        # Do not predict masked and possibly <unk> tokens. The mask has to be
-        # cast to floatX, otherwise the result will be float64 and pulled out
-        # from the GPU earlier than necessary.
         mask = self._network.mask
         if self._exclude_id is not None:
             mask *= tensor.neq(self._network.target_word_ids, self._exclude_id)
+        # The mask has to be cast to floatX, otherwise the result will be
+        # float64 and pulled out from the GPU earlier than necessary.
         logprobs = self._get_logprobs() * tensor.cast(mask, theano.config.floatX)
-        # Cost is the negative log probability normalized by the number of
-        # training examples in the mini-batch, so that the gradients will also
-        # be normalized by the number of training examples.
         num_words = mask.sum()
         cost = -logprobs.sum() / num_words
-        return cost, num_words
 
+        model_params = self._network.get_variables().values()
+        l1_weight = self._l1_regularization
+        l2_weight = self._l2_regularization
+        if l1_weight is not None:
+            cost += l1_weight * l1_norm(model_parameters)
+        if l2_weight is not None:
+            cost += l2_weight * sum_of_squares(model_parameters)
+
+        return cost, num_words
 
 class CrossEntropyCost(Cost):
     """Cross-Entropy Cost

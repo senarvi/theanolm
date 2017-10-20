@@ -385,14 +385,16 @@ class Network(object):
                 "with this architecture. " + str(error))
 
     def get_variables(self):
-        """Returns a dictionary of the shared variables.
+        """Returns a dictionary of the model parameters.
 
-        This function is used by the optimizers to create optimization
-        parameters that are specific to network parameters, and compute
-        gradients with regard to the parameters.
+        The returned dictionary is a mapping from path strings that identify the
+        parameters to symbolic tensors. The parameter tensors are used by
+        optimizers to compute gradients with regards to the parameters. They may
+        also be used to create optimization parameters that are specific to
+        model parameters, and compute the L1 or L2 regularization.
 
         :rtype: dict
-        :returns: mapping from parameter path to Theano shared variables
+        :returns: mapping from parameter path to symbolic tensors
         """
 
         result = dict()

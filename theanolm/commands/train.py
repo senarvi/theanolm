@@ -105,6 +105,12 @@ def add_arguments(parser):
         '--learning-rate', metavar='ALPHA', type=float, default=0.1,
         help='initial learning rate (default 0.1)')
     argument_group.add_argument(
+        '--l1-regularization', metavar='LAMBDA', type=float, default=None,
+        help='add L1 regularization term with weight LAMBDA to the cost')
+    argument_group.add_argument(
+        '--l2-regularization', metavar='LAMBDA', type=float, default=None,
+        help='add L2 regularization term with weight LAMBDA to the cost')
+    argument_group.add_argument(
         '--momentum', metavar='BETA', type=float, default=0.9,
         help='momentum coefficient for momentum optimization methods (default '
              '0.9)')
@@ -397,11 +403,16 @@ def train(args):
                      else None
         epsilon = args.numerical_stability_term
         if args.cost == 'cross-entropy':
-            cost_function = CrossEntropyCost(network, exclude_id, epsilon)
+            cost_function = CrossEntropyCost(network, exclude_id,
+                                             args.l1_regularization,
+                                             args.l2_regularization, epsilon)
         elif args.cost == 'nce':
-            cost_function = NCECost(network, exclude_id, epsilon)
+            cost_function = NCECost(network, exclude_id, args.l1_regularization,
+                                    args.l2_regularization, epsilon)
         elif args.cost == 'blackout':
-            cost_function = BlackoutCost(network, exclude_id, epsilon)
+            cost_function = BlackoutCost(network, exclude_id,
+                                         args.l1_regularization,
+                                         args.l2_regularization, epsilon)
         else:
             print("Invalid cost function requested: `{}'".format(args.cost))
             sys.exit(1)

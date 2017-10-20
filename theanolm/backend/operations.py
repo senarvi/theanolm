@@ -131,3 +131,31 @@ def conv1d(input_matrix, filters, strides=1, padding='valid'):
     # Output dimensions from (samples, rows, 1, features) to
     # (samples, elements, features).
     return output.reshape([output.shape[0], output.shape[1], output.shape[3]])
+
+def l1_norm(tensors):
+    """Returns the sum of absolute values.
+
+    :type tensors: iterable of symbolic tensors
+    :param tensors: the function will compute the sum over all the elements of
+                    these tensors
+
+    :rtype: symbolic float
+    :return: L1 norm of all the elements in all the tensors
+    """
+
+    absolutes = [abs(x) for x in tensors]
+    return sum(tensor.sum(x) for x in absolutes)
+
+def sum_of_squares(tensors):
+    """Returns the sum of squared values.
+
+    :type tensors: iterable of symbolic tensors
+    :param tensors: the function will compute the sum over all the elements of
+                    these tensors
+
+    :rtype: symbolic float
+    :return: sum of squares of all the elements in all the tensors
+    """
+
+    squares = [tensor.sqr(x) for x in tensors]
+    return sum(tensor.sum(x) for x in squares)

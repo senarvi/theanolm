@@ -7,6 +7,7 @@ import theano
 import theano.tensor as tensor
 
 from theanolm.backend import conv1d, conv2d
+from theanolm.backend import l1_norm, sum_of_squares
 
 class Test(unittest.TestCase):
     def setUp(self):
@@ -72,6 +73,30 @@ class Test(unittest.TestCase):
         self.assertEqual(y.shape[1], num_rows)
         self.assertEqual(y.shape[2], num_columns)
         self.assertEqual(y.shape[3], 7)
+
+    def test_l1_norm(self):
+        a_tensor = tensor.matrix("a")
+        b_tensor = tensor.matrix("b")
+        y_tensor = l1_norm([a_tensor, b_tensor])
+        f = theano.function([a_tensor, b_tensor], y_tensor)
+
+        a = numpy.arange(9).reshape(3, 3)
+        b = numpy.array([[-9, 10], [11, -12]])
+        y = f(a, b)
+
+        self.assertEqual(y, numpy.arange(13).sum())
+
+    def test_sum_of_squares(self):
+        a_tensor = tensor.matrix("a")
+        b_tensor = tensor.matrix("b")
+        y_tensor = sum_of_squares([a_tensor, b_tensor])
+        f = theano.function([a_tensor, b_tensor], y_tensor)
+
+        a = numpy.arange(9).reshape(3, 3)
+        b = numpy.array([[9, -10], [-11, 12]])
+        y = f(a, b)
+
+        self.assertEqual(y, numpy.square(numpy.arange(13)).sum())
 
 if __name__ == "__main__":
     unittest.main()
