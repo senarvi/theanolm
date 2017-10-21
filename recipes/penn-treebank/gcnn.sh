@@ -3,6 +3,7 @@
 #SBATCH --time=4:00:00
 #SBATCH --gres=gpu:1
 #SBATCH --mem=4G
+#SBATCH --exclude=gpu26
 
 #
 # Examples for training TheanoLM models on Penn Treebank corpus. The results (in
@@ -39,6 +40,7 @@ source "${script_dir}/../common/configure-theano.sh"
 
 # Set training parameters.
 OPTIMIZATION_METHOD=adagrad
+L2_REGULARIZATION=0.00001
 MAX_GRADIENT_NORM=5
 STOPPING_CRITERION=no-improvement
 VALIDATION_FREQ=1
