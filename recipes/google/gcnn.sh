@@ -1,7 +1,7 @@
 #!/bin/bash -e
 #SBATCH --partition gpushort
 #SBATCH --time=4:00:00
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:teslap100:1
 #SBATCH --mem=48G
 
 #
@@ -36,7 +36,7 @@ source "${script_dir}/../common/configure-theano.sh"
 BATCH_SIZE=16
 VOCAB_MIN_COUNT=3
 OPTIMIZATION_METHOD=adagrad
-MAX_GRADIENT_NORM=0.1
+MAX_GRADIENT_NORM=5
 STOPPING_CRITERION=no-improvement
 VALIDATION_FREQ=4
 PATIENCE=0
