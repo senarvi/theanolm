@@ -1,7 +1,7 @@
 #!/bin/bash -e
 #SBATCH --partition gpushort
 #SBATCH --time=4:00:00
-#SBATCH --gres=gpu:teslap100:1
+#SBATCH --gres=gpu:1
 #SBATCH --mem=48G
 
 #

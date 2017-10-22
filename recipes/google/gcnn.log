@@ -1,368 +1,391 @@
 /scratch/work/senarvi/theanolm-recipes/google/nnlm.vocab
 THEANO_FLAGS=floatX=float32,device=cuda0,optimizer_excluding=local_gpua_multinomial_wor
-Context None device="Tesla P100-PCIE-16GB" ID="0000:04:00.0"
+Context None device="Tesla P100-PCIE-16GB" ID="0000:82:00.0"
 Reading vocabulary from /scratch/work/senarvi/theanolm-recipes/google/nnlm.vocab.
 Computing unigram probabilities for out-of-shortlist words.
-2017-10-21 09:05:35,556 compute_probs: Out-of-shortlist word log probabilities are in the range [-15.941576, -15.248429].
+2017-10-21 16:40:01,896 compute_probs: Out-of-shortlist word log probabilities are in the range [-15.941576, -15.248429].
 Number of words in vocabulary: 813394
 Number of words in shortlist: 793471
 Number of word classes: 793471
-2017-10-21 09:05:36,663 train: TRAINING OPTIONS
-2017-10-21 09:05:36,663 train: batch_size: 16
-2017-10-21 09:05:36,663 train: sequence_length: 25
-2017-10-21 09:05:36,663 train: validation_frequency: 4
-2017-10-21 09:05:36,663 train: patience: 0
-2017-10-21 09:05:36,664 train: stopping_criterion: no-improvement
-2017-10-21 09:05:36,664 train: max_epochs: 15
-2017-10-21 09:05:36,664 train: min_epochs: 1
-2017-10-21 09:05:36,664 train: max_annealing_count: 0
-2017-10-21 09:05:36,664 train: OPTIMIZATION OPTIONS
-2017-10-21 09:05:36,664 train: method: adagrad
-2017-10-21 09:05:36,664 train: epsilon: 1e-06
-2017-10-21 09:05:36,664 train: gradient_decay_rate: 0.9
-2017-10-21 09:05:36,664 train: sqr_gradient_decay_rate: 0.999
-2017-10-21 09:05:36,664 train: learning_rate: 0.1
-2017-10-21 09:05:36,698 train: weights: [ 1.]
-2017-10-21 09:05:36,698 train: momentum: 0.9
-2017-10-21 09:05:36,698 train: max_gradient_norm: 5.0
-2017-10-21 09:05:36,698 train: num_noise_samples: 1
-2017-10-21 09:05:36,698 train: noise_sharing: None
+2017-10-21 16:40:02,978 train: TRAINING OPTIONS
+2017-10-21 16:40:02,978 train: batch_size: 16
+2017-10-21 16:40:02,978 train: sequence_length: 25
+2017-10-21 16:40:02,978 train: validation_frequency: 4
+2017-10-21 16:40:02,978 train: patience: 0
+2017-10-21 16:40:02,978 train: stopping_criterion: no-improvement
+2017-10-21 16:40:02,978 train: max_epochs: 15
+2017-10-21 16:40:02,978 train: min_epochs: 1
+2017-10-21 16:40:02,978 train: max_annealing_count: 0
+2017-10-21 16:40:02,978 train: OPTIMIZATION OPTIONS
+2017-10-21 16:40:02,978 train: method: adagrad
+2017-10-21 16:40:02,978 train: epsilon: 1e-06
+2017-10-21 16:40:02,979 train: gradient_decay_rate: 0.9
+2017-10-21 16:40:02,979 train: sqr_gradient_decay_rate: 0.999
+2017-10-21 16:40:02,979 train: learning_rate: 0.1
+2017-10-21 16:40:02,979 train: weights: [ 1.]
+2017-10-21 16:40:02,979 train: momentum: 0.9
+2017-10-21 16:40:02,979 train: max_gradient_norm: 5.0
+2017-10-21 16:40:02,979 train: num_noise_samples: 1
+2017-10-21 16:40:02,979 train: noise_sharing: None
 Creating trainer.
 Computing the number of mini-batches in training data.
-2017-10-21 09:05:54,317 __init__: One epoch of training data contains 29079 mini-batch updates.
-2017-10-21 09:05:54,376 __init__: Class unigram log probabilities are in the range [-inf, -3.136958].
-2017-10-21 09:05:54,377 __init__: Finding sentence start positions in /scratch/elec/puhe/c/google/1-billion-word-language-modeling-benchmark/training-monolingual.tokenized.shuffled/news.en-00001-of-00100.
-2017-10-21 09:05:54,610 _reset: Generating a random order of input lines.
+2017-10-21 16:40:22,453 __init__: One epoch of training data contains 29079 mini-batch updates.
+2017-10-21 16:40:22,517 __init__: Class unigram log probabilities are in the range [-inf, -3.136958].
+2017-10-21 16:40:22,518 __init__: Finding sentence start positions in /scratch/elec/puhe/c/google/1-billion-word-language-modeling-benchmark/training-monolingual.tokenized.shuffled/news.en-00001-of-00100.
+2017-10-21 16:40:22,760 _reset: Generating a random order of input lines.
 Building neural network.
-2017-10-21 09:05:54,697 __init__: Creating layers.
-2017-10-21 09:05:54,698 __init__: - NetworkInput name=word_input inputs=[] size=793471 activation=tanh devices=[]
-2017-10-21 09:05:54,698 __init__: - ProjectionLayer name=lookup inputs=[word_input] size=128 activation=tanh devices=[None]
-2017-10-21 09:06:00,652 add:      * layers/lookup/W size=101564288 type=float32 device=None
-2017-10-21 09:06:00,689 __init__: - FullyConnectedLayer name=fc1 inputs=[lookup] size=512 activation=tanh devices=[None]
-2017-10-21 09:06:00,693 add:      * layers/fc1/input/W size=65536 type=float32 device=None
-2017-10-21 09:06:00,694 add:      * layers/fc1/input/b size=512 type=float32 device=None
-2017-10-21 09:06:00,694 __init__: - FullyConnectedLayer name=conv2.1.1 inputs=[fc1] size=128 activation=tanh devices=[None]
-2017-10-21 09:06:00,697 add:      * layers/conv2.1.1/input/W size=65536 type=float32 device=None
-2017-10-21 09:06:00,698 add:      * layers/conv2.1.1/input/b size=128 type=float32 device=None
-2017-10-21 09:06:00,698 __init__: - GLULayer name=conv2.1.2 inputs=[conv2.1.1] size=128 activation=tanh devices=[None]
-2017-10-21 09:06:00,698 __init__:   filter_size=5
-2017-10-21 09:06:00,707 add:      * layers/conv2.1.2/input/W size=163840 type=float32 device=None
-2017-10-21 09:06:00,708 add:      * layers/conv2.1.2/input/b size=256 type=float32 device=None
-2017-10-21 09:06:00,708 __init__: - FullyConnectedLayer name=conv2.1.3 inputs=[conv2.1.2] size=512 activation=tanh devices=[None]
-2017-10-21 09:06:00,711 add:      * layers/conv2.1.3/input/W size=65536 type=float32 device=None
-2017-10-21 09:06:00,711 add:      * layers/conv2.1.3/input/b size=512 type=float32 device=None
-2017-10-21 09:06:00,711 __init__: - AdditionLayer name=conv2.1.res inputs=[conv2.1.3, lookup] size=512 activation=tanh devices=[None]
-2017-10-21 09:06:00,715 add:      * layers/conv2.1.res/input1/W size=65536 type=float32 device=None
-2017-10-21 09:06:00,716 __init__: - FullyConnectedLayer name=conv2.2.1 inputs=[conv2.1.res] size=128 activation=tanh devices=[None]
-2017-10-21 09:06:00,719 add:      * layers/conv2.2.1/input/W size=65536 type=float32 device=None
-2017-10-21 09:06:00,719 add:      * layers/conv2.2.1/input/b size=128 type=float32 device=None
-2017-10-21 09:06:00,719 __init__: - GLULayer name=conv2.2.2 inputs=[conv2.2.1] size=128 activation=tanh devices=[None]
-2017-10-21 09:06:00,719 __init__:   filter_size=5
-2017-10-21 09:06:00,728 add:      * layers/conv2.2.2/input/W size=163840 type=float32 device=None
-2017-10-21 09:06:00,728 add:      * layers/conv2.2.2/input/b size=256 type=float32 device=None
-2017-10-21 09:06:00,728 __init__: - FullyConnectedLayer name=conv2.2.3 inputs=[conv2.2.2] size=512 activation=tanh devices=[None]
-2017-10-21 09:06:00,731 add:      * layers/conv2.2.3/input/W size=65536 type=float32 device=None
-2017-10-21 09:06:00,732 add:      * layers/conv2.2.3/input/b size=512 type=float32 device=None
-2017-10-21 09:06:00,732 __init__: - AdditionLayer name=conv2.2.res inputs=[conv2.2.3, conv2.1.res] size=512 activation=tanh devices=[None]
-2017-10-21 09:06:00,732 __init__: - FullyConnectedLayer name=conv2.3.1 inputs=[conv2.2.res] size=128 activation=tanh devices=[None]
-2017-10-21 09:06:00,735 add:      * layers/conv2.3.1/input/W size=65536 type=float32 device=None
-2017-10-21 09:06:00,735 add:      * layers/conv2.3.1/input/b size=128 type=float32 device=None
-2017-10-21 09:06:00,735 __init__: - GLULayer name=conv2.3.2 inputs=[conv2.3.1] size=128 activation=tanh devices=[None]
-2017-10-21 09:06:00,735 __init__:   filter_size=5
-2017-10-21 09:06:00,743 add:      * layers/conv2.3.2/input/W size=163840 type=float32 device=None
-2017-10-21 09:06:00,744 add:      * layers/conv2.3.2/input/b size=256 type=float32 device=None
-2017-10-21 09:06:00,744 __init__: - FullyConnectedLayer name=conv2.3.3 inputs=[conv2.3.2] size=512 activation=tanh devices=[None]
-2017-10-21 09:06:00,747 add:      * layers/conv2.3.3/input/W size=65536 type=float32 device=None
-2017-10-21 09:06:00,747 add:      * layers/conv2.3.3/input/b size=512 type=float32 device=None
-2017-10-21 09:06:00,747 __init__: - AdditionLayer name=conv2.3.res inputs=[conv2.3.3, conv2.2.res] size=512 activation=tanh devices=[None]
-2017-10-21 09:06:00,747 __init__: - FullyConnectedLayer name=conv3.1.1 inputs=[conv2.3.res] size=256 activation=tanh devices=[None]
-2017-10-21 09:06:00,754 add:      * layers/conv3.1.1/input/W size=131072 type=float32 device=None
-2017-10-21 09:06:00,754 add:      * layers/conv3.1.1/input/b size=256 type=float32 device=None
-2017-10-21 09:06:00,755 __init__: - GLULayer name=conv3.1.2 inputs=[conv3.1.1] size=256 activation=tanh devices=[None]
-2017-10-21 09:06:00,755 __init__:   filter_size=5
-2017-10-21 09:06:00,786 add:      * layers/conv3.1.2/input/W size=655360 type=float32 device=None
-2017-10-21 09:06:00,787 add:      * layers/conv3.1.2/input/b size=512 type=float32 device=None
-2017-10-21 09:06:00,787 __init__: - FullyConnectedLayer name=conv3.1.3 inputs=[conv3.1.2] size=512 activation=tanh devices=[None]
-2017-10-21 09:06:00,793 add:      * layers/conv3.1.3/input/W size=131072 type=float32 device=None
-2017-10-21 09:06:00,794 add:      * layers/conv3.1.3/input/b size=512 type=float32 device=None
-2017-10-21 09:06:00,794 __init__: - AdditionLayer name=conv3.1.res inputs=[conv3.1.3, conv2.3.res] size=512 activation=tanh devices=[None]
-2017-10-21 09:06:00,794 __init__: - FullyConnectedLayer name=conv3.2.1 inputs=[conv3.1.res] size=256 activation=tanh devices=[None]
-2017-10-21 09:06:00,800 add:      * layers/conv3.2.1/input/W size=131072 type=float32 device=None
-2017-10-21 09:06:00,800 add:      * layers/conv3.2.1/input/b size=256 type=float32 device=None
-2017-10-21 09:06:00,800 __init__: - GLULayer name=conv3.2.2 inputs=[conv3.2.1] size=256 activation=tanh devices=[None]
-2017-10-21 09:06:00,801 __init__:   filter_size=5
-2017-10-21 09:06:00,833 add:      * layers/conv3.2.2/input/W size=655360 type=float32 device=None
-2017-10-21 09:06:00,833 add:      * layers/conv3.2.2/input/b size=512 type=float32 device=None
-2017-10-21 09:06:00,833 __init__: - FullyConnectedLayer name=conv3.2.3 inputs=[conv3.2.2] size=512 activation=tanh devices=[None]
-2017-10-21 09:06:00,840 add:      * layers/conv3.2.3/input/W size=131072 type=float32 device=None
-2017-10-21 09:06:00,840 add:      * layers/conv3.2.3/input/b size=512 type=float32 device=None
-2017-10-21 09:06:00,840 __init__: - AdditionLayer name=conv3.2.res inputs=[conv3.2.3, conv3.1.res] size=512 activation=tanh devices=[None]
-2017-10-21 09:06:00,840 __init__: - FullyConnectedLayer name=conv3.3.1 inputs=[conv3.2.res] size=256 activation=tanh devices=[None]
-2017-10-21 09:06:00,847 add:      * layers/conv3.3.1/input/W size=131072 type=float32 device=None
-2017-10-21 09:06:00,847 add:      * layers/conv3.3.1/input/b size=256 type=float32 device=None
-2017-10-21 09:06:00,847 __init__: - GLULayer name=conv3.3.2 inputs=[conv3.3.1] size=256 activation=tanh devices=[None]
-2017-10-21 09:06:00,847 __init__:   filter_size=5
-2017-10-21 09:06:00,880 add:      * layers/conv3.3.2/input/W size=655360 type=float32 device=None
-2017-10-21 09:06:00,880 add:      * layers/conv3.3.2/input/b size=512 type=float32 device=None
-2017-10-21 09:06:00,880 __init__: - FullyConnectedLayer name=conv3.3.3 inputs=[conv3.3.2] size=512 activation=tanh devices=[None]
-2017-10-21 09:06:00,887 add:      * layers/conv3.3.3/input/W size=131072 type=float32 device=None
-2017-10-21 09:06:00,887 add:      * layers/conv3.3.3/input/b size=512 type=float32 device=None
-2017-10-21 09:06:00,887 __init__: - AdditionLayer name=conv3.3.res inputs=[conv3.3.3, conv3.2.res] size=512 activation=tanh devices=[None]
-2017-10-21 09:06:00,887 __init__: - FullyConnectedLayer name=conv4.1 inputs=[conv3.3.res] size=1024 activation=tanh devices=[None]
-2017-10-21 09:06:00,914 add:      * layers/conv4.1/input/W size=524288 type=float32 device=None
-2017-10-21 09:06:00,914 add:      * layers/conv4.1/input/b size=1024 type=float32 device=None
-2017-10-21 09:06:00,914 __init__: - FullyConnectedLayer name=conv4.2 inputs=[conv4.1] size=1024 activation=tanh devices=[None]
-2017-10-21 09:06:01,865 add:      * layers/conv4.2/input/W size=1048576 type=float32 device=None
-2017-10-21 09:06:01,865 add:      * layers/conv4.2/input/b size=1024 type=float32 device=None
-2017-10-21 09:06:01,865 __init__: - FullyConnectedLayer name=conv4.3 inputs=[conv4.2] size=2048 activation=tanh devices=[None]
-2017-10-21 09:06:01,971 add:      * layers/conv4.3/input/W size=2097152 type=float32 device=None
-2017-10-21 09:06:01,972 add:      * layers/conv4.3/input/b size=2048 type=float32 device=None
-2017-10-21 09:06:01,972 __init__: - AdditionLayer name=conv4.res inputs=[conv4.3, conv3.3.res] size=2048 activation=tanh devices=[None]
-2017-10-21 09:06:02,022 add:      * layers/conv4.res/input1/W size=1048576 type=float32 device=None
-2017-10-21 09:06:02,022 __init__: - FullyConnectedLayer name=fc5 inputs=[conv4.res] size=256 activation=tanh devices=[None]
-2017-10-21 09:06:02,048 add:      * layers/fc5/input/W size=524288 type=float32 device=None
-2017-10-21 09:06:02,048 add:      * layers/fc5/input/b size=256 type=float32 device=None
-2017-10-21 09:06:02,048 __init__: - HSoftmaxLayer name=output inputs=[fc5] size=793471 activation=tanh devices=[None]
-2017-10-21 09:06:02,074 __init__:   level1_size=891 level2_size=891
-2017-10-21 09:06:02,087 add:      * layers/output/input/W size=228096 type=float32 device=None
-2017-10-21 09:06:02,088 add:      * layers/output/input/b size=891 type=float32 device=None
-2017-10-21 09:06:14,011 add:      * layers/output/level1/W size=203233536 type=float32 device=None
-2017-10-21 09:06:14,083 add:      * layers/output/level1/b size=793881 type=float32 device=None
-2017-10-21 09:06:14,084 __init__: Total number of model parameters: 314843284
+2017-10-21 16:40:22,835 __init__: Creating layers.
+2017-10-21 16:40:22,835 __init__: - NetworkInput name=word_input inputs=[] size=793471 activation=tanh devices=[]
+2017-10-21 16:40:22,835 __init__: - ProjectionLayer name=lookup inputs=[word_input] size=128 activation=tanh devices=[None]
+2017-10-21 16:40:28,898 add:      * layers/lookup/W size=101564288 type=float32 device=None
+2017-10-21 16:40:28,925 __init__: - FullyConnectedLayer name=fc1 inputs=[lookup] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:28,929 add:      * layers/fc1/input/W size=65536 type=float32 device=None
+2017-10-21 16:40:28,929 add:      * layers/fc1/input/b size=512 type=float32 device=None
+2017-10-21 16:40:28,930 __init__: - DropoutLayer name=fc1.dropout inputs=[fc1] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:28,930 __init__:   dropout_rate=0.200000
+2017-10-21 16:40:28,930 __init__: - AdditionLayer name=fc1.res inputs=[fc1.dropout, lookup] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:28,934 add:      * layers/fc1.res/input1/W size=65536 type=float32 device=None
+2017-10-21 16:40:28,934 __init__: - FullyConnectedLayer name=conv2.1.1 inputs=[fc1.res] size=128 activation=tanh devices=[None]
+2017-10-21 16:40:28,937 add:      * layers/conv2.1.1/input/W size=65536 type=float32 device=None
+2017-10-21 16:40:28,937 add:      * layers/conv2.1.1/input/b size=128 type=float32 device=None
+2017-10-21 16:40:28,937 __init__: - GLULayer name=conv2.1.2 inputs=[conv2.1.1] size=128 activation=tanh devices=[None]
+2017-10-21 16:40:28,938 __init__:   filter_size=5
+2017-10-21 16:40:28,947 add:      * layers/conv2.1.2/input/W size=163840 type=float32 device=None
+2017-10-21 16:40:28,947 add:      * layers/conv2.1.2/input/b size=256 type=float32 device=None
+2017-10-21 16:40:28,947 __init__: - FullyConnectedLayer name=conv2.1.3 inputs=[conv2.1.2] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:28,950 add:      * layers/conv2.1.3/input/W size=65536 type=float32 device=None
+2017-10-21 16:40:28,951 add:      * layers/conv2.1.3/input/b size=512 type=float32 device=None
+2017-10-21 16:40:28,951 __init__: - DropoutLayer name=conv2.1.3.dropout inputs=[conv2.1.3] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:28,951 __init__:   dropout_rate=0.200000
+2017-10-21 16:40:28,951 __init__: - AdditionLayer name=conv2.1.res inputs=[conv2.1.3.dropout, fc1.res] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:28,951 __init__: - FullyConnectedLayer name=conv2.2.1 inputs=[conv2.1.res] size=128 activation=tanh devices=[None]
+2017-10-21 16:40:28,954 add:      * layers/conv2.2.1/input/W size=65536 type=float32 device=None
+2017-10-21 16:40:28,955 add:      * layers/conv2.2.1/input/b size=128 type=float32 device=None
+2017-10-21 16:40:28,955 __init__: - GLULayer name=conv2.2.2 inputs=[conv2.2.1] size=128 activation=tanh devices=[None]
+2017-10-21 16:40:28,955 __init__:   filter_size=5
+2017-10-21 16:40:28,963 add:      * layers/conv2.2.2/input/W size=163840 type=float32 device=None
+2017-10-21 16:40:28,963 add:      * layers/conv2.2.2/input/b size=256 type=float32 device=None
+2017-10-21 16:40:28,963 __init__: - FullyConnectedLayer name=conv2.2.3 inputs=[conv2.2.2] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:28,967 add:      * layers/conv2.2.3/input/W size=65536 type=float32 device=None
+2017-10-21 16:40:28,967 add:      * layers/conv2.2.3/input/b size=512 type=float32 device=None
+2017-10-21 16:40:28,967 __init__: - DropoutLayer name=conv2.2.3.dropout inputs=[conv2.2.3] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:28,967 __init__:   dropout_rate=0.200000
+2017-10-21 16:40:28,967 __init__: - AdditionLayer name=conv2.2.res inputs=[conv2.2.3.dropout, conv2.1.res] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:28,967 __init__: - FullyConnectedLayer name=conv2.3.1 inputs=[conv2.2.res] size=128 activation=tanh devices=[None]
+2017-10-21 16:40:28,971 add:      * layers/conv2.3.1/input/W size=65536 type=float32 device=None
+2017-10-21 16:40:28,971 add:      * layers/conv2.3.1/input/b size=128 type=float32 device=None
+2017-10-21 16:40:28,971 __init__: - GLULayer name=conv2.3.2 inputs=[conv2.3.1] size=128 activation=tanh devices=[None]
+2017-10-21 16:40:28,971 __init__:   filter_size=5
+2017-10-21 16:40:28,980 add:      * layers/conv2.3.2/input/W size=163840 type=float32 device=None
+2017-10-21 16:40:28,980 add:      * layers/conv2.3.2/input/b size=256 type=float32 device=None
+2017-10-21 16:40:28,980 __init__: - FullyConnectedLayer name=conv2.3.3 inputs=[conv2.3.2] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:28,983 add:      * layers/conv2.3.3/input/W size=65536 type=float32 device=None
+2017-10-21 16:40:28,983 add:      * layers/conv2.3.3/input/b size=512 type=float32 device=None
+2017-10-21 16:40:28,983 __init__: - DropoutLayer name=conv2.3.3.dropout inputs=[conv2.3.3] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:28,984 __init__:   dropout_rate=0.200000
+2017-10-21 16:40:28,984 __init__: - AdditionLayer name=conv2.3.res inputs=[conv2.3.3.dropout, conv2.2.res] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:28,984 __init__: - FullyConnectedLayer name=conv3.1.1 inputs=[conv2.3.res] size=256 activation=tanh devices=[None]
+2017-10-21 16:40:28,991 add:      * layers/conv3.1.1/input/W size=131072 type=float32 device=None
+2017-10-21 16:40:28,991 add:      * layers/conv3.1.1/input/b size=256 type=float32 device=None
+2017-10-21 16:40:28,991 __init__: - GLULayer name=conv3.1.2 inputs=[conv3.1.1] size=256 activation=tanh devices=[None]
+2017-10-21 16:40:28,991 __init__:   filter_size=5
+2017-10-21 16:40:29,025 add:      * layers/conv3.1.2/input/W size=655360 type=float32 device=None
+2017-10-21 16:40:29,025 add:      * layers/conv3.1.2/input/b size=512 type=float32 device=None
+2017-10-21 16:40:29,025 __init__: - FullyConnectedLayer name=conv3.1.3 inputs=[conv3.1.2] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:29,032 add:      * layers/conv3.1.3/input/W size=131072 type=float32 device=None
+2017-10-21 16:40:29,032 add:      * layers/conv3.1.3/input/b size=512 type=float32 device=None
+2017-10-21 16:40:29,033 __init__: - DropoutLayer name=conv3.1.3.dropout inputs=[conv3.1.3] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:29,033 __init__:   dropout_rate=0.200000
+2017-10-21 16:40:29,033 __init__: - AdditionLayer name=conv3.1.res inputs=[conv3.1.3.dropout, conv2.3.res] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:29,033 __init__: - FullyConnectedLayer name=conv3.2.1 inputs=[conv3.1.res] size=256 activation=tanh devices=[None]
+2017-10-21 16:40:29,039 add:      * layers/conv3.2.1/input/W size=131072 type=float32 device=None
+2017-10-21 16:40:29,040 add:      * layers/conv3.2.1/input/b size=256 type=float32 device=None
+2017-10-21 16:40:29,040 __init__: - GLULayer name=conv3.2.2 inputs=[conv3.2.1] size=256 activation=tanh devices=[None]
+2017-10-21 16:40:29,040 __init__:   filter_size=5
+2017-10-21 16:40:29,073 add:      * layers/conv3.2.2/input/W size=655360 type=float32 device=None
+2017-10-21 16:40:29,073 add:      * layers/conv3.2.2/input/b size=512 type=float32 device=None
+2017-10-21 16:40:29,073 __init__: - FullyConnectedLayer name=conv3.2.3 inputs=[conv3.2.2] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:29,080 add:      * layers/conv3.2.3/input/W size=131072 type=float32 device=None
+2017-10-21 16:40:29,080 add:      * layers/conv3.2.3/input/b size=512 type=float32 device=None
+2017-10-21 16:40:29,080 __init__: - DropoutLayer name=conv3.2.3.dropout inputs=[conv3.2.3] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:29,080 __init__:   dropout_rate=0.200000
+2017-10-21 16:40:29,080 __init__: - AdditionLayer name=conv3.2.res inputs=[conv3.2.3.dropout, conv3.1.res] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:29,081 __init__: - FullyConnectedLayer name=conv3.3.1 inputs=[conv3.2.res] size=256 activation=tanh devices=[None]
+2017-10-21 16:40:29,087 add:      * layers/conv3.3.1/input/W size=131072 type=float32 device=None
+2017-10-21 16:40:29,087 add:      * layers/conv3.3.1/input/b size=256 type=float32 device=None
+2017-10-21 16:40:29,087 __init__: - GLULayer name=conv3.3.2 inputs=[conv3.3.1] size=256 activation=tanh devices=[None]
+2017-10-21 16:40:29,087 __init__:   filter_size=5
+2017-10-21 16:40:29,121 add:      * layers/conv3.3.2/input/W size=655360 type=float32 device=None
+2017-10-21 16:40:29,121 add:      * layers/conv3.3.2/input/b size=512 type=float32 device=None
+2017-10-21 16:40:29,121 __init__: - FullyConnectedLayer name=conv3.3.3 inputs=[conv3.3.2] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:29,128 add:      * layers/conv3.3.3/input/W size=131072 type=float32 device=None
+2017-10-21 16:40:29,128 add:      * layers/conv3.3.3/input/b size=512 type=float32 device=None
+2017-10-21 16:40:29,128 __init__: - DropoutLayer name=conv3.3.3.dropout inputs=[conv3.3.3] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:29,128 __init__:   dropout_rate=0.200000
+2017-10-21 16:40:29,128 __init__: - AdditionLayer name=conv3.3.res inputs=[conv3.3.3.dropout, conv3.2.res] size=512 activation=tanh devices=[None]
+2017-10-21 16:40:29,129 __init__: - FullyConnectedLayer name=conv4.1 inputs=[conv3.3.res] size=1024 activation=tanh devices=[None]
+2017-10-21 16:40:29,156 add:      * layers/conv4.1/input/W size=524288 type=float32 device=None
+2017-10-21 16:40:29,156 add:      * layers/conv4.1/input/b size=1024 type=float32 device=None
+2017-10-21 16:40:29,157 __init__: - FullyConnectedLayer name=conv4.2 inputs=[conv4.1] size=1024 activation=tanh devices=[None]
+2017-10-21 16:40:29,892 add:      * layers/conv4.2/input/W size=1048576 type=float32 device=None
+2017-10-21 16:40:29,893 add:      * layers/conv4.2/input/b size=1024 type=float32 device=None
+2017-10-21 16:40:29,893 __init__: - FullyConnectedLayer name=conv4.3 inputs=[conv4.2] size=2048 activation=tanh devices=[None]
+2017-10-21 16:40:29,999 add:      * layers/conv4.3/input/W size=2097152 type=float32 device=None
+2017-10-21 16:40:29,999 add:      * layers/conv4.3/input/b size=2048 type=float32 device=None
+2017-10-21 16:40:30,000 __init__: - DropoutLayer name=conv4.3.dropout inputs=[conv4.3] size=2048 activation=tanh devices=[None]
+2017-10-21 16:40:30,000 __init__:   dropout_rate=0.200000
+2017-10-21 16:40:30,000 __init__: - AdditionLayer name=conv4.res inputs=[conv4.3.dropout, conv3.3.res] size=2048 activation=tanh devices=[None]
+2017-10-21 16:40:30,053 add:      * layers/conv4.res/input1/W size=1048576 type=float32 device=None
+2017-10-21 16:40:30,053 __init__: - FullyConnectedLayer name=fc5 inputs=[conv4.res] size=256 activation=tanh devices=[None]
+2017-10-21 16:40:30,079 add:      * layers/fc5/input/W size=524288 type=float32 device=None
+2017-10-21 16:40:30,079 add:      * layers/fc5/input/b size=256 type=float32 device=None
+2017-10-21 16:40:30,079 __init__: - HSoftmaxLayer name=output inputs=[fc5] size=793471 activation=tanh devices=[None]
+2017-10-21 16:40:30,079 __init__:   level1_size=891 level2_size=891
+2017-10-21 16:40:30,091 add:      * layers/output/input/W size=228096 type=float32 device=None
+2017-10-21 16:40:30,092 add:      * layers/output/input/b size=891 type=float32 device=None
+2017-10-21 16:40:42,147 add:      * layers/output/level1/W size=203233536 type=float32 device=None
+2017-10-21 16:40:42,205 add:      * layers/output/level1/b size=793881 type=float32 device=None
+2017-10-21 16:40:42,205 __init__: Total number of model parameters: 314843284
 Building optimizer.
-2017-10-21 09:06:16,497 add:      * layers/lookup/W_sum_sqr_gradient size=101564288 type=float32 device=None
-2017-10-21 09:06:16,526 add:      * layers/fc1/input/W_sum_sqr_gradient size=65536 type=float32 device=None
-2017-10-21 09:06:16,527 add:      * layers/fc1/input/b_sum_sqr_gradient size=512 type=float32 device=None
-2017-10-21 09:06:16,527 add:      * layers/conv2.1.1/input/W_sum_sqr_gradient size=65536 type=float32 device=None
-2017-10-21 09:06:16,527 add:      * layers/conv2.1.1/input/b_sum_sqr_gradient size=128 type=float32 device=None
-2017-10-21 09:06:16,528 add:      * layers/conv2.1.2/input/W_sum_sqr_gradient size=163840 type=float32 device=None
-2017-10-21 09:06:16,528 add:      * layers/conv2.1.2/input/b_sum_sqr_gradient size=256 type=float32 device=None
-2017-10-21 09:06:16,528 add:      * layers/conv2.1.3/input/W_sum_sqr_gradient size=65536 type=float32 device=None
-2017-10-21 09:06:16,529 add:      * layers/conv2.1.3/input/b_sum_sqr_gradient size=512 type=float32 device=None
-2017-10-21 09:06:16,529 add:      * layers/conv2.1.res/input1/W_sum_sqr_gradient size=65536 type=float32 device=None
-2017-10-21 09:06:16,529 add:      * layers/conv2.2.1/input/W_sum_sqr_gradient size=65536 type=float32 device=None
-2017-10-21 09:06:16,529 add:      * layers/conv2.2.1/input/b_sum_sqr_gradient size=128 type=float32 device=None
-2017-10-21 09:06:16,530 add:      * layers/conv2.2.2/input/W_sum_sqr_gradient size=163840 type=float32 device=None
-2017-10-21 09:06:16,530 add:      * layers/conv2.2.2/input/b_sum_sqr_gradient size=256 type=float32 device=None
-2017-10-21 09:06:16,530 add:      * layers/conv2.2.3/input/W_sum_sqr_gradient size=65536 type=float32 device=None
-2017-10-21 09:06:16,531 add:      * layers/conv2.2.3/input/b_sum_sqr_gradient size=512 type=float32 device=None
-2017-10-21 09:06:16,531 add:      * layers/conv2.3.1/input/W_sum_sqr_gradient size=65536 type=float32 device=None
-2017-10-21 09:06:16,531 add:      * layers/conv2.3.1/input/b_sum_sqr_gradient size=128 type=float32 device=None
-2017-10-21 09:06:16,532 add:      * layers/conv2.3.2/input/W_sum_sqr_gradient size=163840 type=float32 device=None
-2017-10-21 09:06:16,532 add:      * layers/conv2.3.2/input/b_sum_sqr_gradient size=256 type=float32 device=None
-2017-10-21 09:06:16,533 add:      * layers/conv2.3.3/input/W_sum_sqr_gradient size=65536 type=float32 device=None
-2017-10-21 09:06:16,533 add:      * layers/conv2.3.3/input/b_sum_sqr_gradient size=512 type=float32 device=None
-2017-10-21 09:06:16,533 add:      * layers/conv3.1.1/input/W_sum_sqr_gradient size=131072 type=float32 device=None
-2017-10-21 09:06:16,533 add:      * layers/conv3.1.1/input/b_sum_sqr_gradient size=256 type=float32 device=None
-2017-10-21 09:06:16,535 add:      * layers/conv3.1.2/input/W_sum_sqr_gradient size=655360 type=float32 device=None
-2017-10-21 09:06:16,535 add:      * layers/conv3.1.2/input/b_sum_sqr_gradient size=512 type=float32 device=None
-2017-10-21 09:06:16,536 add:      * layers/conv3.1.3/input/W_sum_sqr_gradient size=131072 type=float32 device=None
-2017-10-21 09:06:16,536 add:      * layers/conv3.1.3/input/b_sum_sqr_gradient size=512 type=float32 device=None
-2017-10-21 09:06:16,537 add:      * layers/conv3.2.1/input/W_sum_sqr_gradient size=131072 type=float32 device=None
-2017-10-21 09:06:16,537 add:      * layers/conv3.2.1/input/b_sum_sqr_gradient size=256 type=float32 device=None
-2017-10-21 09:06:16,538 add:      * layers/conv3.2.2/input/W_sum_sqr_gradient size=655360 type=float32 device=None
-2017-10-21 09:06:16,538 add:      * layers/conv3.2.2/input/b_sum_sqr_gradient size=512 type=float32 device=None
-2017-10-21 09:06:16,539 add:      * layers/conv3.2.3/input/W_sum_sqr_gradient size=131072 type=float32 device=None
-2017-10-21 09:06:16,539 add:      * layers/conv3.2.3/input/b_sum_sqr_gradient size=512 type=float32 device=None
-2017-10-21 09:06:16,540 add:      * layers/conv3.3.1/input/W_sum_sqr_gradient size=131072 type=float32 device=None
-2017-10-21 09:06:16,540 add:      * layers/conv3.3.1/input/b_sum_sqr_gradient size=256 type=float32 device=None
-2017-10-21 09:06:16,541 add:      * layers/conv3.3.2/input/W_sum_sqr_gradient size=655360 type=float32 device=None
-2017-10-21 09:06:16,542 add:      * layers/conv3.3.2/input/b_sum_sqr_gradient size=512 type=float32 device=None
-2017-10-21 09:06:16,542 add:      * layers/conv3.3.3/input/W_sum_sqr_gradient size=131072 type=float32 device=None
-2017-10-21 09:06:16,542 add:      * layers/conv3.3.3/input/b_sum_sqr_gradient size=512 type=float32 device=None
-2017-10-21 09:06:16,545 add:      * layers/conv4.1/input/W_sum_sqr_gradient size=524288 type=float32 device=None
-2017-10-21 09:06:16,545 add:      * layers/conv4.1/input/b_sum_sqr_gradient size=1024 type=float32 device=None
-2017-10-21 09:06:16,548 add:      * layers/conv4.2/input/W_sum_sqr_gradient size=1048576 type=float32 device=None
-2017-10-21 09:06:16,549 add:      * layers/conv4.2/input/b_sum_sqr_gradient size=1024 type=float32 device=None
-2017-10-21 09:06:16,554 add:      * layers/conv4.3/input/W_sum_sqr_gradient size=2097152 type=float32 device=None
-2017-10-21 09:06:16,554 add:      * layers/conv4.3/input/b_sum_sqr_gradient size=2048 type=float32 device=None
-2017-10-21 09:06:16,557 add:      * layers/conv4.res/input1/W_sum_sqr_gradient size=1048576 type=float32 device=None
-2017-10-21 09:06:16,559 add:      * layers/fc5/input/W_sum_sqr_gradient size=524288 type=float32 device=None
-2017-10-21 09:06:16,559 add:      * layers/fc5/input/b_sum_sqr_gradient size=256 type=float32 device=None
-2017-10-21 09:06:16,561 add:      * layers/output/input/W_sum_sqr_gradient size=228096 type=float32 device=None
-2017-10-21 09:06:16,561 add:      * layers/output/input/b_sum_sqr_gradient size=891 type=float32 device=None
-2017-10-21 09:06:17,672 add:      * layers/output/level1/W_sum_sqr_gradient size=203233536 type=float32 device=None
-2017-10-21 09:06:17,732 add:      * layers/output/level1/b_sum_sqr_gradient size=793881 type=float32 device=None
+2017-10-21 16:40:45,442 add:      * layers/lookup/W_sum_sqr_gradient size=101564288 type=float32 device=None
+2017-10-21 16:40:45,467 add:      * layers/fc1/input/W_sum_sqr_gradient size=65536 type=float32 device=None
+2017-10-21 16:40:45,467 add:      * layers/fc1/input/b_sum_sqr_gradient size=512 type=float32 device=None
+2017-10-21 16:40:45,468 add:      * layers/fc1.res/input1/W_sum_sqr_gradient size=65536 type=float32 device=None
+2017-10-21 16:40:45,468 add:      * layers/conv2.1.1/input/W_sum_sqr_gradient size=65536 type=float32 device=None
+2017-10-21 16:40:45,468 add:      * layers/conv2.1.1/input/b_sum_sqr_gradient size=128 type=float32 device=None
+2017-10-21 16:40:45,469 add:      * layers/conv2.1.2/input/W_sum_sqr_gradient size=163840 type=float32 device=None
+2017-10-21 16:40:45,469 add:      * layers/conv2.1.2/input/b_sum_sqr_gradient size=256 type=float32 device=None
+2017-10-21 16:40:45,470 add:      * layers/conv2.1.3/input/W_sum_sqr_gradient size=65536 type=float32 device=None
+2017-10-21 16:40:45,470 add:      * layers/conv2.1.3/input/b_sum_sqr_gradient size=512 type=float32 device=None
+2017-10-21 16:40:45,470 add:      * layers/conv2.2.1/input/W_sum_sqr_gradient size=65536 type=float32 device=None
+2017-10-21 16:40:45,470 add:      * layers/conv2.2.1/input/b_sum_sqr_gradient size=128 type=float32 device=None
+2017-10-21 16:40:45,471 add:      * layers/conv2.2.2/input/W_sum_sqr_gradient size=163840 type=float32 device=None
+2017-10-21 16:40:45,471 add:      * layers/conv2.2.2/input/b_sum_sqr_gradient size=256 type=float32 device=None
+2017-10-21 16:40:45,471 add:      * layers/conv2.2.3/input/W_sum_sqr_gradient size=65536 type=float32 device=None
+2017-10-21 16:40:45,472 add:      * layers/conv2.2.3/input/b_sum_sqr_gradient size=512 type=float32 device=None
+2017-10-21 16:40:45,472 add:      * layers/conv2.3.1/input/W_sum_sqr_gradient size=65536 type=float32 device=None
+2017-10-21 16:40:45,472 add:      * layers/conv2.3.1/input/b_sum_sqr_gradient size=128 type=float32 device=None
+2017-10-21 16:40:45,473 add:      * layers/conv2.3.2/input/W_sum_sqr_gradient size=163840 type=float32 device=None
+2017-10-21 16:40:45,473 add:      * layers/conv2.3.2/input/b_sum_sqr_gradient size=256 type=float32 device=None
+2017-10-21 16:40:45,473 add:      * layers/conv2.3.3/input/W_sum_sqr_gradient size=65536 type=float32 device=None
+2017-10-21 16:40:45,473 add:      * layers/conv2.3.3/input/b_sum_sqr_gradient size=512 type=float32 device=None
+2017-10-21 16:40:45,474 add:      * layers/conv3.1.1/input/W_sum_sqr_gradient size=131072 type=float32 device=None
+2017-10-21 16:40:45,474 add:      * layers/conv3.1.1/input/b_sum_sqr_gradient size=256 type=float32 device=None
+2017-10-21 16:40:45,476 add:      * layers/conv3.1.2/input/W_sum_sqr_gradient size=655360 type=float32 device=None
+2017-10-21 16:40:45,476 add:      * layers/conv3.1.2/input/b_sum_sqr_gradient size=512 type=float32 device=None
+2017-10-21 16:40:45,477 add:      * layers/conv3.1.3/input/W_sum_sqr_gradient size=131072 type=float32 device=None
+2017-10-21 16:40:45,477 add:      * layers/conv3.1.3/input/b_sum_sqr_gradient size=512 type=float32 device=None
+2017-10-21 16:40:45,477 add:      * layers/conv3.2.1/input/W_sum_sqr_gradient size=131072 type=float32 device=None
+2017-10-21 16:40:45,477 add:      * layers/conv3.2.1/input/b_sum_sqr_gradient size=256 type=float32 device=None
+2017-10-21 16:40:45,479 add:      * layers/conv3.2.2/input/W_sum_sqr_gradient size=655360 type=float32 device=None
+2017-10-21 16:40:45,479 add:      * layers/conv3.2.2/input/b_sum_sqr_gradient size=512 type=float32 device=None
+2017-10-21 16:40:45,480 add:      * layers/conv3.2.3/input/W_sum_sqr_gradient size=131072 type=float32 device=None
+2017-10-21 16:40:45,480 add:      * layers/conv3.2.3/input/b_sum_sqr_gradient size=512 type=float32 device=None
+2017-10-21 16:40:45,480 add:      * layers/conv3.3.1/input/W_sum_sqr_gradient size=131072 type=float32 device=None
+2017-10-21 16:40:45,480 add:      * layers/conv3.3.1/input/b_sum_sqr_gradient size=256 type=float32 device=None
+2017-10-21 16:40:45,482 add:      * layers/conv3.3.2/input/W_sum_sqr_gradient size=655360 type=float32 device=None
+2017-10-21 16:40:45,482 add:      * layers/conv3.3.2/input/b_sum_sqr_gradient size=512 type=float32 device=None
+2017-10-21 16:40:45,483 add:      * layers/conv3.3.3/input/W_sum_sqr_gradient size=131072 type=float32 device=None
+2017-10-21 16:40:45,483 add:      * layers/conv3.3.3/input/b_sum_sqr_gradient size=512 type=float32 device=None
+2017-10-21 16:40:45,485 add:      * layers/conv4.1/input/W_sum_sqr_gradient size=524288 type=float32 device=None
+2017-10-21 16:40:45,485 add:      * layers/conv4.1/input/b_sum_sqr_gradient size=1024 type=float32 device=None
+2017-10-21 16:40:45,488 add:      * layers/conv4.2/input/W_sum_sqr_gradient size=1048576 type=float32 device=None
+2017-10-21 16:40:45,488 add:      * layers/conv4.2/input/b_sum_sqr_gradient size=1024 type=float32 device=None
+2017-10-21 16:40:45,493 add:      * layers/conv4.3/input/W_sum_sqr_gradient size=2097152 type=float32 device=None
+2017-10-21 16:40:45,493 add:      * layers/conv4.3/input/b_sum_sqr_gradient size=2048 type=float32 device=None
+2017-10-21 16:40:45,496 add:      * layers/conv4.res/input1/W_sum_sqr_gradient size=1048576 type=float32 device=None
+2017-10-21 16:40:45,497 add:      * layers/fc5/input/W_sum_sqr_gradient size=524288 type=float32 device=None
+2017-10-21 16:40:45,497 add:      * layers/fc5/input/b_sum_sqr_gradient size=256 type=float32 device=None
+2017-10-21 16:40:45,498 add:      * layers/output/input/W_sum_sqr_gradient size=228096 type=float32 device=None
+2017-10-21 16:40:45,498 add:      * layers/output/input/b_sum_sqr_gradient size=891 type=float32 device=None
+2017-10-21 16:40:46,469 add:      * layers/output/level1/W_sum_sqr_gradient size=203233536 type=float32 device=None
+2017-10-21 16:40:46,519 add:      * layers/output/level1/b_sum_sqr_gradient size=793881 type=float32 device=None
 Building text scorer for cross-validation.
 Validation text: /scratch/elec/puhe/c/google/1-billion-word-language-modeling-benchmark/heldout-monolingual.tokenized.shuffled/news.en.heldout-00000-of-00050
 Training neural network.
-2017-10-21 09:08:48,118 _log_update: [200] (0.7 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 09:10:40,322 _log_update: [400] (1.4 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 09:12:32,524 _log_update: [600] (2.1 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 09:14:24,727 _log_update: [800] (2.8 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 09:16:16,980 _log_update: [1000] (3.4 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 09:18:09,241 _log_update: [1200] (4.1 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 09:20:01,471 _log_update: [1400] (4.8 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 09:21:53,686 _log_update: [1600] (5.5 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 09:23:45,972 _log_update: [1800] (6.2 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 09:25:38,289 _log_update: [2000] (6.9 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 09:27:30,612 _log_update: [2200] (7.6 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 09:29:22,941 _log_update: [2400] (8.3 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 09:31:15,257 _log_update: [2600] (8.9 %) of epoch 1 -- lr = 0.1, duration = 55.9 ms
-2017-10-21 09:33:07,565 _log_update: [2800] (9.6 %) of epoch 1 -- lr = 0.1, duration = 56.2 ms
-2017-10-21 09:34:59,879 _log_update: [3000] (10.3 %) of epoch 1 -- lr = 0.1, duration = 55.9 ms
-2017-10-21 09:36:52,193 _log_update: [3200] (11.0 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 09:38:44,517 _log_update: [3400] (11.7 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 09:40:36,856 _log_update: [3600] (12.4 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 09:42:29,168 _log_update: [3800] (13.1 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 09:44:21,498 _log_update: [4000] (13.8 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 09:46:13,831 _log_update: [4200] (14.4 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 09:48:06,152 _log_update: [4400] (15.1 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 09:49:58,476 _log_update: [4600] (15.8 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 09:51:50,804 _log_update: [4800] (16.5 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 09:53:43,128 _log_update: [5000] (17.2 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 09:55:35,451 _log_update: [5200] (17.9 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 09:57:27,769 _log_update: [5400] (18.6 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 09:59:20,092 _log_update: [5600] (19.3 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 10:01:12,326 _log_update: [5800] (19.9 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 10:03:04,644 _log_update: [6000] (20.6 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 10:04:56,967 _log_update: [6200] (21.3 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 10:06:49,292 _log_update: [6400] (22.0 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 10:08:41,609 _log_update: [6600] (22.7 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 10:10:33,925 _log_update: [6800] (23.4 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 10:12:26,248 _log_update: [7000] (24.1 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 10:14:18,565 _log_update: [7200] (24.8 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 10:14:57,970 _validate: [7264] First validation sample, perplexity 783.65.
-2017-10-21 10:15:09,816 _validate: [7267] Center of validation, perplexity 784.36.
-2017-10-21 10:15:25,273 _validate: [7270] Last validation sample, perplexity 782.30.
-2017-10-21 10:15:29,750 _set_candidate_state: New candidate for optimal state saved to /scratch/work/senarvi/theanolm-recipes/google/nnlm.h5.
-2017-10-21 10:15:29,750 _log_validation: [7270] Validation set cost history: [782.3]
-2017-10-21 10:16:42,943 _log_update: [7400] (25.4 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 10:18:35,293 _log_update: [7600] (26.1 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 10:20:27,602 _log_update: [7800] (26.8 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 10:22:19,827 _log_update: [8000] (27.5 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 10:24:12,053 _log_update: [8200] (28.2 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 10:26:04,269 _log_update: [8400] (28.9 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 10:27:56,499 _log_update: [8600] (29.6 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 10:29:48,716 _log_update: [8800] (30.3 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 10:31:40,948 _log_update: [9000] (31.0 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 10:33:33,160 _log_update: [9200] (31.6 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 10:35:25,379 _log_update: [9400] (32.3 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 10:37:17,600 _log_update: [9600] (33.0 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 10:39:09,814 _log_update: [9800] (33.7 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 10:41:02,050 _log_update: [10000] (34.4 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 10:42:54,260 _log_update: [10200] (35.1 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 10:44:46,486 _log_update: [10400] (35.8 %) of epoch 1 -- lr = 0.1, duration = 55.9 ms
-2017-10-21 10:46:38,699 _log_update: [10600] (36.5 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 10:48:30,923 _log_update: [10800] (37.1 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 10:50:23,144 _log_update: [11000] (37.8 %) of epoch 1 -- lr = 0.1, duration = 55.9 ms
-2017-10-21 10:52:15,379 _log_update: [11200] (38.5 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 10:54:07,596 _log_update: [11400] (39.2 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 10:55:59,823 _log_update: [11600] (39.9 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 10:57:52,033 _log_update: [11800] (40.6 %) of epoch 1 -- lr = 0.1, duration = 55.9 ms
-2017-10-21 10:59:44,256 _log_update: [12000] (41.3 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:01:36,491 _log_update: [12200] (42.0 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:03:28,719 _log_update: [12400] (42.6 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 11:05:20,952 _log_update: [12600] (43.3 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:07:13,167 _log_update: [12800] (44.0 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:09:05,389 _log_update: [13000] (44.7 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 11:10:57,609 _log_update: [13200] (45.4 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:12:49,828 _log_update: [13400] (46.1 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:14:42,057 _log_update: [13600] (46.8 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 11:16:34,288 _log_update: [13800] (47.5 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:18:26,524 _log_update: [14000] (48.1 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:20:18,748 _log_update: [14200] (48.8 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 11:22:10,979 _log_update: [14400] (49.5 %) of epoch 1 -- lr = 0.1, duration = 56.3 ms
-2017-10-21 11:23:29,351 _validate: [14534] First validation sample, perplexity 677.46.
-2017-10-21 11:23:40,513 _validate: [14537] Center of validation, perplexity 678.34.
-2017-10-21 11:23:54,923 _validate: [14540] Last validation sample, perplexity 678.51.
-2017-10-21 11:23:59,365 _set_candidate_state: New candidate for optimal state saved to /scratch/work/senarvi/theanolm-recipes/google/nnlm.h5.
-2017-10-21 11:23:59,365 _log_validation: [14540] Validation set cost history: 782.3 [678.3]
-2017-10-21 11:24:33,199 _log_update: [14600] (50.2 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:26:25,430 _log_update: [14800] (50.9 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:28:17,658 _log_update: [15000] (51.6 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:30:09,901 _log_update: [15200] (52.3 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:32:02,148 _log_update: [15400] (53.0 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:33:54,380 _log_update: [15600] (53.6 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:35:46,615 _log_update: [15800] (54.3 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:37:38,837 _log_update: [16000] (55.0 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:39:31,071 _log_update: [16200] (55.7 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:41:23,283 _log_update: [16400] (56.4 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:43:15,505 _log_update: [16600] (57.1 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 11:45:07,717 _log_update: [16800] (57.8 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:46:59,932 _log_update: [17000] (58.5 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:48:52,149 _log_update: [17200] (59.1 %) of epoch 1 -- lr = 0.1, duration = 55.9 ms
-2017-10-21 11:50:44,375 _log_update: [17400] (59.8 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:52:36,599 _log_update: [17600] (60.5 %) of epoch 1 -- lr = 0.1, duration = 55.9 ms
-2017-10-21 11:54:28,824 _log_update: [17800] (61.2 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 11:56:21,054 _log_update: [18000] (61.9 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 11:58:13,282 _log_update: [18200] (62.6 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:00:05,496 _log_update: [18400] (63.3 %) of epoch 1 -- lr = 0.1, duration = 55.9 ms
-2017-10-21 12:01:57,730 _log_update: [18600] (64.0 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:03:49,959 _log_update: [18800] (64.7 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:05:42,188 _log_update: [19000] (65.3 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:07:34,403 _log_update: [19200] (66.0 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 12:09:26,620 _log_update: [19400] (66.7 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:11:18,855 _log_update: [19600] (67.4 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:13:11,074 _log_update: [19800] (68.1 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 12:15:03,292 _log_update: [20000] (68.8 %) of epoch 1 -- lr = 0.1, duration = 55.9 ms
-2017-10-21 12:16:55,504 _log_update: [20200] (69.5 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 12:18:47,728 _log_update: [20400] (70.2 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 12:20:39,951 _log_update: [20600] (70.8 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:22:32,165 _log_update: [20800] (71.5 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:24:24,388 _log_update: [21000] (72.2 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:26:16,610 _log_update: [21200] (72.9 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:28:08,845 _log_update: [21400] (73.6 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:30:01,060 _log_update: [21600] (74.3 %) of epoch 1 -- lr = 0.1, duration = 55.9 ms
-2017-10-21 12:31:53,277 _log_update: [21800] (75.0 %) of epoch 1 -- lr = 0.1, duration = 55.9 ms
-2017-10-21 12:31:58,700 _validate: [21804] First validation sample, perplexity 620.34.
-2017-10-21 12:32:09,844 _validate: [21807] Center of validation, perplexity 612.83.
-2017-10-21 12:32:24,169 _validate: [21810] Last validation sample, perplexity 614.34.
-2017-10-21 12:32:28,470 _set_candidate_state: New candidate for optimal state saved to /scratch/work/senarvi/theanolm-recipes/google/nnlm.h5.
-2017-10-21 12:32:28,471 _log_validation: [21810] Validation set cost history: 782.3 678.3 [614.1]
-2017-10-21 12:34:15,253 _log_update: [22000] (75.7 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:36:07,482 _log_update: [22200] (76.3 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 12:37:59,714 _log_update: [22400] (77.0 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:39:51,935 _log_update: [22600] (77.7 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:41:44,161 _log_update: [22800] (78.4 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:43:36,392 _log_update: [23000] (79.1 %) of epoch 1 -- lr = 0.1, duration = 55.9 ms
-2017-10-21 12:45:28,622 _log_update: [23200] (79.8 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:47:20,853 _log_update: [23400] (80.5 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:49:13,085 _log_update: [23600] (81.2 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 12:51:05,309 _log_update: [23800] (81.8 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 12:52:57,526 _log_update: [24000] (82.5 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:54:49,746 _log_update: [24200] (83.2 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:56:41,962 _log_update: [24400] (83.9 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 12:58:34,196 _log_update: [24600] (84.6 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:00:26,424 _log_update: [24800] (85.3 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 13:02:18,631 _log_update: [25000] (86.0 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:04:10,853 _log_update: [25200] (86.7 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:06:03,080 _log_update: [25400] (87.3 %) of epoch 1 -- lr = 0.1, duration = 55.9 ms
-2017-10-21 13:07:55,301 _log_update: [25600] (88.0 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 13:09:47,530 _log_update: [25800] (88.7 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:11:39,750 _log_update: [26000] (89.4 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:13:31,969 _log_update: [26200] (90.1 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:15:24,193 _log_update: [26400] (90.8 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 13:17:16,422 _log_update: [26600] (91.5 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 13:19:08,638 _log_update: [26800] (92.2 %) of epoch 1 -- lr = 0.1, duration = 55.9 ms
-2017-10-21 13:21:00,856 _log_update: [27000] (92.9 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:22:53,080 _log_update: [27200] (93.5 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:24:45,295 _log_update: [27400] (94.2 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:26:37,504 _log_update: [27600] (94.9 %) of epoch 1 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 13:28:29,727 _log_update: [27800] (95.6 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:30:21,967 _log_update: [28000] (96.3 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:32:14,196 _log_update: [28200] (97.0 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:34:06,413 _log_update: [28400] (97.7 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:35:58,614 _log_update: [28600] (98.4 %) of epoch 1 -- lr = 0.1, duration = 55.9 ms
-2017-10-21 13:37:50,830 _log_update: [28800] (99.0 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:39:43,046 _log_update: [29000] (99.7 %) of epoch 1 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:40:27,192 _validate: [29073] First validation sample, perplexity 566.63.
-2017-10-21 13:40:38,293 _validate: [29076] Center of validation, perplexity 565.51.
-2017-10-21 13:40:52,681 _validate: [29079] Last validation sample, perplexity 568.61.
-2017-10-21 13:40:57,228 _set_candidate_state: New candidate for optimal state saved to /scratch/work/senarvi/theanolm-recipes/google/nnlm.h5.
-2017-10-21 13:40:57,229 _log_validation: [29079] Validation set cost history: 782.3 678.3 614.1 [566.6]
-2017-10-21 13:40:57,397 _reset: Generating a random order of input lines.
-Finished training epoch 1 in 4 hours 34.0 minutes. Best validation perplexity 566.63.
-2017-10-21 13:42:05,330 _log_update: [121] (0.4 %) of epoch 2 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 13:43:57,563 _log_update: [321] (1.1 %) of epoch 2 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 13:45:49,782 _log_update: [521] (1.8 %) of epoch 2 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:47:41,995 _log_update: [721] (2.5 %) of epoch 2 -- lr = 0.1, duration = 56.1 ms
-2017-10-21 13:49:34,194 _log_update: [921] (3.2 %) of epoch 2 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:51:26,416 _log_update: [1121] (3.9 %) of epoch 2 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:53:18,628 _log_update: [1321] (4.5 %) of epoch 2 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:55:10,846 _log_update: [1521] (5.2 %) of epoch 2 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:57:03,046 _log_update: [1721] (5.9 %) of epoch 2 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 13:58:55,262 _log_update: [1921] (6.6 %) of epoch 2 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 14:00:47,474 _log_update: [2121] (7.3 %) of epoch 2 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 14:02:39,676 _log_update: [2321] (8.0 %) of epoch 2 -- lr = 0.1, duration = 56.0 ms
-2017-10-21 14:04:31,896 _log_update: [2521] (8.7 %) of epoch 2 -- lr = 0.1, duration = 56.0 ms
+2017-10-21 16:43:18,393 _log_update: [200] (0.7 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 16:45:06,466 _log_update: [400] (1.4 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 16:46:54,562 _log_update: [600] (2.1 %) of epoch 1 -- lr = 0.1, duration = 54.0 ms
+2017-10-21 16:48:42,642 _log_update: [800] (2.8 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 16:50:30,715 _log_update: [1000] (3.4 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 16:52:18,788 _log_update: [1200] (4.1 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 16:54:06,861 _log_update: [1400] (4.8 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 16:55:54,930 _log_update: [1600] (5.5 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 16:57:43,010 _log_update: [1800] (6.2 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 16:59:31,079 _log_update: [2000] (6.9 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:01:19,152 _log_update: [2200] (7.6 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:03:07,223 _log_update: [2400] (8.3 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:04:55,292 _log_update: [2600] (8.9 %) of epoch 1 -- lr = 0.1, duration = 54.0 ms
+2017-10-21 17:06:43,363 _log_update: [2800] (9.6 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:08:31,446 _log_update: [3000] (10.3 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:10:19,530 _log_update: [3200] (11.0 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:12:07,600 _log_update: [3400] (11.7 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:13:55,680 _log_update: [3600] (12.4 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:15:43,774 _log_update: [3800] (13.1 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:17:31,839 _log_update: [4000] (13.8 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:19:19,912 _log_update: [4200] (14.4 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:21:07,984 _log_update: [4400] (15.1 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:22:56,078 _log_update: [4600] (15.8 %) of epoch 1 -- lr = 0.1, duration = 54.0 ms
+2017-10-21 17:24:44,153 _log_update: [4800] (16.5 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:26:32,235 _log_update: [5000] (17.2 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:28:20,321 _log_update: [5200] (17.9 %) of epoch 1 -- lr = 0.1, duration = 54.1 ms
+2017-10-21 17:30:08,391 _log_update: [5400] (18.6 %) of epoch 1 -- lr = 0.1, duration = 54.1 ms
+2017-10-21 17:31:56,469 _log_update: [5600] (19.3 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:33:44,539 _log_update: [5800] (19.9 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:35:32,608 _log_update: [6000] (20.6 %) of epoch 1 -- lr = 0.1, duration = 54.0 ms
+2017-10-21 17:37:20,750 _log_update: [6200] (21.3 %) of epoch 1 -- lr = 0.1, duration = 54.0 ms
+2017-10-21 17:39:08,823 _log_update: [6400] (22.0 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:40:56,890 _log_update: [6600] (22.7 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:42:44,964 _log_update: [6800] (23.4 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:44:33,047 _log_update: [7000] (24.1 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:46:21,122 _log_update: [7200] (24.8 %) of epoch 1 -- lr = 0.1, duration = 53.8 ms
+2017-10-21 17:46:59,043 _validate: [7264] First validation sample, perplexity 732.03.
+2017-10-21 17:47:10,435 _validate: [7267] Center of validation, perplexity 733.53.
+2017-10-21 17:47:25,189 _validate: [7270] Last validation sample, perplexity 733.87.
+2017-10-21 17:47:29,596 _set_candidate_state: New candidate for optimal state saved to /scratch/work/senarvi/theanolm-recipes/google/nnlm.h5.
+2017-10-21 17:47:29,596 _log_validation: [7270] Validation set cost history: [733.9]
+2017-10-21 17:48:40,002 _log_update: [7400] (25.4 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:50:28,079 _log_update: [7600] (26.1 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:52:16,232 _log_update: [7800] (26.8 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:54:04,321 _log_update: [8000] (27.5 %) of epoch 1 -- lr = 0.1, duration = 54.0 ms
+2017-10-21 17:55:52,396 _log_update: [8200] (28.2 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 17:57:40,470 _log_update: [8400] (28.9 %) of epoch 1 -- lr = 0.1, duration = 54.0 ms
+2017-10-21 17:59:28,543 _log_update: [8600] (29.6 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:01:16,634 _log_update: [8800] (30.3 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:03:04,752 _log_update: [9000] (31.0 %) of epoch 1 -- lr = 0.1, duration = 54.1 ms
+2017-10-21 18:04:52,916 _log_update: [9200] (31.6 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:06:41,070 _log_update: [9400] (32.3 %) of epoch 1 -- lr = 0.1, duration = 54.0 ms
+2017-10-21 18:08:29,221 _log_update: [9600] (33.0 %) of epoch 1 -- lr = 0.1, duration = 54.0 ms
+2017-10-21 18:10:17,387 _log_update: [9800] (33.7 %) of epoch 1 -- lr = 0.1, duration = 54.0 ms
+2017-10-21 18:12:05,399 _log_update: [10000] (34.4 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:13:53,391 _log_update: [10200] (35.1 %) of epoch 1 -- lr = 0.1, duration = 54.0 ms
+2017-10-21 18:15:41,389 _log_update: [10400] (35.8 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:17:29,375 _log_update: [10600] (36.5 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:19:17,356 _log_update: [10800] (37.1 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:21:05,402 _log_update: [11000] (37.8 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:22:53,381 _log_update: [11200] (38.5 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:24:41,345 _log_update: [11400] (39.2 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:26:29,310 _log_update: [11600] (39.9 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:28:17,284 _log_update: [11800] (40.6 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:30:05,256 _log_update: [12000] (41.3 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:31:53,236 _log_update: [12200] (42.0 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:33:41,209 _log_update: [12400] (42.6 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:35:29,189 _log_update: [12600] (43.3 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:37:17,175 _log_update: [12800] (44.0 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:39:05,156 _log_update: [13000] (44.7 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:40:53,128 _log_update: [13200] (45.4 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:42:41,110 _log_update: [13400] (46.1 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:44:29,082 _log_update: [13600] (46.8 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:46:17,048 _log_update: [13800] (47.5 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:48:05,030 _log_update: [14000] (48.1 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:49:53,021 _log_update: [14200] (48.8 %) of epoch 1 -- lr = 0.1, duration = 53.8 ms
+2017-10-21 18:51:40,994 _log_update: [14400] (49.5 %) of epoch 1 -- lr = 0.1, duration = 54.2 ms
+2017-10-21 18:52:56,435 _validate: [14534] First validation sample, perplexity 632.84.
+2017-10-21 18:53:07,214 _validate: [14537] Center of validation, perplexity 634.19.
+2017-10-21 18:53:21,233 _validate: [14540] Last validation sample, perplexity 633.25.
+2017-10-21 18:53:25,429 _set_candidate_state: New candidate for optimal state saved to /scratch/work/senarvi/theanolm-recipes/google/nnlm.h5.
+2017-10-21 18:53:25,429 _log_validation: [14540] Validation set cost history: 733.9 [632.7]
+2017-10-21 18:53:57,954 _log_update: [14600] (50.2 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:55:45,930 _log_update: [14800] (50.9 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:57:33,914 _log_update: [15000] (51.6 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 18:59:21,889 _log_update: [15200] (52.3 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:01:09,866 _log_update: [15400] (53.0 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:02:57,850 _log_update: [15600] (53.6 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:04:45,831 _log_update: [15800] (54.3 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:06:33,816 _log_update: [16000] (55.0 %) of epoch 1 -- lr = 0.1, duration = 53.8 ms
+2017-10-21 19:08:21,793 _log_update: [16200] (55.7 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:10:09,773 _log_update: [16400] (56.4 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:11:57,754 _log_update: [16600] (57.1 %) of epoch 1 -- lr = 0.1, duration = 53.8 ms
+2017-10-21 19:13:45,736 _log_update: [16800] (57.8 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:15:33,715 _log_update: [17000] (58.5 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:17:21,688 _log_update: [17200] (59.1 %) of epoch 1 -- lr = 0.1, duration = 53.8 ms
+2017-10-21 19:19:09,666 _log_update: [17400] (59.8 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:20:57,653 _log_update: [17600] (60.5 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:22:45,628 _log_update: [17800] (61.2 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:24:33,611 _log_update: [18000] (61.9 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:26:21,588 _log_update: [18200] (62.6 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:28:09,573 _log_update: [18400] (63.3 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:29:57,540 _log_update: [18600] (64.0 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:31:45,517 _log_update: [18800] (64.7 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:33:33,482 _log_update: [19000] (65.3 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:35:21,453 _log_update: [19200] (66.0 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:37:09,422 _log_update: [19400] (66.7 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:38:57,395 _log_update: [19600] (67.4 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:40:45,369 _log_update: [19800] (68.1 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:42:33,355 _log_update: [20000] (68.8 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:44:21,338 _log_update: [20200] (69.5 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:46:09,314 _log_update: [20400] (70.2 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:47:57,290 _log_update: [20600] (70.8 %) of epoch 1 -- lr = 0.1, duration = 54.0 ms
+2017-10-21 19:49:45,265 _log_update: [20800] (71.5 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:51:33,250 _log_update: [21000] (72.2 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:53:21,236 _log_update: [21200] (72.9 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:55:09,216 _log_update: [21400] (73.6 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:56:57,203 _log_update: [21600] (74.3 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:58:45,187 _log_update: [21800] (75.0 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 19:58:50,440 _validate: [21804] First validation sample, perplexity 572.00.
+2017-10-21 19:59:01,203 _validate: [21807] Center of validation, perplexity 571.47.
+2017-10-21 19:59:15,107 _validate: [21810] Last validation sample, perplexity 571.81.
+2017-10-21 19:59:18,930 _set_candidate_state: New candidate for optimal state saved to /scratch/work/senarvi/theanolm-recipes/google/nnlm.h5.
+2017-10-21 19:59:18,930 _log_validation: [21810] Validation set cost history: 733.9 632.7 [571.5]
+2017-10-21 20:01:01,646 _log_update: [22000] (75.7 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:02:49,618 _log_update: [22200] (76.3 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:04:37,607 _log_update: [22400] (77.0 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:06:25,572 _log_update: [22600] (77.7 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:08:13,555 _log_update: [22800] (78.4 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:10:01,532 _log_update: [23000] (79.1 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:11:49,508 _log_update: [23200] (79.8 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:13:37,476 _log_update: [23400] (80.5 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:15:25,470 _log_update: [23600] (81.2 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:17:13,448 _log_update: [23800] (81.8 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:19:01,416 _log_update: [24000] (82.5 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:20:49,388 _log_update: [24200] (83.2 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:22:37,366 _log_update: [24400] (83.9 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:24:25,340 _log_update: [24600] (84.6 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:26:13,323 _log_update: [24800] (85.3 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:28:01,297 _log_update: [25000] (86.0 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:29:49,270 _log_update: [25200] (86.7 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:31:37,249 _log_update: [25400] (87.3 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:33:25,222 _log_update: [25600] (88.0 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:35:13,199 _log_update: [25800] (88.7 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:37:01,178 _log_update: [26000] (89.4 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:38:49,161 _log_update: [26200] (90.1 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:40:37,142 _log_update: [26400] (90.8 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:42:25,119 _log_update: [26600] (91.5 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:44:13,098 _log_update: [26800] (92.2 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:46:01,015 _log_update: [27000] (92.9 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:47:48,937 _log_update: [27200] (93.5 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:49:36,845 _log_update: [27400] (94.2 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:51:24,753 _log_update: [27600] (94.9 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:53:13,041 _log_update: [27800] (95.6 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:55:00,947 _log_update: [28000] (96.3 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:56:48,856 _log_update: [28200] (97.0 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 20:58:36,767 _log_update: [28400] (97.7 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:00:24,686 _log_update: [28600] (98.4 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:02:12,591 _log_update: [28800] (99.0 %) of epoch 1 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:04:00,500 _log_update: [29000] (99.7 %) of epoch 1 -- lr = 0.1, duration = 54.0 ms
+2017-10-21 21:04:42,958 _validate: [29073] First validation sample, perplexity 527.02.
+2017-10-21 21:04:53,577 _validate: [29076] Center of validation, perplexity 526.26.
+2017-10-21 21:05:06,989 _validate: [29079] Last validation sample, perplexity 527.09.
+2017-10-21 21:05:10,942 _set_candidate_state: New candidate for optimal state saved to /scratch/work/senarvi/theanolm-recipes/google/nnlm.h5.
+2017-10-21 21:05:10,942 _log_validation: [29079] Validation set cost history: 733.9 632.7 571.5 [526.7]
+2017-10-21 21:05:11,141 _reset: Generating a random order of input lines.
+Finished training epoch 1 in 4 hours 23.7 minutes. Best validation perplexity 526.74.
+2017-10-21 21:06:16,469 _log_update: [121] (0.4 %) of epoch 2 -- lr = 0.1, duration = 53.8 ms
+2017-10-21 21:08:04,382 _log_update: [321] (1.1 %) of epoch 2 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:09:52,293 _log_update: [521] (1.8 %) of epoch 2 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:11:40,202 _log_update: [721] (2.5 %) of epoch 2 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:13:28,106 _log_update: [921] (3.2 %) of epoch 2 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:15:16,014 _log_update: [1121] (3.9 %) of epoch 2 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:17:03,933 _log_update: [1321] (4.5 %) of epoch 2 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:18:51,847 _log_update: [1521] (5.2 %) of epoch 2 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:20:39,756 _log_update: [1721] (5.9 %) of epoch 2 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:22:27,661 _log_update: [1921] (6.6 %) of epoch 2 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:24:15,571 _log_update: [2121] (7.3 %) of epoch 2 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:26:03,474 _log_update: [2321] (8.0 %) of epoch 2 -- lr = 0.1, duration = 54.0 ms
+2017-10-21 21:27:51,382 _log_update: [2521] (8.7 %) of epoch 2 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:29:39,288 _log_update: [2721] (9.4 %) of epoch 2 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:31:27,197 _log_update: [2921] (10.0 %) of epoch 2 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:33:15,110 _log_update: [3121] (10.7 %) of epoch 2 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:35:03,016 _log_update: [3321] (11.4 %) of epoch 2 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:36:50,931 _log_update: [3521] (12.1 %) of epoch 2 -- lr = 0.1, duration = 53.9 ms
+2017-10-21 21:38:38,837 _log_update: [3721] (12.8 %) of epoch 2 -- lr = 0.1, duration = 53.9 ms
