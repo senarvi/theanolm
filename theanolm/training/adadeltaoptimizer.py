@@ -40,7 +40,7 @@ class AdadeltaOptimizer(BasicOptimizer):
         for path, param in network.get_variables().items():
             self._params.add(path + '_mean_sqr_gradient',
                              numpy.zeros_like(param.get_value()))
-            self._params.add(path + '_mean_sqr_velocity',
+            self._params.add(path + '_mean_sqr_delta',
                              numpy.zeros_like(param.get_value()))
 
         # geometric rate for averaging gradients
@@ -67,25 +67,23 @@ class AdadeltaOptimizer(BasicOptimizer):
         for path, gradient in zip(self.network.get_variables(),
                                   self._gradients):
             ms_gradient_old = self._params[path + '_mean_sqr_gradient']
-            ms_gradient = \
-                self._gamma * ms_gradient_old + \
-                (1.0 - self._gamma) * tensor.sqr(gradient)
+            ms_gradient = self._gamma * ms_gradient_old + \
+                          (1.0 - self._gamma) * tensor.sqr(gradient)
             result.append((ms_gradient_old, ms_gradient))
 
-            ms_velocity_old = self._params[path + '_mean_sqr_velocity']
-            # rms_velocity quantity lags behind rms_gradient by 1 time step,
-            # due to the recurrence relationship for velocity.
+            # New delta is expressed recursively using the current RMS gradient
+            # and the old delta.
+            ms_delta_old = self._params[path + '_mean_sqr_delta']
+            rms_delta_old = tensor.sqrt(ms_delta_old + self._epsilon)
             rms_gradient = tensor.sqrt(ms_gradient + self._epsilon)
-            rms_velocity = tensor.sqrt(ms_velocity_old + self._epsilon)
-            velocity = -gradient * rms_velocity / rms_gradient
-            deltas[path] = velocity
+            deltas[path] = -gradient * rms_delta_old / rms_gradient
         self._normalize(deltas)
 
         for path, param_old in self.network.get_variables().items():
             delta = deltas[path]
-            ms_velocity_old = self._params[path + '_mean_sqr_velocity']
-            ms_velocity = self._gamma * ms_velocity_old + \
-                          (1.0 - self._gamma) * tensor.sqr(delta)
-            result.append((ms_velocity_old, ms_velocity))
+            ms_delta_old = self._params[path + '_mean_sqr_delta']
+            ms_delta = self._gamma * ms_delta_old + \
+                       (1.0 - self._gamma) * tensor.sqr(delta)
+            result.append((ms_delta_old, ms_delta))
             result.append((param_old, param_old + alpha * delta))
         return result
