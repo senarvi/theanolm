@@ -1,5 +1,5 @@
 #!/bin/bash -e
-#SBATCH --partition gpushort
+#SBATCH --partition gpu
 #SBATCH --time=4:00:00
 #SBATCH --gres=gpu:1
 #SBATCH --mem=48G
@@ -35,7 +35,7 @@ source "${script_dir}/../common/configure-theano.sh"
 # Set training parameters.
 BATCH_SIZE=16
 VOCAB_MIN_COUNT=3
-OPTIMIZATION_METHOD=adagrad
+OPTIMIZATION_METHOD=nesterov
 MAX_GRADIENT_NORM=5
 STOPPING_CRITERION=no-improvement
 VALIDATION_FREQ=4
