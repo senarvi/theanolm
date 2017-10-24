@@ -11,6 +11,7 @@ from theanolm.training.adadeltaoptimizer import AdadeltaOptimizer
 from theanolm.training.rmspropsgdoptimizer import RMSPropSGDOptimizer
 from theanolm.training.rmspropnesterovoptimizer import RMSPropNesterovOptimizer
 from theanolm.training.adamoptimizer import AdamOptimizer
+from theanolm.training.cost import CrossEntropyCost, NCECost, BlackoutCost
 
 def create_optimizer(optimization_options, *args, **kwargs):
     """Constructs one of the BasicOptimizer subclasses based on optimization

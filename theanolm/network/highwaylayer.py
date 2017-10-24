@@ -8,7 +8,7 @@ import theano.tensor as tensor
 from theanolm.network.weightfunctions import get_submatrix
 from theanolm.network.basiclayer import BasicLayer
 
-class HighwayTanhLayer(BasicLayer):
+class HighwayLayer(BasicLayer):
     """Highway Network Layer with Hyperbolic Tangent Activation
 
     R. K. Srivastava (2015)
@@ -35,7 +35,7 @@ class HighwayTanhLayer(BasicLayer):
         # carrying the input without transformation.
         self._init_weight('input/W', (input_size, output_size), scale=0.01,
                           count=2)
-        self._init_bias('input/b', output_size, [0.0, -1.0])
+        self._init_bias('input/b', output_size, [0.0, -2.0])
 
         self.output = None
 
@@ -50,6 +50,6 @@ class HighwayTanhLayer(BasicLayer):
                                          axis=2)
         preact = self._tensor_preact(layer_input, 'input')
         # normal activation (hidden state) and transform gate
-        h = tensor.tanh(get_submatrix(preact, 0, self.output_size))
+        h = self._activation(get_submatrix(preact, 0, self.output_size))
         t = tensor.nnet.sigmoid(get_submatrix(preact, 1, self.output_size))
         self.output = h * t + layer_input * (1 - t)

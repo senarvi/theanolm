@@ -12,8 +12,8 @@ import h5py
 import numpy
 import theano
 
+from theanolm.backend import IncompatibleStateError
 from theanolm.parsing import ShufflingBatchIterator, LinearBatchIterator
-from theanolm.exceptions import IncompatibleStateError, NumberError
 from theanolm.training.stoppers import create_stopper
 
 class Trainer(object):
@@ -489,10 +489,6 @@ class Trainer(object):
             return  # We don't have to validate now.
 
         perplexity = self._scorer.compute_perplexity(self._validation_iter)
-        if numpy.isnan(perplexity) or numpy.isinf(perplexity):
-            raise NumberError("Validation set perplexity computation resulted "
-                              "in a numerical error.")
-
         self._local_perplexities.append(perplexity)
         if len(self._local_perplexities) == 1:
             logging.debug("[%d] First validation sample, perplexity %.2f.",

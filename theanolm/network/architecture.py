@@ -6,7 +6,7 @@ architecture description.
 
 import os
 
-from theanolm.exceptions import IncompatibleStateError, InputError
+from theanolm.backend import IncompatibleStateError, InputError
 
 class Architecture(object):
     """Neural Network Architecture Description
@@ -101,7 +101,7 @@ class Architecture(object):
 
         for line in description_file:
             fields = line.split()
-            if not fields:
+            if not fields or fields[0][0] == '#':
                 continue
 
             if fields[0] == 'input':

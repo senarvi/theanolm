@@ -4,7 +4,7 @@
 import unittest
 import math
 
-from theanolm.probfunctions import *
+from theanolm.backend.probfunctions import *
 
 class TestProbFunctions(unittest.TestCase):
     def setUp(self):

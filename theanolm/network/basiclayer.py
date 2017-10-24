@@ -8,7 +8,7 @@ import logging
 
 import theano.tensor as tensor
 
-from theanolm import Parameters
+from theanolm.backend import Parameters, conv1d
 from theanolm.network.weightfunctions import random_matrix, matrix_from_value
 
 class BasicLayer(object, metaclass=ABCMeta):
@@ -39,25 +39,32 @@ class BasicLayer(object, metaclass=ABCMeta):
             self.output_size = \
                 sum([x.output_size for x in self._input_layers])
 
-        # Convolutional layers may produce two-dimensional output. In that case,
-        # the state matrix is four-dimensional and the size of the last
-        # dimension is self.output_depth.
-        if 'depth' in layer_options:
-            self.output_depth = int(layer_options['depth'])
+        if 'activation' in layer_options:
+            activation = layer_options['activation']
         else:
-            self.output_depth = 1
+            activation = 'tanh'
+        if activation == 'tanh':
+            self._activation = tensor.tanh
+        elif activation == 'relu':
+            self._activation = tensor.nnet.relu
+        elif activation == 'leakyrelu':
+            self._activation = lambda x: tensor.nnet.relu(x, 0.3)
+        else:
+            raise InputError("Unsupported activation function: {}"
+                             .format(activation))
 
         if 'reverse_time' in layer_options:
             self._reverse_time = bool(layer_options['reverse_time'])
         else:
             self._reverse_time = False
 
-        logging.debug("- %s name=%s inputs=[%s] size=%d depth=%d%s devices=[%s]",
+        logging.debug("- %s name=%s inputs=[%s] size=%d activation=%s%s "
+                      "devices=[%s]",
                       self.__class__.__name__,
                       self.name,
                       ', '.join([x.name for x in self._input_layers]),
                       self.output_size,
-                      self.output_depth,
+                      activation,
                       ' reverse,' if self._reverse_time else '',
                       ', '.join([str(x) for x in self._devices]))
 
@@ -152,7 +159,7 @@ class BasicLayer(object, metaclass=ABCMeta):
                        only; otherwise returns the part of the parameter that
                        resides on the given device
 
-        :rtype: TensorVariable
+        :rtype: Variable
         :returns: the corresponding tensor variable
         """
 
@@ -200,10 +207,10 @@ class BasicLayer(object, metaclass=ABCMeta):
         path = self._param_path(param_name)
         weight = random_matrix(shape, scale, count)
         if not split_to_devices:
-            self._params.add(path, random_matrix(shape, scale, count))
+            self._params.add(path, weight)
         elif (len(self._devices) == 1) and (self._devices[0] is None):
             # This layer has not been assigned to a specific device.
-            self._params.add(path, random_matrix(shape, scale, count))
+            self._params.add(path, weight)
         else:
             self._split_to_devices(path, weight, shape[-1])
 
@@ -323,26 +330,72 @@ class BasicLayer(object, metaclass=ABCMeta):
 
         ``input_matrix`` and the result normally have the shape of a mini-batch:
         the first dimension is the time step and the second dimension is the
-        sequence. The last dimension is always the data vector. The size of the
-        input data vector should equal to the first dimension of the weight
-        vector, and the second dimension of the weight vector defines the size
-        of the output data vector.
+        sequence. The last dimension is always the features. The preactivations
+        for each mini-batch element will be computed by multiplying the features
+        by the weight matrix and adding the bias. Thus the dimensionality of the
+        input features should equal to the first dimension of the weight matrix,
+        and the second dimension of the weight matrix defines the dimensionality
+        of the output features.
 
-        :type input_matrix: TensorVariable
-        :param input_matrix: the preactivations will be computed by multiplying
-                             the data vectors (the last dimension of this
-                             matrix) by the weight matrix, and adding bias
+        :type input_matrix: symbolic tensor
+        :param input_matrix: one or more sequences of features in the shape
+                             (time steps, sequences, features)
 
         :type param_name: str
         :param param_name: name of a parameter group that contains a weight
                            matrix and a bias vector
 
-        :rtype: TensorVariable
-        :returns: a matrix that has the same number of dimensions as
-                  ``input_matrix``, but the data vectors (the last dimension of
-                  this matrix) are the preactivations
+        :rtype: symbolic tensor
+        :returns: a tensor that has the same number of dimensions as
+                  ``input_matrix``, but the features (the last dimension) are
+                  the preactivations
         """
 
         weight = self._params[self._param_path(param_name) + '/W']
         bias = self._params[self._param_path(param_name) + '/b']
         return tensor.dot(input_matrix, weight) + bias
+
+    def _tensor_conv1d(self, input_matrix, param_name):
+        """Convolves ``input_matrix`` using filters and adds a bias.
+
+        ``input_matrix`` and the result normally have the shape of a mini-batch:
+        the first dimension is the time step and the second dimension is the
+        sequence. The last dimension is always the features.
+
+        The filter tensor is a stack of filters, each producing one output
+        feature. One output feature in one mini-batch location will be computed
+        by multiplying the input features in a local region by the corresponding
+        filter elements, taking the sum over the input features in the region,
+        and adding the bias. The first dimension of the filter defines the size
+        of the region, the second dimension should equal to the dimensionality
+        of the input features, and the third dimension defines the
+        dimensionality of the output features.
+
+        :type input_matrix: symbolic 3D tensor
+        :param input_matrix: one or more sequences of features in the shape
+                             (time steps, sequences, features)
+
+        :type param_name: str
+        :param param_name: name of a parameter group that contains a filter
+                           matrix and a bias vector
+
+        :rtype: symbolic 3D tensor
+        :returns: the input convolved with the filters in the shape (time steps,
+                  sequences, features)
+        """
+
+        # Permutate input dimensions from (time steps, sequences, features) to
+        # (samples, elements, features).
+        input_matrix = input_matrix.dimshuffle(1, 0, 2)
+
+        filters = self._params[self._param_path(param_name) + '/W']
+        result = conv1d(input_matrix,
+                        filters,
+                        padding='valid')
+
+        # Permutate input dimensions from (samples, elements, features) to
+        # (time steps, sequences, features).
+        result = result.dimshuffle(1, 0, 2)
+
+        result += self._params[self._param_path(param_name) + '/b']
+        return result

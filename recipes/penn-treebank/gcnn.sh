@@ -1,14 +1,26 @@
 #!/bin/bash -e
+#SBATCH --partition gpu
+#SBATCH --time=4:00:00
+#SBATCH --gres=gpu:1
+#SBATCH --mem=4G
+#SBATCH --exclude=gpu26
+
 #
 # Examples for training TheanoLM models on Penn Treebank corpus. The results (in
-# comments) have been obtained using the processed data that is distributed with
-# RNNLM basic examples. The vocabulary is 10002 words including the <s> and </s>
-# symbols. With such a small vocabulary, noise-contrastive estimation does not
-# improve training speed. Hierarchical softmax improves training speed with only
-# a small degradation in model performance.
+# the log files) have been obtained using the processed data that is distributed
+# with RNNLM basic examples. The vocabulary is 10002 words including the <s> and
+# </s> symbols. With such a small vocabulary, noise-contrastive estimation does
+# not improve training speed. Hierarchical softmax improves training speed with
+# only a small degradation in model performance.
+#
 
-script_dir=$(dirname "${0}")
-script_dir=$(readlink -e "${script_dir}")
+if [ -z "${SLURM_SUBMIT_DIR}" ]
+then
+	script_dir=$(dirname "${0}")
+	script_dir=$(readlink -e "${script_dir}")
+else
+	script_dir="${SLURM_SUBMIT_DIR}"
+fi
 arch_dir="${script_dir}/../architectures"
 
 # Load paths to the corpus files. You need to download the Penn Treebank corpus
@@ -28,11 +40,12 @@ source "${script_dir}/../common/configure-theano.sh"
 
 # Set training parameters.
 OPTIMIZATION_METHOD=adagrad
+L2_REGULARIZATION=0.00001
 MAX_GRADIENT_NORM=5
 STOPPING_CRITERION=no-improvement
 VALIDATION_FREQ=1
 PATIENCE=0
-ARCHITECTURE_FILE="${arch_dir}/word-gcnn.arch"
+ARCHITECTURE_FILE="${arch_dir}/word-gcnn-8b.arch"
 COST=cross-entropy
 LEARNING_RATE=0.1
 #DEBUG=1

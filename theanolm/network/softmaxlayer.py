@@ -4,6 +4,7 @@
 """
 
 import numpy
+import theano
 from theano import tensor
 
 from theanolm.network.samplingoutputlayer import SamplingOutputLayer
@@ -31,17 +32,14 @@ class SoftmaxLayer(SamplingOutputLayer):
             initial_bias = numpy.log(self._network.class_prior_probs + 1e-10)
             self._init_bias('input/b', output_size, initial_bias)
 
-        self._unk_id = self._network.vocabulary.word_to_id['<unk>']
+        vocabulary = self._network.vocabulary
+        self._unk_id = vocabulary.word_to_id['<unk>']
+        self._unk_class_id = vocabulary.word_id_to_class_id[self._unk_id]
 
         self.output_probs = None
         self.target_probs = None
         self.unnormalized_logprobs = None
-        self.sample = None
-        self.sample_logprobs = None
-        self.seqshared_sample = None
-        self.seqshared_sample_logprobs = None
-        self.shared_sample = None
-        self.shared_sample_logprobs = None
+        self._layer_input = None
 
     def create_structure(self):
         """Creates the symbolic graph of this layer.
@@ -68,6 +66,8 @@ class SoftmaxLayer(SamplingOutputLayer):
         # Combine the first two dimensions so that softmax is taken
         # independently for each location, over the output classes. If <unk> is
         # excluded, set those activations to -inf before normalization.
+        # NOTE: We're checking the class ID so this will fail if there are other
+        # words in the same class with <unk> word!
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
         preact = preact.reshape([num_time_steps * num_sequences,
@@ -75,7 +75,7 @@ class SoftmaxLayer(SamplingOutputLayer):
         if self._network.exclude_unk:
             float_type = numpy.dtype(theano.config.floatX).type
             log_zero = float_type('-inf')
-            preact = tensor.set_subtensor(output_prob[:, self._unk_id],
+            preact = tensor.set_subtensor(preact[:, self._unk_class_id],
                                           log_zero)
         output_probs = tensor.nnet.softmax(preact)
 
@@ -92,12 +92,8 @@ class SoftmaxLayer(SamplingOutputLayer):
         self.target_probs = target_probs.reshape([num_time_steps,
                                                   num_sequences])
 
-        # Compute unnormalized output and noise samples for NCE.
+        # Define layer input and unnormalized logprobs for computing
+        # sampling-based costs.
+        self._layer_input = layer_input
         self.unnormalized_logprobs = \
-            self._get_unnormalized_logprobs(layer_input)
-        self.sample, self.sample_logprobs = \
-            self._get_sample_tensors(layer_input)
-        self.seqshared_sample, self.seqshared_sample_logprobs = \
-            self._get_seqshared_sample_tensors(layer_input)
-        self.shared_sample, self.shared_sample_logprobs = \
-            self._get_shared_sample_tensors(layer_input)
+            self._get_unnormalized_logprobs()

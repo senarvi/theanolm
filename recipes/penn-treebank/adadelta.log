@@ -1,0 +1,327 @@
+/l/senarvi/theanolm-recipes/penn-treebank/nnlm.vocab
+THEANO_FLAGS=floatX=float32,device=cuda0,optimizer_excluding=local_gpua_multinomial_wor
+Context None device="Quadro K2000" ID="0000:01:00.0"
+Reading vocabulary from /l/senarvi/theanolm-recipes/penn-treebank/nnlm.vocab.
+Computing unigram probabilities for out-of-shortlist words.
+Number of words in vocabulary: 10001
+Number of words in shortlist: 10001
+Number of word classes: 10001
+2017-10-23 13:13:46,754 train: TRAINING OPTIONS
+2017-10-23 13:13:46,754 train: validation_frequency: 1
+2017-10-23 13:13:46,754 train: batch_size: 32
+2017-10-23 13:13:46,754 train: sequence_length: 25
+2017-10-23 13:13:46,754 train: min_epochs: 1
+2017-10-23 13:13:46,754 train: max_epochs: 15
+2017-10-23 13:13:46,754 train: stopping_criterion: no-improvement
+2017-10-23 13:13:46,754 train: patience: 0
+2017-10-23 13:13:46,754 train: max_annealing_count: 0
+2017-10-23 13:13:46,754 train: OPTIMIZATION OPTIONS
+2017-10-23 13:13:46,754 train: sqr_gradient_decay_rate: 0.999
+2017-10-23 13:13:46,755 train: weights: [ 1.]
+2017-10-23 13:13:46,755 train: learning_rate: 1.0
+2017-10-23 13:13:46,755 train: epsilon: 1e-06
+2017-10-23 13:13:46,755 train: num_noise_samples: 1
+2017-10-23 13:13:46,755 train: max_gradient_norm: 5.0
+2017-10-23 13:13:46,755 train: momentum: 0.9
+2017-10-23 13:13:46,755 train: method: adadelta
+2017-10-23 13:13:46,755 train: noise_sharing: None
+2017-10-23 13:13:46,755 train: gradient_decay_rate: 0.9
+Creating trainer.
+Computing the number of mini-batches in training data.
+2017-10-23 13:13:48,329 __init__: One epoch of training data contains 1778 mini-batch updates.
+2017-10-23 13:13:48,330 __init__: Class unigram log probabilities are in the range [-13.786758, -2.951697].
+2017-10-23 13:13:48,331 __init__: Finding sentence start positions in /teamwork/t40511_asr/c/penn-treebank-project/ptb.train.txt.
+2017-10-23 13:13:48,354 _reset: Generating a random order of input lines.
+Building neural network.
+2017-10-23 13:13:48,374 __init__: Creating layers.
+2017-10-23 13:13:48,374 __init__: - NetworkInput name=word_input inputs=[] size=10001 activation=tanh devices=[]
+2017-10-23 13:13:48,374 __init__: - ProjectionLayer name=projection_layer inputs=[word_input] size=100 activation=tanh devices=[None]
+2017-10-23 13:13:48,415 add:      * layers/projection_layer/W size=1000100 type=float32 device=None
+2017-10-23 13:13:48,415 __init__: - LSTMLayer name=hidden_layer inputs=[projection_layer] size=256 activation=tanh devices=[None]
+2017-10-23 13:13:48,419 add:      * layers/hidden_layer/layer_input/W size=102400 type=float32 device=None
+2017-10-23 13:13:48,796 add:      * layers/hidden_layer/step_input/W size=262144 type=float32 device=None
+2017-10-23 13:13:48,797 add:      * layers/hidden_layer/layer_input/b size=1024 type=float32 device=None
+2017-10-23 13:13:48,797 __init__: - SoftmaxLayer name=output_layer inputs=[hidden_layer] size=10001 activation=tanh devices=[None]
+2017-10-23 13:13:48,901 add:      * layers/output_layer/input/W size=2560256 type=float32 device=None
+2017-10-23 13:13:48,901 add:      * layers/output_layer/input/b size=10001 type=float32 device=None
+2017-10-23 13:13:48,902 __init__: Total number of model parameters: 3935925
+Building optimizer.
+2017-10-23 13:13:52,471 add:      * layers/hidden_layer/layer_input/b_mean_sqr_gradient size=1024 type=float32 device=None
+2017-10-23 13:13:52,471 add:      * layers/hidden_layer/layer_input/b_mean_sqr_delta size=1024 type=float32 device=None
+2017-10-23 13:13:52,472 add:      * layers/hidden_layer/layer_input/W_mean_sqr_gradient size=102400 type=float32 device=None
+2017-10-23 13:13:52,472 add:      * layers/hidden_layer/layer_input/W_mean_sqr_delta size=102400 type=float32 device=None
+2017-10-23 13:13:52,474 add:      * layers/projection_layer/W_mean_sqr_gradient size=1000100 type=float32 device=None
+2017-10-23 13:13:52,476 add:      * layers/projection_layer/W_mean_sqr_delta size=1000100 type=float32 device=None
+2017-10-23 13:13:52,476 add:      * layers/hidden_layer/step_input/W_mean_sqr_gradient size=262144 type=float32 device=None
+2017-10-23 13:13:52,477 add:      * layers/hidden_layer/step_input/W_mean_sqr_delta size=262144 type=float32 device=None
+2017-10-23 13:13:52,477 add:      * layers/output_layer/input/b_mean_sqr_gradient size=10001 type=float32 device=None
+2017-10-23 13:13:52,478 add:      * layers/output_layer/input/b_mean_sqr_delta size=10001 type=float32 device=None
+2017-10-23 13:13:52,483 add:      * layers/output_layer/input/W_mean_sqr_gradient size=2560256 type=float32 device=None
+2017-10-23 13:13:52,487 add:      * layers/output_layer/input/W_mean_sqr_delta size=2560256 type=float32 device=None
+Building text scorer for cross-validation.
+Validation text: /teamwork/t40511_asr/c/penn-treebank-project/ptb.valid.txt
+Training neural network.
+2017-10-23 13:14:39,257 _log_update: [200] (11.2 %) of epoch 1 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:15:04,779 _log_update: [400] (22.5 %) of epoch 1 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:15:30,278 _log_update: [600] (33.7 %) of epoch 1 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:15:55,826 _log_update: [800] (45.0 %) of epoch 1 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:16:21,397 _log_update: [1000] (56.2 %) of epoch 1 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:16:46,985 _log_update: [1200] (67.5 %) of epoch 1 -- lr = 1, duration = 12.8 ms
+2017-10-23 13:17:12,912 _log_update: [1400] (78.7 %) of epoch 1 -- lr = 1, duration = 13.7 ms
+2017-10-23 13:17:39,021 _log_update: [1600] (90.0 %) of epoch 1 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:18:04,793 _validate: [1772] First validation sample, perplexity 811.65.
+2017-10-23 13:18:16,202 _validate: [1775] Center of validation, perplexity 811.50.
+2017-10-23 13:18:27,709 _validate: [1778] Last validation sample, perplexity 809.81.
+2017-10-23 13:18:27,749 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-10-23 13:18:27,749 _log_validation: [1778] Validation set cost history: [811.0]
+2017-10-23 13:18:27,751 _reset: Generating a random order of input lines.
+Finished training epoch 1 in 0 hours 4.2 minutes. Best validation perplexity 810.98.
+2017-10-23 13:18:30,527 _log_update: [22] (1.2 %) of epoch 2 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:18:56,769 _log_update: [222] (12.5 %) of epoch 2 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:19:22,759 _log_update: [422] (23.7 %) of epoch 2 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:19:49,101 _log_update: [622] (35.0 %) of epoch 2 -- lr = 1, duration = 12.9 ms
+2017-10-23 13:20:17,204 _log_update: [822] (46.2 %) of epoch 2 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:20:43,079 _log_update: [1022] (57.5 %) of epoch 2 -- lr = 1, duration = 13.3 ms
+2017-10-23 13:21:08,951 _log_update: [1222] (68.7 %) of epoch 2 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:21:35,937 _log_update: [1422] (80.0 %) of epoch 2 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:22:01,569 _log_update: [1622] (91.2 %) of epoch 2 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:22:24,467 _validate: [1772] First validation sample, perplexity 733.48.
+2017-10-23 13:22:35,812 _validate: [1775] Center of validation, perplexity 733.68.
+2017-10-23 13:22:47,178 _validate: [1778] Last validation sample, perplexity 734.06.
+2017-10-23 13:22:47,202 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-10-23 13:22:47,202 _log_validation: [1778] Validation set cost history: 811.0 [733.7]
+2017-10-23 13:22:47,204 _reset: Generating a random order of input lines.
+Finished training epoch 2 in 0 hours 4.3 minutes. Best validation perplexity 733.68.
+2017-10-23 13:22:52,814 _log_update: [44] (2.5 %) of epoch 3 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:23:18,423 _log_update: [244] (13.7 %) of epoch 3 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:23:44,043 _log_update: [444] (25.0 %) of epoch 3 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:24:09,668 _log_update: [644] (36.2 %) of epoch 3 -- lr = 1, duration = 12.8 ms
+2017-10-23 13:24:35,284 _log_update: [844] (47.5 %) of epoch 3 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:25:00,887 _log_update: [1044] (58.7 %) of epoch 3 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:25:26,545 _log_update: [1244] (70.0 %) of epoch 3 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:25:52,230 _log_update: [1444] (81.2 %) of epoch 3 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:26:17,861 _log_update: [1644] (92.5 %) of epoch 3 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:26:37,979 _validate: [1772] First validation sample, perplexity 609.71.
+2017-10-23 13:26:49,318 _validate: [1775] Center of validation, perplexity 606.75.
+2017-10-23 13:27:00,697 _validate: [1778] Last validation sample, perplexity 604.30.
+2017-10-23 13:27:00,719 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-10-23 13:27:00,719 _log_validation: [1778] Validation set cost history: 811.0 733.7 [607.0]
+2017-10-23 13:27:00,721 _reset: Generating a random order of input lines.
+Finished training epoch 3 in 0 hours 4.2 minutes. Best validation perplexity 607.05.
+2017-10-23 13:27:09,112 _log_update: [66] (3.7 %) of epoch 4 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:27:34,658 _log_update: [266] (15.0 %) of epoch 4 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:28:00,242 _log_update: [466] (26.2 %) of epoch 4 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:28:25,828 _log_update: [666] (37.5 %) of epoch 4 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:28:51,966 _log_update: [866] (48.7 %) of epoch 4 -- lr = 1, duration = 13.5 ms
+2017-10-23 13:29:19,270 _log_update: [1066] (60.0 %) of epoch 4 -- lr = 1, duration = 13.6 ms
+2017-10-23 13:29:46,565 _log_update: [1266] (71.2 %) of epoch 4 -- lr = 1, duration = 13.4 ms
+2017-10-23 13:30:13,883 _log_update: [1466] (82.5 %) of epoch 4 -- lr = 1, duration = 13.6 ms
+2017-10-23 13:30:41,201 _log_update: [1666] (93.7 %) of epoch 4 -- lr = 1, duration = 13.6 ms
+2017-10-23 13:30:59,683 _validate: [1772] First validation sample, perplexity 454.41.
+2017-10-23 13:31:11,915 _validate: [1775] Center of validation, perplexity 453.13.
+2017-10-23 13:31:24,181 _validate: [1778] Last validation sample, perplexity 461.89.
+2017-10-23 13:31:24,203 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-10-23 13:31:24,204 _log_validation: [1778] Validation set cost history: 811.0 733.7 607.0 [457.3]
+2017-10-23 13:31:24,205 _reset: Generating a random order of input lines.
+Finished training epoch 4 in 0 hours 4.4 minutes. Best validation perplexity 457.31.
+2017-10-23 13:31:36,168 _log_update: [88] (4.9 %) of epoch 5 -- lr = 1, duration = 13.7 ms
+2017-10-23 13:32:04,555 _log_update: [288] (16.2 %) of epoch 5 -- lr = 1, duration = 13.6 ms
+2017-10-23 13:32:31,876 _log_update: [488] (27.4 %) of epoch 5 -- lr = 1, duration = 13.6 ms
+2017-10-23 13:32:59,188 _log_update: [688] (38.7 %) of epoch 5 -- lr = 1, duration = 13.5 ms
+2017-10-23 13:33:26,520 _log_update: [888] (49.9 %) of epoch 5 -- lr = 1, duration = 13.6 ms
+2017-10-23 13:33:53,826 _log_update: [1088] (61.2 %) of epoch 5 -- lr = 1, duration = 13.6 ms
+2017-10-23 13:34:21,152 _log_update: [1288] (72.4 %) of epoch 5 -- lr = 1, duration = 13.4 ms
+2017-10-23 13:34:48,457 _log_update: [1488] (83.7 %) of epoch 5 -- lr = 1, duration = 13.5 ms
+2017-10-23 13:35:15,785 _log_update: [1688] (94.9 %) of epoch 5 -- lr = 1, duration = 13.4 ms
+2017-10-23 13:35:31,289 _validate: [1772] First validation sample, perplexity 363.11.
+2017-10-23 13:35:43,508 _validate: [1775] Center of validation, perplexity 361.72.
+2017-10-23 13:35:55,759 _validate: [1778] Last validation sample, perplexity 367.18.
+2017-10-23 13:35:55,781 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-10-23 13:35:55,781 _log_validation: [1778] Validation set cost history: 811.0 733.7 607.0 457.3 [366.4]
+2017-10-23 13:35:55,783 _reset: Generating a random order of input lines.
+Finished training epoch 5 in 0 hours 4.5 minutes. Best validation perplexity 366.42.
+2017-10-23 13:36:10,809 _log_update: [110] (6.2 %) of epoch 6 -- lr = 1, duration = 13.5 ms
+2017-10-23 13:36:38,251 _log_update: [310] (17.4 %) of epoch 6 -- lr = 1, duration = 13.5 ms
+2017-10-23 13:37:04,406 _log_update: [510] (28.7 %) of epoch 6 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:37:30,115 _log_update: [710] (39.9 %) of epoch 6 -- lr = 1, duration = 12.8 ms
+2017-10-23 13:37:55,821 _log_update: [910] (51.2 %) of epoch 6 -- lr = 1, duration = 12.8 ms
+2017-10-23 13:38:21,540 _log_update: [1110] (62.4 %) of epoch 6 -- lr = 1, duration = 12.8 ms
+2017-10-23 13:38:47,842 _log_update: [1310] (73.7 %) of epoch 6 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:39:13,548 _log_update: [1510] (84.9 %) of epoch 6 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:39:39,698 _log_update: [1710] (96.2 %) of epoch 6 -- lr = 1, duration = 12.8 ms
+2017-10-23 13:39:51,481 _validate: [1772] First validation sample, perplexity 306.85.
+2017-10-23 13:40:03,184 _validate: [1775] Center of validation, perplexity 307.38.
+2017-10-23 13:40:14,639 _validate: [1778] Last validation sample, perplexity 306.31.
+2017-10-23 13:40:14,661 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-10-23 13:40:14,662 _log_validation: [1778] Validation set cost history: 811.0 733.7 607.0 457.3 366.4 [306.9]
+2017-10-23 13:40:14,663 _reset: Generating a random order of input lines.
+Finished training epoch 6 in 0 hours 4.3 minutes. Best validation perplexity 306.85.
+2017-10-23 13:40:31,583 _log_update: [132] (7.4 %) of epoch 7 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:40:57,319 _log_update: [332] (18.7 %) of epoch 7 -- lr = 1, duration = 12.8 ms
+2017-10-23 13:41:23,014 _log_update: [532] (29.9 %) of epoch 7 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:41:48,736 _log_update: [732] (41.2 %) of epoch 7 -- lr = 1, duration = 12.8 ms
+2017-10-23 13:42:14,475 _log_update: [932] (52.4 %) of epoch 7 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:42:40,215 _log_update: [1132] (63.7 %) of epoch 7 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:43:05,938 _log_update: [1332] (74.9 %) of epoch 7 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:43:31,685 _log_update: [1532] (86.2 %) of epoch 7 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:43:57,411 _log_update: [1732] (97.4 %) of epoch 7 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:44:06,291 _validate: [1772] First validation sample, perplexity 270.26.
+2017-10-23 13:44:17,706 _validate: [1775] Center of validation, perplexity 270.70.
+2017-10-23 13:44:29,151 _validate: [1778] Last validation sample, perplexity 269.63.
+2017-10-23 13:44:29,173 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-10-23 13:44:29,173 _log_validation: [1778] Validation set cost history: 811.0 733.7 607.0 457.3 366.4 306.9 [270.7]
+2017-10-23 13:44:29,175 _reset: Generating a random order of input lines.
+Finished training epoch 7 in 0 hours 4.2 minutes. Best validation perplexity 270.70.
+2017-10-23 13:44:48,978 _log_update: [154] (8.7 %) of epoch 8 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:45:14,713 _log_update: [354] (19.9 %) of epoch 8 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:45:40,443 _log_update: [554] (31.2 %) of epoch 8 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:46:06,190 _log_update: [754] (42.4 %) of epoch 8 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:46:31,929 _log_update: [954] (53.7 %) of epoch 8 -- lr = 1, duration = 13.0 ms
+2017-10-23 13:46:57,671 _log_update: [1154] (64.9 %) of epoch 8 -- lr = 1, duration = 12.8 ms
+2017-10-23 13:47:23,428 _log_update: [1354] (76.2 %) of epoch 8 -- lr = 1, duration = 12.8 ms
+2017-10-23 13:47:49,158 _log_update: [1554] (87.4 %) of epoch 8 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:48:14,896 _log_update: [1754] (98.7 %) of epoch 8 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:48:20,931 _validate: [1772] First validation sample, perplexity 249.38.
+2017-10-23 13:48:32,363 _validate: [1775] Center of validation, perplexity 249.15.
+2017-10-23 13:48:43,816 _validate: [1778] Last validation sample, perplexity 247.42.
+2017-10-23 13:48:43,839 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-10-23 13:48:43,839 _log_validation: [1778] Validation set cost history: 811.0 733.7 607.0 457.3 366.4 306.9 270.7 [249.4]
+2017-10-23 13:48:43,841 _reset: Generating a random order of input lines.
+Finished training epoch 8 in 0 hours 4.2 minutes. Best validation perplexity 249.38.
+2017-10-23 13:49:06,439 _log_update: [176] (9.9 %) of epoch 9 -- lr = 1, duration = 12.9 ms
+2017-10-23 13:49:32,183 _log_update: [376] (21.1 %) of epoch 9 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:49:57,909 _log_update: [576] (32.4 %) of epoch 9 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:50:23,767 _log_update: [776] (43.6 %) of epoch 9 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:50:49,486 _log_update: [976] (54.9 %) of epoch 9 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:51:15,218 _log_update: [1176] (66.1 %) of epoch 9 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:51:40,934 _log_update: [1376] (77.4 %) of epoch 9 -- lr = 1, duration = 13.0 ms
+2017-10-23 13:52:06,667 _log_update: [1576] (88.6 %) of epoch 9 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:52:35,620 _validate: [1772] First validation sample, perplexity 230.66.
+2017-10-23 13:52:47,051 _validate: [1775] Center of validation, perplexity 230.06.
+2017-10-23 13:52:47,180 _log_update: [1776] (99.9 %) of epoch 9 -- lr = 1, duration = 8.8 ms
+2017-10-23 13:52:58,508 _validate: [1778] Last validation sample, perplexity 233.82.
+2017-10-23 13:52:58,530 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-10-23 13:52:58,530 _log_validation: [1778] Validation set cost history: 811.0 733.7 607.0 457.3 366.4 306.9 270.7 249.4 [230.7]
+2017-10-23 13:52:58,532 _reset: Generating a random order of input lines.
+Finished training epoch 9 in 0 hours 4.2 minutes. Best validation perplexity 230.66.
+2017-10-23 13:53:23,889 _log_update: [198] (11.1 %) of epoch 10 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:53:49,529 _log_update: [398] (22.4 %) of epoch 10 -- lr = 1, duration = 13.1 ms
+2017-10-23 13:54:15,186 _log_update: [598] (33.6 %) of epoch 10 -- lr = 1, duration = 13.0 ms
+2017-10-23 13:54:40,860 _log_update: [798] (44.9 %) of epoch 10 -- lr = 1, duration = 12.9 ms
+2017-10-23 13:55:06,493 _log_update: [998] (56.1 %) of epoch 10 -- lr = 1, duration = 12.8 ms
+2017-10-23 13:55:32,156 _log_update: [1198] (67.4 %) of epoch 10 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:55:57,820 _log_update: [1398] (78.6 %) of epoch 10 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:56:23,470 _log_update: [1598] (89.9 %) of epoch 10 -- lr = 1, duration = 12.8 ms
+2017-10-23 13:56:49,514 _validate: [1772] First validation sample, perplexity 218.73.
+2017-10-23 13:57:00,929 _validate: [1775] Center of validation, perplexity 218.27.
+2017-10-23 13:57:12,367 _validate: [1778] Last validation sample, perplexity 219.38.
+2017-10-23 13:57:12,389 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-10-23 13:57:12,389 _log_validation: [1778] Validation set cost history: 811.0 733.7 607.0 457.3 366.4 306.9 270.7 249.4 230.7 [218.7]
+2017-10-23 13:57:12,391 _reset: Generating a random order of input lines.
+Finished training epoch 10 in 0 hours 4.2 minutes. Best validation perplexity 218.73.
+2017-10-23 13:57:14,927 _log_update: [20] (1.1 %) of epoch 11 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:57:40,613 _log_update: [220] (12.4 %) of epoch 11 -- lr = 1, duration = 12.6 ms
+2017-10-23 13:58:06,248 _log_update: [420] (23.6 %) of epoch 11 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:58:31,877 _log_update: [620] (34.9 %) of epoch 11 -- lr = 1, duration = 12.8 ms
+2017-10-23 13:58:57,541 _log_update: [820] (46.1 %) of epoch 11 -- lr = 1, duration = 12.8 ms
+2017-10-23 13:59:23,184 _log_update: [1020] (57.4 %) of epoch 11 -- lr = 1, duration = 12.7 ms
+2017-10-23 13:59:48,827 _log_update: [1220] (68.6 %) of epoch 11 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:00:14,477 _log_update: [1420] (79.9 %) of epoch 11 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:00:40,109 _log_update: [1620] (91.1 %) of epoch 11 -- lr = 1, duration = 12.6 ms
+2017-10-23 14:01:03,321 _validate: [1772] First validation sample, perplexity 209.36.
+2017-10-23 14:01:14,750 _validate: [1775] Center of validation, perplexity 210.71.
+2017-10-23 14:01:26,210 _validate: [1778] Last validation sample, perplexity 211.12.
+2017-10-23 14:01:26,232 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-10-23 14:01:26,232 _log_validation: [1778] Validation set cost history: 811.0 733.7 607.0 457.3 366.4 306.9 270.7 249.4 230.7 218.7 [210.6]
+2017-10-23 14:01:26,233 _reset: Generating a random order of input lines.
+Finished training epoch 11 in 0 hours 4.2 minutes. Best validation perplexity 210.60.
+2017-10-23 14:01:31,606 _log_update: [42] (2.4 %) of epoch 12 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:01:57,333 _log_update: [242] (13.6 %) of epoch 12 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:02:23,087 _log_update: [442] (24.9 %) of epoch 12 -- lr = 1, duration = 12.6 ms
+2017-10-23 14:02:48,811 _log_update: [642] (36.1 %) of epoch 12 -- lr = 1, duration = 12.6 ms
+2017-10-23 14:03:14,490 _log_update: [842] (47.4 %) of epoch 12 -- lr = 1, duration = 12.6 ms
+2017-10-23 14:03:40,298 _log_update: [1042] (58.6 %) of epoch 12 -- lr = 1, duration = 12.8 ms
+2017-10-23 14:04:06,055 _log_update: [1242] (69.9 %) of epoch 12 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:04:31,665 _log_update: [1442] (81.1 %) of epoch 12 -- lr = 1, duration = 12.6 ms
+2017-10-23 14:04:57,323 _log_update: [1642] (92.4 %) of epoch 12 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:05:17,711 _validate: [1772] First validation sample, perplexity 201.59.
+2017-10-23 14:05:29,063 _validate: [1775] Center of validation, perplexity 202.32.
+2017-10-23 14:05:40,415 _validate: [1778] Last validation sample, perplexity 200.18.
+2017-10-23 14:05:40,437 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-10-23 14:05:40,437 _log_validation: [1778] Validation set cost history: 811.0 733.7 607.0 457.3 366.4 306.9 270.7 249.4 230.7 218.7 210.6 [201.6]
+2017-10-23 14:05:40,438 _reset: Generating a random order of input lines.
+Finished training epoch 12 in 0 hours 4.2 minutes. Best validation perplexity 201.59.
+2017-10-23 14:05:48,615 _log_update: [64] (3.6 %) of epoch 13 -- lr = 1, duration = 13.2 ms
+2017-10-23 14:06:14,234 _log_update: [264] (14.8 %) of epoch 13 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:06:39,820 _log_update: [464] (26.1 %) of epoch 13 -- lr = 1, duration = 12.6 ms
+2017-10-23 14:07:05,435 _log_update: [664] (37.3 %) of epoch 13 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:07:31,057 _log_update: [864] (48.6 %) of epoch 13 -- lr = 1, duration = 12.6 ms
+2017-10-23 14:07:56,661 _log_update: [1064] (59.8 %) of epoch 13 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:08:22,261 _log_update: [1264] (71.1 %) of epoch 13 -- lr = 1, duration = 12.6 ms
+2017-10-23 14:08:47,898 _log_update: [1464] (82.3 %) of epoch 13 -- lr = 1, duration = 12.6 ms
+2017-10-23 14:09:13,549 _log_update: [1664] (93.6 %) of epoch 13 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:09:31,070 _validate: [1772] First validation sample, perplexity 195.21.
+2017-10-23 14:09:42,410 _validate: [1775] Center of validation, perplexity 196.30.
+2017-10-23 14:09:53,797 _validate: [1778] Last validation sample, perplexity 197.92.
+2017-10-23 14:09:53,819 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-10-23 14:09:53,819 _log_validation: [1778] Validation set cost history: 811.0 733.7 607.0 457.3 366.4 306.9 270.7 249.4 230.7 218.7 210.6 201.6 [196.3]
+2017-10-23 14:09:53,819 _reset: Generating a random order of input lines.
+Finished training epoch 13 in 0 hours 4.2 minutes. Best validation perplexity 196.30.
+2017-10-23 14:10:04,782 _log_update: [86] (4.8 %) of epoch 14 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:10:30,422 _log_update: [286] (16.1 %) of epoch 14 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:10:56,296 _log_update: [486] (27.3 %) of epoch 14 -- lr = 1, duration = 12.6 ms
+2017-10-23 14:11:21,944 _log_update: [686] (38.6 %) of epoch 14 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:11:47,787 _log_update: [886] (49.8 %) of epoch 14 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:12:13,713 _log_update: [1086] (61.1 %) of epoch 14 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:12:39,688 _log_update: [1286] (72.3 %) of epoch 14 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:13:06,103 _log_update: [1486] (83.6 %) of epoch 14 -- lr = 1, duration = 12.9 ms
+2017-10-23 14:13:31,970 _log_update: [1686] (94.8 %) of epoch 14 -- lr = 1, duration = 12.9 ms
+2017-10-23 14:13:46,849 _validate: [1772] First validation sample, perplexity 190.13.
+2017-10-23 14:13:58,403 _validate: [1775] Center of validation, perplexity 191.87.
+2017-10-23 14:14:10,464 _validate: [1778] Last validation sample, perplexity 190.01.
+2017-10-23 14:14:10,493 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-10-23 14:14:10,493 _log_validation: [1778] Validation set cost history: 811.0 733.7 607.0 457.3 366.4 306.9 270.7 249.4 230.7 218.7 210.6 201.6 196.3 [191.0]
+2017-10-23 14:14:10,494 _reset: Generating a random order of input lines.
+Finished training epoch 14 in 0 hours 4.3 minutes. Best validation perplexity 191.04.
+2017-10-23 14:14:25,139 _log_update: [108] (6.1 %) of epoch 15 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:14:51,478 _log_update: [308] (17.3 %) of epoch 15 -- lr = 1, duration = 12.8 ms
+2017-10-23 14:15:17,871 _log_update: [508] (28.6 %) of epoch 15 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:15:44,680 _log_update: [708] (39.8 %) of epoch 15 -- lr = 1, duration = 12.8 ms
+2017-10-23 14:16:10,974 _log_update: [908] (51.1 %) of epoch 15 -- lr = 1, duration = 13.0 ms
+2017-10-23 14:16:38,271 _log_update: [1108] (62.3 %) of epoch 15 -- lr = 1, duration = 15.2 ms
+2017-10-23 14:17:05,216 _log_update: [1308] (73.6 %) of epoch 15 -- lr = 1, duration = 14.7 ms
+2017-10-23 14:17:32,373 _log_update: [1508] (84.8 %) of epoch 15 -- lr = 1, duration = 13.2 ms
+2017-10-23 14:18:01,667 _log_update: [1708] (96.1 %) of epoch 15 -- lr = 1, duration = 12.7 ms
+2017-10-23 14:18:13,758 _validate: [1772] First validation sample, perplexity 186.96.
+2017-10-23 14:18:25,462 _validate: [1775] Center of validation, perplexity 185.46.
+2017-10-23 14:18:37,106 _validate: [1778] Last validation sample, perplexity 185.35.
+2017-10-23 14:18:37,128 _set_candidate_state: New candidate for optimal state saved to /l/senarvi/theanolm-recipes/penn-treebank/nnlm.h5.
+2017-10-23 14:18:37,128 _log_validation: [1778] Validation set cost history: 811.0 733.7 607.0 457.3 366.4 306.9 270.7 249.4 230.7 218.7 210.6 201.6 196.3 191.0 [185.8]
+2017-10-23 14:18:37,129 _reset: Generating a random order of input lines.
+Finished training epoch 15 in 0 hours 4.4 minutes. Best validation perplexity 185.78.
+Stopping because 15 epochs was reached.
+Training finished in 1 hours 4.4 minutes.
+2017-10-23 14:18:37,138 set_state: layers/projection_layer/W <- array(10001, 100)
+2017-10-23 14:18:37,138 set_state: layers/hidden_layer/step_input/W <- array(256, 1024)
+2017-10-23 14:18:37,139 set_state: layers/hidden_layer/layer_input/W <- array(100, 1024)
+2017-10-23 14:18:37,139 set_state: layers/hidden_layer/layer_input/b <- array(1024,)
+2017-10-23 14:18:37,140 set_state: layers/output_layer/input/b <- array(10001,)
+2017-10-23 14:18:37,143 set_state: layers/output_layer/input/W <- array(256, 10001)
+Best validation set perplexity: 185.46337442
+train finished.
+Computing evaluation set perplexity.
+Reading vocabulary from network state.
+Number of words in vocabulary: 10001
+Number of words in shortlist: 10001
+Number of word classes: 10001
+Building neural network.
+Restoring neural network state.
+Building text scorer.
+Number of sentences: 3761
+Number of words: 86191
+Number of tokens: 86191
+Number of predicted probabilities: 82430
+Number of excluded (OOV) words: 0
+Number of zero probabilities: 0
+Cross entropy (base e): 5.049837258589273
+Perplexity: 155.99707523641655

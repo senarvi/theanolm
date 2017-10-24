@@ -4,6 +4,7 @@
 import unittest
 import os
 
+import theano
 import numpy
 
 from wordclasses import TheanoBigramOptimizer, NumpyBigramOptimizer
@@ -12,6 +13,8 @@ from theanolm.vocabulary import compute_word_counts, BigramStatistics
 
 class TestBigramOptimizer(unittest.TestCase):
     def setUp(self):
+        theano.config.compute_test_value = 'warn'
+
         script_path = os.path.dirname(os.path.realpath(__file__))
         sentences_path = os.path.join(script_path, 'sentences.txt')
         self.sentences_file = open(sentences_path)

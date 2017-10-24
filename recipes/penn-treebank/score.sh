@@ -1,6 +1,8 @@
 #!/bin/bash -e
+
 #
 # An example script for scoring text using a TheanoLM model.
+#
 
 script_dir=$(dirname "${0}")
 script_dir=$(readlink -e "${script_dir}")

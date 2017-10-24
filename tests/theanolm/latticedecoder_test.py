@@ -16,6 +16,10 @@ from theanolm.scoring import LatticeDecoder, SLFLattice
 from theanolm.scoring.lattice import Lattice
 
 class DummyNetwork(object):
+    """A dummy network for testing the lattice decoder that always outputs
+    projection of input word + projection of output word.
+    """
+
     def __init__(self, vocabulary, projection_vector):
         self.vocabulary = vocabulary
         self.input_word_ids = tensor.matrix('input_word_ids', dtype='int64')
@@ -78,12 +82,28 @@ class TestLatticeDecoder(unittest.TestCase):
 
         vocabulary_path = os.path.join(script_path, 'vocabulary.txt')
         with open(vocabulary_path) as vocabulary_file:
-            self.vocabulary = Vocabulary.from_file(vocabulary_file, 'words')
+            self.vocabulary = Vocabulary.from_file(vocabulary_file, 'words',
+                                                   oos_words=['oos1', 'oos2'])
+        self.vocabulary.compute_probs({'yksi': 1,
+                                       'kaksi': 1,
+                                       'kolme': 1,
+                                       'neljä': 1,
+                                       'viisi': 1,
+                                       'kuusi': 1,
+                                       'seitsemän': 1,
+                                       'kahdeksan': 1,
+                                       'yhdeksän': 1,
+                                       'kymmenen': 1,
+                                       'oos1': 1,
+                                       'oos2': 2})
 
         self.sos_id = self.vocabulary.word_to_id['<s>']
         self.yksi_id = self.vocabulary.word_to_id['yksi']
         self.kaksi_id = self.vocabulary.word_to_id['kaksi']
         self.eos_id = self.vocabulary.word_to_id['</s>']
+        self.unk_id = self.vocabulary.word_to_id['<unk>']
+        self.oos1_id = self.vocabulary.word_to_id['oos1']
+        self.oos2_id = self.vocabulary.word_to_id['oos2']
 
         projection_vector = tensor.zeros(
             shape=(self.vocabulary.num_shortlist_words(),),
@@ -100,6 +120,9 @@ class TestLatticeDecoder(unittest.TestCase):
         self.eos_prob = 0.4
         projection_vector = tensor.set_subtensor(
             projection_vector[self.eos_id], self.eos_prob)
+        self.unk_prob = 0.3
+        projection_vector = tensor.set_subtensor(
+            projection_vector[self.unk_id], self.unk_prob)
         self.network = DummyNetwork(self.vocabulary, projection_vector)
 
         lattice_path = os.path.join(script_path, 'lattice.slf')
@@ -179,8 +202,9 @@ class TestLatticeDecoder(unittest.TestCase):
             'nnlm_weight': 1.0,
             'lm_scale': 1.0,
             'wi_penalty': 0.0,
-            'ignore_unk': False,
             'unk_penalty': 0.0,
+            'use_shortlist': False,
+            'unk_from_lattice': False,
             'linear_interpolation': False,
             'max_tokens_per_node': 10,
             'beam': None,
@@ -224,6 +248,24 @@ class TestLatticeDecoder(unittest.TestCase):
         token2.recompute_total(1.0, lm_scale, -0.01)
         self.assertAlmostEqual(token1.total_logprob, token1_nn_lm_logprob * lm_scale - 0.02)
         self.assertAlmostEqual(token2.total_logprob, token2_nn_lm_logprob * lm_scale - 0.03)
+
+        decoding_options['use_shortlist'] = True
+        decoder = LatticeDecoder(self.network, decoding_options)
+        decoder._append_word([token1, token2], self.oos1_id)
+        self.assertSequenceEqual(token1.history, [self.sos_id, self.kaksi_id, self.eos_id, self.oos1_id])
+        self.assertSequenceEqual(token2.history, [self.sos_id, self.yksi_id, self.kaksi_id, self.eos_id, self.oos1_id])
+        token1_nn_lm_logprob += math.log((self.eos_prob + self.unk_prob) / 3)
+        token2_nn_lm_logprob += math.log((self.eos_prob + self.unk_prob) / 3)
+        self.assertAlmostEqual(token1.nn_lm_logprob, token1_nn_lm_logprob)
+        self.assertAlmostEqual(token2.nn_lm_logprob, token2_nn_lm_logprob)
+
+        decoder._append_word([token1, token2], self.oos2_id)
+        self.assertSequenceEqual(token1.history, [self.sos_id, self.kaksi_id, self.eos_id, self.oos1_id, self.oos2_id])
+        self.assertSequenceEqual(token2.history, [self.sos_id, self.yksi_id, self.kaksi_id, self.eos_id, self.oos1_id, self.oos2_id])
+        token1_nn_lm_logprob += math.log((self.unk_prob + self.unk_prob) / 3 * 2)
+        token2_nn_lm_logprob += math.log((self.unk_prob + self.unk_prob) / 3 * 2)
+        self.assertAlmostEqual(token1.nn_lm_logprob, token1_nn_lm_logprob)
+        self.assertAlmostEqual(token2.nn_lm_logprob, token2_nn_lm_logprob)
 
     def test_prune(self):
         # token recombination
@@ -314,8 +356,9 @@ class TestLatticeDecoder(unittest.TestCase):
             'nnlm_weight': 0.0,
             'lm_scale': None,
             'wi_penalty': None,
-            'ignore_unk': False,
             'unk_penalty': None,
+            'use_shortlist': False,
+            'unk_from_lattice': False,
             'linear_interpolation': True,
             'max_tokens_per_node': None,
             'beam': None,

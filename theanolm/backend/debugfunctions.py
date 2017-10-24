@@ -12,10 +12,10 @@ def print_tensor(message, variable):
     :type message: str
     :param message: message, typically the variable name
 
-    :type variable: TensorVariable
+    :type variable: Variable
     :param variable: any tensor variable to be printed
 
-    :rtype: TensorVariable
+    :rtype: Variable
     :returns: a tensor variable to be used further down the graph in place of
               ``variable``
     """
@@ -27,7 +27,7 @@ def assert_tensor_eq(result, name1, name2, variable1, variable2):
     """A small helper function that makes it a little bit easier to assert that
     two Theano variables are equal.
 
-    :type result: TensorVariable
+    :type result: Variable
     :param result: what the result of the operation should be
 
     :type name1: str
@@ -36,13 +36,13 @@ def assert_tensor_eq(result, name1, name2, variable1, variable2):
     :type name2: str
     :param name2: name of the second variable
 
-    :type variable1: TensorVariable
+    :type variable1: Variable
     :param variable1: the first variable
 
-    :type variable2: TensorVariable
+    :type variable2: Variable
     :param variable2: the second variable
 
-    :rtype: TensorVariable
+    :rtype: Variable
     :returns: a tensor variable that returns the same value as ``result``, and
               asserts that ``variable1`` equals to ``variable2``
     """

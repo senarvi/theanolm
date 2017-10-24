@@ -10,7 +10,7 @@ import h5py
 import theano
 
 from theanolm import Vocabulary, Architecture, Network, TextSampler
-from theanolm.filetypes import TextFileType
+from theanolm.backend import TextFileType
 
 def add_arguments(parser):
     """Specifies the command line arguments supported by the "theanolm sample"

@@ -21,6 +21,8 @@ select_vocabulary () {
 		cat "${TRAIN_FILES[@]}" |
 		  ngram-count -order 1 -text - -no-sos -no-eos -write-vocab - |
 		  egrep -v '^(<unk>|<s>|</s>|-pau-)' |
+		  sort -s -g -k 2,2 -r |
+		  cut -f 1 |
 		  sort \
 		  >"${vocab_file}"
 	fi
@@ -105,7 +107,8 @@ train () {
 	local gradient_decay_rate="${GRADIENT_DECAY_RATE:-0.9}"
 	local epsilon="${EPSILON:-1e-6}"
         local num_noise_samples="${NUM_NOISE_SAMPLES:-1}"
-        local noise_dampening="${NOISE_DAMPENING:-0.75}"
+        local noise_distribution="${NOISE_DISTRIBUTION:-unigram}"
+        local noise_dampening="${NOISE_DAMPENING:-0.5}"
 	local validation_freq="${VALIDATION_FREQ:-8}"
 	local patience="${PATIENCE:-4}"
 
@@ -123,6 +126,8 @@ train () {
 		export CUDA_LAUNCH_BLOCKING=1
 	fi
 	[ -n "${ARCHITECTURE_FILE}" ] && extra_args+=(--architecture "${ARCHITECTURE_FILE}")
+	[ -n "${L1_REGULARIZATION}" ] && extra_args+=(--l1-regularization "${L1_REGULARIZATION}")
+	[ -n "${L2_REGULARIZATION}" ] && extra_args+=(--l2-regularization "${L2_REGULARIZATION}")
 	[ -n "${NOISE_SHARING}" ] && extra_args+=(--noise-sharing "${NOISE_SHARING}")
 	[ -n "${DEVEL_FILE}" ] && extra_args+=(--validation-file "${DEVEL_FILE}")
 
@@ -163,6 +168,7 @@ train () {
 	  --gradient-decay-rate "${gradient_decay_rate}" \
 	  --numerical-stability-term "${epsilon}" \
 	  --num-noise-samples "${num_noise_samples}" \
+	  --noise-distribution "${noise_distribution}" \
 	  --noise-dampening "${noise_dampening}" \
 	  --validation-frequency "${validation_freq}" \
 	  --patience "${patience}" \

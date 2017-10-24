@@ -6,7 +6,7 @@
 import numpy
 import theano.tensor as tensor
 
-from theanolm import Parameters
+from theanolm.backend import Parameters
 from theanolm.training.basicoptimizer import BasicOptimizer
 
 class AdadeltaOptimizer(BasicOptimizer):
@@ -38,11 +38,9 @@ class AdadeltaOptimizer(BasicOptimizer):
 
         self._params = Parameters()
         for path, param in network.get_variables().items():
-            self._params.add(path + '_gradient',
-                             numpy.zeros_like(param.get_value()))
             self._params.add(path + '_mean_sqr_gradient',
                              numpy.zeros_like(param.get_value()))
-            self._params.add(path + '_mean_sqr_velocity',
+            self._params.add(path + '_mean_sqr_delta',
                              numpy.zeros_like(param.get_value()))
 
         # geometric rate for averaging gradients
@@ -53,40 +51,39 @@ class AdadeltaOptimizer(BasicOptimizer):
 
         super().__init__(optimization_options, network, *args, **kwargs)
 
-    def _gradient_update_exprs(self):
-        result = []
-        for path, gradient_new in zip(self.network.get_variables(),
-                                      self._gradient_exprs):
-            gradient = self._params[path + '_gradient']
-            ms_gradient = self._params[path + '_mean_sqr_gradient']
-            ms_gradient_new = \
-                self._gamma * ms_gradient + \
-                (1.0 - self._gamma) * tensor.sqr(gradient_new)
-            result.append((gradient, gradient_new))
-            result.append((ms_gradient, ms_gradient_new))
-        return result
+    def _get_param_updates(self, alpha):
+        """Returns Theano expressions for updating the model parameters and any
+        additional parameters required by the optimizer.
 
-    def _model_update_exprs(self, alpha):
-        updates = dict()
-        for path, param in self.network.get_variables().items():
-            gradient = self._params[path + '_gradient']
-            ms_gradient = self._params[path + '_mean_sqr_gradient']
-            ms_velocity = self._params[path + '_mean_sqr_velocity']
-            # rms_velocity quantity lags behind rms_gradient by 1 time step,
-            # due to the recurrence relationship for velocity.
+        :type alpha: Variable
+        :param alpha: a scale to be applied to the model parameter updates
+
+        :rtype: iterable over pairs (shared variable, new expression)
+        :returns: expressions how to update the optimizer parameters
+        """
+
+        result = []
+        deltas = dict()
+        for path, gradient in zip(self.network.get_variables(),
+                                  self._gradients):
+            ms_gradient_old = self._params[path + '_mean_sqr_gradient']
+            ms_gradient = self._gamma * ms_gradient_old + \
+                          (1.0 - self._gamma) * tensor.sqr(gradient)
+            result.append((ms_gradient_old, ms_gradient))
+
+            # New delta is expressed recursively using the current RMS gradient
+            # and the old delta.
+            ms_delta_old = self._params[path + '_mean_sqr_delta']
+            rms_delta_old = tensor.sqrt(ms_delta_old + self._epsilon)
             rms_gradient = tensor.sqrt(ms_gradient + self._epsilon)
-            rms_velocity = tensor.sqrt(ms_velocity + self._epsilon)
-            velocity = -gradient * rms_velocity / rms_gradient
-            updates[path] = velocity
-        self._normalize(updates)
+            deltas[path] = -gradient * rms_delta_old / rms_gradient
+        self._normalize(deltas)
 
-        result = []
-        for path, param in self.network.get_variables().items():
-            update = updates[path]
-            ms_velocity = self._params[path + '_mean_sqr_velocity']
-            ms_velocity_new = self._gamma * ms_velocity + \
-                              (1.0 - self._gamma) * tensor.sqr(update)
-            param_new = param + alpha * update
-            result.append((ms_velocity, ms_velocity_new))
-            result.append((param, param_new))
+        for path, param_old in self.network.get_variables().items():
+            delta = deltas[path]
+            ms_delta_old = self._params[path + '_mean_sqr_delta']
+            ms_delta = self._gamma * ms_delta_old + \
+                       (1.0 - self._gamma) * tensor.sqr(delta)
+            result.append((ms_delta_old, ms_delta))
+            result.append((param_old, param_old + alpha * delta))
         return result

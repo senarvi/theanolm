@@ -14,20 +14,24 @@ import theano.tensor as tensor
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 from theanolm import Vocabulary
-from theanolm.exceptions import IncompatibleStateError, InputError
+from theanolm.backend import IncompatibleStateError, InputError
+from theanolm.backend import UniformDistribution, LogUniformDistribution
+from theanolm.backend import MultinomialDistribution
+from theanolm.backend import test_value
 from theanolm.network.architecture import Architecture
 from theanolm.network.networkinput import NetworkInput
 from theanolm.network.projectionlayer import ProjectionLayer
-from theanolm.network.tanhlayer import TanhLayer
+from theanolm.network.fullyconnectedlayer import FullyConnectedLayer
+from theanolm.network.additionlayer import AdditionLayer
 from theanolm.network.grulayer import GRULayer
 from theanolm.network.lstmlayer import LSTMLayer
-from theanolm.network.highwaytanhlayer import HighwayTanhLayer
+from theanolm.network.highwaylayer import HighwayLayer
 from theanolm.network.glulayer import GLULayer
 from theanolm.network.softmaxlayer import SoftmaxLayer
 from theanolm.network.hsoftmaxlayer import HSoftmaxLayer
 from theanolm.network.dropoutlayer import DropoutLayer
 from theanolm.network.bidirectionallayer import BidirectionalLayer
-from theanolm.matrixfunctions import test_value
+from theanolm.network.samplingoutputlayer import SamplingOutputLayer
 
 def create_layer(layer_options, *args, **kwargs):
     """Constructs one of the Layer classes based on a layer definition.
@@ -39,16 +43,18 @@ def create_layer(layer_options, *args, **kwargs):
     layer_type = layer_options['type']
     if layer_type == 'projection':
         return ProjectionLayer(layer_options, *args, **kwargs)
-    elif layer_type == 'tanh':
-        return TanhLayer(layer_options, *args, **kwargs)
+    elif layer_type == 'fc' or layer_type == 'tanh':
+        return FullyConnectedLayer(layer_options, *args, **kwargs)
+    elif layer_type == 'add':
+        return AdditionLayer(layer_options, *args, **kwargs)
     elif layer_type == 'lstm':
         return LSTMLayer(layer_options, *args, **kwargs)
     elif layer_type == 'gru':
         return GRULayer(layer_options, *args, **kwargs)
     elif layer_type == 'blstm' or layer_type == 'bgru':
         return BidirectionalLayer(layer_options, *args, **kwargs)
-    elif layer_type == 'highwaytanh':
-        return HighwayTanhLayer(layer_options, *args, **kwargs)
+    elif layer_type == 'highway' or layer_type == 'highwaytanh':
+        return HighwayLayer(layer_options, *args, **kwargs)
     elif layer_type == 'glu':
         return GLULayer(layer_options, *args, **kwargs)
     elif layer_type == 'softmax':
@@ -84,18 +90,10 @@ class Network(object):
             self.nce = nce
 
     def __init__(self, architecture, vocabulary, class_prior_probs=None,
-                 noise_dampening=1.0, mode=None, exclude_unk=False,
-                 default_device=None, profile=False):
+                 mode=None, exclude_unk=False, default_device=None,
+                 profile=False):
         """Initializes the neural network parameters for all layers, and
         creates Theano shared variables from them.
-
-        When using a sampling based output layer, it needs to know the prior
-        distribution of the classes, and how many noise classes to sample. The
-        number of noise classes per training word is controlled by the
-        ``num_noise_samples`` tensor variable. The prior distribution is a
-        shared variable, so that we don't have to pass the vector to every call
-        of a Theano function. The constructor initializes it using
-        ``class_prior_probs`` and ``noise_dampening``.
 
         :type architecture: Architecture
         :param architecture: an object that describes the network architecture
@@ -107,16 +105,14 @@ class Network(object):
         :param class_prior_probs: empirical (unigram) distribution of the output
                                   classes (only required for training)
 
-        :type noise_dampening: float
-        :param noise_dampening: exponent to which the unigram distribution is
-                                raised before sampling noise samples
-
         :type mode: Network.Mode
         :param mode: selects mini-batch or single time step processing
 
         :type exclude_unk: bool
-        :param exclude_unk: if set to ``True``, sets ``<unk>`` probability to
-                            zero.
+        :param exclude_unk: if set to ``True``, set ``<unk>`` probability to
+                            zero before normalizing the network outputs
+                            (required to get exact normalization during
+                            inference)
 
         :type default_device: str
         :param default_device: default device where to store the shared variables
@@ -160,6 +156,9 @@ class Network(object):
         # case OOVs are not counted when computing perplexity.
         self.exclude_unk = exclude_unk
 
+        # Default device for shared variables.
+        self._default_device = default_device
+
         # During training, the output layer bias vector is initialized to the
         # unigram probabilities.
         self.class_prior_probs = class_prior_probs
@@ -199,7 +198,7 @@ class Network(object):
             self.layers[layer.name] = layer
         self.output_layer = self.layers[architecture.output_layer]
         num_params = sum(layer.num_params() for layer in self.layers.values())
-        logging.debug("Total number of parameters: %d", num_params)
+        logging.debug("Total number of model parameters: %d", num_params)
 
         # This list will be filled by the recurrent layers to contain the
         # recurrent state outputs, for doing forward passes one step at a time.
@@ -244,24 +243,7 @@ class Network(object):
         self.num_noise_samples = tensor.scalar('network/num_noise_samples',
                                                dtype='int64')
         self.num_noise_samples.tag.test_value = 3
-
-        # Sampling based methods use this noise distribution, if it's set.
-        # Otherwise noise is sampled from uniform distribution.
-        if (class_prior_probs is None) or (noise_dampening == 0.0):
-            # Use uniform() for sampling based training.
-            self.noise_probs = None
-        else:
-            noise_probs = numpy.power(class_prior_probs, noise_dampening)
-            noise_probs /= noise_probs.sum()
-            if default_device is None:
-                self.noise_probs = \
-                    theano.shared(noise_probs.astype(theano.config.floatX),
-                                  'network/noise_probs')
-            else:
-                self.noise_probs = \
-                    theano.shared(noise_probs.astype(theano.config.floatX),
-                                  'network/noise_probs',
-                                  target=default_device)
+        self.noise_distribution = None
 
         for layer in self.layers.values():
             layer.create_structure()
@@ -277,8 +259,10 @@ class Network(object):
         :param mode: selects mini-batch or single time step processing
 
         :type exclude_unk: bool
-        :param exclude_unk: if set to ``True``, sets ``<unk>`` probability to
-                            zero.
+        :param exclude_unk: if set to ``True``, set ``<unk>`` probability to
+                            zero before normalizing the network outputs
+                            (required to get exact normalization during
+                            inference)
         """
 
         with h5py.File(model_path, 'r') as state:
@@ -295,6 +279,74 @@ class Network(object):
             logging.info("Restoring neural network state.")
             result.set_state(state)
             return result
+
+    def set_sampling(self, type, dampening, sharing):
+        """Defines sampling of noise words for sampling-based output.
+
+        When using a sampling based output layer, it needs to know the prior
+        distribution of the classes, and how many words to sample. The number of
+        noise classes per training word is controlled by the
+        ``num_noise_samples`` tensor variable. The type of the prior
+        distribution is defined by the ``type`` argument. If it is 'unigram',
+        the unigram distribution of the classes in the training data is raised
+        to the power of ``dampening`` and saved in a shared variable, so that we
+        don't have to transfer the vector on every call of a Theano function.
+
+        :type type: str
+        :param type: either 'uniform', 'log-uniform' (logarithm of the samples
+                     is uniformly distributed), or 'unigram' (unigram
+                     distribution of the words raised to the power of
+                     ``dampening``)
+
+        :type dampening: float
+        :param dampening: exponent to which unigram distribution is raised,
+                          effectively dampening it
+
+        :type sharing: str
+        :param sharing: either ``None`` for k samples per mini-batch element,
+                        'seq' for k samples per time step, or 'batch' for k
+                        samples in total
+        """
+
+        output_layer = self.output_layer
+
+        if (type == 'uniform') or ((type == 'unigram') and (dampening == 0.0)):
+            distribution = UniformDistribution(self.random,
+                                               self.vocabulary.num_classes())
+        elif type == 'log-uniform':
+            distribution = LogUniformDistribution(self.random,
+                                                  self.vocabulary.num_classes())
+        elif type == 'unigram':
+            probs = numpy.power(self.class_prior_probs, dampening)
+            probs /= probs.sum()
+            probs = probs.astype(theano.config.floatX)
+            if self._default_device is None:
+                probs = theano.shared(probs, 'network/noise_probs')
+            else:
+                probs = theano.shared(probs, 'network/noise_probs',
+                                      target=self._default_device)
+            distribution = MultinomialDistribution(self.random, probs)
+        else:
+            raise ValueError("Invalid noise distribution requested: `{}'"
+                             .format(type))
+
+        if not isinstance(output_layer, SamplingOutputLayer):
+            self._noise_sample = None
+            self._noise_sample_logprobs = None
+        elif sharing is None:
+            self._noise_sample, self._noise_sample_logprobs = \
+                output_layer.get_sample_tensors(distribution)
+        elif sharing == 'seq':
+            self._noise_sample, self._noise_sample_logprobs = \
+                output_layer.get_seqshared_sample_tensors(distribution)
+        elif sharing == 'batch':
+            self._noise_sample, self._noise_sample_logprobs = \
+                output_layer.get_shared_sample_tensors(distribution)
+        else:
+            raise ValueError("Unknown noise sample sharing: `{}'"
+                             .format(sharing))
+
+        self.noise_distribution = distribution
 
     def get_state(self, state):
         """Pulls parameter values from Theano shared variables.
@@ -332,14 +384,16 @@ class Network(object):
                 "with this architecture. " + str(error))
 
     def get_variables(self):
-        """Returns a dictionary of the shared variables.
+        """Returns a dictionary of the model parameters.
 
-        This function is used by the optimizers to create optimization
-        parameters that are specific to network parameters, and compute
-        gradients with regard to the parameters.
+        The returned dictionary is a mapping from path strings that identify the
+        parameters to symbolic tensors. The parameter tensors are used by
+        optimizers to compute gradients with regards to the parameters. They may
+        also be used to create optimization parameters that are specific to
+        model parameters, and compute the L1 or L2 regularization.
 
         :rtype: dict
-        :returns: mapping from parameter path to Theano shared variables
+        :returns: mapping from parameter path to symbolic tensors
         """
 
         result = dict()
@@ -378,7 +432,7 @@ class Network(object):
     def output_probs(self):
         """Returns the output probabilities for the whole vocabulary.
 
-        :rtype: TensorVariable
+        :rtype: Variable
         :returns: a symbolic 3-dimensional matrix that contains a probability
                   for each time step, each sequence, and each output class
         """
@@ -392,7 +446,7 @@ class Network(object):
 
         Can be used only when target_class_ids is given.
 
-        :rtype: TensorVariable
+        :rtype: Variable
         :returns: a symbolic 2-dimensional matrix that contains the target word
                   probability for each time step and each sequence
         """
@@ -410,7 +464,7 @@ class Network(object):
 
         Only computed when target_class_ids is given and using softmax output.
 
-        :rtype: TensorVariable
+        :rtype: Variable
         :returns: a symbolic 2-dimensional matrix that contains the unnormalized
                   target word probability for each time step and each sequence
         """
@@ -420,7 +474,7 @@ class Network(object):
                                "unnormalized probabilities are needed.")
         return self.output_layer.unnormalized_logprobs
 
-    def noise_sample(self, sharing=None):
+    def noise_sample(self):
         """Returns the classes sampled from a noise distribution, and their log
         probabilities.
 
@@ -433,33 +487,16 @@ class Network(object):
         The log probabilities are always returned in a 3-dimensional matrix, as
         they differ for each time step and sequence.
 
-        :type sharing: str
-        :param sharing: either ``None`` for k samples per mini-batch element,
-                        'seq' for k samples per time step, or 'batch' for k
-                        samples in total
-
-        :rtype: tuple of two TensorVariables
+        :rtype: tuple of two Variables
         :returns: noise class IDs and their log probabilities
         """
 
-        try:
-            if sharing is None:
-                return self.output_layer.sample, \
-                       self.output_layer.sample_logprobs
-            elif sharing == 'seq':
-                return self.output_layer.seqshared_sample, \
-                       self.output_layer.seqshared_sample_logprobs
-            elif sharing == 'batch':
-                return self.output_layer.shared_sample, \
-                       self.output_layer.shared_sample_logprobs
-            else:
-                raise ValueError("Unknown noise sample sharing: `{}'"
-                                 .format(sharing))
-        except AttributeError:
-            raise RuntimeError(
-                "Trying to read the noise sample when the final layer is not a "
-                "softmax layer, or the output layer is producing a "
-                "distribution instead of target probabilities.")
+        if (self._noise_sample is None) or \
+           (self._noise_sample_logprobs is None):
+            raise InputError(
+                "The output layer does not support sampling noise words.")
+
+        return self._noise_sample, self._noise_sample_logprobs
 
     def _layer_options_from_description(self, description):
         """Creates layer options based on textual architecture description.

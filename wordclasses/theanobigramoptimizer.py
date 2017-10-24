@@ -88,6 +88,7 @@ class TheanoBigramOptimizer(BigramOptimizer):
         """
 
         word_id = tensor.scalar('word_id', dtype=self._count_type)
+        word_id.tag.test_value = 0
 
         word_count = self._word_counts[word_id]
         class_id = self._word_to_class[word_id]
@@ -107,7 +108,10 @@ class TheanoBigramOptimizer(BigramOptimizer):
         """
 
         word_id = tensor.scalar('word_id', dtype=self._count_type)
+        word_id.tag.test_value = 0
         new_class_id = tensor.scalar('new_class_id', dtype=self._count_type)
+        new_class_id.tag.test_value = 0
+
         old_class_id = self._word_to_class[word_id]
         old_class_count = self._class_counts[old_class_id]
         new_class_count = self._class_counts[new_class_id]
@@ -201,7 +205,9 @@ class TheanoBigramOptimizer(BigramOptimizer):
 
         updates = []
         word_id = tensor.scalar('word_id', dtype=self._count_type)
+        word_id.tag.test_value = 0
         new_class_id = tensor.scalar('new_class_id', dtype=self._count_type)
+        new_class_id.tag.test_value = 0
         old_class_id = self._word_to_class[word_id]
 
         # word
@@ -289,6 +295,7 @@ class TheanoBigramOptimizer(BigramOptimizer):
         """
 
         class_id = tensor.scalar('class_id', dtype=self._count_type)
+        class_id.tag.test_value = 0
 
         result = tensor.eq(self._word_to_class, class_id).sum()
 

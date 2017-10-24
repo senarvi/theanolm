@@ -11,8 +11,8 @@ import numpy
 import theano
 
 from theanolm import Network
+from theanolm.backend import TextFileType
 from theanolm.scoring import LatticeDecoder, SLFLattice
-from theanolm.filetypes import TextFileType
 
 def add_arguments(parser):
     """Specifies the command line arguments supported by the "theanolm decode"
@@ -82,9 +82,16 @@ def add_arguments(parser):
              "lattices, since they specify their internal log base)")
     argument_group.add_argument(
         '--unk-penalty', metavar='LOGPROB', type=float, default=None,
-        help="if LOGPROB is zero, do not include <unk> tokens in perplexity "
-             "computation; otherwise use constant LOGPROB as <unk> token score "
-             "(default is to use the network to predict <unk> probability)")
+        help="use constant LOGPROB as <unk> token score (default is to use the "
+             "network to predict <unk> probability)")
+    argument_group.add_argument(
+        '--shortlist', action="store_true",
+        help='distribute <unk> token probability among the out-of-shortlist '
+             'words according to their unigram frequencies in the training '
+             'data')
+    argument_group.add_argument(
+        '--unk-from-lattice', action="store_true",
+        help='use only the probability from the lattice for <unk> tokens')
     argument_group.add_argument(
         '--linear-interpolation', action="store_true",
         help="use linear interpolation of language model probabilities, "
@@ -155,21 +162,13 @@ def decode(args):
         wi_penalty = None
     else:
         wi_penalty = args.wi_penalty * log_scale
-    if args.unk_penalty is None:
-        ignore_unk = False
-        unk_penalty = None
-    elif args.unk_penalty == 0:
-        ignore_unk = True
-        unk_penalty = None
-    else:
-        ignore_unk = False
-        unk_penalty = args.unk_penalty
     decoding_options = {
         'nnlm_weight': args.nnlm_weight,
         'lm_scale': args.lm_scale,
         'wi_penalty': wi_penalty,
-        'ignore_unk': ignore_unk,
-        'unk_penalty': unk_penalty,
+        'unk_penalty': args.unk_penalty,
+        'use_shortlist': args.shortlist,
+        'unk_from_lattice': args.unk_from_lattice,
         'linear_interpolation': args.linear_interpolation,
         'max_tokens_per_node': args.max_tokens_per_node,
         'beam': args.beam,

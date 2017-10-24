@@ -5,7 +5,7 @@
 
 import numpy
 
-from theanolm import Parameters
+from theanolm.backend import Parameters
 from theanolm.training.basicoptimizer import BasicOptimizer
 
 class SGDOptimizer(BasicOptimizer):
@@ -13,7 +13,8 @@ class SGDOptimizer(BasicOptimizer):
     """
 
     def __init__(self, optimization_options, network, *args, **kwargs):
-        """Creates a Stochastic Gradient Descent optimizer.
+        """Creates a Stochastic Gradient Descent optimizer. SGD optimizer does
+        not use additional parameters.
 
         :type optimization_options: dict
         :param optimization_options: a dictionary of optimization options
@@ -23,29 +24,28 @@ class SGDOptimizer(BasicOptimizer):
         """
 
         self._params = Parameters()
-        for path, param in network.get_variables().items():
-            self._params.add(path + '_gradient',
-                             numpy.zeros_like(param.get_value()))
 
         super().__init__(optimization_options, network, *args, **kwargs)
 
-    def _gradient_update_exprs(self):
-        result = []
-        for path, gradient_new in zip(self.network.get_variables(),
-                                      self._gradient_exprs):
-            gradient = self._params[path + '_gradient']
-            result.append((gradient, gradient_new))
-        return result
+    def _get_param_updates(self, alpha):
+        """Returns Theano expressions for updating the model parameters and any
+        additional parameters required by the optimizer.
 
-    def _model_update_exprs(self, alpha):
-        updates = dict()
-        for path, param in self.network.get_variables().items():
-            gradient = self._params[path + '_gradient']
-            updates[path] = -gradient
-        self._normalize(updates)
+        :type alpha: Variable
+        :param alpha: a scale to be applied to the model parameter updates
 
+        :rtype: iterable over pairs (shared variable, new expression)
+        :returns: expressions how to update the optimizer parameters
+        """
+
+        deltas = dict()
         result = []
-        for path, param in self.network.get_variables().items():
-            update = updates[path]
-            result.append((param, param + alpha * update))
+        for path, gradient in zip(self.network.get_variables(),
+                                  self._gradients):
+            deltas[path] = -gradient
+        self._normalize(deltas)
+
+        for path, param_old in self.network.get_variables().items():
+            delta = deltas[path]
+            result.append((param_old, param_old + alpha * delta))
         return result

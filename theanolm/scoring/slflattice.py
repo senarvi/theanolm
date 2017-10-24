@@ -8,8 +8,8 @@ from shlex import shlex
 
 import numpy
 
-from theanolm.exceptions import InputError
-from theanolm.probfunctions import logprob_type
+from theanolm.backend import InputError
+from theanolm.backend import logprob_type
 from theanolm.scoring.lattice import Lattice
 
 def _split_slf_line(line):

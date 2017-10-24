@@ -14,7 +14,7 @@ from theanolm.scoring import TextScorer
 
 class DummyNetwork(object):
     """A dummy network for testing the text scorer that always outputs
-    target_class_id / 5.0
+    target_class_id / 100.0
     """
 
     def __init__(self, vocabulary):
@@ -29,7 +29,7 @@ class DummyNetwork(object):
         self.is_training = tensor.scalar('is_training', dtype='int8')
 
     def target_probs(self):
-        return self.target_class_ids.astype('float32') / 5.0
+        return self.target_class_ids.astype('float32') / 100.0
 
 class TestTextScorer(unittest.TestCase):
     def setUp(self):
@@ -60,13 +60,13 @@ class TestTextScorer(unittest.TestCase):
         logprobs = scorer.score_batch(word_ids, class_ids, membership_probs,
                                       mask)
         assert_almost_equal(logprobs[0],
-                            numpy.log(word_ids[1:,0].astype('float32') / 5.0))
+                            numpy.log(word_ids[1:,0].astype('float32') / 100.0))
         assert_almost_equal(logprobs[1],
-                            numpy.log(word_ids[1:,1].astype('float32') / 5.0))
-        self.assertAlmostEqual(logprobs[2][0], numpy.log(11.0 / 5.0), places=5)  # </s>
-        self.assertAlmostEqual(logprobs[2][1], numpy.log(12.0 / 5.0), places=5)  # <unk>
-        self.assertAlmostEqual(logprobs[2][2], numpy.log(12.0 / 5.0), places=5)
-        self.assertAlmostEqual(logprobs[2][3], numpy.log(12.0 / 5.0), places=5)
+                            numpy.log(word_ids[1:,1].astype('float32') / 100.0))
+        self.assertAlmostEqual(logprobs[2][0], numpy.log(11.0 / 100.0), places=5)  # </s>
+        self.assertAlmostEqual(logprobs[2][1], numpy.log(12.0 / 100.0), places=5)  # <unk>
+        self.assertAlmostEqual(logprobs[2][2], numpy.log(12.0 / 100.0), places=5)
+        self.assertAlmostEqual(logprobs[2][3], numpy.log(12.0 / 100.0), places=5)
 
         # Network predicts <unk> probability. This is distributed for
         # out-of-shortlist words according to word frequency.
@@ -78,13 +78,13 @@ class TestTextScorer(unittest.TestCase):
         logprobs = scorer.score_batch(word_ids, class_ids, membership_probs,
                                       mask)
         assert_almost_equal(logprobs[0],
-                            numpy.log(word_ids[1:,0].astype('float32') / 5.0))
+                            numpy.log(word_ids[1:,0].astype('float32') / 100.0))
         assert_almost_equal(logprobs[1],
-                            numpy.log(word_ids[1:,1].astype('float32') / 5.0))
-        self.assertAlmostEqual(logprobs[2][0], numpy.log(11.0 / 5.0), places=5)  # </s>
+                            numpy.log(word_ids[1:,1].astype('float32') / 100.0))
+        self.assertAlmostEqual(logprobs[2][0], numpy.log(11.0 / 100.0), places=5)  # </s>
         self.assertIsNone(logprobs[2][1]) # <unk>
-        self.assertAlmostEqual(logprobs[2][2], numpy.log(12.0 / 5.0 * 0.3), places=5)
-        self.assertAlmostEqual(logprobs[2][3], numpy.log(12.0 / 5.0 * 0.7), places=5)
+        self.assertAlmostEqual(logprobs[2][2], numpy.log(12.0 / 100.0 * 0.3), places=5)
+        self.assertAlmostEqual(logprobs[2][3], numpy.log(12.0 / 100.0 * 0.7), places=5)
 
         # OOV and OOS words are replaced with None.
         scorer = TextScorer(self.dummy_network, use_shortlist=False,
@@ -96,10 +96,10 @@ class TestTextScorer(unittest.TestCase):
         logprobs = scorer.score_batch(word_ids, class_ids, membership_probs,
                                       mask)
         assert_almost_equal(logprobs[0],
-                            numpy.log(word_ids[1:,0].astype('float32') / 5.0))
+                            numpy.log(word_ids[1:,0].astype('float32') / 100.0))
         assert_almost_equal(logprobs[1],
-                            numpy.log(word_ids[1:,1].astype('float32') / 5.0))
-        self.assertAlmostEqual(logprobs[2][0], numpy.log(11.0 / 5.0), places=5)  # </s>
+                            numpy.log(word_ids[1:,1].astype('float32') / 100.0))
+        self.assertAlmostEqual(logprobs[2][0], numpy.log(11.0 / 100.0), places=5)  # </s>
         self.assertIsNone(logprobs[2][1]) # <unk>
         self.assertIsNone(logprobs[2][2])
         self.assertIsNone(logprobs[2][3])
@@ -112,11 +112,11 @@ class TestTextScorer(unittest.TestCase):
         membership_probs = numpy.ones_like(word_ids).astype('float32')
         logprob = scorer.score_sequence(word_ids, class_ids, membership_probs)
         correct = word_ids[1:].astype('float32')
-        correct /= 5.0
-        correct[12] = 12.0 / 5.0
-        correct[13] = 12.0 / 5.0
+        correct /= 100.0
+        correct[12] = 12.0 / 100.0
+        correct[13] = 12.0 / 100.0
         correct = numpy.log(correct).sum()
-        self.assertAlmostEqual(logprob, correct, places=5)
+        self.assertAlmostEqual(logprob, correct, places=4)
 
         # Network predicts <unk> probability. This is distributed for
         # out-of-shortlist words according to word frequency.
@@ -126,10 +126,10 @@ class TestTextScorer(unittest.TestCase):
         membership_probs = numpy.ones_like(word_ids).astype('float32')
         logprob = scorer.score_sequence(word_ids, class_ids, membership_probs)
         correct = word_ids[1:].astype('float32')
-        correct /= 5.0
+        correct /= 100.0
         correct[11] = 1.0 # <unk> is ignored
-        correct[12] = 12.0 / 5.0 * 0.3
-        correct[13] = 12.0 / 5.0 * 0.7
+        correct[12] = 12.0 / 100.0 * 0.3
+        correct[13] = 12.0 / 100.0 * 0.7
         correct = numpy.log(correct).sum()
         self.assertAlmostEqual(logprob, correct, places=5)
 
@@ -141,7 +141,7 @@ class TestTextScorer(unittest.TestCase):
         membership_probs = numpy.ones_like(word_ids).astype('float32')
         logprob = scorer.score_sequence(word_ids, class_ids, membership_probs)
         correct = word_ids[1:12].astype('float32')
-        correct /= 5.0
+        correct /= 100.0
         correct = numpy.log(correct).sum()
         self.assertAlmostEqual(logprob, correct, places=5)
 

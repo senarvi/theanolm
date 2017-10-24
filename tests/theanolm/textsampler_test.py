@@ -4,6 +4,8 @@
 import unittest
 import os
 
+import numpy
+import theano
 from theano import tensor
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
@@ -12,11 +14,22 @@ from theanolm import Vocabulary, TextSampler
 class DummyNetwork(object):
     def __init__(self, vocabulary):
         self.vocabulary = vocabulary
+
         self.input_word_ids = tensor.matrix('input_word_ids', dtype='int64')
+        self.input_word_ids.tag.test_value = numpy.zeros((1, 4), dtype='int64')
+
         self.input_class_ids = tensor.matrix('input_class_ids', dtype='int64')
+        self.input_class_ids.tag.test_value = numpy.zeros((1, 4), dtype='int64')
+
         self.target_class_ids = tensor.matrix('target_class_ids', dtype='int64')
+        self.target_class_ids.tag.test_value = numpy.zeros((1, 4), dtype='int64')
+
         self.mask = tensor.matrix('mask', dtype='int64')
+        self.mask.tag.test_value = numpy.zeros((1, 4), dtype='int64')
+
         self.is_training = tensor.scalar('is_training', dtype='int8')
+        self.is_training.tag.test_value = 1
+
         self.recurrent_state_input = []
         self.recurrent_state_output = []
         self.recurrent_state_size = []
@@ -49,6 +62,8 @@ class DummyNetwork(object):
 
 class TestTextSampler(unittest.TestCase):
     def setUp(self):
+        theano.config.compute_test_value = 'warn'
+
         script_path = os.path.dirname(os.path.realpath(__file__))
         vocabulary_path = os.path.join(script_path, 'vocabulary.txt')
         with open(vocabulary_path) as vocabulary_file:

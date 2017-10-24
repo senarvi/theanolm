@@ -5,7 +5,7 @@
 
 import numpy
 
-from theanolm import Parameters
+from theanolm.backend import Parameters
 from theanolm.training.basicoptimizer import BasicOptimizer
 
 class NesterovOptimizer(BasicOptimizer):
@@ -24,7 +24,8 @@ class NesterovOptimizer(BasicOptimizer):
     """
 
     def __init__(self, optimization_options, network, *args, **kwargs):
-        """Creates a Nesterov momentum optimizer.
+        """Creates a Nesterov momentum optimizer. Nesterov momentum optimizer
+        does not use additional parameters.
 
         :type optimization_options: dict
         :param optimization_options: a dictionary of optimization options
@@ -35,8 +36,6 @@ class NesterovOptimizer(BasicOptimizer):
 
         self._params = Parameters()
         for path, param in network.get_variables().items():
-            self._params.add(path + '_gradient',
-                             numpy.zeros_like(param.get_value()))
             self._params.add(path + '_velocity',
                              numpy.zeros_like(param.get_value()))
 
@@ -47,27 +46,29 @@ class NesterovOptimizer(BasicOptimizer):
 
         super().__init__(optimization_options, network, *args, **kwargs)
 
-    def _gradient_update_exprs(self):
-        result = []
-        for path, gradient_new in zip(self.network.get_variables(),
-                                      self._gradient_exprs):
-            gradient = self._params[path + '_gradient']
-            result.append((gradient, gradient_new))
-        return result
+    def _get_param_updates(self, alpha):
+        """Returns Theano expressions for updating the model parameters and any
+        additional parameters required by the optimizer.
 
-    def _model_update_exprs(self, alpha):
-        updates = dict()
-        for path, param in self.network.get_variables().items():
-            gradient = self._params[path + '_gradient']
-            updates[path] = -gradient
-        self._normalize(updates)
+        :type alpha: Variable
+        :param alpha: a scale to be applied to the model parameter updates
+
+        :rtype: iterable over pairs (shared variable, new expression)
+        :returns: expressions how to update the optimizer parameters
+        """
 
         result = []
-        for path, param in self.network.get_variables().items():
-            update = updates[path]
-            velocity = self._params[path + '_velocity']
-            velocity_new = self._momentum * velocity + alpha * update
-            param_new = param + self._momentum * velocity_new + alpha * update
-            result.append((velocity, velocity_new))
-            result.append((param, param_new))
+        deltas = dict()
+        for path, gradient in zip(self.network.get_variables(),
+                                  self._gradients):
+            deltas[path] = -gradient
+        self._normalize(deltas)
+
+        for path, param_old in self.network.get_variables().items():
+            delta = deltas[path]
+            velocity_old = self._params[path + '_velocity']
+            velocity = self._momentum * velocity_old + alpha * delta
+            param = param_old + self._momentum * velocity + alpha * delta
+            result.append((velocity_old, velocity))
+            result.append((param_old, param))
         return result
