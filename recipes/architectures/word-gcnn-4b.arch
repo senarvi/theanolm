@@ -1,0 +1,30 @@
+# This is a 4-layer GCNN bottleneck structure optimized for Penn Treebank.
+ 
+input type=word name=word_input
+layer type=projection name=lookup input=word_input size=256
+
+layer type=glu name=conv1.1 input=lookup size=256 filter_size=1
+layer type=glu name=conv1.2 input=conv1.1 size=256 filter_size=5
+layer type=glu name=conv1.3 input=conv1.2 size=512 filter_size=1
+layer type=dropout name=conv1.3.dropout input=conv1.3 dropout_rate=0.2
+layer type=add name=conv1.res input=conv1.3.dropout input=lookup
+
+layer type=glu name=conv2.1 input=conv1.res size=256 filter_size=1
+layer type=glu name=conv2.2 input=conv2.1 size=256 filter_size=3
+layer type=glu name=conv2.3 input=conv2.2 size=512 filter_size=1
+layer type=dropout name=conv2.3.dropout input=conv2.3 dropout_rate=0.2
+layer type=add name=conv2.res input=conv2.3.dropout input=conv1.res
+
+layer type=glu name=conv3.1 input=conv2.res size=256 filter_size=1
+layer type=glu name=conv3.2 input=conv3.1 size=256 filter_size=3
+layer type=glu name=conv3.3 input=conv3.2 size=512 filter_size=1
+layer type=dropout name=conv3.3.dropout input=conv3.3 dropout_rate=0.2
+layer type=add name=conv3.res input=conv3.3.dropout input=conv2.res
+
+layer type=glu name=conv4.1 input=conv3.res size=512 filter_size=1
+layer type=glu name=conv4.2 input=conv4.1 size=512 filter_size=1
+layer type=glu name=conv4.3 input=conv4.2 size=1024 filter_size=1
+layer type=dropout name=conv4.3.dropout input=conv4.3 dropout_rate=0.2
+layer type=add name=conv4.res input=conv4.3.dropout input=conv3.res
+
+layer type=softmax name=output input=conv4.res

@@ -1,9 +1,8 @@
 #!/bin/bash -e
 #SBATCH --partition gpu
-#SBATCH --time=4:00:00
+#SBATCH --time=1-00
 #SBATCH --gres=gpu:1
 #SBATCH --mem=4G
-#SBATCH --exclude=gpu26
 
 #
 # Examples for training TheanoLM models on Penn Treebank corpus. The results (in
@@ -45,7 +44,7 @@ MAX_GRADIENT_NORM=5
 STOPPING_CRITERION=no-improvement
 VALIDATION_FREQ=1
 PATIENCE=0
-ARCHITECTURE_FILE="${arch_dir}/word-gcnn-8b.arch"
+ARCHITECTURE_FILE="${arch_dir}/word-gcnn-4b.arch"
 COST=cross-entropy
 LEARNING_RATE=0.1
 #DEBUG=1
