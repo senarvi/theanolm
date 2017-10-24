@@ -72,6 +72,7 @@ class DummyLatticeDecoder(LatticeDecoder):
 
 class TestLatticeDecoder(unittest.TestCase):
     def setUp(self):
+        self.maxDiff = None
         script_path = os.path.dirname(os.path.realpath(__file__))
 
         vocabulary_path = os.path.join(script_path, 'vocabulary.txt')
@@ -157,12 +158,12 @@ class TestLatticeDecoder(unittest.TestCase):
         # assert_almost_equal(token.lm_logprob,
         #                     math.log(0.25 * 0.3 + 0.75 * 0.2))
         assert_almost_equal(token.total_logprob,
-                            math.log(0.1) + math.log(0.25 * 0.3 + 0.75 * 0.2) * 10.0 - 40.0)
+                            math.log(0.1) + math.log(0.25 * 0.3 + 0.75 * 0.2) * 10.0 - 20.0)
         token.recompute_total(0.25, 10.0, -20.0, False)
         # assert_almost_equal(token.lm_logprob,
         #                     0.25 * math.log(0.3) + 0.75 * math.log(0.2))
         assert_almost_equal(token.total_logprob,
-                            math.log(0.1) + (0.25 * math.log(0.3) + 0.75 * math.log(0.2)) * 10.0 - 40.0)
+                            math.log(0.1) + (0.25 * math.log(0.3) + 0.75 * math.log(0.2)) * 10.0 - 20.0)
 
         token = LatticeDecoder.Token(history=[1, 2],
                                      ac_logprob=-1000,
@@ -220,8 +221,8 @@ class TestLatticeDecoder(unittest.TestCase):
         lm_scale = 2.0
         token1.recompute_total(1.0, lm_scale, -0.01)
         token2.recompute_total(1.0, lm_scale, -0.01)
-        self.assertAlmostEqual(token1.total_logprob, token1_nn_lm_logprob * lm_scale - 0.03)
-        self.assertAlmostEqual(token2.total_logprob, token2_nn_lm_logprob * lm_scale - 0.04)
+        self.assertAlmostEqual(token1.total_logprob, token1_nn_lm_logprob * lm_scale - 0.02)
+        self.assertAlmostEqual(token2.total_logprob, token2_nn_lm_logprob * lm_scale - 0.03)
 
     def test_prune(self):
         # token recombination
@@ -317,10 +318,10 @@ class TestLatticeDecoder(unittest.TestCase):
             'linear_interpolation': True,
             'max_tokens_per_node': None,
             'beam': None,
-            'recombination_order': None
+            'recombination_order': 20
         }
         decoder = LatticeDecoder(network, decoding_options)
-        tokens = decoder.decode(self.lattice)
+        tokens = decoder.decode(self.lattice)[0]
 
         # Compare tokens to n-best list given by SRILM lattice-tool.
         log_scale = math.log(10)

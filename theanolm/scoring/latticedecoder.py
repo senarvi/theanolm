@@ -353,6 +353,7 @@ class LatticeDecoder(object):
                 counts = self._prune(node,sorted_nodes,tokens,recomb_tokens)
             else:
                 counts = []
+                # counts = self._prune(node, sorted_nodes, tokens, recomb_tokens)
 
             node_tokens = tokens[node.id]
             assert node_tokens
@@ -389,7 +390,18 @@ class LatticeDecoder(object):
         if len(final_tokens) == 0:
             raise InputError("Could not reach a final node of word lattice.")
 
-        return sorted(final_tokens,
+        final_list = set()
+        uniq_final_tokens = []
+        for token in sorted(final_tokens,
+                      key=lambda token: token.total_logprob,
+                      reverse=True):
+            if token.recombination_hash not in final_list:
+                uniq_final_tokens.append(token)
+                final_list.add(token.recombination_hash)
+            else:
+                recomb_tokens.append(token) # TODO: Is this correct, or can this tokens be dropped?
+
+        return sorted(uniq_final_tokens,
                       key=lambda token: token.total_logprob,
                       reverse=True), recomb_tokens
 
