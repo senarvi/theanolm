@@ -468,7 +468,7 @@ class LatticeDecoder(object):
 
         return new_tokens
 
-    def _prune(self, node, sorted_nodes, tokens, recomb_tokens):
+    def _prune(self, node, sorted_nodes, tokens, recomb_tokens, always_keep_tokens=1):
         """Prunes tokens from a node according to beam and the maximum number of
         tokens.
 
@@ -532,7 +532,7 @@ class LatticeDecoder(object):
                 new_tokens[99].total_logprob if len(new_tokens) > 99 else 0,
             ))
             token_index = len(new_tokens) - 1
-            while (token_index >= 10) and \
+            while (token_index >= always_keep_tokens) and \
                   (new_tokens[token_index].total_logprob <= threshold):
                 del new_tokens[token_index]
                 token_index -= 1

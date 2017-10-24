@@ -69,6 +69,7 @@ class DummyLatticeDecoder(LatticeDecoder):
         self._sorted_nodes[3].best_logprob = -100.0
         self._prune_extra_limit = None
         self._abs_min_beam = 0
+        self._abs_min_max_tokens = 0
 
 class TestLatticeDecoder(unittest.TestCase):
     def setUp(self):
@@ -183,7 +184,7 @@ class TestLatticeDecoder(unittest.TestCase):
             'linear_interpolation': False,
             'max_tokens_per_node': 10,
             'beam': None,
-            'recombination_order': None
+            'recombination_order': None,
         }
 
         initial_state = RecurrentState(self.network.recurrent_state_size)
