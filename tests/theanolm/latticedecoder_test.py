@@ -71,9 +71,13 @@ class DummyLatticeDecoder(LatticeDecoder):
         self._tokens[3][0].total_logprob = -100.0
         self._tokens[3][0].recombination_hash = 1
         self._sorted_nodes[3].best_logprob = -100.0
+        self._prune_extra_limit = None
+        self._abs_min_beam = 0
+        self._abs_min_max_tokens = 0
 
 class TestLatticeDecoder(unittest.TestCase):
     def setUp(self):
+        self.maxDiff = None
         script_path = os.path.dirname(os.path.realpath(__file__))
 
         vocabulary_path = os.path.join(script_path, 'vocabulary.txt')
@@ -129,16 +133,16 @@ class TestLatticeDecoder(unittest.TestCase):
         pass
 
     def test_copy_token(self):
-        history = [1, 2, 3]
+        history = (1, 2, 3)
         token1 = LatticeDecoder.Token(history)
         token2 = LatticeDecoder.Token.copy(token1)
-        token2.history.append(4)
-        self.assertSequenceEqual(token1.history, [1, 2, 3])
-        self.assertSequenceEqual(token2.history, [1, 2, 3, 4])
+        token2.history = token2.history + (4,)
+        self.assertSequenceEqual(token1.history, (1, 2, 3))
+        self.assertSequenceEqual(token2.history, (1, 2, 3, 4))
 
     def test_recompute_hash(self):
-        token1 = LatticeDecoder.Token(history=[1, 12, 203, 3004, 23455])
-        token2 = LatticeDecoder.Token(history=[2, 12, 203, 3004, 23455])
+        token1 = LatticeDecoder.Token(history=(1, 12, 203, 3004, 23455))
+        token2 = LatticeDecoder.Token(history=(2, 12, 203, 3004, 23455))
         token1.recompute_hash(None)
         token2.recompute_hash(None)
         self.assertNotEqual(token1.recombination_hash, token2.recombination_hash)
@@ -155,35 +159,35 @@ class TestLatticeDecoder(unittest.TestCase):
                                      lat_lm_logprob=math.log(0.2),
                                      nn_lm_logprob=math.log(0.3))
         token.recompute_total(0.25, 1.0, 0.0, True)
-        assert_almost_equal(token.lm_logprob,
-                            math.log(0.25 * 0.3 + 0.75 * 0.2))
+        # assert_almost_equal(token.lm_logprob,
+        #                     math.log(0.25 * 0.3 + 0.75 * 0.2))
         assert_almost_equal(token.total_logprob,
                             math.log(0.1 * (0.25 * 0.3 + 0.75 * 0.2)))
         token.recompute_total(0.25, 1.0, 0.0, False)
-        assert_almost_equal(token.lm_logprob,
-                            0.25 * math.log(0.3) + 0.75 * math.log(0.2))
+        # assert_almost_equal(token.lm_logprob,
+        #                     0.25 * math.log(0.3) + 0.75 * math.log(0.2))
         assert_almost_equal(token.total_logprob,
                             math.log(0.1) + 0.25 * math.log(0.3) + 0.75 * math.log(0.2))
         token.recompute_total(0.25, 10.0, 0.0, True)
-        assert_almost_equal(token.lm_logprob,
-                            math.log(0.25 * 0.3 + 0.75 * 0.2))
+        # assert_almost_equal(token.lm_logprob,
+        #                     math.log(0.25 * 0.3 + 0.75 * 0.2))
         assert_almost_equal(token.total_logprob,
                             math.log(0.1) + math.log(0.25 * 0.3 + 0.75 * 0.2) * 10.0)
         token.recompute_total(0.25, 10.0, 0.0, False)
-        assert_almost_equal(token.lm_logprob,
-                            0.25 * math.log(0.3) + 0.75 * math.log(0.2))
+        # assert_almost_equal(token.lm_logprob,
+        #                     0.25 * math.log(0.3) + 0.75 * math.log(0.2))
         assert_almost_equal(token.total_logprob,
                             math.log(0.1) + (0.25 * math.log(0.3) + 0.75 * math.log(0.2)) * 10.0)
         token.recompute_total(0.25, 10.0, -20.0, True)
-        assert_almost_equal(token.lm_logprob,
-                            math.log(0.25 * 0.3 + 0.75 * 0.2))
+        # assert_almost_equal(token.lm_logprob,
+        #                     math.log(0.25 * 0.3 + 0.75 * 0.2))
         assert_almost_equal(token.total_logprob,
-                            math.log(0.1) + math.log(0.25 * 0.3 + 0.75 * 0.2) * 10.0 - 40.0)
+                            math.log(0.1) + math.log(0.25 * 0.3 + 0.75 * 0.2) * 10.0 - 20.0)
         token.recompute_total(0.25, 10.0, -20.0, False)
-        assert_almost_equal(token.lm_logprob,
-                            0.25 * math.log(0.3) + 0.75 * math.log(0.2))
+        # assert_almost_equal(token.lm_logprob,
+        #                     0.25 * math.log(0.3) + 0.75 * math.log(0.2))
         assert_almost_equal(token.total_logprob,
-                            math.log(0.1) + (0.25 * math.log(0.3) + 0.75 * math.log(0.2)) * 10.0 - 40.0)
+                            math.log(0.1) + (0.25 * math.log(0.3) + 0.75 * math.log(0.2)) * 10.0 - 20.0)
 
         token = LatticeDecoder.Token(history=[1, 2],
                                      ac_logprob=-1000,
@@ -204,24 +208,24 @@ class TestLatticeDecoder(unittest.TestCase):
             'linear_interpolation': False,
             'max_tokens_per_node': 10,
             'beam': None,
-            'recombination_order': None
+            'recombination_order': None,
         }
 
         initial_state = RecurrentState(self.network.recurrent_state_size)
-        token1 = LatticeDecoder.Token(history=[self.sos_id], state=initial_state)
-        token2 = LatticeDecoder.Token(history=[self.sos_id, self.yksi_id], state=initial_state)
+        token1 = LatticeDecoder.Token(history=(self.sos_id,), state=initial_state)
+        token2 = LatticeDecoder.Token(history=(self.sos_id, self.yksi_id), state=initial_state)
         decoder = LatticeDecoder(self.network, decoding_options)
 
-        self.assertSequenceEqual(token1.history, [self.sos_id])
-        self.assertSequenceEqual(token2.history, [self.sos_id, self.yksi_id])
+        self.assertSequenceEqual(token1.history, (self.sos_id,))
+        self.assertSequenceEqual(token2.history, (self.sos_id, self.yksi_id))
         assert_equal(token1.state.get(0), numpy.zeros(shape=(1,1,3)).astype(theano.config.floatX))
         assert_equal(token2.state.get(0), numpy.zeros(shape=(1,1,3)).astype(theano.config.floatX))
         self.assertEqual(token1.nn_lm_logprob, 0.0)
         self.assertEqual(token2.nn_lm_logprob, 0.0)
 
         decoder._append_word([token1, token2], self.kaksi_id)
-        self.assertSequenceEqual(token1.history, [self.sos_id, self.kaksi_id])
-        self.assertSequenceEqual(token2.history, [self.sos_id, self.yksi_id, self.kaksi_id])
+        self.assertSequenceEqual(token1.history, (self.sos_id, self.kaksi_id))
+        self.assertSequenceEqual(token2.history, (self.sos_id, self.yksi_id, self.kaksi_id))
         assert_equal(token1.state.get(0), numpy.ones(shape=(1,1,3)).astype(theano.config.floatX))
         assert_equal(token2.state.get(0), numpy.ones(shape=(1,1,3)).astype(theano.config.floatX))
         token1_nn_lm_logprob = math.log(self.sos_prob + self.kaksi_prob)
@@ -230,8 +234,8 @@ class TestLatticeDecoder(unittest.TestCase):
         self.assertAlmostEqual(token2.nn_lm_logprob, token2_nn_lm_logprob)
 
         decoder._append_word([token1, token2], self.eos_id)
-        self.assertSequenceEqual(token1.history, [self.sos_id, self.kaksi_id, self.eos_id])
-        self.assertSequenceEqual(token2.history, [self.sos_id, self.yksi_id, self.kaksi_id, self.eos_id])
+        self.assertSequenceEqual(token1.history, (self.sos_id, self.kaksi_id, self.eos_id))
+        self.assertSequenceEqual(token2.history, (self.sos_id, self.yksi_id, self.kaksi_id, self.eos_id))
         assert_equal(token1.state.get(0), numpy.ones(shape=(1,1,3)).astype(theano.config.floatX) * 2)
         assert_equal(token2.state.get(0), numpy.ones(shape=(1,1,3)).astype(theano.config.floatX) * 2)
         token1_nn_lm_logprob += math.log(self.kaksi_prob + self.eos_prob)
@@ -242,8 +246,8 @@ class TestLatticeDecoder(unittest.TestCase):
         lm_scale = 2.0
         token1.recompute_total(1.0, lm_scale, -0.01)
         token2.recompute_total(1.0, lm_scale, -0.01)
-        self.assertAlmostEqual(token1.total_logprob, token1_nn_lm_logprob * lm_scale - 0.03)
-        self.assertAlmostEqual(token2.total_logprob, token2_nn_lm_logprob * lm_scale - 0.04)
+        self.assertAlmostEqual(token1.total_logprob, token1_nn_lm_logprob * lm_scale - 0.02)
+        self.assertAlmostEqual(token2.total_logprob, token2_nn_lm_logprob * lm_scale - 0.03)
 
         decoding_options['use_shortlist'] = True
         decoder = LatticeDecoder(self.network, decoding_options)
@@ -272,11 +276,11 @@ class TestLatticeDecoder(unittest.TestCase):
         decoder._tokens[2][0].recombination_hash = 2
         decoder._tokens[2][1].recombination_hash = 2
         decoder._tokens[2][2].recombination_hash = 3
-        decoder._prune(decoder._sorted_nodes[2])
+        decoder._prune(decoder._sorted_nodes[2], decoder._sorted_nodes, decoder._tokens, [])
         self.assertEqual(len(decoder._tokens[2]), 2)
         decoder._tokens[2][0].recombination_hash = 4
         decoder._tokens[2][1].recombination_hash = 4
-        decoder._prune(decoder._sorted_nodes[2])
+        decoder._prune(decoder._sorted_nodes[2], decoder._sorted_nodes, decoder._tokens, [])
         self.assertEqual(len(decoder._tokens[2]), 1)
 
         # beam pruning
@@ -285,27 +289,27 @@ class TestLatticeDecoder(unittest.TestCase):
         decoder._recombination_order = None
         # best_logprob = -20
         decoder._beam = 60
-        decoder._prune(decoder._sorted_nodes[2])
+        decoder._prune(decoder._sorted_nodes[2], decoder._sorted_nodes, decoder._tokens, [])
         self.assertEqual(len(decoder._tokens[2]), 3)
         self.assertEqual(decoder._tokens[2][0].total_logprob, -30)
         self.assertEqual(decoder._tokens[2][1].total_logprob, -50)
         self.assertEqual(decoder._tokens[2][2].total_logprob, -70)
         decoder._beam = 50
-        decoder._prune(decoder._sorted_nodes[2])
+        decoder._prune(decoder._sorted_nodes[2], decoder._sorted_nodes, decoder._tokens, [])
         self.assertEqual(len(decoder._tokens[2]), 2)
         self.assertEqual(decoder._tokens[2][0].total_logprob, -30)
         self.assertEqual(decoder._tokens[2][1].total_logprob, -50)
         decoder._beam = 31
-        decoder._prune(decoder._sorted_nodes[2])
+        decoder._prune(decoder._sorted_nodes[2], decoder._sorted_nodes, decoder._tokens, [])
         self.assertEqual(len(decoder._tokens[2]), 2)
         self.assertEqual(decoder._tokens[2][0].total_logprob, -30)
         self.assertEqual(decoder._tokens[2][1].total_logprob, -50)
         decoder._beam = 15
-        decoder._prune(decoder._sorted_nodes[2])
+        decoder._prune(decoder._sorted_nodes[2], decoder._sorted_nodes, decoder._tokens, [])
         self.assertEqual(len(decoder._tokens[2]), 1)
         self.assertEqual(decoder._tokens[2][0].total_logprob, -30)
         decoder._beam = 0
-        decoder._prune(decoder._sorted_nodes[2])
+        decoder._prune(decoder._sorted_nodes[2], decoder._sorted_nodes, decoder._tokens, [])
         self.assertEqual(len(decoder._tokens[2]), 1)
         self.assertEqual(decoder._tokens[2][0].total_logprob, -30)
 
@@ -314,18 +318,18 @@ class TestLatticeDecoder(unittest.TestCase):
         decoder._beam = None
         decoder._recombination_order = None
         decoder._max_tokens_per_node = 3
-        decoder._prune(decoder._sorted_nodes[2])
+        decoder._prune(decoder._sorted_nodes[2], decoder._sorted_nodes, decoder._tokens, [])
         self.assertEqual(len(decoder._tokens[2]), 3)
         self.assertEqual(decoder._tokens[2][0].total_logprob, -30)
         self.assertEqual(decoder._tokens[2][1].total_logprob, -50)
         self.assertEqual(decoder._tokens[2][2].total_logprob, -70)
         decoder._max_tokens_per_node = 2
-        decoder._prune(decoder._sorted_nodes[2])
+        decoder._prune(decoder._sorted_nodes[2], decoder._sorted_nodes, decoder._tokens, [])
         self.assertEqual(len(decoder._tokens[2]), 2)
         self.assertEqual(decoder._tokens[2][0].total_logprob, -30)
         self.assertEqual(decoder._tokens[2][1].total_logprob, -50)
         decoder._max_tokens_per_node = 1
-        decoder._prune(decoder._sorted_nodes[2])
+        decoder._prune(decoder._sorted_nodes[2], decoder._sorted_nodes, decoder._tokens, [])
         self.assertEqual(len(decoder._tokens[2]), 1)
         self.assertEqual(decoder._tokens[2][0].total_logprob, -30)
 
@@ -358,10 +362,10 @@ class TestLatticeDecoder(unittest.TestCase):
             'linear_interpolation': True,
             'max_tokens_per_node': None,
             'beam': None,
-            'recombination_order': None
+            'recombination_order': 20
         }
         decoder = LatticeDecoder(network, decoding_options)
-        tokens = decoder.decode(self.lattice)
+        tokens = decoder.decode(self.lattice)[0]
 
         # Compare tokens to n-best list given by SRILM lattice-tool.
         log_scale = math.log(10)

@@ -27,16 +27,17 @@ class Lattice(object):
         def __init__(self, start_node, end_node):
             """Constructs a link.
 
-            :type start_node: int
+            :type start_node: self.Node
             :param start_node: the node that has this link as an outgoing link
 
-            :type end_node: int
+            :type end_node: self.Node
             :param end_node: the node that has this link as an incoming link
             """
 
             self.start_node = start_node
             self.end_node = end_node
             self.word = None
+            self.graph_logprob = None
             self.ac_logprob = None
             self.lm_logprob = None
 
@@ -60,6 +61,7 @@ class Lattice(object):
             self.in_links = []
             self.time = None
             self.best_logprob = None
+            self.final = False
 
     def __init__(self):
         """Constructs an empty lattice.
@@ -68,7 +70,6 @@ class Lattice(object):
         self.nodes = []
         self.links = []
         self.initial_node = None
-        self.final_node = None
         self.utterance_id = None
         self.lm_scale = None
         self.wi_penalty = None
@@ -110,10 +111,10 @@ class Lattice(object):
     def _add_link(self, start_node, end_node):
         """Adds a link between two nodes.
 
-        :type start_node: int
+        :type start_node: Node
         :param start_node: creates a link from this node
 
-        :type end_node: int
+        :type end_node: Node
         :param end_node: creates a link to this node
 
         :rtype: Link

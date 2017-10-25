@@ -45,7 +45,7 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(lattice.wi_penalty, 1.3)
         lattice._read_slf_header(['start=2', 'end=3'])
         self.assertEqual(lattice._initial_node_id, 2)
-        self.assertEqual(lattice._final_node_id, 3)
+        self.assertEqual(lattice._final_node_ids[0], 3)
         lattice._read_slf_header(['NODES=5', 'LINKS=7'])
         self.assertEqual(lattice._num_nodes, 5)
         self.assertEqual(lattice._num_links, 7)
