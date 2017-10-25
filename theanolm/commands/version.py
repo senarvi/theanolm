@@ -4,7 +4,6 @@
 """
 
 import theano
-import pygpu
 
 from theanolm import __version__
 
@@ -17,4 +16,9 @@ def version(args):
 
     print("TheanoLM", __version__)
     print("Theano", theano.version.version)
-    print("pygpu", pygpu.__version__)
+    try:
+        import pygpu
+        print("pygpu", pygpu.__version__)
+    except ImportError:
+        print("No pygpu")
+

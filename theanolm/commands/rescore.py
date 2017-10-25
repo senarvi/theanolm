@@ -6,8 +6,8 @@ import sys
 import logging
 import theano
 from theanolm import Network
-from theanolm.scoring import LatticeDecoder, SLFLattice, KaldiLattice, OutKaldiLattice
-from theanolm.filetypes import TextFileType
+from theanolm.scoring import LatticeDecoder, KaldiLattice, OutKaldiLattice
+from theanolm.backend.filetypes import TextFileType
 
 
 def add_arguments(parser):

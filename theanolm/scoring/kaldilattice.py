@@ -4,7 +4,7 @@ from collections import namedtuple
 
 import logging
 
-from theanolm.probfunctions import logprob_type
+from theanolm.backend.probfunctions import logprob_type
 from theanolm.scoring.lattice import Lattice
 
 
