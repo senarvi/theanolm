@@ -1,52 +1,32 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""A module that implements the "theanolm decode" command.
-"""
 
+import gc
 import sys
-import os
 import logging
-
-import numpy
 import theano
-
 from theanolm import Network
-from theanolm.backend import TextFileType
-from theanolm.scoring import LatticeDecoder, SLFLattice
+from theanolm.scoring import LatticeDecoder, KaldiLattice, OutKaldiLattice
+from theanolm.backend.filetypes import TextFileType
+
 
 def add_arguments(parser):
-    """Specifies the command line arguments supported by the "theanolm decode"
-    command.
-
-    :type parser: argparse.ArgumentParser
-    :param parser: a command line argument parser
-    """
-
     argument_group = parser.add_argument_group("files")
     argument_group.add_argument(
         'model_path', metavar='MODEL-FILE', type=str,
         help='the model file that will be used to decode the lattice')
     argument_group.add_argument(
-        '--lattices', metavar='FILE', type=str, nargs='*', default=[],
-        help='word lattices to be decoded (SLF, assumed to be compressed if '
-             'the name ends in ".gz")')
+        'lattices_in', metavar='LAT-FILE', type=TextFileType('r'),
+        help='kaldi lattice archive containing text CompactLattices'
+    )
     argument_group.add_argument(
-        '--lattice-list', metavar='FILE', type=TextFileType('r'),
-        help='text file containing a list of word lattices to be decoded (one '
-             'path to an SLF file per line, the list and the SLF files are '
-             'assumed to be compressed if the name ends in ".gz")')
+        'wordmap', metavar='FILE', type=TextFileType('r'),
+        help='kaldi words.txt'
+    )
     argument_group.add_argument(
-        '--output-file', metavar='FILE', type=TextFileType('w'), default='-',
-        help='where to write the best paths through the lattices (default '
-             'stdout, will be compressed if the name ends in ".gz")')
-    argument_group.add_argument(
-        '--num-jobs', metavar='J', type=int, default=1,
-        help='divide the set of lattice files into J distinct batches, and '
-             'process only batch I')
-    argument_group.add_argument(
-        '--job', metavar='I', type=int, default=0,
-        help='the index of the batch that this job should process, between 0 '
-             'and J-1')
+        'lattices_out', metavar='LAT-FILE', type=TextFileType('w'), default='-',
+        help='kaldi lattice archive containing text CompactLattices'
+    )
 
     argument_group = parser.add_argument_group("decoding")
     argument_group.add_argument(
@@ -59,43 +39,15 @@ def add_arguments(parser):
         '--n-best', metavar='N', type=int, default=1,
         help='print N best paths of each lattice (default 1)')
     argument_group.add_argument(
-        '--nnlm-weight', metavar='LAMBDA', type=float, default=1.0,
-        help="language model probabilities given by the model read from "
-             "MODEL-FILE will be weighted by LAMBDA, when interpolating with "
-             "the language model probabilities in the lattice (default is 1.0, "
-             "meaning that the LM probabilities in the lattice will be "
-             "ignored)")
-    argument_group.add_argument(
-        '--lm-scale', metavar='LMSCALE', type=float, default=None,
+        '--lm-scale', metavar='LMSCALE', type=float, default=15.0,
         help="scale language model log probabilities by LMSCALE when computing "
              "the total probability of a path (default is to use the LM scale "
              "specified in the lattice file, or 1.0 if not specified)")
     argument_group.add_argument(
-        '--wi-penalty', metavar='WIP', type=float, default=None,
-        help="penalize word insertion by adding WIP to the total log "
-             "probability as many times as there are words in the path "
-             "(without scaling WIP by LMSCALE)")
-    argument_group.add_argument(
-        '--log-base', metavar='B', type=int, default=None,
-        help="convert output log probabilities to base B and WIP from base B "
-             "(default is natural logarithm; this does not affect reading "
-             "lattices, since they specify their internal log base)")
-    argument_group.add_argument(
         '--unk-penalty', metavar='LOGPROB', type=float, default=None,
-        help="use constant LOGPROB as <unk> token score (default is to use the "
-             "network to predict <unk> probability)")
-    argument_group.add_argument(
-        '--shortlist', action="store_true",
-        help='distribute <unk> token probability among the out-of-shortlist '
-             'words according to their unigram frequencies in the training '
-             'data')
-    argument_group.add_argument(
-        '--unk-from-lattice', action="store_true",
-        help='use only the probability from the lattice for <unk> tokens')
-    argument_group.add_argument(
-        '--linear-interpolation', action="store_true",
-        help="use linear interpolation of language model probabilities, "
-             "instead of (pseudo) log-linear")
+        help="if LOGPROB is zero, do not include <unk> tokens in perplexity "
+             "computation; otherwise use constant LOGPROB as <unk> token score "
+             "(default is to use the network to predict <unk> probability)")
 
     argument_group = parser.add_argument_group("pruning")
     argument_group.add_argument(
@@ -113,6 +65,23 @@ def add_arguments(parser):
              "identical (default is to recombine tokens only if the entire "
              "word history matches)")
 
+    argument_group.add_argument(
+        '--prune-extra-limit', type=int, default=None,
+        help="if set, tighten the beam and recombination-order linearly if the "
+             "number of nodes in the lattice go over prune-extra-limit. "
+             "This is especially useful in cases such as character language "
+             "models.")
+    argument_group.add_argument(
+        '--abs-min-beam', type=float, default=150,
+        help='If prune-extra-limit is used, do not tighten the beam further'
+             ' than this'
+    )
+    argument_group.add_argument(
+        '--abs-min-max-tokens', type=float, default=30,
+        help='If prune-extra-limit is used, do not tighten the max-tokens-active'
+             ' further than this'
+    )
+
     argument_group = parser.add_argument_group("logging and debugging")
     argument_group.add_argument(
         '--log-file', metavar='FILE', type=str, default='-',
@@ -128,13 +97,8 @@ def add_arguments(parser):
         '--profile', action="store_true",
         help='enables profiling Theano functions')
 
-def decode(args):
-    """A function that performs the "theanolm decode" command.
 
-    :type args: argparse.Namespace
-    :param args: a collection of command line arguments
-    """
-
+def rescore(args):
     log_file = args.log_file
     log_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(log_level, int):
@@ -156,72 +120,75 @@ def decode(args):
     network = Network.from_file(args.model_path,
                                 mode=Network.Mode(minibatch=False))
 
-    log_scale = 1.0 if args.log_base is None else numpy.log(args.log_base)
+    log_scale = 1.0
 
-    if args.wi_penalty is None:
-        wi_penalty = None
+    if args.unk_penalty is None:
+        ignore_unk = False
+        unk_penalty = None
+    elif args.unk_penalty == 0:
+        ignore_unk = True
+        unk_penalty = None
     else:
-        wi_penalty = args.wi_penalty * log_scale
+        ignore_unk = False
+        unk_penalty = args.unk_penalty
     decoding_options = {
-        'nnlm_weight': args.nnlm_weight,
+        'nnlm_weight': 1.0,
         'lm_scale': args.lm_scale,
-        'wi_penalty': wi_penalty,
-        'unk_penalty': args.unk_penalty,
-        'use_shortlist': args.shortlist,
-        'unk_from_lattice': args.unk_from_lattice,
-        'linear_interpolation': args.linear_interpolation,
+        'wi_penalty': None,
+        'ignore_unk': ignore_unk,
+        'unk_penalty': unk_penalty,
+        'linear_interpolation': False,
         'max_tokens_per_node': args.max_tokens_per_node,
         'beam': args.beam,
-        'recombination_order': args.recombination_order
+        'recombination_order': args.recombination_order,
+        'prune_extra_limit': args.prune_extra_limit,
+        'abs_min_beam': args.abs_min_beam,
+        'abs_min_max_tokens': args.abs_min_max_tokens,
     }
     logging.debug("DECODING OPTIONS")
     for option_name, option_value in decoding_options.items():
         logging.debug("%s: %s", option_name, str(option_value))
 
-    print("Building word lattice decoder.")
+    logging.info("Building word lattice decoder.")
     sys.stdout.flush()
     decoder = LatticeDecoder(network, decoding_options)
 
-    # Combine paths from command line and lattice list.
-    lattices = args.lattices
-    if args.lattice_list is not None:
-        lattices.extend(args.lattice_list.readlines())
-    lattices = [path.strip() for path in lattices]
-    # Ignore empty lines in the lattice list.
-    lattices = [x for x in lattices if x]
-    # Pick every Ith lattice, if --num-jobs is specified and > 1.
-    if args.num_jobs < 1:
-        print("Invalid number of jobs specified:", args.num_jobs)
-        sys.exit(1)
-    if (args.job < 0) or (args.job > args.num_jobs - 1):
-        print("Invalid job specified:", args.job)
-        sys.exit(1)
-    lattices = lattices[args.job::args.num_jobs]
+    word_to_id = {}
 
-    file_type = TextFileType('r')
-    for index, path in enumerate(lattices):
-        logging.info("Reading word lattice: %s", path)
-        lattice_file = file_type(path)
-        lattice = SLFLattice(lattice_file)
+    for i, line in enumerate(args.wordmap):
+        parts = line.split()
+        assert len(parts) == 2
+        word = parts[0]
+        word_id = int(parts[1])
+        word_to_id[word] = word_id
+        assert i == word_id
 
-        if lattice.utterance_id is not None:
-            utterance_id = lattice.utterance_id
-        else:
-            utterance_id = os.path.basename(lattice_file.name)
-        logging.info("Utterance `%s' -- %d/%d of job %d",
-                     utterance_id,
-                     index + 1,
-                     len(lattices),
-                     args.job)
-        tokens, _ = decoder.decode(lattice)
+    id_to_word = [None] * len(word_to_id)
+    for word, id in word_to_id.items():
+        id_to_word[id] = word
 
-        for index in range(min(args.n_best, len(tokens))):
-            line = format_token(tokens[index],
-                                utterance_id,
-                                network.vocabulary,
-                                log_scale,
-                                args.output)
-            args.output_file.write(line + "\n")
+    while True:
+        key = args.lattices_in.readline().strip()
+        if len(key) == 0:
+            break
+        logging.info("Lat key: {}".format(key))
+        lat_lines = []
+        while True:
+            line = args.lattices_in.readline().strip()
+            if len(line) == 0:
+                break
+            lat_lines.append(line)
+
+        lattice = KaldiLattice(lat_lines, id_to_word)
+        lattice.utterance_id = key
+        final_tokens, recomb_tokens = decoder.decode(lattice)
+
+
+        lat_out = OutKaldiLattice()
+        lat_out.create_network(lattice, final_tokens, recomb_tokens, network.vocabulary, word_to_id)
+        lat_out.write(key, args.lattices_out)
+        del lat_out, final_tokens, recomb_tokens
+        gc.collect()
 
 def format_token(token, utterance_id, vocabulary, log_scale, output_format):
     """Formats an output line from a token and an utterance ID.
@@ -258,9 +225,10 @@ def format_token(token, utterance_id, vocabulary, log_scale, output_format):
     elif output_format == 'trn':
         return "{} ({})".format(' '.join(words), utterance_id)
     elif output_format == 'full':
-        return "{} {} {} {} {} {}".format(
+        return "{} {} {} {} {} {} {}".format(
             utterance_id,
             token.ac_logprob / log_scale,
+            token.lm_logprob / log_scale,
             token.graph_logprob / log_scale,
             token.total_logprob / log_scale,
             len(words),

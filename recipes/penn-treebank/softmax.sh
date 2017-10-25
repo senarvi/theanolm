@@ -30,6 +30,7 @@ source "${script_dir}/../common/configure-theano.sh"
 
 # Set training parameters.
 OPTIMIZATION_METHOD=adagrad
+L2_REGULARIZATION=0.00001
 MAX_GRADIENT_NORM=5
 STOPPING_CRITERION=no-improvement
 VALIDATION_FREQ=1

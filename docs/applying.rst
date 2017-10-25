@@ -194,6 +194,30 @@ The result of interpolation will be -inf regardless of the weight, as long as
 the weight of -inf is greater than zero. If -inf is weighted by zero, it will be
 ignored and the other probability will be used.
 
+
+Rescoring kaldi lattices
+------------------------
+
+``theanolm rescore`` command can be used to rescore and prune a kaldi-formatted 
+lattice and output in the same kaldi format. This is beneficial over just 
+decoding if lattice information is needed in further steps.
+
+The pruning options are the same as for ``theanolm decode``. 
+
+A typical invocation would look like:
+
+    $cmd JOB=1:$nj $outdir/log/theanolm.JOB.log \
+          gunzip -c $indir/lat.JOB.gz \| \
+          lattice-prune --inv-acoustic-scale=$lmscale --beam=$beam ark:- ark:- \| \
+          lattice-lmrescore-const-arpa --lm-scale=-1.0 ark:- "$oldlm" ark,t:- \| \
+          theanolm rescore --log-file $outdir/log/theano_rescore.JOB.log --log-level debug $newlm - $oldlang/words.txt - --lm-scale $lmscale --beam $theanolm_beam --max-tokens-per-node $theanolm_maxtokens --recombination-order $theanolm_recombination \| \
+          tee $outdir/lat.theanolm.JOB \| \
+          lattice-minimize ark:- ark:- \| \
+          gzip -c \>$outdir/lat.JOB.gz  || exit 1;
+
+This is modeled after other rescoring scripts in the kaldi example recipes.
+
+
 Generating text
 ---------------
 
