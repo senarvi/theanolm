@@ -33,7 +33,7 @@ source "${script_dir}/../common/functions.sh"
 source "${script_dir}/../common/configure-theano.sh"
 
 # Set training parameters.
-BATCH_SIZE=16
+BATCH_SIZE=32
 VOCAB_MIN_COUNT=3
 OPTIMIZATION_METHOD=nesterov
 MAX_GRADIENT_NORM=5
@@ -43,7 +43,6 @@ PATIENCE=0
 ARCHITECTURE_FILE="${arch_dir}/word-gcnn-8b-fast.arch"
 COST=cross-entropy
 LEARNING_RATE=0.1
-#DEBUG=1
 
 rm -f "${OUTPUT_DIR}/nnlm.h5"
 mv -f "${script_dir}/gcnn.log" "${script_dir}/gcnn.log~" 2>/dev/null || true

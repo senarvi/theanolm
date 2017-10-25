@@ -1,7 +1,7 @@
 # This is a modified version of the GCNN-8B bottleneck structure for improved
 # speed. It uses fully connected layers instead of gated convolution with filter
 # size 1. A bottleneck layer is added before a hierarchical softmax output.
- 
+
 input type=word name=word_input
 layer type=projection name=lookup input=word_input size=128
 
