@@ -379,9 +379,9 @@ class BasicLayer(object, metaclass=ABCMeta):
             results.append(result)
 
         if len(results) > 1:
-            return tensor.concatenate(results, axis=2)
+            result = tensor.concatenate(results, axis=2)
         elif len(results) == 1:
-            return results[0]
+            result = results[0]
         else:
             assert False
 

@@ -54,7 +54,7 @@ class AdditionLayer(BasicLayer):
             if input_size == self.output_size:
                 input_matrix = input_layer.output
             else:
-                input_matrix = self._tensor_preact(input_matrix,
+                input_matrix = self._tensor_preact(input_layer.output,
                                                    'input{}'.format(input_index),
                                                    use_bias=False)
 
