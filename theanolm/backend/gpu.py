@@ -56,12 +56,12 @@ def get_default_device(requested):
             raise ValueError('Theano is not configured to use device "{}".'
                              .format(requested))
     except AttributeError:
-        # No GPU support.
+        # No GPU support or we couldn't list the contexts because an old version
+        # of libgpuarray is installed.
         if requested is None:
-            logging.info('Theano is not using a GPU. GPU support can be '
-                         'enabled by installing libgpuarray and setting '
-                         'THEANO_FLAGS=device=cuda0.')
-            return 'cpu'
+            logging.info('Theano is not using a GPU or an old version of '
+                         'libgpuarray is installed.')
+            return None
         elif requested == 'cpu':
             logging.info('Using CPU for computation.')
             return requested
