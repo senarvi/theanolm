@@ -25,12 +25,14 @@ class SoftmaxLayer(SamplingOutputLayer):
         # Create the parameters. Weight matrix and bias for each input.
         input_size = sum(x.output_size for x in self._input_layers)
         output_size = self.output_size
-        self._init_weight('input/W', (input_size, output_size), scale=0.01)
+        self._init_weight('input/W', (input_size, output_size), scale=0.01,
+                          split_to_devices=True)
         if self._network.class_prior_probs is None:
-            self._init_bias('input/b', output_size)
+            self._init_bias('input/b', output_size, split_to_devices=True)
         else:
             initial_bias = numpy.log(self._network.class_prior_probs + 1e-10)
-            self._init_bias('input/b', output_size, initial_bias)
+            self._init_bias('input/b', output_size, initial_bias,
+                            split_to_devices=True)
 
         vocabulary = self._network.vocabulary
         self._unk_id = vocabulary.word_to_id['<unk>']
@@ -93,7 +95,9 @@ class SoftmaxLayer(SamplingOutputLayer):
                                                   num_sequences])
 
         # Define layer input and unnormalized logprobs for computing
-        # sampling-based costs.
+        # sampling-based costs. Only possible if the parameters are not split to
+        # multiple devices.
         self._layer_input = layer_input
-        self.unnormalized_logprobs = \
-            self._get_unnormalized_logprobs()
+        if not len(self._devices) > 1:
+            self.unnormalized_logprobs = \
+                self._get_unnormalized_logprobs()

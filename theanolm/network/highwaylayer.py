@@ -34,8 +34,9 @@ class HighwayLayer(BasicLayer):
         # to a negative value, so that the network is initially biased towards
         # carrying the input without transformation.
         self._init_weight('input/W', (input_size, output_size), scale=0.01,
-                          count=2)
-        self._init_bias('input/b', output_size, [0.0, -2.0])
+                          count=2, split_to_devices=True)
+        self._init_bias('input/b', output_size, [0.0, -2.0],
+                        split_to_devices=True)
 
         self.output = None
 

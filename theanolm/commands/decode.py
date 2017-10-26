@@ -11,7 +11,7 @@ import numpy
 import theano
 
 from theanolm import Network
-from theanolm.backend import TextFileType
+from theanolm.backend import TextFileType, get_default_device
 from theanolm.scoring import LatticeDecoder, SLFLattice
 
 def add_arguments(parser):
@@ -113,6 +113,11 @@ def add_arguments(parser):
              "identical (default is to recombine tokens only if the entire "
              "word history matches)")
 
+    argument_group = parser.add_argument_group("configuration")
+    argument_group.add_argument(
+        '--default-device', metavar='DEVICE', type=str, default=None,
+        help='when multiple GPUs are present, use DEVICE as default')
+
     argument_group = parser.add_argument_group("logging and debugging")
     argument_group.add_argument(
         '--log-file', metavar='FILE', type=str, default='-',
@@ -153,8 +158,10 @@ def decode(args):
     theano.config.profile = args.profile
     theano.config.profile_memory = args.profile
 
+    default_device = get_default_device(args.default_device)
     network = Network.from_file(args.model_path,
-                                mode=Network.Mode(minibatch=False))
+                                mode=Network.Mode(minibatch=False),
+                                default_device=default_device)
 
     log_scale = 1.0 if args.log_base is None else numpy.log(args.log_base)
 

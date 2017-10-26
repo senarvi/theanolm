@@ -10,7 +10,7 @@ import h5py
 import theano
 
 from theanolm import Vocabulary, Architecture, Network, TextSampler
-from theanolm.backend import TextFileType
+from theanolm.backend import TextFileType, get_default_device
 
 def add_arguments(parser):
     """Specifies the command line arguments supported by the "theanolm sample"
@@ -37,6 +37,11 @@ def add_arguments(parser):
         '--random-seed', metavar='N', type=int, default=None,
         help='seed to initialize the random state (default is to seed from a '
              'random source provided by the oprating system)')
+
+    argument_group = parser.add_argument_group("configuration")
+    argument_group.add_argument(
+        '--default-device', metavar='DEVICE', type=str, default=None,
+        help='when multiple GPUs are present, use DEVICE as default')
 
     argument_group = parser.add_argument_group("debugging")
     argument_group.add_argument(
@@ -67,7 +72,9 @@ def sample(args):
         print("Building neural network.")
         sys.stdout.flush()
         architecture = Architecture.from_state(state)
-        network = Network(architecture, vocabulary, mode=Network.Mode(minibatch=False))
+        default_device = get_default_device(args.default_device)
+        network = Network(architecture, vocabulary, mode=Network.Mode(minibatch=False),
+                          default_device=default_device)
         print("Restoring neural network state.")
         network.set_state(state)
 

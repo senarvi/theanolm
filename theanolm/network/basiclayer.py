@@ -251,6 +251,8 @@ class BasicLayer(object, metaclass=ABCMeta):
         elif (len(self._devices) == 1) and (self._devices[0] is None):
             # This layer has not been assigned to a specific device.
             self._params.add(path, matrix_from_value(shape, value))
+        elif isinstance(shape, int):
+            self._split_to_devices(path, bias, shape)
         else:
             self._split_to_devices(path, bias, shape[-1])
 
@@ -351,9 +353,12 @@ class BasicLayer(object, metaclass=ABCMeta):
                   the preactivations
         """
 
-        weight = self._params[self._param_path(param_name) + '/W']
-        bias = self._params[self._param_path(param_name) + '/b']
-        return tensor.dot(input_matrix, weight) + bias
+        results = []
+        for device in self._devices:
+            weight = self._get_param(param_name + '/W', device)
+            bias = self._get_param(param_name + '/b', device)
+            results.append(tensor.dot(input_matrix, weight) + bias)
+        return tensor.concatenate(results, axis=2)
 
     def _tensor_conv1d(self, input_matrix, param_name):
         """Convolves ``input_matrix`` using filters and adds a bias.

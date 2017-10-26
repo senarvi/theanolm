@@ -8,10 +8,12 @@ for i in "${!devices[@]}"
 do
 	contexts+=("dev${i}->${devices[${i}]}")
 done
-THEANO_FLAGS="floatX=float32,device=${devices[0]}"
-# Disabling this optimization makes multinomial sampling a bit faster.
-THEANO_FLAGS="${THEANO_FLAGS},optimizer_excluding=local_gpua_multinomial_wor"
+THEANO_FLAGS="floatX=float32"
 if [ ${#devices[@]} -gt 1 ]
 then
-	THEANO_FLAGS=$(IFS=,; echo "${THEANO_FLAGS},contexts=${contexts[*]}")
+	THEANO_FLAGS=$(IFS=';'; echo "${THEANO_FLAGS},contexts=${contexts[*]}")
+else
+	THEANO_FLAGS="${THEANO_FLAGS},device=${devices[0]}"
 fi
+# Disabling this optimization makes multinomial sampling a bit faster.
+THEANO_FLAGS="${THEANO_FLAGS},optimizer_excluding=local_gpua_multinomial_wor"

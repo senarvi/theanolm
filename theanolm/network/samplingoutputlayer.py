@@ -27,12 +27,21 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
         Unnormalized probabilities and noise probabilities are used by noise-
         contrastive estimation. Softmax output is exponential, so the
         preactivations can be seen as unnormalized log probabilities.
+
+        Sampling-based output is not supported when using multiple GPUs.
+
+        :rtype: symbolic 2-dimensional tensor
+        :returns: the unnormalized log probabilities of the target words for
+                  each sequence in each time step, or ``None`` if the parameters
+                  are split to more than one device.
         """
 
         layer_input = self._layer_input
         if layer_input is None:
             raise RuntimeError("Unnormalized outputs requested before "
                                "constructing the network structure.")
+        if len(self._devices) > 1:
+            return None
 
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
@@ -44,19 +53,23 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
         """Creates tensor variables for sampling k unique noise words per
         mini-batch element for NCE and BlackOut.
 
+        Sampling-based output is not supported when using multiple GPUs.
+
         :type noise_distribution: ClassDistribution
         :param noise_distribution: defines the distribution where the noise
                                    words should be drawn from
 
-        :rtype: tuple of two Variables
-        :returns: 3-dimensional tensors that contain the k sampled class IDs and
-                  their log probabilities for each time step in each sequence
+        :rtype: tuple of two symbolic 3-dimensional tensors
+        :returns: the k sampled class IDs and their log probabilities for each
+                  time step in each sequence
         """
 
         layer_input = self._layer_input
         if layer_input is None:
             raise RuntimeError("Sampling-based output requested before "
                                "constructing the network structure.")
+        if len(self._devices) > 1:
+            return None, None
 
         num_time_steps = layer_input.shape[0]
         num_sequences = layer_input.shape[1]
@@ -73,20 +86,24 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
         Creates k samples for each time step. These are shared across the
         sequences in the mini-batch.
 
+        Sampling-based output is not supported when using multiple GPUs.
+
         :type noise_distribution: ClassDistribution
         :param noise_distribution: defines the distribution where the noise
                                    words should be drawn from
 
-        :rtype: tuple of two Variables
-        :returns: 3-dimensional tensors that contain the k sampled class IDs for
-                  each time step (the second dimension being empty), and their
-                  log probabilities for each time step in each sequence
+        :rtype: tuple of two symbolic 3-dimensional tensors
+        :returns: the k sampled class IDs for each time step (the second
+                  dimension being empty), and their log probabilities for each
+                  time step in each sequence
         """
 
         layer_input = self._layer_input
         if layer_input is None:
             raise RuntimeError("Sampling-based output requested before "
                                "constructing the network structure.")
+        if len(self._devices) > 1:
+            return None, None
 
         num_time_steps = layer_input.shape[0]
         num_samples = self._network.num_noise_samples
@@ -104,20 +121,24 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
         Creates k samples for each time step. These are shared across the
         sequences in the mini-batch.
 
+        Sampling-based output is not supported when using multiple GPUs.
+
         :type noise_distribution: ClassDistribution
         :param noise_distribution: defines the distribution where the noise
                                    words should be drawn from
 
-        :rtype: tuple of two Variables
-        :returns: 3-dimensional tensors that contain the k sampled class IDs
-                  (the first and second dimension being empty) and their log
-                  probabilities for each time step in each sequence
+        :rtype: tuple of two symbolic 3-dimensional tensors
+        :returns: the k sampled class IDs (the first and second dimension being
+                  empty) and their log probabilities for each time step in each
+                  sequence
         """
 
         layer_input = self._layer_input
         if layer_input is None:
             raise RuntimeError("Sampling-based output requested before "
                                "constructing the network structure.")
+        if len(self._devices) > 1:
+            return None, None
 
         num_samples = self._network.num_noise_samples
         num_classes = numpy.int64(self._network.vocabulary.num_classes())

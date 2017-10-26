@@ -12,7 +12,7 @@ import numpy
 import theano
 
 from theanolm import Vocabulary, Architecture, Network
-from theanolm.backend import TextFileType
+from theanolm.backend import TextFileType, get_default_device
 from theanolm.parsing import LinearBatchIterator
 from theanolm.training import Trainer, create_optimizer, CrossEntropyCost, \
                               NCECost, BlackoutCost
@@ -390,8 +390,9 @@ def train(args):
             with open(args.architecture, 'rt', encoding='utf-8') as arch_file:
                 architecture = Architecture.from_description(arch_file)
 
+        default_device = get_default_device(args.default_device)
         network = Network(architecture, vocabulary, trainer.class_prior_probs,
-                          default_device=args.default_device,
+                          default_device=default_device,
                           profile=args.profile)
 
         network.set_sampling(args.noise_distribution, args.noise_dampening,

@@ -168,8 +168,13 @@ class Network(object):
         if vocabulary.has_unigram_probs():
             oos_logprobs = numpy.log(vocabulary.get_oos_probs())
             oos_logprobs = oos_logprobs.astype(theano.config.floatX)
-            self.oos_logprobs = theano.shared(oos_logprobs,
-                                              'network/oos_logprobs')
+            if self._default_device is None:
+                self.oos_logprobs = theano.shared(oos_logprobs,
+                                                  'network/oos_logprobs')
+            else:
+                self.oos_logprobs = theano.shared(oos_logprobs,
+                                                  'network/oos_logprobs',
+                                                  target=self._default_device)
         else:
             self.oos_logprobs = None
 
@@ -249,7 +254,8 @@ class Network(object):
             layer.create_structure()
 
     @classmethod
-    def from_file(cls, model_path, mode=None, exclude_unk=False):
+    def from_file(cls, model_path, mode=None, exclude_unk=False,
+                  default_device=None):
         """Reads a model from an HDF5 file.
 
         :type model_path: str
@@ -263,19 +269,26 @@ class Network(object):
                             zero before normalizing the network outputs
                             (required to get exact normalization during
                             inference)
+
+        :type default_device: str
+        :param default_device: default device where to store the shared variables
         """
 
         with h5py.File(model_path, 'r') as state:
             logging.info("Reading vocabulary from network state.")
             #sys.stdout.flush()
             vocabulary = Vocabulary.from_state(state)
-            logging.info("Number of words in vocabulary: {}".format(vocabulary.num_words()))
-            logging.info("Number of words in shortlist: {}".format(vocabulary.num_shortlist_words()))
-            logging.info("Number of word classes: {}".format(vocabulary.num_classes()))
+            logging.info("Number of words in vocabulary: {}"
+                         .format(vocabulary.num_words()))
+            logging.info("Number of words in shortlist: {}"
+                         .format(vocabulary.num_shortlist_words()))
+            logging.info("Number of word classes: {}"
+                         .format(vocabulary.num_classes()))
             logging.info("Building neural network.")
             #sys.stdout.flush()
             architecture = Architecture.from_state(state)
-            result = cls(architecture, vocabulary, mode=mode, exclude_unk=exclude_unk)
+            result = cls(architecture, vocabulary, mode=mode,
+                         exclude_unk=exclude_unk, default_device=default_device)
             logging.info("Restoring neural network state.")
             result.set_state(state)
             return result

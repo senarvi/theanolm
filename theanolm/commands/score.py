@@ -10,7 +10,7 @@ import numpy
 import theano
 
 from theanolm import Network
-from theanolm.backend import TextFileType
+from theanolm.backend import TextFileType, get_default_device
 from theanolm.parsing import ScoringBatchIterator
 from theanolm.scoring import TextScorer
 
@@ -59,6 +59,11 @@ def add_arguments(parser):
              'words according to their unigram frequencies in the training '
              'data')
 
+    argument_group = parser.add_argument_group("configuration")
+    argument_group.add_argument(
+        '--default-device', metavar='DEVICE', type=str, default=None,
+        help='when multiple GPUs are present, use DEVICE as default')
+
     argument_group = parser.add_argument_group("logging and debugging")
     argument_group.add_argument(
         '--log-file', metavar='FILE', type=str, default='-',
@@ -101,7 +106,9 @@ def score(args):
     theano.config.profile = args.profile
     theano.config.profile_memory = args.profile
 
-    network = Network.from_file(args.model_path, exclude_unk=args.exclude_unk)
+    default_device = get_default_device(args.default_device)
+    network = Network.from_file(args.model_path, exclude_unk=args.exclude_unk,
+                                default_device=default_device)
 
     print("Building text scorer.")
     sys.stdout.flush()
