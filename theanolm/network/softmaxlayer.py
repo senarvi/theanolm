@@ -25,14 +25,12 @@ class SoftmaxLayer(SamplingOutputLayer):
         # Create the parameters. Weight matrix and bias for each input.
         input_size = sum(x.output_size for x in self._input_layers)
         output_size = self.output_size
-        self._init_weight('input/W', (input_size, output_size), scale=0.01,
-                          split_to_devices=True)
+        self._init_weight('input/W', (input_size, output_size), scale=0.01)
         if self._network.class_prior_probs is None:
-            self._init_bias('input/b', output_size, split_to_devices=True)
+            self._init_bias('input/b', output_size)
         else:
             initial_bias = numpy.log(self._network.class_prior_probs + 1e-10)
-            self._init_bias('input/b', output_size, initial_bias,
-                            split_to_devices=True)
+            self._init_bias('input/b', output_size, initial_bias)
 
         vocabulary = self._network.vocabulary
         self._unk_id = vocabulary.word_to_id['<unk>']

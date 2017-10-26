@@ -24,8 +24,7 @@ class ProjectionLayer(BasicLayer):
         # Initialize the parameters.
         input_size = sum(x.output_size for x in self._input_layers)
         output_size = self.output_size
-        self._init_weight('W', (input_size, output_size), scale=0.01,
-                          split_to_devices=True)
+        self._init_weight('W', (input_size, output_size), scale=0.01)
 
         self.output = None
 

@@ -23,6 +23,10 @@ class HSoftmaxLayer(BasicLayer):
 
         super().__init__(*args, **kwargs)
 
+        if len(self._devices > 1):
+            raise ValueError("Hierarchical softmax layer does not support "
+                             "multiple devices.")
+
         # Factorize the output size into two levels of equal or almost equal
         # size.
         output_size = self.output_size
