@@ -4,6 +4,7 @@
 """
 
 import logging
+import math
 
 import numpy
 import theano
@@ -353,10 +354,9 @@ class LatticeDecoder(object):
         lattice.initial_node.best_logprob = initial_token.total_logprob
 
         sorted_nodes = lattice.sorted_nodes()
-        nodes_processed = 0
+        self._nodes_processed = 0
         final_tokens = []
         for node in sorted_nodes:
-            logging.debug("Node {}".format(node.id))
             node_tokens = tokens[node.id]
             assert node_tokens
             num_pruned_tokens = len(node_tokens)
@@ -385,18 +385,17 @@ class LatticeDecoder(object):
                     self._prune(link.end_node, sorted_nodes, tokens, recomb_tokens)
                 num_new_tokens += len(new_tokens)
 
-            nodes_processed += 1
-            #if nodes_processed % math.ceil(len(self._sorted_nodes) / 20) == 0:
-            if True:
+            tokens[node.id] = tokens[node.id][:2]
+
+            if self._nodes_processed % math.ceil(len(sorted_nodes) / 20) == 0:
                 logging.debug("[%d] (%.2f %%) -- tokens = %d +%d -%d %s",
-                              nodes_processed,
-                              nodes_processed / len(sorted_nodes) * 100,
+                              self._nodes_processed,
+                              self._nodes_processed / len(sorted_nodes) * 100,
                               len(node_tokens),
                               num_new_tokens,
                               num_pruned_tokens,
                               ",".join(str(c) for c in counts))
-
-            tokens[node.id] = tokens[node.id][:2]
+            self._nodes_processed += 1
 
         if len(final_tokens) == 0:
             raise InputError("Could not reach a final node of word lattice.")
@@ -535,18 +534,20 @@ class LatticeDecoder(object):
                                for iter_node in sorted_nodes[time_begin:]
                                if iter_node.best_logprob is not None)
             threshold = best_logprob - max(self._beam / limit_multiplier,self._abs_min_beam)
-            logging.debug("Node: {}, #tokens: {}, Best all: {}, Best: {}, Worst: {}, Threshold: {}, Average: {}, Pos 10: {}, Pos 50: {}, Pos 100: {}".format(
-                node.id,
-                len(new_tokens),
-                best_logprob,
-                new_tokens[0].total_logprob,
-                new_tokens[-1].total_logprob,
-                threshold,
-                sum(t.total_logprob for t in new_tokens) / len(new_tokens),
-                new_tokens[9].total_logprob if len(new_tokens) > 9 else 0,
-                new_tokens[49].total_logprob if len(new_tokens) > 49 else 0,
-                new_tokens[99].total_logprob if len(new_tokens) > 99 else 0,
-            ))
+            if self._nodes_processed % math.ceil(len(sorted_nodes) / 20) == 0:
+                logging.debug("Node: {}, #tokens: {}, Best all: {}, Best: {}, "
+                              "Worst: {}, Threshold: {}, Average: {}, Pos 10: "
+                              "{}, Pos 50: {}, Pos 100: {}".format(
+                                  node.id,
+                                  len(new_tokens),
+                                  best_logprob,
+                                  new_tokens[0].total_logprob,
+                                  new_tokens[-1].total_logprob,
+                                  threshold,
+                                  sum(t.total_logprob for t in new_tokens) / len(new_tokens),
+                                  new_tokens[9].total_logprob if len(new_tokens) > 9 else 0,
+                                  new_tokens[49].total_logprob if len(new_tokens) > 49 else 0,
+                                  new_tokens[99].total_logprob if len(new_tokens) > 99 else 0))
             token_index = len(new_tokens) - 1
             while (token_index >= always_keep_tokens) and \
                   (new_tokens[token_index].total_logprob <= threshold):

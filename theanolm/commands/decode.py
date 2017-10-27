@@ -11,7 +11,8 @@ import numpy
 import theano
 
 from theanolm import Network
-from theanolm.backend import TextFileType, get_default_device
+from theanolm.backend import TextFileType
+from theanolm.backend import get_default_device, log_free_mem
 from theanolm.scoring import LatticeDecoder, SLFLattice
 
 def add_arguments(parser):
@@ -220,6 +221,7 @@ def decode(args):
                      index + 1,
                      len(lattices),
                      args.job)
+        log_free_mem()
         tokens, _ = decoder.decode(lattice)
 
         for index in range(min(args.n_best, len(tokens))):
