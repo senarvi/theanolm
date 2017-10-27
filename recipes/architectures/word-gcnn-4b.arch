@@ -21,9 +21,9 @@ layer type=glu name=conv3.3 input=conv3.2 size=512 filter_size=1
 layer type=dropout name=conv3.3.dropout input=conv3.3 dropout_rate=0.2
 layer type=add name=conv3.res input=conv3.3.dropout input=conv2.res
 
-layer type=glu name=conv4.1 input=conv3.res size=512 filter_size=1
-layer type=glu name=conv4.2 input=conv4.1 size=512 filter_size=1
-layer type=glu name=conv4.3 input=conv4.2 size=1024 filter_size=1
+layer type=glu name=conv4.1 input=conv3.res size=256 filter_size=1
+layer type=glu name=conv4.2 input=conv4.1 size=256 filter_size=1
+layer type=glu name=conv4.3 input=conv4.2 size=512 filter_size=1
 layer type=dropout name=conv4.3.dropout input=conv4.3 dropout_rate=0.2
 layer type=add name=conv4.res input=conv4.3.dropout input=conv3.res
 
