@@ -79,5 +79,4 @@ def log_free_mem():
     for name in theano.gpuarray.type.list_contexts():
         context = theano.gpuarray.type.get_context(name)
         free_mbytes = context.free_gmem / (1024 * 1024)
-        logging.debug("Available memory on GPU {}: {} MB"
-                      .format(name, free_mbytes))
+        logging.debug("Available memory on GPU %s: %.0f MB", name, free_mbytes)

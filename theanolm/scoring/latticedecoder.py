@@ -357,59 +357,46 @@ class LatticeDecoder(object):
         self._nodes_processed = 0
         final_tokens = []
         for node in sorted_nodes:
-            node_tokens = tokens[node.id]
-            assert node_tokens
-            num_pruned_tokens = len(node_tokens)
-            if not node.final:
-                counts = self._prune(node,sorted_nodes,tokens,recomb_tokens)
-            else:
-                counts = []
-                # counts = self._prune(node, sorted_nodes, tokens, recomb_tokens)
-
-            node_tokens = tokens[node.id]
-            assert node_tokens
-            num_pruned_tokens -= len(node_tokens)
+            stats = self._prune(node, sorted_nodes, tokens, recomb_tokens)
 
             num_new_tokens = 0
+            node_tokens = tokens[node.id]
+            assert node_tokens
             if node.final:
                 new_tokens = self._propagate(
                     node_tokens, None, lm_scale, wi_penalty)
                 final_tokens.extend(new_tokens)
                 num_new_tokens += len(new_tokens)
-
             for link in node.out_links:
                 new_tokens = self._propagate(
                     node_tokens, link, lm_scale, wi_penalty)
                 tokens[link.end_node.id].extend(new_tokens)
-                if self._max_tokens_per_node is not None and len(tokens[link.end_node.id]) > self._max_tokens_per_node * 2:
+                # If there are lots of tokens in the end node, prune already to
+                # conserve memory.
+                if self._max_tokens_per_node is not None and \
+                   len(tokens[link.end_node.id]) > self._max_tokens_per_node * 2:
                     self._prune(link.end_node, sorted_nodes, tokens, recomb_tokens)
                 num_new_tokens += len(new_tokens)
+            stats['new'] = num_new_tokens
 
-            tokens[node.id] = tokens[node.id][:2]
+            tokens[node.id] = tokens[node.id][:2] # Why?
 
-            if self._nodes_processed % math.ceil(len(sorted_nodes) / 20) == 0:
-                logging.debug("[%d] (%.2f %%) -- tokens = %d +%d -%d %s",
-                              self._nodes_processed,
-                              self._nodes_processed / len(sorted_nodes) * 100,
-                              len(node_tokens),
-                              num_new_tokens,
-                              num_pruned_tokens,
-                              ",".join(str(c) for c in counts))
             self._nodes_processed += 1
+            self._log_stats(stats, node.id, len(sorted_nodes))
 
         if len(final_tokens) == 0:
             raise InputError("Could not reach a final node of word lattice.")
 
-        final_list = set()
+        hashes = set()
         uniq_final_tokens = []
         for token in sorted(final_tokens,
                       key=lambda token: token.total_logprob,
                       reverse=True):
-            if token.recombination_hash not in final_list:
+            if token.recombination_hash not in hashes:
                 uniq_final_tokens.append(token)
-                final_list.add(token.recombination_hash)
+                hashes.add(token.recombination_hash)
             else:
-                recomb_tokens.append(token) # TODO: Is this correct, or can this tokens be dropped?
+                recomb_tokens.append(token) # TODO: Is this correct, or can these tokens be dropped?
 
         return sorted(uniq_final_tokens,
                       key=lambda token: token.total_logprob,
@@ -490,16 +477,23 @@ class LatticeDecoder(object):
         :type node: Lattice.Node
         :param node: perform pruning on this node
         """
+
+        node_tokens = tokens[node.id]
+        assert node_tokens
+
+        stats = dict()
+        stats['before'] = len(node_tokens)
+        if node.final:
+            return stats
+
         limit_multiplier = 1
         if self._prune_extra_limit is not None:
-            limit_multiplier = max(1,(len(sorted_nodes) // self._prune_extra_limit +1))
+            limit_multiplier = max(1, len(sorted_nodes) // self._prune_extra_limit + 1)
 
-        if node.final:
-            return tuple()
-        orig_amount_tokens = len(tokens[node.id])
+        # Recombine tokens with identical hash.
         new_tokens = dict()
         rc = []
-        for token in tokens[node.id]:
+        for token in node_tokens:
             key = token.recombination_hash
             if key not in new_tokens:
                 new_tokens[key] = token
@@ -508,12 +502,11 @@ class LatticeDecoder(object):
                 new_tokens[key] = token
             else:
                 rc.append(token)
-
         for token in rc:
             key = token.recombination_hash
             recomb_tokens.append((token, new_tokens[key].history, new_tokens[key].nn_lm_logprob))
+        stats['after-recomb'] = len(new_tokens)
 
-        after_recomb_tokens = len(new_tokens)
         # Sort the tokens by descending log probability.
         new_tokens = sorted(new_tokens.values(),
                             key=lambda token: token.total_logprob, reverse=True)
@@ -529,41 +522,42 @@ class LatticeDecoder(object):
                        (iter_node.time >= node.time):
                         break
             assert time_begin < len(sorted_nodes)
-
             best_logprob = max(iter_node.best_logprob
                                for iter_node in sorted_nodes[time_begin:]
                                if iter_node.best_logprob is not None)
-            threshold = best_logprob - max(self._beam / limit_multiplier,self._abs_min_beam)
-            if self._nodes_processed % math.ceil(len(sorted_nodes) / 20) == 0:
-                logging.debug("Node: {}, #tokens: {}, Best all: {}, Best: {}, "
-                              "Worst: {}, Threshold: {}, Average: {}, Pos 10: "
-                              "{}, Pos 50: {}, Pos 100: {}".format(
-                                  node.id,
-                                  len(new_tokens),
-                                  best_logprob,
-                                  new_tokens[0].total_logprob,
-                                  new_tokens[-1].total_logprob,
-                                  threshold,
-                                  sum(t.total_logprob for t in new_tokens) / len(new_tokens),
-                                  new_tokens[9].total_logprob if len(new_tokens) > 9 else 0,
-                                  new_tokens[49].total_logprob if len(new_tokens) > 49 else 0,
-                                  new_tokens[99].total_logprob if len(new_tokens) > 99 else 0))
-            token_index = len(new_tokens) - 1
-            while (token_index >= always_keep_tokens) and \
-                  (new_tokens[token_index].total_logprob <= threshold):
-                del new_tokens[token_index]
-                token_index -= 1
 
-        after_beam = len(new_tokens)
+            beam = self._beam / limit_multiplier
+            beam = max(beam, self._abs_min_beam)
+            threshold = best_logprob - beam
+
+            stats['best'] = best_logprob
+            stats['node-best'] = new_tokens[0].total_logprob
+            stats['node-worst'] = new_tokens[-1].total_logprob
+            stats['threshold'] = threshold
+            stats['average'] = sum(t.total_logprob for t in new_tokens) / len(new_tokens)
+            if len(new_tokens) >= 10:
+                stats['pos10'] = new_tokens[9].total_logprob
+            if len(new_tokens) >= 50:
+                stats['pos50'] = new_tokens[49].total_logprob
+            if len(new_tokens) >= 100:
+                stats['pos100'] = new_tokens[99].total_logprob
+
+            keep_tokens = len(new_tokens)
+            while (keep_tokens > always_keep_tokens) and \
+                  (new_tokens[keep_tokens - 1].total_logprob <= threshold):
+                keep_tokens -= 1
+            new_tokens = new_tokens[:keep_tokens]
+        stats['after-beam'] = len(new_tokens)
+
         # Enforce limit on number of tokens at each node.
         if self._max_tokens_per_node is not None:
-            new_tokens = new_tokens[:max(int(self._max_tokens_per_node/limit_multiplier),self._abs_min_max_tokens)]
-#            new_tokens[self._max_tokens_per_node:] = []
+            max_tokens = self._max_tokens_per_node // limit_multiplier
+            max_tokens = max(max_tokens, self._abs_min_max_tokens)
+            new_tokens = new_tokens[:max_tokens]
+        stats['after-max'] = len(new_tokens)
 
-        after_max_tokens = len(new_tokens)
         tokens[node.id] = new_tokens
-
-        return orig_amount_tokens, after_recomb_tokens, after_beam, after_max_tokens
+        return stats
 
     def _append_word(self, tokens, target_word, oov_logprob=None):
         """Appends a word to each of the given tokens, and updates their scores.
@@ -664,3 +658,35 @@ class LatticeDecoder(object):
             return oov_logprob
 
         return network_logprob
+
+    def _log_stats(self, stats, node_id, num_nodes):
+        """Writes pruning statistics to debug log.
+
+        :type stats: dict
+        :param stats: a dictionary of statistics on the number of tokens and
+                      their log probabilities
+        """
+
+        if self._nodes_processed % math.ceil(num_nodes / 20) != 0:
+            return
+
+        optional = ''
+        for name in ('after-recomb', 'after-beam', 'after-max', 'new'):
+            if name in stats:
+                optional += ' {}={}'.format(name, stats[name])
+        logging.debug('[%d] (%.2f %%) node=%d -- tokens before=%d%s',
+                      self._nodes_processed,
+                      self._nodes_processed / num_nodes * 100,
+                      node_id,
+                      stats['before'],
+                      optional)
+
+        if 'best' in stats:
+            optional = ''
+            for name in ('node-best', 'node-worst', 'threshold', 'average',
+                         'pos10', 'pos50', 'pos100'):
+                if name in stats:
+                    optional += ' {}={:.1f}'.format(name, stats[name])
+            logging.debug('logprob best=%.1f%s',
+                          stats['best'],
+                          optional)
