@@ -17,7 +17,7 @@ Python script.
 
 Implementations of many currently popular layer types are provided, such as
 `long short-term memory (LSTM)`_, `gated recurrent units (GRU)`_, `bidirectional
-recurrent networks`_, `gated linear units`_, and `highway networks`_ are
+recurrent networks`_, `gated linear units (GLU)`_, and `highway networks`_ are
 provided. Several different Stochastic Gradient Descent (SGD) based optimizers
 are implemented, including `RMSProp`_, `AdaGrad`_, `ADADELTA`_, and `Adam`_.
 
