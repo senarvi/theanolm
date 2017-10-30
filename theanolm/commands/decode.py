@@ -113,6 +113,19 @@ def add_arguments(parser):
         help="keep only the best token, when at least O previous words are "
              "identical (default is to recombine tokens only if the entire "
              "word history matches)")
+    argument_group.add_argument(
+        '--prune-relative', metavar='R', type=int, default=None,
+        help="if set, tighten the beam and the max-tokens-per-node pruning "
+             "linearly in the number of tokens in a node; those parameters "
+             "will be divided by the number of tokens and multiplied by R")
+    argument_group.add_argument(
+        '--abs-min-max-tokens', metavar='T', type=float, default=30,
+        help="if prune-extra-limit is used, do not tighten max-tokens-per-node "
+             "further than this (default is 30)")
+    argument_group.add_argument(
+        '--abs-min-beam', metavar='B', type=float, default=150,
+        help="if prune-extra-limit is used, do not tighten the beam further "
+             "than this (default is 150)")
 
     argument_group = parser.add_argument_group("configuration")
     argument_group.add_argument(
@@ -180,7 +193,10 @@ def decode(args):
         'linear_interpolation': args.linear_interpolation,
         'max_tokens_per_node': args.max_tokens_per_node,
         'beam': args.beam,
-        'recombination_order': args.recombination_order
+        'recombination_order': args.recombination_order,
+        'prune_relative': args.prune_relative,
+        'abs_min_max_tokens': args.abs_min_max_tokens,
+        'abs_min_beam': args.abs_min_beam
     }
     logging.debug("DECODING OPTIONS")
     for option_name, option_value in decoding_options.items():

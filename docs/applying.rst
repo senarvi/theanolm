@@ -138,9 +138,9 @@ sentence::
         --nnlm-weight 0.5 --lm-scale 14.0
 
 In principle, the context length is not limited in recurrent neural networks, so
-an exhaustive search of word lattices would be too expensive. There are three
-parameters that constrain the search space by pruning unlikely tokens (partial
-hypotheses). These are:
+an exhaustive search of word lattices would be too expensive. There are a number
+of parameters that can be used to constrain the search space by pruning unlikely
+tokens (partial hypotheses). These are:
 
 --max-tokens-per-node : N
   Retain at most N tokens at each node. Limiting the number of tokens is very
@@ -159,6 +159,19 @@ hypotheses). These are:
   best token. This means effectively that we assume that the influence of a word
   is limited to the probability of the next N words. Recombination seems to have
   little effect on word error rate before N is closer to 20.
+
+--prune-relative : R
+  If this argument is given, the ``--max-tokens-per-node`` and ``--beam``
+  parameters will be adjusted relative to the number of tokens in each node.
+  Those parameters will be divided by the number of tokens and multiplied by R.
+  This is especially useful in cases such as character language models.
+
+--abs-min-max-tokens : N
+  Specifies a minimum value for the maximum number of tokens, when using
+  ``--prune-relative``.
+
+--abs-min-beam : logprob
+  Specifies a minimum value for the beam, when using ``--prune-relative``.
 
 The work can be divided to several jobs for a compute cluster, each processing
 the same number of lattices. For example, the following SLURM job script would
@@ -195,27 +208,33 @@ the weight of -inf is greater than zero. If -inf is weighted by zero, it will be
 ignored and the other probability will be used.
 
 
-Rescoring kaldi lattices
+Rescoring Kaldi lattices
 ------------------------
 
-``theanolm rescore`` command can be used to rescore and prune a kaldi-formatted 
-lattice and output in the same kaldi format. This is beneficial over just 
+``theanolm rescore`` command can be used to rescore and prune a Kaldi-formatted
+lattice and output in the same Kaldi format. This is beneficial over just
 decoding if lattice information is needed in further steps.
 
 The pruning options are the same as for ``theanolm decode``. 
 
-A typical invocation would look like:
+A typical invocation, modeled after the other rescoring scripts in the Kaldi
+example recipes, prunes a lattice, computes LM probabilities using an n-gram
+model, and then rescores the lattice using TheanoLM::
 
     $cmd JOB=1:$nj $outdir/log/theanolm.JOB.log \
           gunzip -c $indir/lat.JOB.gz \| \
           lattice-prune --inv-acoustic-scale=$lmscale --beam=$beam ark:- ark:- \| \
           lattice-lmrescore-const-arpa --lm-scale=-1.0 ark:- "$oldlm" ark,t:- \| \
-          theanolm rescore --log-file $outdir/log/theano_rescore.JOB.log --log-level debug $newlm - $oldlang/words.txt - --lm-scale $lmscale --beam $theanolm_beam --max-tokens-per-node $theanolm_maxtokens --recombination-order $theanolm_recombination \| \
+          theanolm rescore - $oldlang/words.txt - \
+                           --lm-scale $lmscale \
+                           --beam $theanolm_beam \
+                           --max-tokens-per-node $theanolm_maxtokens \
+                           --recombination-order $theanolm_recombination \
+                           --log-file $outdir/log/theanolm_rescore.JOB.log \
+                           --log-level debug $newlm \| \
           tee $outdir/lat.theanolm.JOB \| \
           lattice-minimize ark:- ark:- \| \
           gzip -c \>$outdir/lat.JOB.gz  || exit 1;
-
-This is modeled after other rescoring scripts in the kaldi example recipes.
 
 
 Generating text
