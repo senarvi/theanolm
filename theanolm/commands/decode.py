@@ -222,8 +222,8 @@ def decode(args):
                      len(lattices),
                      args.job)
         log_free_mem()
-        tokens, _ = decoder.decode(lattice)
 
+        tokens, _ = decoder.decode(lattice)
         for index in range(min(args.n_best, len(tokens))):
             line = format_token(tokens[index],
                                 utterance_id,

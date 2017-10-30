@@ -397,11 +397,10 @@ class LatticeDecoder(object):
                 hashes.add(token.recombination_hash)
             else:
                 recomb_tokens.append(token) # TODO: Is this correct, or can these tokens be dropped?
-
-        return sorted(uniq_final_tokens,
-                      key=lambda token: token.total_logprob,
-                      reverse=True), recomb_tokens
-
+        sorted_final_tokens = sorted(uniq_final_tokens,
+                              key=lambda token: token.total_logprob,
+                              reverse=True)
+        return sorted_final_tokens, recomb_tokens
 
     def _propagate(self, tokens, link, lm_scale, wi_penalty):
         """Propagates tokens to given link or to end of sentence.
@@ -480,11 +479,8 @@ class LatticeDecoder(object):
 
         node_tokens = tokens[node.id]
         assert node_tokens
-
         stats = dict()
         stats['before'] = len(node_tokens)
-        if node.final:
-            return stats
 
         limit_multiplier = 1
         if self._prune_extra_limit is not None:
@@ -605,13 +601,12 @@ class LatticeDecoder(object):
         output_state = step_result[1:]
 
         for index, token in enumerate(tokens):
-            token.history = token.history + (target_word, )
+            token.history = token.history + (target_word,)
             token.state = RecurrentState(self._network.recurrent_state_size)
             # Slice the sequence that corresponds to this token.
-            token.state.set([layer_state[:, index:index+1]
+            token.state.set([layer_state[:, index:index + 1]
                              for layer_state in output_state])
             # logprobs matrix contains only one time step.
-
             token.nn_lm_logprob += self._handle_unk_logprob(target_word,
                                                             logprobs[0, index],
                                                             oov_logprob)
