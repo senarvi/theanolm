@@ -167,28 +167,33 @@ def rescore(args):
         id_to_word[id] = word
 
     while True:
-        key = args.lattices_in.readline()
-        if not key:
+        utterance_id = args.lattices_in.readline()
+        if not utterance_id:
             break  # end of file
-        key = key.strip()
-        if not key:
+        utterance_id = utterance_id.strip()
+        if not utterance_id:
             continue  # empty line
-        logging.info("Utterance `%s'", key)
+        logging.info("Utterance `%s'", utterance_id)
         log_free_mem()
 
-        lat_lines = []
+        lattice_lines = []
         while True:
             line = args.lattices_in.readline().strip()
             if not line:
                 break  # empty line
-            lat_lines.append(line)
+            lattice_lines.append(line)
 
-        lattice = KaldiLattice(lat_lines, id_to_word)
-        lattice.utterance_id = key
+        lattice = KaldiLattice(lattice_lines, id_to_word)
+        lattice.utterance_id = utterance_id
         final_tokens, recomb_tokens = decoder.decode(lattice)
 
-        lat_out = OutKaldiLattice()
-        lat_out.create_network(lattice, final_tokens, recomb_tokens, network.vocabulary, word_to_id)
-        lat_out.write(key, args.lattices_out)
-        del lat_out, final_tokens, recomb_tokens
+        rescored_lattice = Lattice.from_decoder(lattice,
+                                                final_tokens,
+                                                recomb_tokens,
+                                                network.vocabulary,
+        rescored_lattice.write_kaldi(utterance_id,
+                                     args.lattices_out,
+                                     word_to_id)
+
+        del rescored_lattice, final_tokens, recomb_tokens
         gc.collect()

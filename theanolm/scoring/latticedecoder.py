@@ -25,14 +25,13 @@ class LatticeDecoder(object):
         A token represents a partial path through a word lattice. The decoder
         propagates a set of tokens through the lattice by
         """
-        __slots__ = ("history", "state", "ac_logprob", "graph_logprob", "lat_lm_logprob",
+        __slots__ = ("history", "state", "ac_logprob", "lat_lm_logprob",
                      "nn_lm_logprob", "recombination_hash", "total_logprob")
 
         def __init__(self,
                      history=(),
                      state=None,
                      ac_logprob=logprob_type(0.0),
-                     graph_logprob=logprob_type(0.0),
                      lat_lm_logprob=logprob_type(0.0),
                      nn_lm_logprob=logprob_type(0.0)):
             """Constructs a token with given recurrent state and logprobs.
@@ -55,11 +54,6 @@ class LatticeDecoder(object):
             :param ac_logprob: sum of the acoustic log probabilities of the
                                lattice links
 
-            :type graph_logprob: logprob_type
-            :param graph_logprob: sum of the graph log probabilities (consisting
-                                  of pronunciation, transition, and silence
-                                  probabilities) of the lattice links
-
             :type lat_lm_logprob: logprob_type
             :param lat_lm_logprob: sum of the LM log probabilities of the
                                    lattice links
@@ -72,7 +66,6 @@ class LatticeDecoder(object):
             self.history = history
             self.state = [] if state is None else state
             self.ac_logprob = ac_logprob
-            self.graph_logprob = graph_logprob
             self.lat_lm_logprob = lat_lm_logprob
             self.nn_lm_logprob = nn_lm_logprob
             self.recombination_hash = None
@@ -98,7 +91,6 @@ class LatticeDecoder(object):
             return cls(token.history,
                        token.state,
                        token.ac_logprob,
-                       token.graph_logprob,
                        token.lat_lm_logprob,
                        token.nn_lm_logprob)
 
@@ -123,9 +115,9 @@ class LatticeDecoder(object):
             the total log probability.
 
             First the interpolated LM log probability is computed. Then the
-            total log probability is computed by adding the graph log
-            probability, applying the LM scale factor, and adding the acoustic
-            log probability and the word insertion penalty.
+            total log probability is computed by applying the LM scale factor,
+            and adding the acoustic log probability and the word insertion
+            penalty.
 
             :type nn_lm_weight: logprob_type
             :param nn_lm_weight: weight of the neural network LM probability
@@ -154,7 +146,7 @@ class LatticeDecoder(object):
                     nn_lm_weight, (1.0 - nn_lm_weight))
 
             self.total_logprob = self.ac_logprob
-            self.total_logprob += (lm_logprob + self.graph_logprob) * lm_scale
+            self.total_logprob += lm_logprob * lm_scale
             self.total_logprob += wi_penalty * (len(self.history) - 1)
 
         def history_words(self, vocabulary):
@@ -456,8 +448,6 @@ class LatticeDecoder(object):
                     token.ac_logprob += link.ac_logprob
                 if link.lm_logprob is not None:
                     token.lat_lm_logprob += link.lm_logprob
-                if link.graph_logprob is not None:
-                    token.graph_logprob += link.graph_logprob
 
             if not link.word.startswith('!') or link.word.startswith('#'):
                 try:
