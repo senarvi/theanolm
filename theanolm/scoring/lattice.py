@@ -172,7 +172,7 @@ class Lattice(object):
             # probabilities.
             from_node = get_node(token.history[:-1])
             lm_diff = token.nn_lm_logprob - nn_lm_logprob
-            new_link = self.Link(from_node, recomb_link.end_node, word
+            new_link = self.Link(from_node, recomb_link.end_node, word,
                                  recomb_link.ac_logprob,
                                  recomb_link.lm_logprob + lm_diff,
                                  recomb_link.transitions)

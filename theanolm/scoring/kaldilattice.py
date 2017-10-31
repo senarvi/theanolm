@@ -66,12 +66,12 @@ class KaldiLattice(Lattice):
             state_from = int(parts[0])
 
             weight_parts = str_weight.split(',')
-            graph_logprob = logprob_type(weight_parts[0])
-                            if len(weight_parts) > 0 and weight_parts[0]
+            graph_logprob = logprob_type(weight_parts[0]) \
+                            if len(weight_parts) > 0 and weight_parts[0] \
                             else logprob_type(0.0)
             graph_logprob = -graph_logprob * self._log_scale
-            ac_logprob = logprob_type(weight_parts[1])
-                         if len(weight_parts) > 1 and weight_parts[1]
+            ac_logprob = logprob_type(weight_parts[1]) \
+                         if len(weight_parts) > 1 and weight_parts[1] \
                          else logprob_type(0.0)
             ac_logprob = -ac_logprob * self._log_scale
             transitions = weight_parts[2] if len(weight_parts) > 2 else ""

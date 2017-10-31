@@ -190,7 +190,7 @@ def rescore(args):
         rescored_lattice = Lattice.from_decoder(lattice,
                                                 final_tokens,
                                                 recomb_tokens,
-                                                network.vocabulary,
+                                                network.vocabulary)
         rescored_lattice.write_kaldi(utterance_id,
                                      args.lattices_out,
                                      word_to_id)
