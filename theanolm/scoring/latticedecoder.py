@@ -585,18 +585,19 @@ class LatticeDecoder(object):
                                key=lambda token: token.total_logprob,
                                reverse=True)
 
-        result_tokens = dict()
+        token_map = dict()
+        result = []
         for token in sorted_tokens:
             key = token.recombination_hash
-            if key not in result_tokens:
-                result_tokens[key] = token
+            if key not in token_map:
+                result.append(token)
+                token_map[key] = token
             else:
-                kept_token = result_tokens[key]
+                kept_token = token_map[key]
                 recomb_tokens.append((token,
                                       kept_token.history,
                                       kept_token.nn_lm_logprob))
-
-        return result_tokens.values()
+        return result
 
     def _append_word(self, tokens, target_word, oov_logprob=None):
         """Appends a word to each of the given tokens, and updates their scores.
