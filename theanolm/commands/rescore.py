@@ -4,12 +4,13 @@
 import gc
 import sys
 import logging
+
 import theano
+
 from theanolm import Network
 from theanolm.backend import TextFileType
 from theanolm.backend import get_default_device, log_free_mem
-from theanolm.scoring import LatticeDecoder, KaldiLattice, OutKaldiLattice
-
+from theanolm.scoring import LatticeDecoder, KaldiLattice
 
 def add_arguments(parser):
     argument_group = parser.add_argument_group("files")
