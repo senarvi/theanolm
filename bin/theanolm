@@ -32,12 +32,12 @@ except ImportError:
         pass
 
 def exception_handler(exception_type, exception, traceback):
-    """Exception handler. Writes stack trace in case of uncaught exceptions to
-    debug log.
+    """Exception handler. Writes stack trace to debug log in case an exception
+    is not caught.
     """
 
-    logging.debug("An unexpected {} exception occurred. Traceback will be written to "
-          "debug log. The error message was: {}"
+    logging.error("An unexpected {} exception occurred: {}\nTraceback will be "
+          "written to debug log."
           .format(exception_type.__name__, _get_message(exception)))
     logging.debug("Traceback:")
     for item in format_tb(traceback):

@@ -44,10 +44,14 @@ def get_default_device(requested):
         if requested is None:
             if any(name is None for name in names):
                 return None
-            else:
+            elif len(names) > 0:
                 logging.info('The first GPU device ("{}") will be used as the '
                              'default device.'.format(names[0]))
                 return names[0]
+            else:
+                logging.info('Theano is not using a GPU or an old version of '
+                             'libgpuarray is installed.')
+                return None
         elif requested in names:
             logging.info('"{}" selected as the default device.'
                          .format(requested))
