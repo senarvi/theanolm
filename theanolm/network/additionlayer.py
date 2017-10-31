@@ -54,9 +54,9 @@ class AdditionLayer(BasicLayer):
             if input_size == self.output_size:
                 input_matrix = input_layer.output
             else:
-                param_name = 'input{}/W'.format(input_index)
-                weight = self._params[self._param_path(param_name)]
-                input_matrix = tensor.dot(input_layer.output, weight)
+                input_matrix = self._tensor_preact(input_layer.output,
+                                                   'input{}'.format(input_index),
+                                                   use_bias=False)
 
             if self.output is None:
                 self.output = input_matrix

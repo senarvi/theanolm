@@ -72,3 +72,12 @@ def get_default_device(requested):
         else:
             raise ValueError('Theano is not configured to use device "{}". '
                              'Only cpu is supported.'.format(requested))
+
+def log_free_mem():
+    """Writes the available GPU memory to the debug log.
+    """
+
+    for name in theano.gpuarray.type.list_contexts():
+        context = theano.gpuarray.type.get_context(name)
+        free_mbytes = context.free_gmem / (1024 * 1024)
+        logging.debug("Available memory on GPU %s: %.0f MB", name, free_mbytes)

@@ -166,7 +166,7 @@ class BasicLayer(object, metaclass=ABCMeta):
         return self._params[self._param_path(param_name, device)]
 
     def _init_weight(self, param_name, shape, scale=None, count=1,
-                     split_to_devices=False):
+                     split_to_devices=True):
         """Generates a weight matrix from “standard normal” distribution.
 
         If ``shape`` contains two dimensions that match, generates an orthogonal
@@ -182,10 +182,8 @@ class BasicLayer(object, metaclass=ABCMeta):
         If ``count`` is specified, creates a concatenation of several similar
         submatrices (same shape but different content).
 
-        If ``split_to_devices`` is set to ``True``, splits the weight to equal
-        parts on the last dimension, and creates one parameter for each device.
-        If also ``count`` is specified, each device will have an equal part of
-        every submatrix.
+        If ``split_to_devices`` is ``True``, splits the weight to equal parts on
+        the last dimension, and creates one parameter for each device.
 
         :type shape: list or tuple of ints
         :param shape: sizes of the weight dimensions; normally the first one is
@@ -200,7 +198,7 @@ class BasicLayer(object, metaclass=ABCMeta):
         :param count: concatenate this many weight matrices with the same shape
 
         :type split_to_devices: bool
-        :param split_to_devices: if set to ``True``, creates on every device a
+        :param split_to_devices: if ``True``, creates on every device a
                                  parameter that contains one part of the weight
         """
 
@@ -212,19 +210,21 @@ class BasicLayer(object, metaclass=ABCMeta):
             # This layer has not been assigned to a specific device.
             self._params.add(path, weight)
         else:
-            self._split_to_devices(path, weight, shape[-1])
+            split_ranges = self._split_per_device(weight.shape[-1])
+            for device, split_range in zip(self._devices, split_ranges):
+                assert device is not None
+                self._params.add('{}/{}'.format(path, device),
+                                 weight[..., split_range], device)
 
-    def _init_bias(self, param_name, shape, value=None, split_to_devices=False):
+    def _init_bias(self, param_name, shape, value=None, split_to_devices=True):
         """Initializes a bias vector with given value.
 
         If ``value`` is not given, initializes the vector with zero value. If
         ``value`` is a list, creates a concatenation of as many vectors as there
         are elements in the list.
 
-        If ``split_to_devices`` is set to ``True``, splits the array to equal
-        parts on the last dimension, and creates one parameter for each device.
-        If ``value`` is a list, each device will have an equal part of every
-        submatrix.
+        If ``split_to_devices`` is ``True``, splits the array to equal parts on
+        the last dimension, and creates one parameter for each device.
 
         :type param_name: str
         :param param_name: name for the parameter within the layer
@@ -240,7 +240,7 @@ class BasicLayer(object, metaclass=ABCMeta):
                       vectors
 
         :type split_to_devices: bool
-        :param split_to_devices: if set to ``True``, creates on every device a
+        :param split_to_devices: if ``True``, creates on every device a
                                  parameter that contains one part of the array
         """
 
@@ -251,56 +251,21 @@ class BasicLayer(object, metaclass=ABCMeta):
         elif (len(self._devices) == 1) and (self._devices[0] is None):
             # This layer has not been assigned to a specific device.
             self._params.add(path, matrix_from_value(shape, value))
-        elif isinstance(shape, int):
-            self._split_to_devices(path, bias, shape)
         else:
-            self._split_to_devices(path, bias, shape[-1])
+            split_ranges = self._split_per_device(bias.shape[-1])
+            for device, split_range in zip(self._devices, split_ranges):
+                assert device is not None
+                self._params.add('{}/{}'.format(path, device),
+                                 bias[..., split_range], device)
 
-    def _split_to_devices(self, path, value, part_size):
-        """Splits a matrix to equal parts on the last dimension, and creates a
-        parameter on each device.
-
-        If the matrix consists of submatrices, each device will have an equal
-        part of every submatrix, whose size is specified by ``part_size``.
-
-        :type path: str
-        :param path: base path for the parameters that will be prefixed by the
-                     device string
-
-        :type value: numpy.ndarray
-        :param value: a matrix that will be split to give the initial value of
-                      the parameters
-
-        :type part_size: int
-        :param part_size: size of the last dimension of ``value``, or if
-                          ``value`` consists of multiple submatrices, size of
-                          one submatrix
-        """
-
-        part_count = value.shape[-1] // part_size
-        if part_count * part_size != value.shape[-1]:
-            raise ValueError("Last dimension is not a multiple of part size.")
-
-        split_sizes = self._size_per_device(part_size)
-        split_start = 0
-        for device, split_size in zip(self._devices, split_sizes):
-            assert device is not None
-            split_end = split_start + split_size
-            ranges = []
-            for part_index in range(part_count):
-                part_start = part_index * part_size
-                ranges.extend(range(part_start + split_start,
-                                    part_start + split_end))
-            split_start = split_end
-            self._params.add(path + '/' + device, value[..., ranges], device)
-
-    def _size_per_device(self, total_size):
-        """Returns ``total_size`` divided for each device.
+    def _split_per_device(self, total_size):
+        """Returns a list of range objects that divide ``total_size`` equally to
+        as many parts as there are devices.
 
         :type total_size: int
         :param total_size: total size of a parameter
 
-        :rtype: list of ints
+        :rtype: list of ranges
         :returns: ``total_size`` divided into as many parts as there are devices
                   assigned to this layer
         """
@@ -317,16 +282,16 @@ class BasicLayer(object, metaclass=ABCMeta):
         start_index = 0
         for i in range(1, num_devices + 1):
             end_index = i * quotient + min(i, remainder)
-            result.append(end_index - start_index)
+            result.append(range(start_index, end_index))
             start_index = end_index
 
         assert len(result) == num_devices
-        assert sum(result) == total_size
+        assert sum(len(x) for x in result) == total_size
         assert end_index == total_size
 
         return result
 
-    def _tensor_preact(self, input_matrix, param_name):
+    def _tensor_preact(self, input_matrix, param_name, use_bias=True):
         """Helper function that creates a pre-activation of ``input_matrix`` by
         multiplying it by a weight matrix and adding a bias.
 
@@ -347,6 +312,9 @@ class BasicLayer(object, metaclass=ABCMeta):
         :param param_name: name of a parameter group that contains a weight
                            matrix and a bias vector
 
+        :type use_bias: bool
+        :param use_bias: if set to ``False``, does not add a bias
+
         :rtype: symbolic tensor
         :returns: a tensor that has the same number of dimensions as
                   ``input_matrix``, but the features (the last dimension) are
@@ -356,9 +324,18 @@ class BasicLayer(object, metaclass=ABCMeta):
         results = []
         for device in self._devices:
             weight = self._get_param(param_name + '/W', device)
-            bias = self._get_param(param_name + '/b', device)
-            results.append(tensor.dot(input_matrix, weight) + bias)
-        return tensor.concatenate(results, axis=2)
+            result = tensor.dot(input_matrix, weight)
+            if use_bias:
+                bias = self._get_param(param_name + '/b', device)
+                result += bias
+            results.append(result)
+
+        if len(results) > 1:
+            return tensor.concatenate(results, axis=2)
+        elif len(results) == 1:
+            return results[0]
+        else:
+            assert False
 
     def _tensor_conv1d(self, input_matrix, param_name):
         """Convolves ``input_matrix`` using filters and adds a bias.
@@ -393,14 +370,24 @@ class BasicLayer(object, metaclass=ABCMeta):
         # (samples, elements, features).
         input_matrix = input_matrix.dimshuffle(1, 0, 2)
 
-        filters = self._params[self._param_path(param_name) + '/W']
-        result = conv1d(input_matrix,
-                        filters,
-                        padding='valid')
+        results = []
+        for device in self._devices:
+            filters = self._get_param(param_name + '/W', device)
+            result = conv1d(input_matrix,
+                            filters,
+                            padding='valid')
+            results.append(result)
+
+        if len(results) > 1:
+            result = tensor.concatenate(results, axis=2)
+        elif len(results) == 1:
+            result = results[0]
+        else:
+            assert False
 
         # Permutate input dimensions from (samples, elements, features) to
         # (time steps, sequences, features).
         result = result.dimshuffle(1, 0, 2)
 
-        result += self._params[self._param_path(param_name) + '/b']
+        result += self._get_param(param_name + '/b')
         return result

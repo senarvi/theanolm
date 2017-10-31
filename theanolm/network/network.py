@@ -507,7 +507,9 @@ class Network(object):
         if (self._noise_sample is None) or \
            (self._noise_sample_logprobs is None):
             raise InputError(
-                "The output layer does not support sampling noise words.")
+                "The output layer does not support sampling noise words. "
+                "Sampling-based costs can be used only with normal softmax and "
+                "only one device.")
 
         return self._noise_sample, self._noise_sample_logprobs
 

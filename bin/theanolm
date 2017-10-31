@@ -37,7 +37,7 @@ def exception_handler(exception_type, exception, traceback):
     """
 
     logging.error("An unexpected {} exception occurred: {}\nTraceback will be "
-          "written to debug log."
+          "written to debug log (enable with --log-level debug)."
           .format(exception_type.__name__, _get_message(exception)))
     logging.debug("Traceback:")
     for item in format_tb(traceback):

@@ -1,6 +1,6 @@
 #!/bin/bash -e
 #SBATCH --partition gpu
-#SBATCH --time=4:00:00
+#SBATCH --time=2-00
 #SBATCH --gres=gpu:1
 #SBATCH --mem=48G
 
@@ -38,8 +38,8 @@ VOCAB_MIN_COUNT=3
 OPTIMIZATION_METHOD=nesterov
 MAX_GRADIENT_NORM=5
 STOPPING_CRITERION=no-improvement
-VALIDATION_FREQ=4
-PATIENCE=0
+VALIDATION_FREQ=25
+PATIENCE=4
 ARCHITECTURE_FILE="${arch_dir}/word-gcnn-8b-fast.arch"
 COST=cross-entropy
 LEARNING_RATE=0.1

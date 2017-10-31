@@ -5,7 +5,7 @@
 
 from theanolm.backend.exceptions import *
 from theanolm.backend.filetypes import TextFileType
-from theanolm.backend.gpu import get_default_device
+from theanolm.backend.gpu import get_default_device, log_free_mem
 from theanolm.backend.parameters import Parameters
 from theanolm.backend.classdistribution import UniformDistribution
 from theanolm.backend.classdistribution import LogUniformDistribution

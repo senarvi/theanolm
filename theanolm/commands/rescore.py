@@ -6,7 +6,8 @@ import sys
 import logging
 import theano
 from theanolm import Network
-from theanolm.backend import TextFileType, get_default_device
+from theanolm.backend import TextFileType
+from theanolm.backend import get_default_device, log_free_mem
 from theanolm.scoring import LatticeDecoder, KaldiLattice, OutKaldiLattice
 
 
@@ -17,15 +18,15 @@ def add_arguments(parser):
         help='the model file that will be used to decode the lattice')
     argument_group.add_argument(
         'lattices_in', metavar='LAT-FILE', type=TextFileType('r'),
-        help='kaldi lattice archive containing text CompactLattices'
+        help='Kaldi lattice archive containing text CompactLattices'
     )
     argument_group.add_argument(
         'wordmap', metavar='FILE', type=TextFileType('r'),
-        help='kaldi words.txt'
+        help='Kaldi word ID map (usually words.txt)'
     )
     argument_group.add_argument(
         'lattices_out', metavar='LAT-FILE', type=TextFileType('w'), default='-',
-        help='kaldi lattice archive containing text CompactLattices'
+        help='Kaldi lattice archive containing text CompactLattices'
     )
 
     argument_group = parser.add_argument_group("decoding")
@@ -35,9 +36,6 @@ def add_arguments(parser):
              'followed by words), "trn" (words followed by utterance ID in '
              'parentheses), "full" (utterance ID, acoustic score, language '
              'score, and number of words, followed by words)')
-    argument_group.add_argument(
-        '--n-best', metavar='N', type=int, default=1,
-        help='print N best paths of each lattice (default 1)')
     argument_group.add_argument(
         '--lm-scale', metavar='LMSCALE', type=float, default=15.0,
         help="scale language model log probabilities by LMSCALE when computing "
@@ -64,23 +62,19 @@ def add_arguments(parser):
         help="keep only the best token, when at least O previous words are "
              "identical (default is to recombine tokens only if the entire "
              "word history matches)")
-
     argument_group.add_argument(
-        '--prune-extra-limit', type=int, default=None,
-        help="if set, tighten the beam and recombination-order linearly if the "
-             "number of nodes in the lattice go over prune-extra-limit. "
-             "This is especially useful in cases such as character language "
-             "models.")
+        '--prune-relative', metavar='R', type=int, default=None,
+        help="if set, tighten the beam and the max-tokens-per-node pruning "
+             "linearly in the number of tokens in a node; those parameters "
+             "will be divided by the number of tokens and multiplied by R")
     argument_group.add_argument(
-        '--abs-min-beam', type=float, default=150,
-        help='If prune-extra-limit is used, do not tighten the beam further'
-             ' than this'
-    )
+        '--abs-min-max-tokens', metavar='T', type=float, default=30,
+        help="if prune-extra-limit is used, do not tighten max-tokens-per-node "
+             "further than this (default is 30)")
     argument_group.add_argument(
-        '--abs-min-max-tokens', type=float, default=30,
-        help='If prune-extra-limit is used, do not tighten the max-tokens-active'
-             ' further than this'
-    )
+        '--abs-min-beam', metavar='B', type=float, default=150,
+        help="if prune-extra-limit is used, do not tighten the beam further "
+             "than this (default is 150)")
 
     argument_group = parser.add_argument_group("configuration")
     argument_group.add_argument(
@@ -107,7 +101,7 @@ def rescore(args):
     log_file = args.log_file
     log_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(log_level, int):
-        print("Invalid logging level requested:", args.log_level)
+        print("Invalid logging level requested:", args.log_level, file=sys.stderr)
         sys.exit(1)
     log_format = '%(asctime)s %(funcName)s: %(message)s'
     if args.log_file == '-':
@@ -126,8 +120,6 @@ def rescore(args):
     network = Network.from_file(args.model_path,
                                 mode=Network.Mode(minibatch=False),
                                 default_device=default_device)
-
-    log_scale = 1.0
 
     if args.unk_penalty is None:
         ignore_unk = False
@@ -148,9 +140,9 @@ def rescore(args):
         'max_tokens_per_node': args.max_tokens_per_node,
         'beam': args.beam,
         'recombination_order': args.recombination_order,
-        'prune_extra_limit': args.prune_extra_limit,
-        'abs_min_beam': args.abs_min_beam,
+        'prune_relative': args.prune_relative,
         'abs_min_max_tokens': args.abs_min_max_tokens,
+        'abs_min_beam': args.abs_min_beam
     }
     logging.debug("DECODING OPTIONS")
     for option_name, option_value in decoding_options.items():
@@ -161,85 +153,47 @@ def rescore(args):
     decoder = LatticeDecoder(network, decoding_options)
 
     word_to_id = {}
-
     for i, line in enumerate(args.wordmap):
         parts = line.split()
-        assert len(parts) == 2
+        if len(parts) != 2:
+            print("Invalid word ID map file.", file=sys.stderr)
+            sys.exit(1)
         word = parts[0]
         word_id = int(parts[1])
         word_to_id[word] = word_id
-        assert i == word_id
 
     id_to_word = [None] * len(word_to_id)
     for word, id in word_to_id.items():
         id_to_word[id] = word
 
     while True:
-        key = args.lattices_in.readline().strip()
-        if len(key) == 0:
-            break
-        logging.info("Lat key: {}".format(key))
-        lat_lines = []
+        utterance_id = args.lattices_in.readline()
+        if not utterance_id:
+            break  # end of file
+        utterance_id = utterance_id.strip()
+        if not utterance_id:
+            continue  # empty line
+        logging.info("Utterance `%s'", utterance_id)
+        log_free_mem()
+
+        lattice_lines = []
         while True:
             line = args.lattices_in.readline().strip()
-            if len(line) == 0:
-                break
-            lat_lines.append(line)
+            if not line:
+                break  # empty line
+            lattice_lines.append(line)
 
-        lattice = KaldiLattice(lat_lines, id_to_word)
-        lattice.utterance_id = key
+        lattice = KaldiLattice(lattice_lines, id_to_word)
+        lattice.utterance_id = utterance_id
         final_tokens, recomb_tokens = decoder.decode(lattice)
 
+        rescored_lattice = Lattice.from_decoder(lattice,
+                                                final_tokens,
+                                                recomb_tokens,
+                                                network.vocabulary,
+        rescored_lattice.write_kaldi(utterance_id,
+                                     args.lattices_out,
+                                     word_to_id)
 
-        lat_out = OutKaldiLattice()
-        lat_out.create_network(lattice, final_tokens, recomb_tokens, network.vocabulary, word_to_id)
-        lat_out.write(key, args.lattices_out)
-        del lat_out, final_tokens, recomb_tokens
+        del rescored_lattice, final_tokens, recomb_tokens
         gc.collect()
-
-def format_token(token, utterance_id, vocabulary, log_scale, output_format):
-    """Formats an output line from a token and an utterance ID.
-
-    Reads word IDs from the history list of ``token`` and converts them to words
-    using ``vocabulary``. The history may contain also OOV words as text, so any
-    ``str`` will be printed literally.
-
-    :type token: Token
-    :param token: a token whose history will be formatted
-
-    :type utterance_id: str
-    :param utterance_id: utterance ID for full output
-
-    :type vocabulary: Vocabulary
-    :param vocabulary: mapping from word IDs to words
-
-    :type log_scale: float
-    :param log_scale: divide log probabilities by this number to convert the log
-                      base
-
-    :type output_format: str
-    :param output_format: which format to write, one of "ref" (utterance ID,
-        words), "trn" (words, utterance ID in parentheses), "full" (utterance
-        ID, acoustic and LM scores, number of words, words)
-
-    :rtype: str
-    :returns: the formatted output line
-    """
-
-    words = token.history_words(vocabulary)
-    if output_format == 'ref':
-        return "{} {}".format(utterance_id, ' '.join(words))
-    elif output_format == 'trn':
-        return "{} ({})".format(' '.join(words), utterance_id)
-    elif output_format == 'full':
-        return "{} {} {} {} {} {} {}".format(
-            utterance_id,
-            token.ac_logprob / log_scale,
-            token.lm_logprob / log_scale,
-            token.graph_logprob / log_scale,
-            token.total_logprob / log_scale,
-            len(words),
-            ' '.join(words))
-    else:
-        print("Invalid output format requested:", args.output)
-        sys.exit(1)

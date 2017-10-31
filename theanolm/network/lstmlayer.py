@@ -41,14 +41,13 @@ class LSTMLayer(BasicLayer):
         num_gates = 3
         # layer input weights for each gate and the candidate state
         self._init_weight('layer_input/W', (input_size, output_size),
-                          scale=0.01, count=num_gates+1,
-                          split_to_devices=True)
+                          scale=0.01, count=num_gates+1)
         # hidden state input weights for each gate and the candidate state
         self._init_weight('step_input/W', (output_size, output_size),
-                          count=num_gates+1)
+                          count=num_gates+1,
+                          split_to_devices=False)
         # biases for each gate and the candidate state
-        self._init_bias('layer_input/b', output_size, [-1.0, 1.0, -1.0, 0.0],
-                        split_to_devices=True)
+        self._init_bias('layer_input/b', output_size, [-1.0, 1.0, -1.0, 0.0])
 
         self.output = None
 

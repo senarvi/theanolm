@@ -125,8 +125,8 @@ class TestBasicLayer(unittest.TestCase):
         assert_equal(bias, numpy.arange(10 * 20).reshape(10, 20))
 
         # tiled
-        layer._init_bias('biasr', (3, 2), value=[5, 6, 7])
-        bias = layer._get_param('biasr')
+        layer._init_bias('bias4', (3, 2), value=[5, 6, 7])
+        bias = layer._get_param('bias4')
         value = numpy.array([[5, 5, 6, 6, 7, 7],
                              [5, 5, 6, 6, 7, 7],
                              [5, 5, 6, 6, 7, 7]])
@@ -135,43 +135,30 @@ class TestBasicLayer(unittest.TestCase):
         # split
         layer._init_bias('bias5', (2, 3), value=[5, 6, 7], split_to_devices=True)
         bias = layer._get_param('bias5', 'dev0')
-        value = numpy.array([[5, 6, 7],
-                             [5, 6, 7]])
+        value = numpy.ones((2, 3) * 5)
         assert_almost_equal(bias, value)
         bias = layer._get_param('bias5', 'dev1')
+        value = numpy.ones((2, 3) * 6)
         assert_almost_equal(bias, value)
         bias = layer._get_param('bias5', 'dev2')
+        value = numpy.ones((2, 3) * 7)
         assert_almost_equal(bias, value)
         self.assertEqual(layer._params.get_device('layers/layer_name/bias5/dev0'), 'dev0')
         self.assertEqual(layer._params.get_device('layers/layer_name/bias5/dev1'), 'dev1')
         self.assertEqual(layer._params.get_device('layers/layer_name/bias5/dev2'), 'dev2')
 
-    def test_split_to_devices(self):
+    def test_split_per_device(self):
         layer = DummyLayer(self.layer_options)
-        value = numpy.concatenate([numpy.ones((10, 6)) * 5,
-                                   numpy.ones((10, 6)) * 6,
-                                   numpy.ones((10, 6)) * 7],
-                                  axis=1)
-        layer._split_to_devices('layers/layer_name/var', value, 6)
-        part_value = numpy.concatenate([numpy.ones((10, 2)) * 5,
-                                        numpy.ones((10, 2)) * 6,
-                                        numpy.ones((10, 2)) * 7],
-                                       axis=1)
-        dev0_value = layer._get_param('var', 'dev0')
-        dev1_value = layer._get_param('var', 'dev1')
-        dev2_value = layer._get_param('var', 'dev2')
-        assert_equal(dev0_value, part_value)
-        assert_equal(dev1_value, part_value)
-        assert_equal(dev2_value, part_value)
-
-    def test_size_per_device(self):
-        layer = DummyLayer(self.layer_options)
-        sizes = layer._size_per_device(10)
-        self.assertEqual(sum(sizes), 10)
-        self.assertEqual(len(sizes), 3)
-        self.assertTrue(sizes[0] == 3 or sizes[0] == 4)
-        self.assertTrue(sizes[1] == 3 or sizes[1] == 4)
-        self.assertTrue(sizes[2] == 3 or sizes[2] == 4)
+        ranges = layer._split_per_device(10)
+        self.assertEqual(len(ranges), 3)
+        self.assertTrue(len(ranges[0]) == 3 or len(ranges[0]) == 4)
+        self.assertTrue(len(ranges[1]) == 3 or len(ranges[1]) == 4)
+        self.assertTrue(len(ranges[2]) == 3 or len(ranges[2]) == 4)
+        self.assertEqual(sum(len(x) for x in ranges), 10)
+        self.assertEqual(ranges[0][0], 0)
+        self.assertEqual(ranges[1][0], ranges[0][-1] + 1)
+        self.assertEqual(ranges[2][0], ranges[1][-1] + 1)
+        self.assertEqual(ranges[2][-1], 9)
 
 if __name__ == '__main__':
     unittest.main()

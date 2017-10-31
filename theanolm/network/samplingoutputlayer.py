@@ -32,8 +32,8 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
 
         :rtype: symbolic 2-dimensional tensor
         :returns: the unnormalized log probabilities of the target words for
-                  each sequence in each time step, or ``None`` if the parameters
-                  are split to more than one device.
+                  each sequence in each time step, or ``None`` if using multiple
+                  GPUs.
         """
 
         layer_input = self._layer_input
@@ -61,7 +61,8 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
 
         :rtype: tuple of two symbolic 3-dimensional tensors
         :returns: the k sampled class IDs and their log probabilities for each
-                  time step in each sequence
+                  time step in each sequence, or ``(None, None)`` if using
+                  multiple GPUs.
         """
 
         layer_input = self._layer_input
@@ -95,7 +96,8 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
         :rtype: tuple of two symbolic 3-dimensional tensors
         :returns: the k sampled class IDs for each time step (the second
                   dimension being empty), and their log probabilities for each
-                  time step in each sequence
+                  time step in each sequence, or ``(None, None)`` if using
+                  multiple GPUs.
         """
 
         layer_input = self._layer_input
@@ -130,7 +132,7 @@ class SamplingOutputLayer(BasicLayer, metaclass=ABCMeta):
         :rtype: tuple of two symbolic 3-dimensional tensors
         :returns: the k sampled class IDs (the first and second dimension being
                   empty) and their log probabilities for each time step in each
-                  sequence
+                  sequence, or ``(None, None)`` if using multiple GPUs.
         """
 
         layer_input = self._layer_input
