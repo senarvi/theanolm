@@ -61,25 +61,26 @@ class TestBasicLayer(unittest.TestCase):
         layer = DummyLayer(self.layer_options)
 
         # standard normal distribution
-        layer._init_weight('weight1', (100, 200))
+        layer._init_weight('weight1', (100, 200), split_to_devices=False)
         weight = layer._get_param('weight1')
         self.assertListEqual(list(weight.shape), [100, 200])
         self.assertLess(numpy.min(weight), -1.0)
         self.assertGreater(numpy.max(weight), 1.0)
 
         # scaled
-        layer._init_weight('weight2', (10, 20), 0.001)
+        layer._init_weight('weight2', (10, 20), 0.001, split_to_devices=False)
         weight = layer._get_param('weight2')
         self.assertGreater(numpy.min(weight), -1.0)
         self.assertLess(numpy.max(weight), 1.0)
 
         # orthogonal
-        layer._init_weight('weight3', (100, 100), 0.001)
+        layer._init_weight('weight3', (100, 100), 0.001, split_to_devices=False)
         weight = layer._get_param('weight3')
         assert_almost_equal(numpy.dot(weight, weight.T), numpy.identity(100))
 
         # tiled
-        layer._init_weight('weight4', (100, 200), count=3)
+        layer._init_weight('weight4', (100, 200), count=3,
+                           split_to_devices=False)
         weight = layer._get_param('weight4')
         self.assertListEqual(list(weight.shape), [100, 600])
 
@@ -110,22 +111,25 @@ class TestBasicLayer(unittest.TestCase):
         layer = DummyLayer(self.layer_options)
 
         # zeros
-        layer._init_bias('bias1', (10, 20))
+        layer._init_bias('bias1', (10, 20), split_to_devices=False)
         bias = layer._get_param('bias1')
         assert_equal(bias, numpy.zeros((10, 20)))
 
         # single value
-        layer._init_bias('bias2', (10, 20), 5)
+        layer._init_bias('bias2', (10, 20), 5, split_to_devices=False)
         bias = layer._get_param('bias2')
         assert_equal(bias, numpy.ones((10, 20)) * 5)
 
         # array
-        layer._init_bias('bias3', (10, 20), numpy.arange(10 * 20).reshape(10, 20))
+        layer._init_bias('bias3', (10, 20),
+                         numpy.arange(10 * 20).reshape(10, 20),
+                         split_to_devices=False)
         bias = layer._get_param('bias3')
         assert_equal(bias, numpy.arange(10 * 20).reshape(10, 20))
 
         # tiled
-        layer._init_bias('bias4', (3, 2), value=[5, 6, 7])
+        layer._init_bias('bias4', (3, 2), value=[5, 6, 7],
+                         split_to_devices=False)
         bias = layer._get_param('bias4')
         value = numpy.array([[5, 5, 6, 6, 7, 7],
                              [5, 5, 6, 6, 7, 7],
@@ -133,15 +137,16 @@ class TestBasicLayer(unittest.TestCase):
         assert_almost_equal(bias, value)
 
         # split
-        layer._init_bias('bias5', (2, 3), value=[5, 6, 7], split_to_devices=True)
+        layer._init_bias('bias5', (2, 3), value=[5, 6, 7],
+                         split_to_devices=True)
         bias = layer._get_param('bias5', 'dev0')
-        value = numpy.ones((2, 3) * 5)
+        value = numpy.ones((2, 3)) * 5
         assert_almost_equal(bias, value)
         bias = layer._get_param('bias5', 'dev1')
-        value = numpy.ones((2, 3) * 6)
+        value = numpy.ones((2, 3)) * 6
         assert_almost_equal(bias, value)
         bias = layer._get_param('bias5', 'dev2')
-        value = numpy.ones((2, 3) * 7)
+        value = numpy.ones((2, 3)) * 7
         assert_almost_equal(bias, value)
         self.assertEqual(layer._params.get_device('layers/layer_name/bias5/dev0'), 'dev0')
         self.assertEqual(layer._params.get_device('layers/layer_name/bias5/dev1'), 'dev1')

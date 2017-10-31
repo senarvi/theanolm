@@ -118,3 +118,12 @@ class Parameters:
         """
 
         return self._vars
+
+    def __str__(self):
+        """Returns a string representation of the parameters.
+
+        :rtype: str
+        :returns: string representation of the parameters
+        """
+
+        return str(self._vars)
