@@ -1,0 +1,14 @@
+<eps> 0
+!SIL 1
+a 2
+a. 3
+and 4
+at 5
+but 6
+didn't 7
+e. 8
+elaborate 9
+in 10
+it 11
+the 12
+to 13

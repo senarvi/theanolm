@@ -10,7 +10,9 @@ import theano
 from theanolm import Network
 from theanolm.backend import TextFileType
 from theanolm.backend import get_default_device, log_free_mem
-from theanolm.scoring import LatticeDecoder, KaldiLattice
+from theanolm.scoring import LatticeDecoder
+from theanolm.scoring import KaldiLattice, read_kaldi_vocabulary
+from theanolm.scoring import RescoredLattice
 
 def add_arguments(parser):
     argument_group = parser.add_argument_group("files")
@@ -153,48 +155,43 @@ def rescore(args):
     sys.stdout.flush()
     decoder = LatticeDecoder(network, decoding_options)
 
-    word_to_id = {}
-    for i, line in enumerate(args.wordmap):
-        parts = line.split()
-        if len(parts) != 2:
-            print("Invalid word ID map file.", file=sys.stderr)
-            sys.exit(1)
-        word = parts[0]
-        word_id = int(parts[1])
-        word_to_id[word] = word_id
-
+    word_to_id = read_kaldi_vocabulary(args.wordmap)
     id_to_word = [None] * len(word_to_id)
     for word, id in word_to_id.items():
         id_to_word[id] = word
 
     while True:
-        utterance_id = args.lattices_in.readline()
-        if not utterance_id:
-            break  # end of file
-        utterance_id = utterance_id.strip()
-        if not utterance_id:
-            continue  # empty line
-        logging.info("Utterance `%s'", utterance_id)
-        log_free_mem()
+        line = args.lattices_in.readline()
+        if not line:
+            # end of file
+            process_lattice(lattice_lines, args.lattices_out,
+                            network.vocabulary, id_to_word, word_to_id)
+            break
+        line = line.strip()
+        if not line:
+            # empty line
+            process_lattice(lattice_lines, args.lattices_out,
+                            network.vocabulary, id_to_word, word_to_id)
+            gc.collect()
+            lattice_lines = []
+            continue
+        lattice_lines.append(line)
 
-        lattice_lines = []
-        while True:
-            line = args.lattices_in.readline().strip()
-            if not line:
-                break  # empty line
-            lattice_lines.append(line)
+def process_lattice(lattice_lines, output_file,
+                    vocabulary, id_to_word, word_to_id):
+    """Decodes a lattice and writes a rescored lattice.
+    """
 
-        lattice = KaldiLattice(lattice_lines, id_to_word)
-        lattice.utterance_id = utterance_id
-        final_tokens, recomb_tokens = decoder.decode(lattice)
+    if not lattice_lines:
+        return
 
-        rescored_lattice = Lattice.from_decoder(lattice,
-                                                final_tokens,
-                                                recomb_tokens,
-                                                network.vocabulary)
-        rescored_lattice.write_kaldi(utterance_id,
-                                     args.lattices_out,
-                                     word_to_id)
+    lattice = KaldiLattice(lattice_lines, id_to_word)
+    logging.info("Utterance `%s'", lattice.utterance_id)
+    log_free_mem()
 
-        del rescored_lattice, final_tokens, recomb_tokens
-        gc.collect()
+    final_tokens, recomb_tokens = decoder.decode(lattice)
+    rescored_lattice = RescoredLattice(lattice,
+                                       final_tokens,
+                                       recomb_tokens,
+                                       vocabulary)
+    rescored_lattice.write_kaldi(output_file, word_to_id)

@@ -335,17 +335,17 @@ class TestLatticeDecoder(unittest.TestCase):
 
     def test_decode(self):
         vocabulary = Vocabulary.from_word_counts({
-            'TO': 1,
-            'AND': 1,
-            'IT': 1,
-            'BUT': 1,
-            'A.': 1,
-            'IN': 1,
-            'A': 1,
-            'AT': 1,
-            'THE': 1,
-            "DIDN'T": 1,
-            'ELABORATE': 1})
+            'to': 1,
+            'and': 1,
+            'it': 1,
+            'but': 1,
+            'a.': 1,
+            'in': 1,
+            'a': 1,
+            'at': 1,
+            'the': 1,
+            "didn't": 1,
+            'elaborate': 1})
         projection_vector = tensor.ones(
             shape=(vocabulary.num_shortlist_words(),),
             dtype=theano.config.floatX)
@@ -377,18 +377,18 @@ class TestLatticeDecoder(unittest.TestCase):
                   token.total_logprob / log_scale,
                   ' '.join(token.history_words(vocabulary)))
 
-        all_paths = ["<s> IT DIDN'T ELABORATE </s>",
-                     "<s> BUT IT DIDN'T ELABORATE </s>",
-                     "<s> THE DIDN'T ELABORATE </s>",
-                     "<s> AND IT DIDN'T ELABORATE </s>",
-                     "<s> E. DIDN'T ELABORATE </s>",
-                     "<s> IN IT DIDN'T ELABORATE </s>",
-                     "<s> A DIDN'T ELABORATE </s>",
-                     "<s> AT IT DIDN'T ELABORATE </s>",
-                     "<s> IT IT DIDN'T ELABORATE </s>",
-                     "<s> TO IT DIDN'T ELABORATE </s>",
-                     "<s> A. IT DIDN'T ELABORATE </s>",
-                     "<s> A IT DIDN'T ELABORATE </s>"]
+        all_paths = ["<s> it didn't elaborate </s>",
+                     "<s> but it didn't elaborate </s>",
+                     "<s> the didn't elaborate </s>",
+                     "<s> and it didn't elaborate </s>",
+                     "<s> e. didn't elaborate </s>",
+                     "<s> in it didn't elaborate </s>",
+                     "<s> a didn't elaborate </s>",
+                     "<s> at it didn't elaborate </s>",
+                     "<s> it it didn't elaborate </s>",
+                     "<s> to it didn't elaborate </s>",
+                     "<s> a. it didn't elaborate </s>",
+                     "<s> a it didn't elaborate </s>"]
         paths = [' '.join(token.history_words(vocabulary)) for token in tokens]
         self.assertListEqual(paths, all_paths)
 

@@ -410,7 +410,7 @@ class LatticeDecoder(object):
     def _propagate(self, tokens, link, lm_scale, wi_penalty):
         """Propagates tokens to given link or to end of sentence.
 
-        Lattices may contain !NULL, !ENTER, !EXIT, etc. nodes that model e.g.
+        Lattices may contain null nodes with word ``None`` that model e.g.
         silence or sentence start or end, or for example when the topology is
         easier to represent with extra nodes. Such null nodes may contain
         language model scores. Then the function will update the acoustic and
@@ -449,7 +449,7 @@ class LatticeDecoder(object):
                 if link.lm_logprob is not None:
                     token.lat_lm_logprob += link.lm_logprob
 
-            if not link.word.startswith('!') or link.word.startswith('#'):
+            if link.word is not None:
                 try:
                     word = self._vocabulary.word_to_id[link.word]
                 except KeyError:

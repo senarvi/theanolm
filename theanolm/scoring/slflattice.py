@@ -138,15 +138,9 @@ class SLFLattice(Lattice):
             # decoder supports multiple final nodes no problem
             raise InputError("More then one final node in SLF lattice.")
 
-
         # If word identity information is not present in node definitions then
         # it must appear in link definitions.
         self._move_words_to_links()
-        for link in self.links:
-            if link.word is None:
-                raise InputError("SLF lattice does not contain word identity "
-                                 "in link {} or in the following node."
-                                 .format(link.id))
 
     def _read_slf_header(self, fields):
         """Reads SLF lattice header fields and saves them in member variables.
@@ -202,6 +196,10 @@ class SLFLattice(Lattice):
             elif (name == 'WORD') or (name == 'W'):
                 node.word = value
 
+        if hasattr(node, 'word') and \
+           (node.word.startswith('!') or node.word.startswith('#')):
+            node.word = None
+
     def _read_slf_link(self, link_id, fields):
         """Reads SLF lattice link fields and creates such link.
 
@@ -248,6 +246,10 @@ class SLFLattice(Lattice):
         link.ac_logprob = ac_logprob
         link.lm_logprob = lm_logprob
 
+        if link.word is not None and \
+           (link.word.startswith('!') or link.word.startswith('#')):
+            link.word = None
+
     def _move_words_to_links(self):
         """Move word identities from nodes to the links leading to the node.
 
@@ -265,7 +267,7 @@ class SLFLattice(Lattice):
             link end node to the link.
             """
             end_node = link.end_node
-            if hasattr(end_node, 'word') and isinstance(end_node.word, str):
+            if hasattr(end_node, 'word'):
                 if link.word is None:
                     link.word = end_node.word
                 else:

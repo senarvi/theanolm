@@ -9,45 +9,65 @@ import logging
 from theanolm.backend.probfunctions import logprob_type
 from theanolm.scoring.lattice import Lattice
 
+def read_kaldi_vocabulary(input_file):
+    """Reads a word-to-ID mapping from a Kaldi vocabulary file.
+
+    :type input_file: file object
+    :param input_file: a Kaldi vocabulary file (words.txt)
+
+    :rtype: dict
+    :returns: a mapping from words to Kaldi word IDs
+    """
+
+    result = dict()
+    for line in input_file:
+        parts = line.split()
+        if not parts:
+            continue
+        if len(parts) != 2:
+            raise InputError("Invalid Kaldi vocabulary file.")
+        word = parts[0]
+        word_id = int(parts[1])
+        result[word] = word_id
+    return result
+
 class KaldiLattice(Lattice):
     """Kaldi Lattice
 
     A word lattice that can be read in Kaldi CompactLattice Format
     """
 
-    def __init__(self, lattice_file, word_map):
+    def __init__(self, lattice_lines, id_to_word):
         """Reads a Kaldi lattice file.
 
-        If ``lattice_file`` is ``None``, creates an empty lattice (useful for
+        If ``lattice_lines`` is ``None``, creates an empty lattice (useful for
         testing).
 
-        :type lattice_file: file object
-        :param lattice_file: a file in Kaldi CompactLattice text format
+        :type lattice_lines: list of strs
+        :param lattice_lines: list of lines in Kaldi CompactLattice text format
 
-        :type word_map: list
-        :param word_map: mapping of word IDs to words
+        :type id_to_word: list
+        :param id_to_word: mapping of word IDs to words
         """
 
         super().__init__()
 
-        # No log conversion by default. "None" means the lattice file uses
-        # linear probabilities.
+        # No logarithm base conversion.
         self._log_scale = logprob_type(1.0)
 
         self._initial_node_id = None
         self._final_node_id = None
-        # self._final_node_ids = []
-        final_node = self.Node(2**32)
+        final_node = self.Node(None)
         final_node.final = True
+        self.nodes = []
 
-        self.nodes = None
-
-        if lattice_file is None:
+        if lattice_lines is None:
             self._num_nodes = 0
             self._num_links = 0
             return
 
-        for line in lattice_file:
+        self.utterance_id = lattice_lines[0]
+        for line in lattice_lines[1:]:
             parts = line.split()
             if len(parts) == 1:
                 state_to = kaldi_word_id = None
@@ -59,10 +79,12 @@ class KaldiLattice(Lattice):
                 state_to = int(parts[1])
                 kaldi_word_id = int(parts[2])
                 if kaldi_word_id == 0:
-                    raise InputError("Zero word ID in a CompactLattice file.")
+                    raise InputError("Zero word ID in lattice '{}'."
+                                     .format(self.utterance_id))
                 str_weight = parts[3]
             else:
-                raise InputError("Invalid number of fields in a CompactLattice file.")
+                raise InputError("Invalid number of fields in lattice '{}'."
+                                 .format(self.utterance_id))
             state_from = int(parts[0])
 
             weight_parts = str_weight.split(',')
@@ -79,16 +101,21 @@ class KaldiLattice(Lattice):
             if self._initial_node_id is None:
                 self._initial_node_id = state_from
 
-            self._ensure_node_present(state_from)
+            for id in range(len(self.nodes), state_from + 1):
+                self.nodes.append(self.Node(id))
             if state_to is not None:
-                self._ensure_node_present(state_to)
+                for id in range(len(self.nodes), state_to + 1):
+                    self.nodes.append(self.Node(id))
                 link = self._add_link(self.nodes[state_from], self.nodes[state_to])
-                link.word = word_map[kaldi_word_id]
+                link.word = id_to_word[kaldi_word_id]
                 if link.word == "#0":
-                    raise InputError("Lattice contains backoff transitions. "
-                                     "Fix with Kaldi commands.")
-                assert link.word != "<s>"
-                assert link.word != "</s>"
+                    raise InputError("Lattice '{}' contains backoff transitions. "
+                                     "Fix with Kaldi commands."
+                                     .format(self.utterance_id))
+                if (link.word == "<s>") or (link.word == "</s>"):
+                    raise InputError("Lattice '{}' contains traditional start "
+                                     "and end of sentence symbols."
+                                     .format(self.utterance_id))
             else:
                 link = self._add_link(self.nodes[state_from], final_node)
                 link.word = "!SENT_END"
@@ -98,18 +125,10 @@ class KaldiLattice(Lattice):
             link.lm_logprob = graph_logprob
             link.transitions = transitions
 
-        final_node.id = len(self.nodes)
-        self.nodes.append(final_node)
-
-        assert self._initial_node_id is not None
+        if self._initial_node_id is None:
+            raise InputError("No links in lattice '{}'."
+                             .format(self.utterance_id))
         self.initial_node = self.nodes[self._initial_node_id]
 
-        # assert len(self._final_node_ids) > 0
-        # self.final_nodes = [self.nodes[id] for id in self._final_node_ids]
-
-    def _ensure_node_present(self, node_id):
-        if self.nodes is None:
-            self.nodes = []
-
-        for id in range(len(self.nodes), node_id+1):
-            self.nodes.append(self.Node(id))
+        final_node.id = len(self.nodes)
+        self.nodes.append(final_node)

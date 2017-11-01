@@ -4,15 +4,19 @@
 import unittest
 import os
 import math
+from io import StringIO
 
+from theanolm.scoring import SLFLattice
+from theanolm.scoring import KaldiLattice, read_kaldi_vocabulary
 from theanolm.scoring.lattice import Lattice
-from theanolm.scoring.slflattice import SLFLattice
 from theanolm.scoring.slflattice import _split_slf_field, _split_slf_line
 
 class TestLattice(unittest.TestCase):
     def setUp(self):
         script_path = os.path.dirname(os.path.realpath(__file__))
-        self.lattice_path = os.path.join(script_path, 'lattice.slf')
+        self.slf_path = os.path.join(script_path, 'lattice.slf')
+        self.lat_path = os.path.join(script_path, 'lattice.lat')
+        self.wordmap_path = os.path.join(script_path, 'words.txt')
 
     def tearDown(self):
         pass
@@ -181,7 +185,7 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(sorted_nodes[7].id, 7)
         self.assertEqual(sorted_nodes[8].id, 8)
 
-        with open(self.lattice_path, 'r') as lattice_file:
+        with open(self.slf_path, 'r') as lattice_file:
             lattice = SLFLattice(lattice_file)
 
         def reachable(initial_node, node):
@@ -197,11 +201,26 @@ class TestLattice(unittest.TestCase):
                 self.assertLessEqual(left_node.time, right_node.time)
                 self.assertFalse(reachable(right_node, left_node))
 
-    def test_init(self):
-        with open(self.lattice_path, 'r') as lattice_file:
-            lattice = SLFLattice(lattice_file)
+    def test_read_kaldi_vocabulary(self):
+        with open(self.wordmap_path, 'r') as wordmap_file:
+            word_to_id = read_kaldi_vocabulary(wordmap_file)
+        self.assertEqual(len(word_to_id), 14)
+        self.assertEqual(word_to_id['<eps>'], 0)
+        self.assertEqual(word_to_id['!SIL'], 1)
+        self.assertEqual(word_to_id['a'], 2)
+        self.assertEqual(word_to_id['to'], 13)
+
+    def test_slflattice(self):
+        with open(self.wordmap_path, 'r') as wordmap_file:
+            word_to_id = read_kaldi_vocabulary(wordmap_file)
+        with open(self.slf_path, 'r') as slf_file:
+            lattice = SLFLattice(slf_file)
+        self.assertEqual(lattice.utterance_id, 'utterance 123')
         self.assertEqual(len(lattice.nodes), 24)
         self.assertEqual(len(lattice.links), 39)
+        buffer = StringIO()
+        lattice.write_kaldi(buffer, word_to_id)
+        print(buffer.getvalue())
 
 if __name__ == '__main__':
     unittest.main()
