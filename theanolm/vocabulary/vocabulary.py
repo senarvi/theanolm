@@ -184,7 +184,7 @@ class Vocabulary(object):
                                  % (len(fields), line))
 
             if word in words:
-                raise InputError("Word `%s' appears more than once in the "
+                raise InputError("Word `%s´ appears more than once in the "
                                  "vocabulary file." % word)
             words.add(word)
             word_id = len(id_to_word)

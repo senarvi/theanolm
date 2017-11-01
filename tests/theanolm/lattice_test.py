@@ -213,6 +213,10 @@ class TestLattice(unittest.TestCase):
     def test_slflattice(self):
         with open(self.wordmap_path, 'r') as wordmap_file:
             word_to_id = read_kaldi_vocabulary(wordmap_file)
+        id_to_word = [None] * len(word_to_id)
+        for word, id in word_to_id.items():
+            id_to_word[id] = word
+
         with open(self.slf_path, 'r') as slf_file:
             lattice = SLFLattice(slf_file)
         self.assertEqual(lattice.utterance_id, 'utterance 123')
@@ -220,7 +224,10 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(len(lattice.links), 39)
         buffer = StringIO()
         lattice.write_kaldi(buffer, word_to_id)
-        print(buffer.getvalue())
+        lattice = KaldiLattice(buffer.getvalue().splitlines(), id_to_word)
+        self.assertEqual(lattice.utterance_id, 'utterance 123')
+        self.assertEqual(len(lattice.nodes), 24)
+        self.assertEqual(len(lattice.links), 39)
 
 if __name__ == '__main__':
     unittest.main()

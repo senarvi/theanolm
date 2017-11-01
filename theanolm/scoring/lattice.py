@@ -113,15 +113,13 @@ class Lattice(object):
         def write_normal_link(link):
             word = link.word
             if word is None:
-                word_id = 0
-            else:
-                if word == "</s>":
-                    word = "!SENT_END"
-                word_id = word_to_id[word]
+                word = "<eps>"
+            elif word == "</s>":
+                word = "!SENT_END"
             output_file.write("{} {} {} {},{},{}\n".format(
                 link.start_node.id,
                 link.end_node.id,
-                word_id,
+                word_to_id[word],
                 -link.lm_logprob + 0.0,
                 -link.ac_logprob + 0.0,
                 link.transitions))

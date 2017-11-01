@@ -51,7 +51,7 @@ class Parameters:
         """
 
         if path in self._vars:
-            raise ValueError("Path `{}' already in parameters.".format(path))
+            raise ValueError("Path `{}´ already in parameters.".format(path))
         if theano.config.device.startswith('gpu') and value.dtype == 'float64':
             raise TheanoConfigurationError(
                 'You are using Theano with the old GPU backend ("device=gpu"), '
@@ -102,7 +102,7 @@ class Parameters:
         for path, param in self._vars.items():
             if path not in state:
                 raise IncompatibleStateError(
-                    "Parameter `%s' is missing from state." % path)
+                    "Parameter `%s´ is missing from state." % path)
             new_value = state[path].value
             param.set_value(new_value)
             if len(new_value.shape) == 0:

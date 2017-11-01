@@ -6,6 +6,7 @@
 from collections import namedtuple
 import logging
 
+from theanolm.backend import InputError
 from theanolm.backend.probfunctions import logprob_type
 from theanolm.scoring.lattice import Lattice
 
@@ -69,6 +70,8 @@ class KaldiLattice(Lattice):
         self.utterance_id = lattice_lines[0]
         for line in lattice_lines[1:]:
             parts = line.split()
+            if not parts:
+                continue
             if len(parts) == 1:
                 state_to = kaldi_word_id = None
                 str_weight = ""
@@ -78,13 +81,10 @@ class KaldiLattice(Lattice):
             elif len(parts) == 4:
                 state_to = int(parts[1])
                 kaldi_word_id = int(parts[2])
-                if kaldi_word_id == 0:
-                    raise InputError("Zero word ID in lattice '{}'."
-                                     .format(self.utterance_id))
                 str_weight = parts[3]
             else:
-                raise InputError("Invalid number of fields in lattice '{}'."
-                                 .format(self.utterance_id))
+                raise InputError("Invalid number of fields in lattice `{}´ "
+                                 "line `{}´.".format(self.utterance_id, line))
             state_from = int(parts[0])
 
             weight_parts = str_weight.split(',')
@@ -109,11 +109,11 @@ class KaldiLattice(Lattice):
                 link = self._add_link(self.nodes[state_from], self.nodes[state_to])
                 link.word = id_to_word[kaldi_word_id]
                 if link.word == "#0":
-                    raise InputError("Lattice '{}' contains backoff transitions. "
+                    raise InputError("Lattice `{}´ contains backoff transitions. "
                                      "Fix with Kaldi commands."
                                      .format(self.utterance_id))
                 if (link.word == "<s>") or (link.word == "</s>"):
-                    raise InputError("Lattice '{}' contains traditional start "
+                    raise InputError("Lattice `{}´ contains traditional start "
                                      "and end of sentence symbols."
                                      .format(self.utterance_id))
             else:
@@ -126,7 +126,7 @@ class KaldiLattice(Lattice):
             link.transitions = transitions
 
         if self._initial_node_id is None:
-            raise InputError("No links in lattice '{}'."
+            raise InputError("No links in lattice `{}´."
                              .format(self.utterance_id))
         self.initial_node = self.nodes[self._initial_node_id]
 

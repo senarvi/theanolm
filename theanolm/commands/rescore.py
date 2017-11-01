@@ -186,7 +186,7 @@ def process_lattice(lattice_lines, output_file,
         return
 
     lattice = KaldiLattice(lattice_lines, id_to_word)
-    logging.info("Utterance `%s'", lattice.utterance_id)
+    logging.info("Utterance `%s´", lattice.utterance_id)
     log_free_mem()
 
     final_tokens, recomb_tokens = decoder.decode(lattice)

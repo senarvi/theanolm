@@ -415,7 +415,7 @@ def train(args):
                                          args.l1_regularization,
                                          args.l2_regularization, epsilon)
         else:
-            print("Invalid cost function requested: `{}'".format(args.cost))
+            print("Invalid cost function requested: `{}´".format(args.cost))
             sys.exit(1)
         try:
             optimizer = create_optimizer(optimization_options, network,
@@ -424,7 +424,7 @@ def train(args):
             print("Cannot train the neural network because some of the "
                   "parameters are disconnected from the output. Make sure all "
                   "the layers are correctly connected in the network "
-                  "architecture. The error message was: `{}'".format(e))
+                  "architecture. The error message was: `{}´".format(e))
 
         if args.print_graph:
             print("Cost function computation graph:")

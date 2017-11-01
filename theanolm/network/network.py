@@ -340,7 +340,7 @@ class Network(object):
                                       target=self._default_device)
             distribution = MultinomialDistribution(self.random, probs)
         else:
-            raise ValueError("Invalid noise distribution requested: `{}'"
+            raise ValueError("Invalid noise distribution requested: `{}´"
                              .format(type))
 
         if not isinstance(output_layer, SamplingOutputLayer):
@@ -356,7 +356,7 @@ class Network(object):
             self._noise_sample, self._noise_sample_logprobs = \
                 output_layer.get_shared_sample_tensors(distribution)
         else:
-            raise ValueError("Unknown noise sample sharing: `{}'"
+            raise ValueError("Unknown noise sample sharing: `{}´"
                              .format(sharing))
 
         self.noise_distribution = distribution
@@ -533,8 +533,8 @@ class Network(object):
                 try:
                     result['input_layers'] = [self.layers[x] for x in value]
                 except KeyError as e:
-                    raise InputError("Input layer `{}' does not exist, when "
-                                     "creating layer `{}'."
+                    raise InputError("Input layer `{}´ does not exist, when "
+                                     "creating layer `{}´."
                                      .format(e.args[0], description['name']))
             else:
                 result[variable] = value

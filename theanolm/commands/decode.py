@@ -232,7 +232,7 @@ def decode(args):
             utterance_id = lattice.utterance_id
         else:
             utterance_id = os.path.basename(lattice_file.name)
-        logging.info("Utterance `%s' -- %d/%d of job %d",
+        logging.info("Utterance `%s´ -- %d/%d of job %d",
                      utterance_id,
                      index + 1,
                      len(lattices),
