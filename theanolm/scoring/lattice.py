@@ -97,8 +97,37 @@ class Lattice(object):
         :param output_file: a file where to write the output
         """
 
-        output_file.write("VERSION=1.0")
-        output_file.write("UTTERANCE={}".format(self.utterance_id))
+        output_file.write("VERSION=1.1\n")
+        output_file.write('UTTERANCE="{}"\n'.format(self.utterance_id))
+        fields = []
+        if self.lm_scale is not None:
+            fields.append("lmscale={}".format(self.lm_scale))
+        if self.wi_penalty is not None:
+            fields.append("wdpenalty={}".format(self.wi_penalty))
+        if fields:
+            output_file.write("\t".join(fields) + "\n")
+        output_file.write("N={}\tL={}\n"
+                          .format(len(self.nodes), len(self.links)))
+
+        for node in self.nodes:
+            fields = ["I={}".format(node.id)]
+            if node.time is not None:
+                fields.append("t={}".format(node.time))
+            output_file.write("\t".join(fields) + "\n")
+
+        for link_id, link in enumerate(self.links):
+            fields = ["J={}".format(link_id),
+                      "S={}".format(link.start_node.id),
+                      "E={}".format(link.end_node.id)]
+            if link.word is None:
+                fields.append("W=!NULL")
+            else:
+                fields.append("W={}".format(link.word))
+            if link.ac_logprob is not None:
+                fields.append("a={}".format(link.ac_logprob + 0.0))
+            if link.lm_logprob is not None:
+                fields.append("l={}".format(link.lm_logprob + 0.0))
+            output_file.write("\t".join(fields) + "\n")
 
     def write_kaldi(self, output_file, word_to_id):
         """Writes the lattice in Kaldi CompactLattice format.
@@ -134,7 +163,7 @@ class Lattice(object):
         word_to_id['!SENT_END'] = 0
 
         output_file.write("{}\n".format(self.utterance_id))
-        for node_id, node in enumerate(self.nodes):
+        for node in self.nodes:
             for link in node.out_links:
                 if link.end_node.final:
                     write_final_link(link)

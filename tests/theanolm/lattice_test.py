@@ -210,7 +210,7 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(word_to_id['a'], 2)
         self.assertEqual(word_to_id['to'], 13)
 
-    def test_slflattice(self):
+    def test_slf_to_kaldi(self):
         with open(self.wordmap_path, 'r') as wordmap_file:
             word_to_id = read_kaldi_vocabulary(wordmap_file)
         id_to_word = [None] * len(word_to_id)
@@ -219,15 +219,47 @@ class TestLattice(unittest.TestCase):
 
         with open(self.slf_path, 'r') as slf_file:
             lattice = SLFLattice(slf_file)
-        self.assertEqual(lattice.utterance_id, 'utterance 123')
-        self.assertEqual(len(lattice.nodes), 24)
-        self.assertEqual(len(lattice.links), 39)
+        self._assert_lattice_is_correct(lattice)
         buffer = StringIO()
         lattice.write_kaldi(buffer, word_to_id)
         lattice = KaldiLattice(buffer.getvalue().splitlines(), id_to_word)
+        self._assert_lattice_is_correct(lattice)
+
+    def test_kaldi_to_slf(self):
+        with open(self.wordmap_path, 'r') as wordmap_file:
+            word_to_id = read_kaldi_vocabulary(wordmap_file)
+        id_to_word = [None] * len(word_to_id)
+        for word, id in word_to_id.items():
+            id_to_word[id] = word
+
+        with open(self.lat_path, 'r') as lat_file:
+            lattice = KaldiLattice(lat_file.readlines(), id_to_word)
+        self._assert_lattice_is_correct(lattice)
+
+        buffer = StringIO()
+        lattice.write_slf(buffer)
+        lattice = SLFLattice(buffer.getvalue().splitlines())
+        self._assert_lattice_is_correct(lattice)
+
+    def _assert_lattice_is_correct(self, lattice):
         self.assertEqual(lattice.utterance_id, 'utterance 123')
         self.assertEqual(len(lattice.nodes), 24)
         self.assertEqual(len(lattice.links), 39)
+
+        node = lattice.initial_node
+        self.assertEqual(len(node.out_links), 4)
+        for link in node.out_links:
+            self.assertTrue(link.word is None)
+            node2 = link.end_node
+            self.assertTrue((len(node2.out_links) == 1) or
+                            (len(node2.out_links) == 13))
+            if len(node2.out_links) == 1:
+                link2 = node2.out_links[0]
+                self.assertTrue((link2.word == "to") or
+                                (link2.word == "but"))
+                if link2.word == "but":
+                    self.assertEqual(link2.ac_logprob, -965.47)
+                    self.assertEqual(link2.lm_logprob, -51.14)
 
 if __name__ == '__main__':
     unittest.main()

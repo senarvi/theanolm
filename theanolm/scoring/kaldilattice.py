@@ -67,8 +67,9 @@ class KaldiLattice(Lattice):
             self._num_links = 0
             return
 
-        self.utterance_id = lattice_lines[0]
+        self.utterance_id = lattice_lines[0].strip()
         for line in lattice_lines[1:]:
+            line = line.strip()
             parts = line.split()
             if not parts:
                 continue
@@ -108,11 +109,13 @@ class KaldiLattice(Lattice):
                     self.nodes.append(self.Node(id))
                 link = self._add_link(self.nodes[state_from], self.nodes[state_to])
                 link.word = id_to_word[kaldi_word_id]
-                if link.word == "#0":
+                if link.word == "<eps>":
+                    link.word = None
+                elif link.word == "#0":
                     raise InputError("Lattice `{}´ contains backoff transitions. "
                                      "Fix with Kaldi commands."
                                      .format(self.utterance_id))
-                if (link.word == "<s>") or (link.word == "</s>"):
+                elif (link.word == "<s>") or (link.word == "</s>"):
                     raise InputError("Lattice `{}´ contains traditional start "
                                      "and end of sentence symbols."
                                      .format(self.utterance_id))
