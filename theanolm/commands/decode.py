@@ -3,6 +3,7 @@
 """A module that implements the "theanolm decode" command.
 """
 
+import gc
 import sys
 import os
 import logging
@@ -246,7 +247,7 @@ def decode(args):
                 rescored_lattice.write_kaldi(args.lattices_out,
                                              batch.kaldi_word_to_id)
         else:
-            for token in tokens[:min(args.n_best, len(tokens))]:
+            for token in final_tokens[:min(args.n_best, len(final_tokens))]:
                 line = format_token(token,
                                     lattice.utterance_id,
                                     network.vocabulary,
