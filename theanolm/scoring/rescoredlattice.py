@@ -208,8 +208,8 @@ class RescoredLattice(Lattice):
                 logging.debug("There are multiple links from node %d with the "
                               "same word label. Lattice rescoring may not work "
                               "properly.", node.id)
-            else:
-                assert len(node.word_to_link) == len(node.out_links)
+            elif len(node.word_to_link) != len(node.out_links):
+                logging.debug("Node %d contains null links.", node.id)
 
     def _follow_words(self, words, original_lattice, create=True):
         """Ensures that a path exists, creating new nodes if necessary, and
