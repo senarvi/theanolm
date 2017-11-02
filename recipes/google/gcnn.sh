@@ -1,6 +1,6 @@
 #!/bin/bash -e
 #SBATCH --partition gpu
-#SBATCH --time=2-00
+#SBATCH --time=5-00
 #SBATCH --gres=gpu:1
 #SBATCH --mem=48G
 
@@ -35,14 +35,14 @@ source "${script_dir}/../common/configure-theano.sh"
 # Set training parameters.
 BATCH_SIZE=32
 VOCAB_MIN_COUNT=3
-OPTIMIZATION_METHOD=nesterov
+OPTIMIZATION_METHOD=adagrad
 MAX_GRADIENT_NORM=5
 STOPPING_CRITERION=no-improvement
 VALIDATION_FREQ=25
 PATIENCE=4
 ARCHITECTURE_FILE="${arch_dir}/word-gcnn-8b-fast.arch"
 COST=cross-entropy
-LEARNING_RATE=0.1
+LEARNING_RATE=0.8
 
 rm -f "${OUTPUT_DIR}/nnlm.h5"
 mv -f "${script_dir}/gcnn.log" "${script_dir}/gcnn.log~" 2>/dev/null || true
