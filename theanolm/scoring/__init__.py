@@ -5,6 +5,5 @@
 
 from theanolm.scoring.textscorer import TextScorer
 from theanolm.scoring.latticedecoder import LatticeDecoder
-from theanolm.scoring.slflattice import SLFLattice
-from theanolm.scoring.kaldilattice import KaldiLattice, read_kaldi_vocabulary
+from theanolm.scoring.latticebatch import LatticeBatch
 from theanolm.scoring.rescoredlattice import RescoredLattice

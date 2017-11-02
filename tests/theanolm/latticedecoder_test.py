@@ -12,7 +12,8 @@ from theano import tensor
 
 from theanolm import Vocabulary
 from theanolm.network import RecurrentState
-from theanolm.scoring import LatticeDecoder, SLFLattice
+from theanolm.scoring import LatticeDecoder
+from theanolm.scoring.slflattice import SLFLattice
 from theanolm.scoring.lattice import Lattice
 
 class DummyNetwork(object):

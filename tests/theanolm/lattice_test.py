@@ -6,10 +6,10 @@ import os
 import math
 from io import StringIO
 
-from theanolm.scoring import SLFLattice
-from theanolm.scoring import KaldiLattice, read_kaldi_vocabulary
 from theanolm.scoring.lattice import Lattice
+from theanolm.scoring.slflattice import SLFLattice
 from theanolm.scoring.slflattice import _split_slf_field, _split_slf_line
+from theanolm.scoring.kaldilattice import KaldiLattice, read_kaldi_vocabulary
 
 class TestLattice(unittest.TestCase):
     def setUp(self):

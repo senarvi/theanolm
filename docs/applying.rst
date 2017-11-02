@@ -133,9 +133,16 @@ efficient than creating an intermediate n-best list and rescoring every
 sentence::
 
     theanolm decode model.h5 \
-        --lattice-list lattices.txt \
+        --lattice-list lattices.txt --lattice-format slf \
         --output-file 1best.ref --output ref \
         --nnlm-weight 0.5 --lm-scale 14.0
+
+The lattices may be in SLF format (originating from HTK recognizer) or text
+CompactLattice format used by Kaldi recognizer. The format is selected using the
+``--lattice-format`` argument (either "slf" or "kaldi"). With Kaldi format you
+also have to provide a mapping from words to the word IDs used in the lattices,
+using the ``--kaldi-vocabulary`` argument. Typically the file is called
+"words.txt" and stored in the lang directory.
 
 In principle, the context length is not limited in recurrent neural networks, so
 an exhaustive search of word lattices would be too expensive. There are a number
@@ -207,15 +214,13 @@ The result of interpolation will be -inf regardless of the weight, as long as
 the weight of -inf is greater than zero. If -inf is weighted by zero, it will be
 ignored and the other probability will be used.
 
+Rescoring word lattices
+-----------------------
 
-Rescoring Kaldi lattices
-------------------------
-
-``theanolm rescore`` command can be used to rescore and prune a Kaldi-formatted
-lattice and output in the same Kaldi format. This is beneficial over just
-decoding if lattice information is needed in further steps.
-
-The pruning options are the same as for ``theanolm decode``. 
+``theanolm decode`` command can also be used for rescoring and pruning word
+lattices. Simply select either SLF or Kaldi output using ``--output slf`` or
+``--output kaldi``. This is beneficial over decoding the best path if lattice
+information is needed in further steps. The pruning options are identical.
 
 A typical invocation, modeled after the other rescoring scripts in the Kaldi
 example recipes, prunes a lattice, computes LM probabilities using an n-gram
@@ -225,17 +230,18 @@ model, and then rescores the lattice using TheanoLM::
           gunzip -c $indir/lat.JOB.gz \| \
           lattice-prune --inv-acoustic-scale=$lmscale --beam=$beam ark:- ark:- \| \
           lattice-lmrescore-const-arpa --lm-scale=-1.0 ark:- "$oldlm" ark,t:- \| \
-          theanolm rescore - $oldlang/words.txt - \
-                           --lm-scale $lmscale \
-                           --beam $theanolm_beam \
-                           --max-tokens-per-node $theanolm_maxtokens \
-                           --recombination-order $theanolm_recombination \
-                           --log-file $outdir/log/theanolm_rescore.JOB.log \
-                           --log-level debug $newlm \| \
+          theanolm decode $newlm \
+                          --lattice-format kaldi \
+                          --kaldi-vocabulary $oldlang/words.txt \
+                          --lm-scale $lmscale \
+                          --beam $theanolm_beam \
+                          --max-tokens-per-node $theanolm_maxtokens \
+                          --recombination-order $theanolm_recombination \
+                          --log-file $outdir/log/theanolm_rescore.JOB.log \
+                          --log-level debug $newlm \| \
           tee $outdir/lat.theanolm.JOB \| \
           lattice-minimize ark:- ark:- \| \
           gzip -c \>$outdir/lat.JOB.gz  || exit 1;
-
 
 Generating text
 ---------------

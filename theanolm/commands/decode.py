@@ -13,7 +13,7 @@ import theano
 from theanolm import Network
 from theanolm.backend import TextFileType
 from theanolm.backend import get_default_device, log_free_mem
-from theanolm.scoring import LatticeDecoder, SLFLattice
+from theanolm.scoring import LatticeBatch, LatticeDecoder, RescoredLattice
 
 def add_arguments(parser):
     """Specifies the command line arguments supported by the "theanolm decode"
@@ -26,20 +26,31 @@ def add_arguments(parser):
     argument_group = parser.add_argument_group("files")
     argument_group.add_argument(
         'model_path', metavar='MODEL-FILE', type=str,
-        help='the model file that will be used to decode the lattice')
+        help='the model file that will be used to compute new word scores')
     argument_group.add_argument(
         '--lattices', metavar='FILE', type=str, nargs='*', default=[],
-        help='word lattices to be decoded (SLF, assumed to be compressed if '
-             'the name ends in ".gz")')
+        help='word lattices to be decoded (default stdin, assumed to be '
+             'compressed if the name ends in ".gz")')
     argument_group.add_argument(
         '--lattice-list', metavar='FILE', type=TextFileType('r'),
         help='text file containing a list of word lattices to be decoded (one '
-             'path to an SLF file per line, the list and the SLF files are '
-             'assumed to be compressed if the name ends in ".gz")')
+             'path per line, the list and the lattice files are assumed to be '
+             'compressed if the name ends in ".gz")')
+    argument_group.add_argument(
+        '--lattice-format', metavar='FORMAT', type=str, default='slf',
+        help='format of the lattice files, either "slf" (HTK format, default) '
+             'or "kaldi" (a Kaldi lattice archive containing text '
+             'CompactLattices')
+    argument_group.add_argument(
+        '--kaldi-vocabulary', metavar='FILE', type=TextFileType('r'),
+        default=None,
+        help='mapping of words to word IDs in Kaldi lattices (usually '
+             'named words.txt)')
     argument_group.add_argument(
         '--output-file', metavar='FILE', type=TextFileType('w'), default='-',
-        help='where to write the best paths through the lattices (default '
-             'stdout, will be compressed if the name ends in ".gz")')
+        help='where to write the best paths through the lattices or the '
+             'rescored lattice (default stdout, will be compressed if the name '
+             'ends in ".gz")')
     argument_group.add_argument(
         '--num-jobs', metavar='J', type=int, default=1,
         help='divide the set of lattice files into J distinct batches, and '
@@ -55,7 +66,9 @@ def add_arguments(parser):
         help='format of the output, one of "ref" (default, utterance ID '
              'followed by words), "trn" (words followed by utterance ID in '
              'parentheses), "full" (utterance ID, acoustic score, language '
-             'score, and number of words, followed by words)')
+             'score, and number of words, followed by words), "slf" (rescored '
+             'lattice in HTK format), "kaldi" (rescored lattice in Kaldi '
+             'format)')
     argument_group.add_argument(
         '--n-best', metavar='N', type=int, default=1,
         help='print N best paths of each lattice (default 1)')
@@ -178,6 +191,9 @@ def decode(args):
                                 default_device=default_device)
 
     log_scale = 1.0 if args.log_base is None else numpy.log(args.log_base)
+    if (args.log_base is not None) and (args.lattice_format == 'kaldi'):
+        logging.info("Warning: Kaldi lattice reader doesn't support logarithm "
+                     "base conversion.")
 
     if args.wi_penalty is None:
         wi_penalty = None
@@ -206,47 +222,38 @@ def decode(args):
     sys.stdout.flush()
     decoder = LatticeDecoder(network, decoding_options)
 
-    # Combine paths from command line and lattice list.
-    lattices = args.lattices
-    if args.lattice_list is not None:
-        lattices.extend(args.lattice_list.readlines())
-    lattices = [path.strip() for path in lattices]
-    # Ignore empty lines in the lattice list.
-    lattices = [x for x in lattices if x]
-    # Pick every Ith lattice, if --num-jobs is specified and > 1.
-    if args.num_jobs < 1:
-        print("Invalid number of jobs specified:", args.num_jobs)
-        sys.exit(1)
-    if (args.job < 0) or (args.job > args.num_jobs - 1):
-        print("Invalid job specified:", args.job)
-        sys.exit(1)
-    lattices = lattices[args.job::args.num_jobs]
-
-    file_type = TextFileType('r')
-    for index, path in enumerate(lattices):
-        logging.info("Reading word lattice: %s", path)
-        lattice_file = file_type(path)
-        lattice = SLFLattice(lattice_file)
-
-        if lattice.utterance_id is not None:
-            utterance_id = lattice.utterance_id
-        else:
-            utterance_id = os.path.basename(lattice_file.name)
-        logging.info("Utterance `%s´ -- %d/%d of job %d",
+    batch = LatticeBatch(args.lattices, args.lattice_list, args.lattice_format,
+                         args.kaldi_vocabulary, args.num_jobs, args.job)
+    for lattice_number, lattice in enumerate(batch):
+        if lattice.utterance_id is None:
+            lattice.utterance_id = str(lattice_number)
+        logging.info("Utterance `%s´ -- %d of job %d",
                      utterance_id,
-                     index + 1,
-                     len(lattices),
+                     lattice_number + 1,
                      args.job)
         log_free_mem()
 
-        tokens, _ = decoder.decode(lattice)
-        for index in range(min(args.n_best, len(tokens))):
-            line = format_token(tokens[index],
-                                utterance_id,
-                                network.vocabulary,
-                                log_scale,
-                                args.output)
-            args.output_file.write(line + "\n")
+        final_tokens, recomb_tokens = decoder.decode(lattice)
+        if (args.output == "slf") or (args.output == "kaldi"):
+            rescored_lattice = RescoredLattice(lattice,
+                                               final_tokens,
+                                               recomb_tokens,
+                                               network.vocabulary)
+            if args.output == "slf":
+                rescored_lattice.write_slf(args.output_file)
+            else:
+                assert args.output == "kaldi"
+                rescored_lattice.write_kaldi(args.lattices_out,
+                                             batch.kaldi_word_to_id)
+        else:
+            for token in tokens[:min(args.n_best, len(tokens))]:
+                line = format_token(token,
+                                    lattice.utterance_id,
+                                    network.vocabulary,
+                                    log_scale,
+                                    args.output)
+                args.output_file.write(line + "\n")
+        gc.collect()
 
 def format_token(token, utterance_id, vocabulary, log_scale, output_format):
     """Formats an output line from a token and an utterance ID.

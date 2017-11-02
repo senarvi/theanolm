@@ -6,4 +6,3 @@ import theanolm.commands.score
 import theanolm.commands.decode
 import theanolm.commands.sample
 import theanolm.commands.version
-import theanolm.commands.rescore

@@ -10,7 +10,7 @@ import argparse
 
 from theanolm.backend import NumberError, TheanoConfigurationError
 from theanolm.backend import IncompatibleStateError
-from theanolm.commands import train, score, decode, sample, version, rescore
+from theanolm.commands import train, score, decode, sample, version
 
 def _get_message(e):
     if hasattr(e, 'args') and len(e.args) > 0 and isinstance(e.args[0], bytes):
@@ -68,11 +68,6 @@ def main():
         'decode', help='decode a word lattice using a model')
     decode.add_arguments(decode_parser)
     decode_parser.set_defaults(command_function=decode.decode)
-
-    rescore_parser = subparsers.add_parser(
-        'rescore', help='rescore a kaldi lattice using a model')
-    rescore.add_arguments(rescore_parser)
-    rescore_parser.set_defaults(command_function=rescore.rescore)
 
     sample_parser = subparsers.add_parser(
         'sample', help='generate text using a model')
