@@ -246,6 +246,8 @@ def decode(args):
                                                final_tokens,
                                                recomb_tokens,
                                                network.vocabulary)
+            rescored_lattice.lm_scale = args.lm_scale
+            rescored_lattice.wi_penalty = args.wi_penalty
             if args.output == "slf":
                 rescored_lattice.write_slf(args.output_file)
             else:

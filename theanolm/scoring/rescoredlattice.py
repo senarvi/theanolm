@@ -120,6 +120,12 @@ class RescoredLattice(Lattice):
         # Create all the paths that correspond to the final tokens.
         for token in final_tokens:
             node = follow_word_ids(token.history)
+            if any(link.end_node.final for link in node.out_links):
+                logging.debug("Link from node %d to the final node exists "
+                              "already. This may happen when the token history "
+                              "is not found from the original lattice.",
+                              node.id)
+                continue
             # XXX Should we have the logprob of the final link instead of the
             # token here?
             link = self.Link(node, final_node, word=None,
@@ -196,11 +202,14 @@ class RescoredLattice(Lattice):
             node.word_to_link = {word: link
                                  for link in node.out_links
                                  for word in next_words(link)}
-            if len(node.word_to_link) != len(node.out_links):
-                logging.debug("Node %d: %d links lead to %d words.",
-                              node.id,
-                              len(node.out_links),
-                              len(node.word_to_link))
+            if len(node.word_to_link) == 0:
+                pass  # This is probably a link to a final node.
+            elif len(node.word_to_link) < len(node.out_links):
+                logging.debug("There are multiple links from node %d with the "
+                              "same word label. Lattice rescoring may not work "
+                              "properly.", node.id)
+            else:
+                assert len(node.word_to_link) == len(node.out_links)
 
     def _follow_words(self, words, original_lattice, create=True):
         """Ensures that a path exists, creating new nodes if necessary, and
