@@ -56,7 +56,7 @@ class LatticeBatch(object):
 
         # Combine paths from command line and lattice list.
         if lattice_list_file is not None:
-            lattices.extend(args.lattice_list_file.readlines())
+            lattices.extend(lattice_list_file.readlines())
         lattices = [path.strip() for path in lattices]
         # Ignore empty lines in the lattice list.
         lattices = [x for x in lattices if x]
@@ -77,7 +77,6 @@ class LatticeBatch(object):
         """
 
         file_type = TextFileType('r')
-        id_to_word = self.kaldi_id_to_word
 
         for path in self._lattices:
             logging.info("Reading lattice file `%s´.", path)
@@ -87,6 +86,7 @@ class LatticeBatch(object):
             else:
                 assert self._lattice_format == 'kaldi'
                 lattice_lines = []
+                id_to_word = self.kaldi_id_to_word
                 while True:
                     line = lattice_file.readline()
                     if not line:

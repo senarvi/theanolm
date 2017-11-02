@@ -228,7 +228,7 @@ def decode(args):
         if lattice.utterance_id is None:
             lattice.utterance_id = str(lattice_number)
         logging.info("Utterance `%s´ -- %d of job %d",
-                     utterance_id,
+                     lattice.utterance_id,
                      lattice_number + 1,
                      args.job)
         log_free_mem()
