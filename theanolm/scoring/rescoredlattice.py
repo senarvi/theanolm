@@ -11,6 +11,49 @@ from theanolm.scoring.lattice import Lattice
 class NodeNotFoundError(Exception):
     pass
 
+def _follow_word_from_node(node, word):
+    """Follows the link with given word label from given node.
+
+    If there is a link from ``node`` with the label ``word``, returns the end
+    node and the log probabilities and transition IDs of the link. If there are
+    null links in between, returns the sum of the log probabilities and the
+    concatenation of the transition IDs.
+
+    :type node: Lattice.Node
+    :param node: node where to start searching
+
+    :type word: str
+    :param word: word to search for
+
+    :rtype: tuple of (Lattice.Node, float, float, str)
+    :returns: the end node of the link with the word label (or ``None`` if the
+              word is not found), and the total acoustic log probability, LM log
+              probability, and transition IDs of the path to the word
+    """
+
+    if word not in node.word_to_link:
+        return (None, None, None, None)
+
+    link = node.word_to_link[word]
+    if link.word is not None:
+        return (link.end_node,
+                link.ac_logprob if link.ac_logprob is not None else 0.0,
+                link.lm_logprob if link.lm_logprob is not None else 0.0,
+                link.transitions if link.transitions is not None else "")
+
+    end_node, ac_logprob, lm_logprob, transitions = \
+        _follow_word_from_node(link.end_node, word)
+    if end_node is None:
+        return (None, None, None, None)
+    else:
+        if link.ac_logprob is not None:
+            ac_logprob += link.ac_logprob
+        if link.lm_logprob is not None:
+            lm_logprob += link.lm_logprob
+        if link.transitions is not None:
+            transitions += link.transitions
+        return (end_node, ac_logprob, lm_logprob, transitions)
+
 class RescoredLattice(Lattice):
     """Rescored Lattice
 
@@ -44,29 +87,39 @@ class RescoredLattice(Lattice):
         :returns: the created lattice
         """
 
-        def get_node(word_ids, create=True):
+        def follow_word_ids(word_ids, create=True):
+            """Follows a path from the initial node with given word IDs.
+
+            :type word_ids: list of ints
+            :param word_ids: IDs of the words to be found on the path
+
+            :type create: bool
+            :param create: if ``True``, creates new nodes if necessary
+
+            :rtype: Lattice.Node
+            :returns: the last node of the path
+            """
+
             words = [vocabulary.id_to_word[id] if isinstance(id, int) else id
                      for id in word_ids[1:]]
-            return self._reconstruct_path(words, original_lattice, create)
+            return self._follow_words(words, original_lattice, create)
+
+        super().__init__()
 
         self.utterance_id = original_lattice.utterance_id
 
-        self.initial_node = self.Node(0)
+        self.initial_node = self.Node(len(self.nodes))
         self.initial_node.word_to_link = dict()
-        self.nodes = [self.initial_node]
+        self.nodes.append(self.initial_node)
         final_node = self.Node(None)
         final_node.final = True
         final_node.word_to_link = dict()
 
-        # Add a mapping from words to outgoing links on each node to speed up
-        # the process.
-        for node in original_lattice.nodes:
-            node.word_to_link = {link.word: link for link in node.out_links}
-            assert len(node.word_to_link) == len(node.out_links)
+        self._add_word_maps(original_lattice.nodes)
 
         # Create all the paths that correspond to the final tokens.
         for token in final_tokens:
-            node = get_node(token.history)
+            node = follow_word_ids(token.history)
             # XXX Should we have the logprob of the final link instead of the
             # token here?
             link = self.Link(node, final_node, word=None,
@@ -86,35 +139,70 @@ class RescoredLattice(Lattice):
                 word = word_id
                 logging.debug("Out-of-vocabulary word in lattice: %s", word)
 
-            # Find the incoming link from the token that was kept during
-            # recombination.
+            # Find the incoming link that corresponds to the token that was kept
+            # during recombination.
             try:
-                recomb_from_node = get_node(new_history[:-1], False)
+                recomb_from_node = follow_word_ids(new_history[:-1], False)
             except NodeNotFoundError:
                 continue
+            # Our new lattice doesn't contain null links, so word_to_link maps
+            # never skip nodes.
             if word not in recomb_from_node.word_to_link:
                 continue
             recomb_link = recomb_from_node.word_to_link[word]
 
-            # Add a link from the previous node in the token history to the node
+            # Add a link from the previous word in the token history to the node
             # that was kept during recombination. The difference in LM log
             # probability can be computed from the token (path) NNLM log
             # probabilities.
-            from_node = get_node(token.history[:-1])
-            lm_diff = token.nn_lm_logprob - nn_lm_logprob
+            from_node = follow_word_ids(token.history[:-1])
+            lm_logprob_diff = token.nn_lm_logprob - nn_lm_logprob
             new_link = self.Link(from_node, recomb_link.end_node, word,
                                  recomb_link.ac_logprob,
-                                 recomb_link.lm_logprob + lm_diff,
+                                 recomb_link.lm_logprob + lm_logprob_diff,
                                  recomb_link.transitions)
             from_node.out_links.append(new_link)
+            # Tokens never contain null words, so we can be sure that
+            # word_to_link maps in our new lattice never skip nodes.
+            assert word is not None
             from_node.word_to_link[word] = new_link
             self.links.append(new_link)
 
         final_node.id = len(self.nodes)
         self.nodes.append(final_node)
-        return self
 
-    def _reconstruct_path(self, words, original_lattice, create=True):
+    def _add_word_maps(self, nodes):
+        """Adds mapping from words to outgoing links on each node.
+
+        For each node, finds the words that follow the node. If an outgoing link
+        is a null link, follows the link recursively. Then adds the attribute
+        ``word_to_link`` to the node that provides a mapping from words to the
+        links that have to be followed to reach that word. This is done to avoid
+        doing the search every time when constructing the rescored lattice.
+
+        :type nodes: list of Lattice.Nodes
+        :param nodes: add a ``word_to_link`` map to these nodes
+        """
+
+        def next_words(link):
+            if link.word is None:
+                return [word
+                        for next_link in link.end_node.out_links
+                        for word in next_words(next_link)]
+            else:
+                return [link.word]
+
+        for node in nodes:
+            node.word_to_link = {word: link
+                                 for link in node.out_links
+                                 for word in next_words(link)}
+            if len(node.word_to_link) != len(node.out_links):
+                logging.debug("Node %d: %d links lead to %d words.",
+                              node.id,
+                              len(node.out_links),
+                              len(node.word_to_link))
+
+    def _follow_words(self, words, original_lattice, create=True):
         """Ensures that a path exists, creating new nodes if necessary, and
         returns the last node of the path.
 
@@ -137,10 +225,14 @@ class RescoredLattice(Lattice):
         orig_node = original_lattice.initial_node
 
         for word in words:
-            if word not in orig_node.word_to_link:
+            # The original lattice may contain null links that we have to skip.
+            orig_end_node, ac_logprob, lm_logprob, transitions = \
+                _follow_word_from_node(orig_node, word)
+            if orig_end_node is None:
                 continue
-            orig_link = orig_node.word_to_link[word]
 
+            # Our new lattice doesn't contain null links, so word_to_link maps
+            # never skip nodes.
             if word in node.word_to_link:
                 link = node.word_to_link[word]
             else:
@@ -151,14 +243,12 @@ class RescoredLattice(Lattice):
                 end_node.word_to_link = dict()
                 self.nodes.append(end_node)
                 link = self.Link(node, end_node, word,
-                                 orig_link.ac_logprob,
-                                 orig_link.lm_logprob,
-                                 orig_link.transitions)
+                                 ac_logprob, lm_logprob, transitions)
                 node.out_links.append(link)
                 node.word_to_link[word] = link
                 self.links.append(link)
 
             node = link.end_node
-            orig_node = orig_link.end_node
+            orig_node = orig_end_node
 
         return node

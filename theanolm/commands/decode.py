@@ -171,7 +171,8 @@ def decode(args):
     log_file = args.log_file
     log_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(log_level, int):
-        print("Invalid logging level requested:", args.log_level)
+        print("Invalid logging level requested:", args.log_level,
+              file=sys.stderr)
         sys.exit(1)
     log_format = '%(asctime)s %(funcName)s: %(message)s'
     if args.log_file == '-':
@@ -185,6 +186,11 @@ def decode(args):
         theano.config.compute_test_value = 'off'
     theano.config.profile = args.profile
     theano.config.profile_memory = args.profile
+
+    if (args.lattice_format == 'kaldi') or (args.output == 'kaldi'):
+        if args.kaldi_vocabulary is None:
+            print("Kaldi lattice vocabulary is not given.", file=sys.stderr)
+            sys.exit(1)
 
     default_device = get_default_device(args.default_device)
     network = Network.from_file(args.model_path,
@@ -244,7 +250,7 @@ def decode(args):
                 rescored_lattice.write_slf(args.output_file)
             else:
                 assert args.output == "kaldi"
-                rescored_lattice.write_kaldi(args.lattices_out,
+                rescored_lattice.write_kaldi(args.output_file,
                                              batch.kaldi_word_to_id)
         else:
             for token in final_tokens[:min(args.n_best, len(final_tokens))]:
