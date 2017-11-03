@@ -50,7 +50,7 @@ dependencies, required for GPU computation, in the same way::
 
     conda install -c mila-udem/label/pre theano pygpu libgpuarray
 
-TheanoLM can be installed through the conda-forge channel.
+TheanoLM can be installed through the conda-forge channel::
 
     conda install -c conda-forge TheanoLM 
 
