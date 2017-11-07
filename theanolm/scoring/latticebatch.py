@@ -43,8 +43,8 @@ class LatticeBatch(object):
         # Read Kaldi word ID mapping.
         if kaldi_vocabulary is not None:
             self.kaldi_word_to_id = read_kaldi_vocabulary(kaldi_vocabulary)
-            self.kaldi_id_to_word = [None] * len(word_to_id)
-            for word, id in kaldi_word_to_id.items():
+            self.kaldi_id_to_word = [None] * len(self.kaldi_word_to_id)
+            for word, id in self.kaldi_word_to_id.items():
                 self.kaldi_id_to_word[id] = word
         elif lattice_format == 'kaldi':
             raise ValueError("Kaldi lattice vocabulary is not given.")
