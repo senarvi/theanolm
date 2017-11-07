@@ -1,0 +1,41 @@
+Continuing from /scratch/work/senarvi/theanolm-recipes/google/exchange.temp118.classes.gz.
+/scratch/work/senarvi/theanolm-recipes/google/train.txt
+/scratch/work/senarvi/theanolm-recipes/google/cluster.vocab
++ exchange --num-classes=2000 --max-time=430000 --num-threads=4 --vocabulary=/scratch/work/senarvi/theanolm-recipes/google/cluster.vocab --class-init=/scratch/work/senarvi/theanolm-recipes/google/exchange.temp118.classes.gz /scratch/work/senarvi/theanolm-recipes/google/train.txt /scratch/work/senarvi/theanolm-recipes/google/exchange
+Reading vocabulary.. 793468 words
+Reading word counts.. 768648884 tokens
+Reading class initialization from /scratch/work/senarvi/theanolm-recipes/google/exchange.temp118.classes.gz
+Warning: You have specified special tokens in the class initialization file. These will be ignored.
+Warning: You have specified special tokens in the class initialization file. These will be ignored.
+Warning: You have specified special tokens in the class initialization file. These will be ignored.
+Allocating 2002 class unigram counts.
+Allocating 2002x2002 class bigram counts.
+Allocating 793471 sparse class-word counts.
+Allocating 793471 sparse word-class counts.
+log likelihood: -5144068456
+log likelihood: -5144068409
+log likelihood: -5144066812
+log likelihood: -5144066027
+log likelihood: -5144065206
+log likelihood: -5144064372
+log likelihood: -5144062587
+log likelihood: -5144062574
+log likelihood: -5144062561
+log likelihood: -5144062548
+log likelihood: -5144062139
+log likelihood: -5144061999
+log likelihood: -5144061679
+log likelihood: -5144061539
+log likelihood: -5144061535
+log likelihood: -5144061534
+log likelihood: -5144061534
+log likelihood: -5144061534
+log likelihood: -5144061512
+log likelihood: -5144061504
+log likelihood: -5144061485
+log likelihood: -5144061484
+log likelihood: -5144061484
+log likelihood: -5144061484
+log likelihood: -5144061484
+log likelihood: -5144061484
+slurmstepd: error: *** JOB 25231480 ON opt90 CANCELLED AT 2017-11-04T14:28:52 DUE TO TIME LIMIT ***

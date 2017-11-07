@@ -87,6 +87,22 @@ EOF
 	  "${train_file}" \
 	  "${OUTPUT_DIR}/exchange")
 
+        if [ -s "${OUTPUT_DIR}/exchange.classes.gz" ]
+	then
+		zcat "${OUTPUT_DIR}/exchange.classes.gz" >"${OUTPUT_DIR}/classes"
+	else
+		local temp_file=$(ls -1 "${OUTPUT_DIR}"/exchange.temp*.classes.gz 2>/dev/null |
+		                  sort -V |
+		                  tail -1)
+		if [ -s "${temp_file}" ]
+		then
+			zcat "${temp_file}" >"${OUTPUT_DIR}/classes"
+		else
+			echo "create_classes failed."
+			return 1
+		fi
+	fi
+
 	rm -f "${train_file}" "${OUTPUT_DIR}"/exchange.temp*
 	echo "create_classes finished."
 }
