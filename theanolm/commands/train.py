@@ -53,6 +53,7 @@ def add_arguments(parser):
              'training data)')
     argument_group.add_argument(
         '--vocabulary-format', metavar='FORMAT', type=str, default='words',
+        choices=['words', 'classes', 'srilm-classes'],
         help='format of the file specified with --vocabulary argument, one of '
              '"words" (one word per line, default), "classes" (word and class '
              'ID per line), "srilm-classes" (class name, membership '
@@ -98,6 +99,8 @@ def add_arguments(parser):
     argument_group = parser.add_argument_group("optimization")
     argument_group.add_argument(
         '--optimization-method', metavar='NAME', type=str, default='adagrad',
+        choices=['sgd', 'nesterov', 'adagrad', 'adadelta', 'rmsprop-sgd',
+                 'rmsprop-nesterov', 'adam'],
         help='optimization method, one of "sgd", "nesterov", "adagrad", '
              '"adadelta", "rmsprop-sgd", "rmsprop-nesterov", "adam" '
              '(default "adagrad")')
@@ -134,6 +137,7 @@ def add_arguments(parser):
              '(default 5)')
     argument_group.add_argument(
         '--cost', metavar='NAME', type=str, default='cross-entropy',
+        choices=['cross-entropy', 'nce', 'blackout'],
         help='cost function, one of "cross-entropy" (default), "nce" '
              '(noise-contrastive estimation), or "blackout"')
     argument_group.add_argument(
@@ -142,6 +146,7 @@ def add_arguments(parser):
              '(default 5)')
     argument_group.add_argument(
         '--noise-distribution', metavar='DIST', type=str, default='uniform',
+        choices=['uniform', 'log-uniform', 'unigram'],
         help='sample noise from DIST; one of "uniform" (default, but less '
              'accurate), "log-uniform" (the vocabulary should be ordered by '
              'decreasing frequency), "unigram" (unigram distribution of words '
@@ -154,6 +159,7 @@ def add_arguments(parser):
              '(only applicable with --noise-distribution=unigram, default 0.5)')
     argument_group.add_argument(
         '--noise-sharing', metavar='SHARING', type=str, default=None,
+        choices=['seq', 'batch', None],
         help='can be "seq" for sharing noise samples between mini-batch '
              'sequences, or "batch" for sharing noise samples across einter '
              'mini-batch for improved speed (default is no sharing, which is '
@@ -171,6 +177,7 @@ def add_arguments(parser):
     argument_group.add_argument(
         '--stopping-criterion', metavar='NAME', type=str,
         default='annealing-count',
+        choices=['epoch-count', 'no-improvement', 'annealing-count'],
         help='selects a criterion for early-stopping, one of "epoch-count" '
              '(fixed number of epochs), "no-improvement" (no improvement since '
              'learning rate was decreased), "annealing-count" (default, '
@@ -197,6 +204,7 @@ def add_arguments(parser):
         help='path where to write log file (default is standard output)')
     argument_group.add_argument(
         '--log-level', metavar='LEVEL', type=str, default='info',
+        choices=['debug', 'info', 'warn'],
         help='minimum level of events to log, one of "debug", "info", "warn" '
              '(default "info")')
     argument_group.add_argument(
@@ -291,6 +299,31 @@ def _read_vocabulary(args, state):
     print("Number of word classes:", result.num_classes())
     return result
 
+def log_options(training_options, optimization_options, args):
+    """Writes the command line arguments to debug log.
+    """
+
+    logging.debug("Training options:")
+    for option_name, option_value in sorted(training_options.items()):
+        logging.debug("  %s: %s", option_name, str(option_value))
+    logging.debug("Optimization options:")
+    for option_name, option_value in sorted(optimization_options.items()):
+        logging.debug("  %s=%s", option_name, str(option_value))
+    logging.debug("  cost_function=%s", args.cost)
+    logging.debug("  noise_distribution=%s", args.noise_distribution)
+    logging.debug("  noise_dampening=%d", args.noise_dampening)
+    logging.debug("  noise_sharing=%s", args.noise_sharing
+                                        if args.noise_sharing is not None
+                                        else 'no')
+    logging.debug("  exclude_unk=%s", 'yes' if args.exclude_unk else 'no')
+    logging.debug("  l1_regularization=%f", args.l1_regularization
+                                            if args.l1_regularization is not None
+                                            else 0.0)
+    logging.debug("  l2_regularization=%f", args.l2_regularization
+                                            if args.l2_regularization is not None
+                                            else 0.0)
+    logging.debug("Data sampling: %s", str(numpy.array(args.sampling)))
+
 def train(args):
     """A function that performs the "theanolm train" command.
 
@@ -336,6 +369,10 @@ def train(args):
         weights = numpy.ones(num_training_files).astype(theano.config.floatX)
         for index, weight in enumerate(args.weights):
             weights[index] = weight
+        if len(args.sampling) > num_training_files:
+            print("You specified more sampling coefficients than training "
+                  "files.")
+            sys.exit(1)
 
         training_options = {
             'batch_size': args.batch_size,
@@ -347,10 +384,6 @@ def train(args):
             'min_epochs': args.min_epochs,
             'max_annealing_count': args.max_annealing_count
         }
-        logging.debug("TRAINING OPTIONS")
-        for option_name, option_value in training_options.items():
-            logging.debug("%s: %s", option_name, str(option_value))
-
         optimization_options = {
             'method': args.optimization_method,
             'epsilon': args.numerical_stability_term,
@@ -363,18 +396,8 @@ def train(args):
             'num_noise_samples': args.num_noise_samples,
             'noise_sharing': args.noise_sharing,
         }
-        logging.debug("OPTIMIZATION OPTIONS")
-        for option_name, option_value in optimization_options.items():
-            if isinstance(option_value, list):
-                value_str = ', '.join(str(x) for x in option_value)
-                logging.debug("%s: [%s]", option_name, value_str)
-            else:
-                logging.debug("%s: %s", option_name, str(option_value))
 
-        if len(args.sampling) > len(args.training_set):
-            print("You specified more sampling coefficients than training "
-                  "files.")
-            sys.exit(1)
+        log_options(training_options, optimization_options, args)
 
         print("Creating trainer.")
         sys.stdout.flush()
@@ -410,13 +433,11 @@ def train(args):
         elif args.cost == 'nce':
             cost_function = NCECost(network, exclude_id, args.l1_regularization,
                                     args.l2_regularization, epsilon)
-        elif args.cost == 'blackout':
+        else:
+            assert args.cost == 'blackout'
             cost_function = BlackoutCost(network, exclude_id,
                                          args.l1_regularization,
                                          args.l2_regularization, epsilon)
-        else:
-            print("Invalid cost function requested: `{}´".format(args.cost))
-            sys.exit(1)
         try:
             optimizer = create_optimizer(optimization_options, network,
                                          cost_function, profile=args.profile)

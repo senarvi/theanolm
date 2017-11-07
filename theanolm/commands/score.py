@@ -38,6 +38,7 @@ def add_arguments(parser):
     argument_group = parser.add_argument_group("scoring")
     argument_group.add_argument(
         '--output', metavar='DETAIL', type=str, default='perplexity',
+        choices=['perplexity', 'utterance-scores', 'word-scores'],
         help='what to output, one of "perplexity", "utterance-scores", '
              '"word-scores" (default "perplexity")')
     argument_group.add_argument(
@@ -49,6 +50,7 @@ def add_arguments(parser):
         help="exclude <unk> tokens from perplexity computation")
     argument_group.add_argument(
         '--subwords', metavar='MARKING', type=str, default=None,
+        choices=['word-boundary', 'prefix-affix', None],
         help='the subword vocabulary uses MARKING to indicate how words are '
              'formed from subwords; one of "word-boundary" (<w> token '
              'separates words), "prefix-affix" (subwords that can be '
@@ -70,6 +72,7 @@ def add_arguments(parser):
         help='path where to write log file (default is standard output)')
     argument_group.add_argument(
         '--log-level', metavar='LEVEL', type=str, default='info',
+        choices=['debug', 'info', 'warn'],
         help='minimum level of events to log, one of "debug", "info", "warn" '
              '(default "info")')
     argument_group.add_argument(

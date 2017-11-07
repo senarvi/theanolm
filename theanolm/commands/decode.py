@@ -39,6 +39,7 @@ def add_arguments(parser):
              'compressed if the name ends in ".gz")')
     argument_group.add_argument(
         '--lattice-format', metavar='FORMAT', type=str, default='slf',
+        choices=['slf', 'kaldi'],
         help='format of the lattice files, either "slf" (HTK format, default) '
              'or "kaldi" (a Kaldi lattice archive containing text '
              'CompactLattices')
@@ -64,6 +65,7 @@ def add_arguments(parser):
     argument_group = parser.add_argument_group("decoding")
     argument_group.add_argument(
         '--output', metavar='FORMAT', type=str, default='ref',
+        choices=['ref', 'trn', 'full', 'slf', 'kaldi'],
         help='format of the output, one of "ref" (default, utterance ID '
              'followed by words), "trn" (words followed by utterance ID in '
              'parentheses), "full" (utterance ID, acoustic score, language '
