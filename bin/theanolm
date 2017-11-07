@@ -9,7 +9,7 @@ import sys
 import argparse
 
 from theanolm.backend import NumberError, TheanoConfigurationError
-from theanolm.backend import IncompatibleStateError
+from theanolm.backend import IncompatibleStateError, InputError
 from theanolm.commands import train, score, decode, sample, version
 
 def _get_message(e):
@@ -91,6 +91,11 @@ def main():
                   'was:',
                   _get_message(e))
             sys.exit(2)
+        except InputError as e:
+            print('There was an error in one of the provided input files. The '
+                  'error message was:',
+                  _get_message(e))
+            sys.exit(2)
         except NumberError as e:
             print('A numerical error has occurred. This may happen e.g. when '
                   'network parameters go to infinity. If this happens during '
@@ -114,13 +119,13 @@ def main():
                   _get_message(e))
             sys.exit(2)
         except GpuArrayException as e:
-            if _get_message(e) == 'out of memory':
+            if 'out of memory' in _get_message(e):
                 print('Theano could not fit all the required variables in the '
-                      'GPU memory. Memory consumption can be reduced by using '
-                      'a smaller vocabulary, smaller layers, smaller '
-                      'mini-batch size, shorter sequence length, or dividing '
-                      'the model over multiple GPUs. Traceback will be written '
-                      'to debug log.')
+                      'memory. Memory consumption can be reduced by using a '
+                      'smaller vocabulary (classes or shortlist), smaller '
+                      'layers, smaller mini-batch size, shorter sequence '
+                      'length, or dividing the model over multiple GPUs. '
+                      'Traceback will be written to debug log.')
             else:
                 print('Theano returned a gpuarray error "{}". Traceback will '
                       'be written to debug log.'
