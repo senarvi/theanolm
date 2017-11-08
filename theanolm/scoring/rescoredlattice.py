@@ -132,6 +132,7 @@ class RescoredLattice(Lattice):
             self.links.append(link)
 
         # Add recombined tokens.
+        oov_words = set()
         for token, new_history, nn_lm_logprob in reversed(recomb_tokens):
             assert new_history[-1] == token.history[-1]
             word_id = token.history[-1]
@@ -139,7 +140,7 @@ class RescoredLattice(Lattice):
                 word = vocabulary.id_to_word[word_id]
             else:
                 word = word_id
-                logging.debug("Out-of-vocabulary word in lattice: %s", word)
+                oov_words.add(word)
 
             # Find the incoming link that corresponds to the token that was kept
             # during recombination.
@@ -169,6 +170,10 @@ class RescoredLattice(Lattice):
             assert word is not None
             from_node.word_to_link[word] = new_link
             self.links.append(new_link)
+
+        if oov_words:
+            logging.debug("Out-of-vocabulary words in lattice: %s",
+                          ', '.join(oov_words))
 
         final_node.id = len(self.nodes)
         self.nodes.append(final_node)
