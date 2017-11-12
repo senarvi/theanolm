@@ -155,7 +155,7 @@ train () {
 	if [ -n "${CLASSES}" ]
 	then
 		vocab_file="${CLASSES}"
-		vocab_format="${CLASSES_FORMAT:-srilm-classes}"
+		vocab_format="${CLASSES_FORMAT:-classes}"
 	elif [ -n "${VOCAB}" ]
 	then
 		vocab_file="${VOCAB}"
