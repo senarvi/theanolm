@@ -245,13 +245,12 @@ def _read_vocabulary(args, state):
     """
 
     if state.keys():
-        print("Reading vocabulary from existing network state.")
-        sys.stdout.flush()
+        logging.info("Reading vocabulary from existing network state.")
         result = Vocabulary.from_state(state)
         if not result.has_unigram_probs():
             # This is for backward compatibility. Remove at some point.
-            print("Computing unigram word probabilities from training set.")
-            sys.stdout.flush()
+            logging.info("Computing unigram word probabilities from training "
+                         "set.")
             word_counts = compute_word_counts(args.training_set)
             shortlist_words = list(result.id_to_word)
             shortlist_set = set(shortlist_words)
@@ -265,15 +264,13 @@ def _read_vocabulary(args, state):
             result.get_state(state)
 
     elif args.vocabulary is None:
-        print("Constructing vocabulary from training set.")
-        sys.stdout.flush()
+        logging.info("Constructing vocabulary from training set.")
         word_counts = compute_word_counts(args.training_set)
         result = Vocabulary.from_word_counts(word_counts, args.num_classes)
         result.get_state(state)
 
     else:
-        print("Reading vocabulary from {}.".format(args.vocabulary))
-        sys.stdout.flush()
+        logging.info("Reading vocabulary from %s.", args.vocabulary)
         word_counts = compute_word_counts(args.training_set)
         oos_words = word_counts.keys()
         with open(args.vocabulary, 'rt', encoding='utf-8') as vocab_file:
@@ -282,21 +279,23 @@ def _read_vocabulary(args, state):
                                           oos_words=oos_words)
 
         if args.vocabulary_format == 'classes':
-            print("Computing class membership probabilities and unigram "
-                  "probabilities for out-of-shortlist words.")
-            sys.stdout.flush()
+            logging.info("Computing class membership probabilities and unigram "
+                         "probabilities for out-of-shortlist words.")
             update_class_probs = True
         else:
-            print("Computing unigram probabilities for out-of-shortlist words.")
-            sys.stdout.flush()
+            logging.info("Computing unigram probabilities for out-of-shortlist "
+                         "words.")
             update_class_probs = False
         result.compute_probs(word_counts,
                              update_class_probs=update_class_probs)
         result.get_state(state)
 
-    print("Number of words in vocabulary:", result.num_words())
-    print("Number of words in shortlist:", result.num_shortlist_words())
-    print("Number of word classes:", result.num_classes())
+    logging.info("Number of words in vocabulary: %d",
+                 result.num_words())
+    logging.info("Number of words in shortlist: %d",
+                 result.num_shortlist_words())
+    logging.info("Number of word classes: %d",
+                 result.num_classes())
     return result
 
 def log_options(training_options, optimization_options, args):
@@ -346,8 +345,8 @@ def train(args):
 
     if args.debug:
         theano.config.compute_test_value = 'warn'
-        print("Enabled computing test values for tensor variables.")
-        print("Warning: GpuArray backend will fail random number generation!")
+        logging.info("Enabled computing test values for tensor variables.")
+        logging.warning("GpuArray backend will fail random number generation!")
     else:
         theano.config.compute_test_value = 'off'
     theano.config.profile = args.profile
@@ -399,14 +398,12 @@ def train(args):
 
         log_options(training_options, optimization_options, args)
 
-        print("Creating trainer.")
-        sys.stdout.flush()
+        logging.info("Creating trainer.")
         trainer = Trainer(training_options, vocabulary, args.training_set,
                           args.sampling)
         trainer.set_logging(args.log_interval)
 
-        print("Building neural network.")
-        sys.stdout.flush()
+        logging.info("Building neural network.")
         if args.architecture == 'lstm300' or args.architecture == 'lstm1500':
             architecture = Architecture.from_package(args.architecture)
         else:
@@ -421,8 +418,7 @@ def train(args):
         network.set_sampling(args.noise_distribution, args.noise_dampening,
                              args.noise_sharing)
 
-        print("Building optimizer.")
-        sys.stdout.flush()
+        logging.info("Building optimizer.")
         exclude_id = vocabulary.word_to_id['<unk>'] if args.exclude_unk \
                      else None
         epsilon = args.numerical_stability_term
@@ -454,12 +450,11 @@ def train(args):
         trainer.initialize(network, state, optimizer)
 
         if args.validation_file is not None:
-            print("Building text scorer for cross-validation.")
-            sys.stdout.flush()
+            logging.info("Building text scorer for cross-validation.")
             scorer = TextScorer(network, use_shortlist=True,
                                 exclude_unk=args.exclude_unk,
                                 profile=args.profile)
-            print("Validation text:", args.validation_file.name)
+            logging.info("Validation text: %s", args.validation_file.name)
             validation_mmap = mmap.mmap(args.validation_file.fileno(),
                                         0,
                                         prot=mmap.PROT_READ)
@@ -471,11 +466,10 @@ def train(args):
                                     map_oos_to_unk=False)
             trainer.set_validation(validation_iter, scorer)
         else:
-            print("Cross-validation will not be performed.")
+            logging.info("Cross-validation will not be performed.")
             validation_iter = None
 
-        print("Training neural network.")
-        sys.stdout.flush()
+        logging.info("Training neural network.")
         trainer.train()
 
         if 'layers' not in state.keys():

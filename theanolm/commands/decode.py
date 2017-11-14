@@ -227,8 +227,7 @@ def decode(args):
     for option_name, option_value in decoding_options.items():
         logging.debug("%s: %s", option_name, str(option_value))
 
-    print("Building word lattice decoder.")
-    sys.stdout.flush()
+    logging.info("Building word lattice decoder.")
     decoder = LatticeDecoder(network, decoding_options)
 
     batch = LatticeBatch(args.lattices, args.lattice_list, args.lattice_format,

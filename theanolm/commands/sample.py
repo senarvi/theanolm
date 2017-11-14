@@ -63,23 +63,23 @@ def sample(args):
         theano.config.compute_test_value = 'off'
 
     with h5py.File(args.model_path, 'r') as state:
-        print("Reading vocabulary from network state.")
-        sys.stdout.flush()
+        logging.info("Reading vocabulary from network state.")
         vocabulary = Vocabulary.from_state(state)
-        print("Number of words in vocabulary:", vocabulary.num_words())
-        print("Number of words in shortlist:", vocabulary.num_shortlist_words())
-        print("Number of word classes:", vocabulary.num_classes())
-        print("Building neural network.")
-        sys.stdout.flush()
+        logging.info("Number of words in vocabulary: %d",
+                     vocabulary.num_words())
+        logging.info("Number of words in shortlist: %d",
+                     vocabulary.num_shortlist_words())
+        logging.info("Number of word classes: %d",
+                     vocabulary.num_classes())
+        logging.info("Building neural network.")
         architecture = Architecture.from_state(state)
         default_device = get_default_device(args.default_device)
         network = Network(architecture, vocabulary, mode=Network.Mode(minibatch=False),
                           default_device=default_device)
-        print("Restoring neural network state.")
+        logging.info("Restoring neural network state.")
         network.set_state(state)
 
-    print("Building text sampler.")
-    sys.stdout.flush()
+    logging.info("Building text sampler.")
     sampler = TextSampler(network)
 
     sequences = sampler.generate(30, args.num_sentences)

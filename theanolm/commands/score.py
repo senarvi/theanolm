@@ -102,8 +102,8 @@ def score(args):
 
     if args.debug:
         theano.config.compute_test_value = 'warn'
-        print("Enabled computing test values for tensor variables.")
-        print("Warning: GpuArray backend will fail random number generation!")
+        logging.info("Enabled computing test values for tensor variables.")
+        logging.warning("GpuArray backend will fail random number generation!")
     else:
         theano.config.compute_test_value = 'off'
     theano.config.profile = args.profile
@@ -113,11 +113,10 @@ def score(args):
     network = Network.from_file(args.model_path, exclude_unk=args.exclude_unk,
                                 default_device=default_device)
 
-    print("Building text scorer.")
-    sys.stdout.flush()
+    logging.info("Building text scorer.")
     scorer = TextScorer(network, args.shortlist, args.exclude_unk, args.profile)
 
-    print("Scoring text.")
+    logging.info("Scoring text.")
     if args.output == 'perplexity':
         _score_text(args.input_file, network.vocabulary, scorer,
                     args.output_file, args.log_base, args.subwords, False)
@@ -419,14 +418,13 @@ def _score_utterances(input_file, vocabulary, scorer, output_file,
         lm_score /= log_scale
         output_file.write(str(lm_score) + '\n')
         if (line_num + 1) % 1000 == 0:
-            print("{0} sentences scored.".format(line_num + 1))
-        sys.stdout.flush()
+            logging.info("%d sentences scored.", line_num + 1)
 
     if scorer.num_words == 0:
-        print("The input file contains no words.")
+        logging.info("The input file contains no words.")
     else:
-        print("{0} words processed, including start-of-sentence and "
-              "end-of-sentence tags, and {1} ({2:.1f} %) out-of-vocabulary "
+        logging.info("%d words processed, including start-of-sentence and "
+              "end-of-sentence tags, and %d (%.1f %%) out-of-vocabulary "
               "words".format(scorer.num_words,
                              scorer.num_unks,
                              scorer.num_unks / scorer.num_words))
