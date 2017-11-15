@@ -51,6 +51,11 @@ Speech Recognition with Very Large Conversational Finnish and Estonian
 Vocabularies <https://arxiv.org/abs/1707.04227>`_. In IEEE/ACM Transactions on
 Audio, Speech, and Language Processing.
 
+Peter Smit, Siva Gangireddy, Seppo Enarvi, Sami Virpioja, and Mikko Kurimo
+(2017), `Aalto System for the 2017 Arabic Multigenre Broadcast Challenge
+<https://research.aalto.fi/files/15224073/smit2017mgb.pdf>`_. In Proceedings of
+the 2017 IEEE Workshop on Automatic Speech Recognition and Understanding (ASRU).
+
 License
 =======
 

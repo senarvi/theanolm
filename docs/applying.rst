@@ -222,26 +222,66 @@ lattices. Simply select either SLF or Kaldi output using ``--output slf`` or
 ``--output kaldi``. This is beneficial over decoding the best path if lattice
 information is needed in further steps. The pruning options are identical.
 
-A typical invocation, modeled after the other rescoring scripts in the Kaldi
-example recipes, prunes a lattice, computes LM probabilities using an n-gram
-model, and then rescores the lattice using TheanoLM::
+The CompactLattice format of Kaldi is actually a weighted FST. Each arc is
+associated with an acoustic cost and what is called a graph cost. The graph cost
+incorporates other things besides the language model probability, including
+pronunciation, transition, and silence probabilities. In order to compute the
+effect of those other factors, we can subtract the original LM scores from the
+graph scores.
 
-    $cmd JOB=1:$nj $outdir/log/theanolm.JOB.log \
-          gunzip -c $indir/lat.JOB.gz \| \
-          lattice-prune --inv-acoustic-scale=$lmscale --beam=$beam ark:- ark:- \| \
-          lattice-lmrescore-const-arpa --lm-scale=-1.0 ark:- "$oldlm" ark,t:- \| \
-          theanolm decode $newlm \
-                          --lattice-format kaldi \
-                          --kaldi-vocabulary $oldlang/words.txt \
-                          --lm-scale $lmscale \
-                          --beam $theanolm_beam \
-                          --max-tokens-per-node $theanolm_maxtokens \
-                          --recombination-order $theanolm_recombination \
-                          --log-file $outdir/log/theanolm_rescore.JOB.log \
-                          --log-level debug $newlm \| \
-          tee $outdir/lat.theanolm.JOB \| \
-          lattice-minimize ark:- ark:- \| \
-          gzip -c \>$outdir/lat.JOB.gz  || exit 1;
+Assuming that we want to replace old LM scores with those provided by TheanoLM
+without interpolation, it is possible to include the rest of the graph score by
+subtracting the old LM scores, interpolating with weight 0.5, and multiplying
+the LM scale by 2. Below is an example that does this, using standard Kaldi
+conventions for submitting a batch job::
+
+    ${cmd} "JOB=1:${nj}" "${out_dir}/log/lmrescore_theanolm.JOB.log" \
+      gunzip -c "${in_dir}/lat.JOB.gz" \| \
+      lattice-lmrescore-const-arpa \
+        --lm-scale=-1.0 \
+        ark:- "${old_lm}" ark,t:- \| \
+      theanolm decode ${nnlm} \
+        --lattice-format kaldi \
+        --kaldi-vocabulary "${lang_dir}/words.txt" \
+        --output kaldi \
+        --nnlm-weight 0.5 \
+        --lm-scale $(perl -e "print 2 * ${lm_scale}") \
+        --max-tokens-per-node "${max_tokens_per_node}" \
+        --beam "${beam}" \
+        --recombination-order "${recombination_order}" \
+        "${theanolm_args[@]}" \
+        --log-file "${out_dir}/log/theanolm_decode.JOB.log" \
+        --log-level debug \| \
+      lattice-minimize ark:- ark:- \| \
+      gzip -c \>"${out_dir}/lat.JOB.gz"
+
+The downside is that another command is needed for interpolating with the
+original (n-gram) language model scores. There are two example scripts for Kaldi
+in the TheanoLM repository. `lmrescore_theanolm.sh`_ creates rescored lattices
+without interpolation. `lmrescore_theanolm_nbest.sh`_ creates n-best lists,
+interpolating the lattice and NNLM probabilities. These can be used in the same
+manner as the other lattice rescoring steps in the Kaldi recipes, for example::
+
+    steps/lmrescore_theanolm.sh \
+      --prune-beam 8 \
+      --lm-scale 8.0 \
+      --beam 600 \
+      --recombination-order 20 \
+      --max-tokens-per-node 120 \
+      --cmd "utils/slurm.pl --mem 20G" \
+      data/lang \
+      nnlm.h5 \
+      model/dev-decode \
+      model/dev-rescore
+    local/score.sh \
+      --cmd utils/slurm.pl \
+      --min-lmwt 4 \
+      data/dev \
+      data/lang \
+      model/dev-rescore
+
+.. _lmrescore_theanolm.sh: https://github.com/senarvi/theanolm/blob/master/kaldi/steps/lmrescore_theanolm.sh
+.. _lmrescore_theanolm_nbest.sh: https://github.com/senarvi/theanolm/blob/master/kaldi/steps/lmrescore_theanolm_nbest.sh
 
 Generating text
 ---------------
