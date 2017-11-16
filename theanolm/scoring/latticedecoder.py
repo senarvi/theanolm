@@ -395,8 +395,6 @@ class LatticeDecoder(object):
                 num_new_tokens += len(new_tokens)
             stats['new'] = num_new_tokens
 
-            tokens[node.id] = tokens[node.id][:2] # Why?
-
             self._nodes_processed += 1
             self._log_stats(stats, node.id, len(sorted_nodes))
 
