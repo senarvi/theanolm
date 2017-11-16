@@ -120,10 +120,13 @@ class RescoredLattice(Lattice):
         # Create all the paths that correspond to the final tokens.
         for token in final_tokens:
             node = follow_word_ids(token.history)
+            # If the lattice is not determinized, it may happen that we have two
+            # tokens with the same word sequence.
             if any(link.end_node.final for link in node.out_links):
                 continue
-            # XXX Should we have the logprob of the final link instead of the
-            # token here?
+            # For the final link we set the NNLM log probability of the entire
+            # path. The created lattice is a tree, so we can equivalently set
+            # the entire path probability in the final link.
             link = self.Link(node, final_node, word=None,
                              ac_logprob=0,
                              lm_logprob=token.nn_lm_logprob,
@@ -216,6 +219,12 @@ class RescoredLattice(Lattice):
     def _follow_words(self, words, original_lattice, create=True):
         """Ensures that a path exists, creating new nodes if necessary, and
         returns the last node of the path.
+
+        The new lattice will be created by repeatedly calling this function. It
+        starts from the beginning of the lattice and follows the nodes that
+        correspond to the given words. When a word is not found from the
+        outgoing links of the node, the tail will be created. Thus the created
+        lattice is always a tree.
 
         :type words: list of strs
         :param words: words of the path
