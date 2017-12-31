@@ -43,10 +43,10 @@ def interpolate_linear(logprob1, logprob2, weight1):
         # An exp() resulted in an underflow (or -inf logprob). Use the decimal
         # library.
         getcontext().prec = 16
-        d_weight1 = Decimal(weight1)
+        d_weight1 = Decimal(float(weight1))
         d_weight2 = Decimal(1.0) - d_weight1
-        d_logprob1 = Decimal(logprob1)
-        d_logprob2 = Decimal(logprob2)
+        d_logprob1 = Decimal(float(logprob1))
+        d_logprob2 = Decimal(float(logprob2))
         d_zero = Decimal(0.0)
         d_prob = d_zero
         if d_weight1 != d_zero:
