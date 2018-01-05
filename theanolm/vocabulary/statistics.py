@@ -5,7 +5,6 @@ corpus.
 """
 
 import numpy
-from scipy.sparse import dok_matrix
 
 from theanolm.parsing import utterance_from_line
 
@@ -49,6 +48,10 @@ class BigramStatistics(object):
         :type vocabulary: Vocabulary
         :param vocabulary: restrict to these words
         """
+
+        # Don't import scipy unless necessary. This class is only used by
+        # wctool.
+        from scipy.sparse import dok_matrix
 
         vocabulary_size = vocabulary.num_words()
         unk_id = vocabulary.word_to_id['<unk>']
