@@ -39,12 +39,12 @@ OPTIMIZATION_METHOD=adagrad
 MAX_GRADIENT_NORM=5
 STOPPING_CRITERION=no-improvement
 VALIDATION_FREQ=25
-PATIENCE=4
+PATIENCE=3
 ARCHITECTURE_FILE="${arch_dir}/word-gcnn-8b-fast.arch"
 COST=cross-entropy
-LEARNING_RATE=0.8
+LEARNING_RATE=0.25
 
-rm -f "${OUTPUT_DIR}/nnlm.h5"
-mv -f "${script_dir}/gcnn.log" "${script_dir}/gcnn.log~" 2>/dev/null || true
-train | tee "${script_dir}/gcnn.log"
+#rm -f "${OUTPUT_DIR}/nnlm.h5"
+#mv -f "${script_dir}/gcnn.log" "${script_dir}/gcnn.log~" 2>/dev/null || true
+#train | tee --append "${script_dir}/gcnn.log"
 compute_perplexity | tee --append "${script_dir}/gcnn.log"
