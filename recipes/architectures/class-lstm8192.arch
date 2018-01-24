@@ -1,0 +1,7 @@
+input type=class name=input
+layer type=projection name=projection input=input size=256
+layer type=lstm name=lstm1 input=projection size=8192
+layer type=dropout name=lstm1.dropout input=lstm1 dropout_rate=0.2
+layer type=lstm name=lstm2 input=lstm1.dropout size=1024
+layer type=dropout name=lstm2.dropout input=lstm2 dropout_rate=0.2
+layer type=softmax name=output input=lstm2.dropout
