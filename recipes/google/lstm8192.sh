@@ -1,13 +1,14 @@
 #!/bin/bash -e
 #SBATCH --partition gpu
 #SBATCH --time=5-00
-#SBATCH --gres=gpu:1
-#SBATCH --mem=48G
+#SBATCH --mem=16G
+#SBATCH --gres=gpu:teslap100:1
 
 #
 # Examples for training TheanoLM models on the 1 Billion Word Language Model
-# Benchmark. The vocabulary is limited to words that appear at least three times
-# and <unk> is used to denote the other words.
+# Benchmark. The vocabulary is limited to words that appear at least three
+# times. This recipe uses word classes. For convenience, classes that have been
+# created using the exchange algorithm are provided with the repository.
 #
 
 if [ -z "${SLURM_SUBMIT_DIR}" ]
@@ -27,24 +28,32 @@ arch_dir="${script_dir}/../architectures"
 # OUTPUT_DIR=/path/to/output/directory
 #
 source "${script_dir}/paths.sh"
+OUTPUT_DIR="${OUTPUT_DIR}-lstm8192"
 
 # Load common functions.
 source "${script_dir}/../common/functions.sh"
 source "${script_dir}/../common/configure-theano.sh"
 
 # Set training parameters.
-BATCH_SIZE=32
+BATCH_SIZE=256
 VOCAB_MIN_COUNT=3
 OPTIMIZATION_METHOD=adagrad
 MAX_GRADIENT_NORM=5
 STOPPING_CRITERION=no-improvement
-VALIDATION_FREQ=25
-PATIENCE=3
-ARCHITECTURE_FILE="${arch_dir}/word-gcnn-8b-fast.arch"
+VALIDATION_FREQ=15
+PATIENCE=1
+ARCHITECTURE_FILE="${arch_dir}/class-lstm8192.arch"
+CLASSES="${OUTPUT_DIR}/classes"
 COST=cross-entropy
-LEARNING_RATE=0.25
+LEARNING_RATE=1
+
+#mv -f "${script_dir}/classes.log" "${script_dir}/classes.log~" 2>/dev/null || true
+#create_classes 2>&1 | tee "${script_dir}/classes.log"
+mkdir -p "${OUTPUT_DIR}"
+cp "${script_dir}/exchange.classes" "${OUTPUT_DIR}/classes"
 
 #rm -f "${OUTPUT_DIR}/nnlm.h5"
-#mv -f "${script_dir}/gcnn.log" "${script_dir}/gcnn.log~" 2>/dev/null || true
-#train | tee --append "${script_dir}/gcnn.log"
-compute_perplexity | tee --append "${script_dir}/gcnn.log"
+#mv -f "${script_dir}/lstm8192.log" "${script_dir}/lstm8192.log~" 2>/dev/null || true
+#train | tee --append "${script_dir}/lstm8192.log"
+
+compute_perplexity | tee --append "${script_dir}/lstm8192.log"

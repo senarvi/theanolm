@@ -206,7 +206,8 @@ def _score_text(input_file, vocabulary, scorer, output_file,
             num_probs += num_seq_probs
             # number of unks and zeroprobs (just for reporting)
             num_unks += sum(lp is None for lp in merged_logprobs)
-            num_zeroprobs += sum(numpy.isneginf(lp) for lp in merged_logprobs)
+            num_zeroprobs += sum((lp is not None) and numpy.isneginf(lp)
+                                 for lp in merged_logprobs)
             # number of sequences
             num_sentences += 1
 
