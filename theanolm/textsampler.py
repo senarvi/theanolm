@@ -58,7 +58,7 @@ class TextSampler(object):
             name='step_sampler',
             on_unused_input='ignore')
 
-    def generate(self, length, num_sequences=1):
+    def generate(self, length, num_sequences=1, seed_sequence=''):
         """Generates a text sequence.
 
         Calls self.step_function() repeatedly, reading the word output and
@@ -74,7 +74,7 @@ class TextSampler(object):
         :rtype: list of list of strs
         :returns: list of word sequences
         """
-
+        seed_tokens = seed_sequence.strip().split()
         sos_id = self._vocabulary.word_to_id['<s>']
         sos_class_id = self._vocabulary.word_id_to_class_id[sos_id]
 
@@ -83,12 +83,32 @@ class TextSampler(object):
         input_class_ids = sos_class_id * \
                           numpy.ones(shape=(1, num_sequences)).astype('int64')
         result = sos_id * \
-                 numpy.ones(shape=(length, num_sequences)).astype('int64')
+                 numpy.ones(shape=(len(seed_tokens)+length,
+                   num_sequences)).astype('int64')
         state = RecurrentState(self._network.recurrent_state_size,
                                num_sequences)
-
-        for time_step in range(1, length):
-            # The input is the output from the previous step.
+       
+        #First, possibly compute forward passes with the seed sequence
+        for time_step, token in enumerate(seed_tokens, start=1):
+            step_result = self.step_function(input_word_ids,
+                                             input_class_ids,
+                                             *state.get())
+            token_id = self._vocabulary.word_to_id[token]
+            token_class_id = \
+                self._vocabulary.word_id_to_class_id[token_id]
+            input_word_ids = token_id * \
+                             numpy.ones(shape=(1,      
+                               num_sequences)).astype('int64')
+            input_class_ids = token_class_id * \
+                              numpy.ones(shape=(1,
+                                num_sequences)).astype('int64')
+            step_word_ids = input_word_ids
+            result[time_step] = step_word_ids
+            state.set(step_result[1:])
+        
+        #Then sample:
+        for time_step in range(len(seed_tokens) + 1, length+len(seed_tokens)):
+            # the input is the output from the previous step.
             step_result = self.step_function(input_word_ids,
                                              input_class_ids,
                                              *state.get())

@@ -8,6 +8,7 @@ import sys
 import numpy
 import h5py
 import theano
+import logging
 
 from theanolm import Vocabulary, Architecture, Network, TextSampler
 from theanolm.backend import TextFileType, get_default_device
@@ -37,6 +38,12 @@ def add_arguments(parser):
         '--random-seed', metavar='N', type=int, default=None,
         help='seed to initialize the random state (default is to seed from a '
              'random source provided by the oprating system)')
+    argument_group.add_argument(
+        '--sentence-length', metavar='N', type=int, default=30,
+        help='generate sentences of N tokens')
+    argument_group.add_argument(
+        '--seed-sequence', metavar='SEQUENCE', type=str,
+        help='Use SEQUENCE as seed; ie. first compute forward passes with the sequence, then generate')
 
     argument_group = parser.add_argument_group("configuration")
     argument_group.add_argument(
@@ -82,7 +89,7 @@ def sample(args):
     logging.info("Building text sampler.")
     sampler = TextSampler(network)
 
-    sequences = sampler.generate(30, args.num_sentences)
+    sequences = sampler.generate(args.sentence_length, args.num_sentences, seed_sequence=args.seed_sequence)
     for sequence in sequences:
         try:
             eos_pos = sequence.index('</s>')
