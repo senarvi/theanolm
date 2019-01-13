@@ -90,6 +90,9 @@ class SLFLattice(Lattice):
             self._read_slf_header(fields)
             if (self._num_nodes is not None) and (self._num_links is not None):
                 break
+        if self._num_nodes is None or self._num_links is None:
+            raise InputError("SLF lattice does not specify the number of nodes "
+                             "and the number of links.")
 
         if self.wi_penalty is not None:
             if self._log_scale is None:
