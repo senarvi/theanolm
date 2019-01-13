@@ -121,7 +121,7 @@ class KaldiLattice(Lattice):
                                      .format(self.utterance_id))
             else:
                 link = self._add_link(self.nodes[state_from], final_node)
-                link.word = "!SENT_END"
+                link.word = None
 
             link.ac_logprob = ac_logprob
             link.lm_logprob = graph_logprob

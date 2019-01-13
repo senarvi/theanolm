@@ -147,8 +147,6 @@ class Lattice(object):
             word = link.word
             if word is None:
                 word = "<eps>"
-            elif word == "</s>":
-                word = "!SENT_END"
             output_file.write("{} {} {} {},{},{}\n".format(
                 link.start_node.id,
                 link.end_node.id,
@@ -163,8 +161,6 @@ class Lattice(object):
                 -link.lm_logprob + 0.0,
                 -link.ac_logprob + 0.0,
                 link.transitions))
-
-        word_to_id['!SENT_END'] = 0
 
         output_file.write("{}\n".format(self.utterance_id))
         for node in self.nodes:
