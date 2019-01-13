@@ -71,18 +71,20 @@ Source Code
 -----------
 
 The source code is distributed through `GitHub
-<https://github.com/senarvi/theanolm/>`_. If you want to develop TheanoLM, it is
-convenient to work on a Git repository tree. I would recommend forking the
-repository first on GitHub, so that you can commit changes to your personal copy
-of the repository. Then install Theano and H5py for example using pip. Clone the
-forked repository to, say, ``$HOME/git/theanolm``, and add that directory to
-``$PYTHONPATH`` and the ``bin`` subdirectory to ``$PATH``::
+<https://github.com/senarvi/theanolm/>`_. For developing TheanoLM you need to
+work on the Git repository tree. The package can be installed using pip from the
+repository root. There is a convenient option ``--editable`` that causes pip to
+install stub scripts that call the program binaries from the repository. This
+way you avoid having to reinstall the project after every change.
 
-    mkdir -p "$HOME/git"
-    cd "$HOME/git"
+I recommend forking the repository first on GitHub, so that you can commit
+changes to your personal copy of the repository. Then install Theano and H5py
+using pip or Anaconda. Clone the forked repository and run pip from the
+repository root::
+
     git clone https://github.com/my-username/theanolm.git
-    export PYTHONPATH="$PYTHONPATH:$HOME/git/theanolm"
-    export PATH="$PATH:$HOME/git/theanolm/bin"
+    cd theanolm
+    pip3 install --editable .
 
 .. _virtualenv: https://virtualenv.pypa.io/en/stable/
 .. _Anaconda: https://www.continuum.io/downloads
