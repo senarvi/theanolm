@@ -3,4 +3,5 @@
 *.egg-info
 *.egg
 .eggs
+.idea
 dist
