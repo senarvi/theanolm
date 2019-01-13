@@ -26,7 +26,8 @@ class LatticeDecoder(object):
         propagates a set of tokens through the lattice by
         """
         __slots__ = ("history", "state", "ac_logprob", "lat_lm_logprob",
-                     "nn_lm_logprob", "recombination_hash", "total_logprob")
+                     "nn_lm_logprob", "recombination_hash", "graph_logprob",
+                     "total_logprob")
 
         def __init__(self,
                      history=(),
@@ -69,6 +70,7 @@ class LatticeDecoder(object):
             self.lat_lm_logprob = lat_lm_logprob
             self.nn_lm_logprob = nn_lm_logprob
             self.recombination_hash = None
+            self.graph_logprob = None
             self.total_logprob = None
 
         @classmethod
@@ -145,9 +147,10 @@ class LatticeDecoder(object):
                     self.nn_lm_logprob, self.lat_lm_logprob,
                     nn_lm_weight, (1.0 - nn_lm_weight))
 
-            self.total_logprob = self.ac_logprob
-            self.total_logprob += lm_logprob * lm_scale
-            self.total_logprob += wi_penalty * (len(self.history) - 1)
+            self.graph_logprob = lm_logprob * lm_scale
+            self.graph_logprob += wi_penalty * (len(self.history) - 1)
+
+            self.total_logprob = self.ac_logprob + self.graph_logprob
 
         def history_words(self, vocabulary):
             """Converts the word IDs in the history to words using
