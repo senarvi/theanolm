@@ -30,7 +30,7 @@ LONG_DESCRIPTION = 'TheanoLM is a recurrent neural network language modeling ' \
                    'arbitrary network architecture. New layer types and ' \
                    'optimization methods can be easily implemented.'
 KEYWORDS = 'theano neural network language modeling machine learning research'
-CLASSIFIERS = ['Development Status :: 4 - Beta',
+CLASSIFIERS = ['Development Status :: 5 - Production/Stable',
                'Environment :: Console',
                'Programming Language :: Python :: 3',
                'Intended Audience :: Science/Research',
@@ -41,7 +41,7 @@ CLASSIFIERS = ['Development Status :: 4 - Beta',
 setup(name='TheanoLM',
       version=VERSION,
       author='Seppo Enarvi',
-      author_email='seppo2017@marjaniemi.com',
+      author_email='seppo2019@marjaniemi.com',
       url='https://github.com/senarvi/theanolm',
       download_url='https://github.com/senarvi/theanolm/tarball/v' + VERSION,
       description='Toolkit for neural network language modeling using Theano',
