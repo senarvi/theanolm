@@ -6,13 +6,12 @@
 
 import argparse
 import sys
-from filetypes import TextFileType
 from wordclasses import WordClasses, WordsToClasses
 from ngramcounts import NGramCounts
 
 parser = argparse.ArgumentParser()
-parser.add_argument('classes', type=TextFileType('r'), help='input class definitions file')
-parser.add_argument('counts', type=TextFileType('r'), help='n-gram counts file')
+parser.add_argument('classes', type=argparse.FileType('r'), help='input class definitions file')
+parser.add_argument('counts', type=argparse.FileType('r'), help='n-gram counts file')
 args = parser.parse_args()
 
 classes = WordClasses()
