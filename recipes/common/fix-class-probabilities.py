@@ -6,7 +6,7 @@
 
 import argparse
 import sys
-from filetypes import TextFileType
+from theanolm.backend import TextFileType
 from wordclasses import WordClasses, WordsToClasses
 from ngramcounts import NGramCounts
 
