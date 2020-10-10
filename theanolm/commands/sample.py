@@ -43,6 +43,7 @@ def add_arguments(parser):
         help='generate sentences of N tokens')
     argument_group.add_argument(
         '--seed-sequence', metavar='SEQUENCE', type=str,
+        default = "",
         help='Use SEQUENCE as seed; ie. first compute forward passes with the sequence, then generate')
 
     argument_group = parser.add_argument_group("configuration")
