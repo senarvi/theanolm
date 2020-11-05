@@ -13,6 +13,12 @@ from theanolm.backend import MultinomialDistribution
 
 class TestClassDistribution(unittest.TestCase):
     def setUp(self):
+        """
+        Sets the seed.
+
+        Args:
+            self: (todo): write your description
+        """
         theano.config.compute_test_value = 'warn'
 
         M1 = 2147483647
@@ -27,9 +33,21 @@ class TestClassDistribution(unittest.TestCase):
         self.random = RandomStreams(random_seed)
 
     def tearDown(self):
+        """
+        Tear down the next callable.
+
+        Args:
+            self: (todo): write your description
+        """
         pass
 
     def test_uniform_distribution_sample(self):
+        """
+        Test whether a uniform distribution.
+
+        Args:
+            self: (todo): write your description
+        """
         distribution = UniformDistribution(self.random, 100)
         sample_tensor = distribution.sample(200, 400)
         f = theano.function([], [sample_tensor])
@@ -43,6 +61,12 @@ class TestClassDistribution(unittest.TestCase):
         self.assertTrue(numpy.all(numpy.less(sample, 100)))
 
     def test_uniform_distribution_probs(self):
+        """
+        Make a random sampling distribution.
+
+        Args:
+            self: (todo): write your description
+        """
         distribution = UniformDistribution(self.random, 10)
         x_tensor = tensor.vector(dtype='int64')
         x_tensor.tag.test_value = numpy.array([1, 3, 5])
@@ -50,6 +74,12 @@ class TestClassDistribution(unittest.TestCase):
         self.assertEqual(probs, 0.1)
 
     def test_log_uniform_distribution_sample(self):
+        """
+        Sample a new sampling distribution of a sample.
+
+        Args:
+            self: (todo): write your description
+        """
         distribution = LogUniformDistribution(self.random, 100)
         sample_tensor = distribution.sample(200, 400)
         f = theano.function([], [sample_tensor])
@@ -63,6 +93,12 @@ class TestClassDistribution(unittest.TestCase):
         self.assertTrue(numpy.all(numpy.less(sample, 100)))
 
     def test_log_uniform_distribution_probs(self):
+        """
+        * test probabilities of the probability distribution.
+
+        Args:
+            self: (todo): write your description
+        """
         distribution = LogUniformDistribution(self.random, 10)
         x_tensor = tensor.vector(dtype='int64')
         x_tensor.tag.test_value = numpy.array([1, 3, 5])
@@ -85,6 +121,12 @@ class TestClassDistribution(unittest.TestCase):
         self.assertAlmostEqual(probs[2:5].sum(), (numpy.log(6) - numpy.log(3)) / numpy.log(11))
 
     def test_multinomial_distribution_sample(self):
+        """
+        Make a multinomial distribution.
+
+        Args:
+            self: (todo): write your description
+        """
         probs = numpy.array([0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001, 0.0000001, 0.00000001, 0.000000001, 0.0000000001])
         probs /= probs.sum()
         probs_tensor = theano.shared(probs)
@@ -101,6 +143,12 @@ class TestClassDistribution(unittest.TestCase):
         self.assertTrue(numpy.all(numpy.less(sample, 10)))
 
     def test_multinomial_distribution_probs(self):
+        """
+        Perform a multinomial distribution.
+
+        Args:
+            self: (todo): write your description
+        """
         probs = numpy.array([0.01, 0.02, 0.03, 0.04, 0.1, 0.3, 0.5])
         probs_tensor = theano.shared(probs)
         distribution = MultinomialDistribution(self.random, probs_tensor)

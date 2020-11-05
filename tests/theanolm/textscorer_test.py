@@ -18,6 +18,13 @@ class DummyNetwork(object):
     """
 
     def __init__(self, vocabulary):
+        """
+        Initialize the tensor.
+
+        Args:
+            self: (todo): write your description
+            vocabulary: (todo): write your description
+        """
         self.vocabulary = vocabulary
         self.input_word_ids = tensor.matrix('input_word_ids', dtype='int64')
         self.input_class_ids = tensor.matrix('input_class_ids', dtype='int64')
@@ -29,10 +36,22 @@ class DummyNetwork(object):
         self.is_training = tensor.scalar('is_training', dtype='int8')
 
     def target_probs(self):
+        """
+        The target probabilities of target probabilities.
+
+        Args:
+            self: (todo): write your description
+        """
         return self.target_class_ids.astype('float32') / 100.0
 
 class TestTextScorer(unittest.TestCase):
     def setUp(self):
+        """
+        Set the vocab vocabulary.
+
+        Args:
+            self: (todo): write your description
+        """
         script_path = os.path.dirname(os.path.realpath(__file__))
         vocabulary_path = os.path.join(script_path, 'vocabulary.txt')
         oos_words=['yksitoista', 'kaksitoista']
@@ -47,9 +66,21 @@ class TestTextScorer(unittest.TestCase):
         self.dummy_network = DummyNetwork(self.vocabulary)
 
     def tearDown(self):
+        """
+        Tear down the next callable.
+
+        Args:
+            self: (todo): write your description
+        """
         pass
 
     def test_score_batch(self):
+        """
+        Compute the model
+
+        Args:
+            self: (todo): write your description
+        """
         # Network predicts <unk> probability. Out-of-shortlist words are mapped
         # to <unk> class by .
         scorer = TextScorer(self.dummy_network, use_shortlist=False)
@@ -105,6 +136,12 @@ class TestTextScorer(unittest.TestCase):
         self.assertIsNone(logprobs[2][3])
 
     def test_score_sequence(self):
+        """
+        Compute the class probabilities.
+
+        Args:
+            self: (todo): write your description
+        """
         # Network predicts <unk> probability.
         scorer = TextScorer(self.dummy_network, use_shortlist=False)
         word_ids = numpy.arange(15)

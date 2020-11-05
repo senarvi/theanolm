@@ -11,12 +11,30 @@ from theanolm.network import RecurrentState
 
 class TestRecurrentState(unittest.TestCase):
     def setUp(self):
+        """
+        Sets the result of this thread.
+
+        Args:
+            self: (todo): write your description
+        """
         pass
 
     def tearDown(self):
+        """
+        Tear down the next callable.
+
+        Args:
+            self: (todo): write your description
+        """
         pass
 
     def test_init(self):
+        """
+        Method to initialize eigenvalue.
+
+        Args:
+            self: (todo): write your description
+        """
         state = RecurrentState([200, 100, 300], 3)
         self.assertEqual(len(state.get()), 3)
         self.assertEqual(state.get(0).shape, (1,3,200))
@@ -33,6 +51,12 @@ class TestRecurrentState(unittest.TestCase):
         assert_equal(state.get(1), layer2_state)
 
     def test_set(self):
+        """
+        Set the test state.
+
+        Args:
+            self: (todo): write your description
+        """
         state = RecurrentState([5, 10], 3)
         layer1_state = numpy.arange(15, dtype='int64').reshape((1, 3, 5))
         layer2_state = numpy.arange(30, dtype='int64').reshape((1, 3, 10))
@@ -44,6 +68,12 @@ class TestRecurrentState(unittest.TestCase):
             state.set([layer2_state, layer1_state])
 
     def test_combine_sequences(self):
+        """
+        Combine the sequences.
+
+        Args:
+            self: (todo): write your description
+        """
         state1 = RecurrentState([5, 10], 1)
         layer1_state = numpy.arange(5, dtype='int64').reshape(1, 1, 5)
         layer2_state = numpy.arange(10, 20, dtype='int64').reshape(1, 1, 10)

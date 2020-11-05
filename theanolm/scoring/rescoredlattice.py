@@ -195,6 +195,12 @@ class RescoredLattice(Lattice):
         """
 
         def next_words(link):
+            """
+            Return the next link.
+
+            Args:
+                link: (todo): write your description
+            """
             if link.word is None:
                 return [word
                         for next_link in link.end_node.out_links

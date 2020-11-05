@@ -28,6 +28,13 @@ class BidirectionalLayer(object):
     """
 
     def __init__(self, layer_options, *args, **kwargs):
+        """
+        Initialize the network_options.
+
+        Args:
+            self: (todo): write your description
+            layer_options: (todo): write your description
+        """
         layer_type = layer_options['type']
         self.name = layer_options['name']
         if 'size' in layer_options:

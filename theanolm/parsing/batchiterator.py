@@ -50,6 +50,12 @@ class BatchIterator(object, metaclass=ABCMeta):
         self._end_of_file = False
 
     def __iter__(self):
+        """
+        Returns an iterator over the iterable.
+
+        Args:
+            self: (todo): write your description
+        """
         return self
 
     def __next__(self):

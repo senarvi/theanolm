@@ -9,14 +9,32 @@ from theanolm import Vocabulary
 
 class TestStatistics(unittest.TestCase):
     def setUp(self):
+        """
+        Sets the script script_file.
+
+        Args:
+            self: (todo): write your description
+        """
         script_path = os.path.dirname(os.path.realpath(__file__))
         sentences_path = os.path.join(script_path, 'sentences4.txt')
         self.sentences_file = open(sentences_path)
 
     def tearDown(self):
+        """
+        Close the sentence.
+
+        Args:
+            self: (todo): write your description
+        """
         self.sentences_file.close()
 
     def test_compute_word_counts(self):
+        """
+        Parameters ---------- sentence_counts : np. array.
+
+        Args:
+            self: (todo): write your description
+        """
         self.sentences_file.seek(0)
         word_counts = compute_word_counts([self.sentences_file])
         self.assertEqual(word_counts['a'], 13)
@@ -28,6 +46,12 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(word_counts['</s>'], 11)
 
     def test_bigram_statistics(self):
+        """
+        Parameters ---------- sentence_file : str
+
+        Args:
+            self: (todo): write your description
+        """
         self.sentences_file.seek(0)
         word_counts = compute_word_counts([self.sentences_file])
         self.vocabulary = Vocabulary.from_word_counts(word_counts)

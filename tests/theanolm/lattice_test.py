@@ -13,15 +13,33 @@ from theanolm.scoring.kaldilattice import KaldiLattice, read_kaldi_vocabulary
 
 class TestLattice(unittest.TestCase):
     def setUp(self):
+        """
+        Sets the watcher.
+
+        Args:
+            self: (todo): write your description
+        """
         script_path = os.path.dirname(os.path.realpath(__file__))
         self.slf_path = os.path.join(script_path, 'lattice.slf')
         self.lat_path = os.path.join(script_path, 'lattice.lat')
         self.wordmap_path = os.path.join(script_path, 'words.txt')
 
     def tearDown(self):
+        """
+        Tear down the next callable.
+
+        Args:
+            self: (todo): write your description
+        """
         pass
 
     def test_split_slf_line(self):
+        """
+        Test for fields in fields
+
+        Args:
+            self: (todo): write your description
+        """
         fields = _split_slf_line('name=value '
                                  'name="va lue" '
                                  'WORD=\\"QUOTE '
@@ -32,12 +50,24 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(fields[3], "WORD='CAUSE")
 
     def test_split_slf_field(self):
+        """
+        Todo_split. split_split_split.
+
+        Args:
+            self: (todo): write your description
+        """
         lattice = SLFLattice(None)
         name, value = _split_slf_field("name=va 'lue")
         self.assertEqual(name, 'name')
         self.assertEqual(value, "va 'lue")
 
     def test_read_slf_header(self):
+        """
+        Read the exposure header
+
+        Args:
+            self: (todo): write your description
+        """
         lattice = SLFLattice(None)
         lattice._read_slf_header(['UTTERANCE=utterance #123'])
         self.assertEqual(lattice.utterance_id, 'utterance #123')
@@ -58,6 +88,12 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(lattice._num_links, 9)
 
     def test_read_slf_node(self):
+        """
+        Reads a lattice > element
+
+        Args:
+            self: (todo): write your description
+        """
         lattice = SLFLattice(None)
         lattice.nodes = [Lattice.Node(id) for id in range(5)]
         lattice._read_slf_node(0, [])
@@ -74,6 +110,12 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(lattice.nodes[4].word, 'word')
 
     def test_read_slf_link(self):
+        """
+        Test for a lattice link
+
+        Args:
+            self: (todo): write your description
+        """
         lattice = SLFLattice(None)
         lattice.nodes = [Lattice.Node(id) for id in range(4)]
         lattice.links = []
@@ -122,6 +164,12 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(lattice.nodes[3].in_links[1].start_node.time, 1.0)
 
     def test_move_words_to_links(self):
+        """
+        Move links to links
+
+        Args:
+            self: (todo): write your description
+        """
         lattice = SLFLattice(None)
         lattice.nodes = [Lattice.Node(id) for id in range(5)]
         lattice.nodes[0].word = 'A'
@@ -146,6 +194,12 @@ class TestLattice(unittest.TestCase):
             self.assertFalse(hasattr(node, 'word'))
 
     def test_sorted_nodes(self):
+        """
+        Test if all nodes in the same
+
+        Args:
+            self: (todo): write your description
+        """
         lattice = Lattice()
         lattice.nodes = [Lattice.Node(id) for id in range(9)]
         lattice.nodes[0].time = 0.0
@@ -189,6 +243,13 @@ class TestLattice(unittest.TestCase):
             lattice = SLFLattice(lattice_file)
 
         def reachable(initial_node, node):
+            """
+            Return true if node is reachable.
+
+            Args:
+                initial_node: (todo): write your description
+                node: (todo): write your description
+            """
             result = False
             for link in initial_node.out_links:
                 if link.end_node is node:
@@ -202,6 +263,12 @@ class TestLattice(unittest.TestCase):
                 self.assertFalse(reachable(right_node, left_node))
 
     def test_read_kaldi_vocabulary(self):
+        """
+        Parameters ---------- wordmap file.
+
+        Args:
+            self: (todo): write your description
+        """
         with open(self.wordmap_path, 'r') as wordmap_file:
             word_to_id = read_kaldi_vocabulary(wordmap_file)
         self.assertEqual(len(word_to_id), 14)
@@ -211,6 +278,12 @@ class TestLattice(unittest.TestCase):
         self.assertEqual(word_to_id['to'], 13)
 
     def test_slf_to_kaldi(self):
+        """
+        Test for kaldi kaldi kaldi kaldi kaldi.
+
+        Args:
+            self: (todo): write your description
+        """
         with open(self.wordmap_path, 'r') as wordmap_file:
             word_to_id = read_kaldi_vocabulary(wordmap_file)
         id_to_word = [None] * len(word_to_id)
@@ -226,6 +299,12 @@ class TestLattice(unittest.TestCase):
         self._assert_lattice_is_correct(lattice)
 
     def test_kaldi_to_slf(self):
+        """
+        Read kaldi kaldi kaldi kaldi kaldi.
+
+        Args:
+            self: (todo): write your description
+        """
         with open(self.wordmap_path, 'r') as wordmap_file:
             word_to_id = read_kaldi_vocabulary(wordmap_file)
         id_to_word = [None] * len(word_to_id)
@@ -242,6 +321,13 @@ class TestLattice(unittest.TestCase):
         self._assert_lattice_is_correct(lattice)
 
     def _assert_lattice_is_correct(self, lattice):
+        """
+        Assign a lattice element.
+
+        Args:
+            self: (todo): write your description
+            lattice: (todo): write your description
+        """
         self.assertEqual(lattice.utterance_id, 'utterance 123')
         self.assertEqual(len(lattice.nodes), 24)
         self.assertEqual(len(lattice.links), 39)

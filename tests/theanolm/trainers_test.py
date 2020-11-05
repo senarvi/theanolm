@@ -10,12 +10,30 @@ class DummyTrainer(object):
 
 class TestTrainers(unittest.TestCase):
     def setUp(self):
+        """
+        Sets the dummy.
+
+        Args:
+            self: (todo): write your description
+        """
         self.dummy_trainer = DummyTrainer()
 
     def tearDown(self):
+        """
+        Tear down the next callable.
+
+        Args:
+            self: (todo): write your description
+        """
         pass
 
     def test_is_scheduled(self):
+        """
+        Test if the scheduler is scheduled.
+
+        Args:
+            self: (todo): write your description
+        """
         self.dummy_trainer._updates_per_epoch = 9
         self.dummy_trainer.update_number = 1
         self.assertFalse(Trainer._is_scheduled(self.dummy_trainer, 2))

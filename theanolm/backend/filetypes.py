@@ -24,9 +24,23 @@ class TextFileType(object):
     """
 
     def __init__(self, mode='r'):
+        """
+        Initialize a mode.
+
+        Args:
+            self: (todo): write your description
+            mode: (todo): write your description
+        """
         self._mode = mode
 
     def __call__(self, string):
+        """
+        Call the given string.
+
+        Args:
+            self: (todo): write your description
+            string: (str): write your description
+        """
         if string is None:
             return None
 
@@ -52,6 +66,12 @@ class TextFileType(object):
             raise argparse.ArgumentTypeError(str(e))
 
     def __repr__(self):
+        """
+        Return a repr representation of this object.
+
+        Args:
+            self: (todo): write your description
+        """
         return '%s(%s)' % (type(self).__name__, self._mode)
 
 class BinaryFileType(object):
@@ -69,9 +89,23 @@ class BinaryFileType(object):
     """
 
     def __init__(self, mode='r'):
+        """
+        Initialize a mode.
+
+        Args:
+            self: (todo): write your description
+            mode: (todo): write your description
+        """
         self._mode = mode
 
     def __call__(self, string):
+        """
+        Call the given string.
+
+        Args:
+            self: (todo): write your description
+            string: (str): write your description
+        """
         if string is None:
             return None
 
@@ -97,4 +131,10 @@ class BinaryFileType(object):
             raise argparse.ArgumentTypeError(str(e))
 
     def __repr__(self):
+        """
+        Return a repr representation of this object.
+
+        Args:
+            self: (todo): write your description
+        """
         return '%s(%s)' % (type(self).__name__, self._mode)

@@ -37,6 +37,13 @@ sys.path.insert(0, root_dir)
 class Mock(MagicMock):
     @classmethod
     def __getattr__(classname, x):
+        """
+        Return the value of a classname.
+
+        Args:
+            classname: (str): write your description
+            x: (str): write your description
+        """
         if x == "_mock_methods":
             return x._mock_methods
         else:
@@ -70,6 +77,12 @@ def create_apidoc(_):
          tests_dir])
 
 def setup(app):
+    """
+    Setup the extension.
+
+    Args:
+        app: (todo): write your description
+    """
     app.connect('builder-inited', create_apidoc)
 
 # -- General configuration ------------------------------------------------

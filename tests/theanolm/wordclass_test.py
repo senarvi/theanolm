@@ -7,9 +7,21 @@ from theanolm.vocabulary.wordclass import WordClass
 
 class TestWordClass(unittest.TestCase):
     def setUp(self):
+        """
+        Sets the result of this thread.
+
+        Args:
+            self: (todo): write your description
+        """
         pass
 
     def test_normalize_probs(self):
+        """
+        Normalize the projection.
+
+        Args:
+            self: (todo): write your description
+        """
         word_class = WordClass(1, 10, 0.5)
         word_class.add(11, 1.0)
         word_class.add(12, 0.5)

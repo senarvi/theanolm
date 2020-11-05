@@ -10,43 +10,109 @@ from theanolm.network.basiclayer import BasicLayer
 
 class DummyParameters(object):
     def __init__(self):
+        """
+        Initialize device properties.
+
+        Args:
+            self: (todo): write your description
+        """
         self._vars = dict()
         self._devs = dict()
 
     def __getitem__(self, path):
+        """
+        Return the value of a given path.
+
+        Args:
+            self: (todo): write your description
+            path: (str): write your description
+        """
         return self._vars[path]
 
     def add(self, path, value, device=None):
+        """
+        Add a device path.
+
+        Args:
+            self: (todo): write your description
+            path: (str): write your description
+            value: (todo): write your description
+            device: (int): write your description
+        """
         self._vars[path] = value
         self._devs[path] = device
 
     def get_device(self, path):
+        """
+        Get the device.
+
+        Args:
+            self: (todo): write your description
+            path: (str): write your description
+        """
         return self._devs[path]
 
 class DummyLayer(BasicLayer):
     def __init__(self, layer_options):
+        """
+        Initialize layer_options.
+
+        Args:
+            self: (todo): write your description
+            layer_options: (todo): write your description
+        """
         super().__init__(layer_options, None)
         self._params = DummyParameters()
 
     def create_structure(self):
+        """
+        Creates a structure.
+
+        Args:
+            self: (todo): write your description
+        """
         pass
 
 class TestBasicLayer(unittest.TestCase):
     def setUp(self):
+        """
+        Set layer options.
+
+        Args:
+            self: (todo): write your description
+        """
         self.layer_options = dict()
         self.layer_options['name'] = 'layer_name'
         self.layer_options['input_layers'] = []
         self.layer_options['devices'] = ['dev0', 'dev1', 'dev2']
 
     def tearDown(self):
+        """
+        Tear down the next callable.
+
+        Args:
+            self: (todo): write your description
+        """
         pass
 
     def test_param_path(self):
+        """
+        Set the path of the layer.
+
+        Args:
+            self: (todo): write your description
+        """
         layer = DummyLayer(self.layer_options)
         self.assertEqual(layer._param_path('var1'), 'layers/layer_name/var1')
         self.assertEqual(layer._param_path('var2', 'dev1'), 'layers/layer_name/var2/dev1')
 
     def test_get_param(self):
+        """
+        Method to make a new test layer.
+
+        Args:
+            self: (todo): write your description
+        """
         layer = DummyLayer(self.layer_options)
         layer._params.add('layers/layer_name/var1', 1)
         layer._params.add('layers/layer_name/var2', 2)
@@ -58,6 +124,12 @@ class TestBasicLayer(unittest.TestCase):
         self.assertEqual(layer._get_param('var3', 'dev2'), 4)
 
     def test_init_weight(self):
+        """
+        Initialize the weights.
+
+        Args:
+            self: (todo): write your description
+        """
         layer = DummyLayer(self.layer_options)
 
         # standard normal distribution
@@ -108,6 +180,12 @@ class TestBasicLayer(unittest.TestCase):
         self.assertEqual(layer._params.get_device('layers/layer_name/weight6/dev2'), 'dev2')
 
     def test_init_bias(self):
+        """
+        Test for the bias.
+
+        Args:
+            self: (todo): write your description
+        """
         layer = DummyLayer(self.layer_options)
 
         # zeros
@@ -153,6 +231,12 @@ class TestBasicLayer(unittest.TestCase):
         self.assertEqual(layer._params.get_device('layers/layer_name/bias5/dev2'), 'dev2')
 
     def test_split_per_device(self):
+        """
+        Split the device splits.
+
+        Args:
+            self: (todo): write your description
+        """
         layer = DummyLayer(self.layer_options)
         ranges = layer._split_per_device(10)
         self.assertEqual(len(ranges), 3)
