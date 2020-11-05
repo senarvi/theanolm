@@ -11,12 +11,30 @@ from theanolm.backend import l1_norm, sum_of_squares
 
 class Test(unittest.TestCase):
     def setUp(self):
+        """
+        Sets the result of this thread.
+
+        Args:
+            self: (todo): write your description
+        """
         pass
 
     def tearDown(self):
+        """
+        Tear down the next callable.
+
+        Args:
+            self: (todo): write your description
+        """
         pass
 
     def test_conv1d(self):
+        """
+        Test for a 2d tensor.
+
+        Args:
+            self: (todo): write your description
+        """
         x_tensor = tensor.tensor3("x")
         filter_tensor = tensor.tensor3("filter")
         y_tensor = conv1d(x_tensor, filter_tensor)
@@ -55,6 +73,12 @@ class Test(unittest.TestCase):
                                      list(feature1_middle))
 
     def test_conv2d(self):
+        """
+        Convert 2d tensor to 2d tensor.
+
+        Args:
+            self: (todo): write your description
+        """
         x_tensor = tensor.tensor4("x")
         filter_tensor = tensor.tensor4("filter")
         y_tensor = conv2d(x_tensor, filter_tensor, padding="same")
@@ -75,6 +99,12 @@ class Test(unittest.TestCase):
         self.assertEqual(y.shape[3], 7)
 
     def test_l1_norm(self):
+        """
+        Test if the norm of the l1 norm.
+
+        Args:
+            self: (todo): write your description
+        """
         a_tensor = tensor.matrix("a")
         b_tensor = tensor.matrix("b")
         y_tensor = l1_norm([a_tensor, b_tensor])
@@ -87,6 +117,12 @@ class Test(unittest.TestCase):
         self.assertEqual(y, numpy.arange(13).sum())
 
     def test_sum_of_squares(self):
+        """
+        Test the sum of the sum of the tensors.
+
+        Args:
+            self: (todo): write your description
+        """
         a_tensor = tensor.matrix("a")
         b_tensor = tensor.matrix("b")
         y_tensor = sum_of_squares([a_tensor, b_tensor])

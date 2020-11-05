@@ -22,6 +22,14 @@ class DummyNetwork(object):
     """
 
     def __init__(self, vocabulary, projection_vector):
+        """
+        Initialize the vocab.
+
+        Args:
+            self: (todo): write your description
+            vocabulary: (todo): write your description
+            projection_vector: (todo): write your description
+        """
         self.vocabulary = vocabulary
         self.input_word_ids = tensor.matrix('input_word_ids', dtype='int64')
         self.input_class_ids = tensor.matrix('input_class_ids', dtype='int64')
@@ -34,6 +42,12 @@ class DummyNetwork(object):
         self.projection_vector = projection_vector
 
     def target_probs(self):
+        """
+        Return the target probabilities.
+
+        Args:
+            self: (todo): write your description
+        """
         num_time_steps = self.input_word_ids.shape[0]
         num_sequences = self.input_word_ids.shape[1]
         result = self.projection_vector[self.input_word_ids.flatten()]
@@ -45,6 +59,12 @@ class DummyNetwork(object):
 
 class DummyLatticeDecoder(LatticeDecoder):
     def __init__(self):
+        """
+        Initialize a list of tokens.
+
+        Args:
+            self: (todo): write your description
+        """
         self._sorted_nodes = [Lattice.Node(id) for id in range(5)]
         self._sorted_nodes[0].time = 0.0
         self._sorted_nodes[1].time = 1.0
@@ -78,6 +98,12 @@ class DummyLatticeDecoder(LatticeDecoder):
 
 class TestLatticeDecoder(unittest.TestCase):
     def setUp(self):
+        """
+        Set the vocab.
+
+        Args:
+            self: (todo): write your description
+        """
         self.maxDiff = None
         script_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -131,9 +157,21 @@ class TestLatticeDecoder(unittest.TestCase):
             self.lattice = SLFLattice(lattice_file)
 
     def tearDown(self):
+        """
+        Tear down the next callable.
+
+        Args:
+            self: (todo): write your description
+        """
         pass
 
     def test_copy_token(self):
+        """
+        Copy a token.
+
+        Args:
+            self: (todo): write your description
+        """
         history = (1, 2, 3)
         token1 = LatticeDecoder.Token(history)
         token2 = LatticeDecoder.Token.copy(token1)
@@ -142,6 +180,12 @@ class TestLatticeDecoder(unittest.TestCase):
         self.assertSequenceEqual(token2.history, (1, 2, 3, 4))
 
     def test_recompute_hash(self):
+        """
+        Computes the hash of the given token.
+
+        Args:
+            self: (todo): write your description
+        """
         token1 = LatticeDecoder.Token(history=(1, 12, 203, 3004, 23455))
         token2 = LatticeDecoder.Token(history=(2, 12, 203, 3004, 23455))
         token1.recompute_hash(None)
@@ -155,6 +199,12 @@ class TestLatticeDecoder(unittest.TestCase):
         self.assertEqual(token1.recombination_hash, token2.recombination_hash)
 
     def test_recompute_total(self):
+        """
+        Compute the total probability.
+
+        Args:
+            self: (todo): write your description
+        """
         token = LatticeDecoder.Token(history=[1, 2],
                                      ac_logprob=math.log(0.1),
                                      lat_lm_logprob=math.log(0.2),
@@ -199,6 +249,12 @@ class TestLatticeDecoder(unittest.TestCase):
         assert_almost_equal(token.total_logprob, -2001.64263, decimal=4)
 
     def test_append_word(self):
+        """
+        Append a new word to the batch.
+
+        Args:
+            self: (todo): write your description
+        """
         decoding_options = {
             'nnlm_weight': 1.0,
             'lm_scale': 1.0,
@@ -269,6 +325,12 @@ class TestLatticeDecoder(unittest.TestCase):
         self.assertAlmostEqual(token2.nn_lm_logprob, token2_nn_lm_logprob)
 
     def test_prune(self):
+        """
+        Prune the hash of a decoder.
+
+        Args:
+            self: (todo): write your description
+        """
         # token recombination
         decoder = DummyLatticeDecoder()
         decoder._max_tokens_per_node = None
@@ -335,6 +397,12 @@ class TestLatticeDecoder(unittest.TestCase):
         self.assertEqual(decoder._tokens[2][0].total_logprob, -30)
 
     def test_decode(self):
+        """
+        Decodes the network.
+
+        Args:
+            self: (todo): write your description
+        """
         vocabulary = Vocabulary.from_word_counts({
             'to': 1,
             'and': 1,

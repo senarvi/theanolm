@@ -86,6 +86,14 @@ class Network(object):
                            the next time step.
         """
         def __init__(self, minibatch=True, nce=False):
+            """
+            Initialize the gradient
+
+            Args:
+                self: (todo): write your description
+                minibatch: (int): write your description
+                nce: (int): write your description
+            """
             self.minibatch = minibatch
             self.nce = nce
 

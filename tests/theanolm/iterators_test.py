@@ -15,6 +15,12 @@ from theanolm.parsing.functions import find_sentence_starts
 
 class TestIterators(unittest.TestCase):
     def setUp(self):
+        """
+        Set sentences tomodels.
+
+        Args:
+            self: (todo): write your description
+        """
         script_path = os.path.dirname(os.path.realpath(__file__))
         sentences1_path = os.path.join(script_path, 'sentences1.txt')
         sentences2_path = os.path.join(script_path, 'sentences2.txt')
@@ -32,12 +38,24 @@ class TestIterators(unittest.TestCase):
                                  oos_words=['yksitoista'])
 
     def tearDown(self):
+        """
+        Tear down sentences.
+
+        Args:
+            self: (todo): write your description
+        """
         self.sentences1_file.close()
         self.sentences2_file.close()
         self.sentences3_file.close()
         self.vocabulary_file.close()
 
     def test_find_sentence_starts(self):
+        """
+        Compare two sentence sentences that sentence.
+
+        Args:
+            self: (todo): write your description
+        """
         sentences1_mmap = mmap.mmap(self.sentences1_file.fileno(),
                                     0,
                                     access=mmap.ACCESS_READ)
@@ -71,6 +89,12 @@ class TestIterators(unittest.TestCase):
         self.sentences2_file.seek(0)
 
     def test_shuffling_batch_iterator(self):
+        """
+        Create a batch of sentences.
+
+        Args:
+            self: (todo): write your description
+        """
         iterator = ShufflingBatchIterator([self.sentences1_file,
                                            self.sentences2_file],
                                           [],
@@ -179,6 +203,12 @@ class TestIterators(unittest.TestCase):
         self._assert_shortlist_counts(word_counts)
 
     def test_linear_batch_iterator(self):
+        """
+        Loads a batch of sentences.
+
+        Args:
+            self: (todo): write your description
+        """
         iterator = LinearBatchIterator(self.sentences1_file,
                                                 self.vocabulary,
                                                 batch_size=2,
@@ -258,6 +288,12 @@ class TestIterators(unittest.TestCase):
         self._assert_shortlist_counts(word_counts)
 
     def test_scoring_batch_iterator(self):
+        """
+        Parameters ---------- batch_size : ints
+
+        Args:
+            self: (todo): write your description
+        """
         iterator = ScoringBatchIterator(self.sentences1_file,
                                         self.vocabulary,
                                         batch_size=2,

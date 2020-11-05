@@ -9,12 +9,30 @@ from theanolm.commands.score import _merge_subwords
 
 class TestScore(unittest.TestCase):
     def setUp(self):
+        """
+        Sets the result of this thread.
+
+        Args:
+            self: (todo): write your description
+        """
         pass
 
     def tearDown(self):
+        """
+        Tear down the next callable.
+
+        Args:
+            self: (todo): write your description
+        """
         pass
 
     def test_merge_subwords(self):
+        """
+        Merge the subwords.
+
+        Args:
+            self: (todo): write your description
+        """
         # word vocabulary
         subwords = ['<s>', 'aaa', 'bbb', 'ccc', 'ddd', '</s>']
         subword_logprobs = [0.0, 0.1, 0.2, 0.3, 0.4]

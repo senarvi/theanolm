@@ -13,6 +13,13 @@ from theanolm import Vocabulary, TextSampler
 
 class DummyNetwork(object):
     def __init__(self, vocabulary):
+        """
+        Initialize the tensor.
+
+        Args:
+            self: (todo): write your description
+            vocabulary: (todo): write your description
+        """
         self.vocabulary = vocabulary
 
         self.input_word_ids = tensor.matrix('input_word_ids', dtype='int64')
@@ -36,6 +43,12 @@ class DummyNetwork(object):
         self.random = RandomStreams()
 
     def output_probs(self):
+        """
+        Outputs : py : [ n_probs.
+
+        Args:
+            self: (todo): write your description
+        """
         sos_id = self.vocabulary.word_to_id['<s>']
         yksi_id = self.vocabulary.word_to_id['yksi']
         kaksi_id = self.vocabulary.word_to_id['kaksi']
@@ -62,6 +75,12 @@ class DummyNetwork(object):
 
 class TestTextSampler(unittest.TestCase):
     def setUp(self):
+        """
+        Set the vocab configuration.
+
+        Args:
+            self: (todo): write your description
+        """
         theano.config.compute_test_value = 'warn'
 
         script_path = os.path.dirname(os.path.realpath(__file__))
@@ -71,9 +90,21 @@ class TestTextSampler(unittest.TestCase):
         self.dummy_network = DummyNetwork(self.vocabulary)
 
     def tearDown(self):
+        """
+        Tear down the next callable.
+
+        Args:
+            self: (todo): write your description
+        """
         pass
 
     def test_generate(self):
+        """
+        Generate a sampler
+
+        Args:
+            self: (todo): write your description
+        """
         # Network predicts <unk> probability.
         sampler = TextSampler(self.dummy_network)
         words = sampler.generate(50, 10)

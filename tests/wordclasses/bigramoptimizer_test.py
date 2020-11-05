@@ -13,6 +13,12 @@ from theanolm.vocabulary import compute_word_counts, BigramStatistics
 
 class TestBigramOptimizer(unittest.TestCase):
     def setUp(self):
+        """
+        Set the sentence.
+
+        Args:
+            self: (todo): write your description
+        """
         theano.config.compute_test_value = 'warn'
 
         script_path = os.path.dirname(os.path.realpath(__file__))
@@ -26,9 +32,23 @@ class TestBigramOptimizer(unittest.TestCase):
         self.statistics = BigramStatistics([self.sentences_file], self.vocabulary)
 
     def tearDown(self):
+        """
+        Close the sentence.
+
+        Args:
+            self: (todo): write your description
+        """
         self.sentences_file.close()
 
     def assert_optimizers_equal(self, numpy_optimizer, theano_optimizer):
+        """
+        Asserts that the optimizers.
+
+        Args:
+            self: (todo): write your description
+            numpy_optimizer: (int): write your description
+            theano_optimizer: (bool): write your description
+        """
         self.assertTrue(numpy.array_equal(numpy_optimizer._word_counts, theano_optimizer._word_counts.get_value()))
         self.assertEqual((numpy_optimizer._ww_counts - theano_optimizer._ww_counts.get_value()).nnz, 0)
         self.assertTrue(numpy.array_equal(numpy_optimizer._class_counts, theano_optimizer._class_counts.get_value()))
@@ -37,6 +57,12 @@ class TestBigramOptimizer(unittest.TestCase):
         self.assertTrue(numpy.array_equal(numpy_optimizer._wc_counts, theano_optimizer._wc_counts.get_value()))
 
     def test_statistics(self):
+        """
+        Parameters ---------- num_words : array.
+
+        Args:
+            self: (todo): write your description
+        """
         num_words = 8
         theano_optimizer = TheanoBigramOptimizer(self.statistics, self.vocabulary)
         numpy_optimizer = NumpyBigramOptimizer(self.statistics, self.vocabulary)
@@ -78,6 +104,12 @@ class TestBigramOptimizer(unittest.TestCase):
         self.assertEqual(numpy_optimizer._wc_counts.shape[1], self.num_classes + 3)
 
     def test_move_and_back(self):
+        """
+        Move back back - wise back to numpy.
+
+        Args:
+            self: (todo): write your description
+        """
         numpy_optimizer = NumpyBigramOptimizer(self.statistics, self.vocabulary)
         theano_optimizer = TheanoBigramOptimizer(self.statistics, self.vocabulary)
 
@@ -112,6 +144,12 @@ class TestBigramOptimizer(unittest.TestCase):
         self.assertTrue(numpy.array_equal(numpy_optimizer._wc_counts, orig_wc_counts))
 
     def test_move_and_recompute(self):
+        """
+        Test and move - wise statistics.
+
+        Args:
+            self: (todo): write your description
+        """
         optimizer1 = NumpyBigramOptimizer(self.statistics, self.vocabulary)
         word_id = self.vocabulary.word_to_id['d']
         orig_class_id = optimizer1.get_word_class(word_id)
@@ -159,6 +197,12 @@ class TestBigramOptimizer(unittest.TestCase):
         self.assert_optimizers_equal(optimizer2, optimizer3)
 
     def test_evaluate(self):
+        """
+        Evaluate the model.
+
+        Args:
+            self: (todo): write your description
+        """
         numpy_optimizer = NumpyBigramOptimizer(self.statistics, self.vocabulary)
         theano_optimizer = TheanoBigramOptimizer(self.statistics, self.vocabulary)
         word_id = numpy_optimizer.get_word_id('d')

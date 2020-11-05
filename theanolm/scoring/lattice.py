@@ -144,6 +144,12 @@ class Lattice(object):
         """
 
         def write_normal_link(link):
+            """
+            Write link link to the link.
+
+            Args:
+                link: (str): write your description
+            """
             word = link.word
             if word is None:
                 word = "<eps>"
@@ -156,6 +162,12 @@ class Lattice(object):
                 link.transitions))
 
         def write_final_link(link):
+            """
+            Write link link to link link.
+
+            Args:
+                link: (str): write your description
+            """
             output_file.write("{} {},{},{}\n".format(
                 link.start_node.id,
                 -link.lm_logprob + 0.0,

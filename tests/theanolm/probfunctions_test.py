@@ -8,12 +8,30 @@ from theanolm.backend.probfunctions import *
 
 class TestProbFunctions(unittest.TestCase):
     def setUp(self):
+        """
+        Sets the result of this thread.
+
+        Args:
+            self: (todo): write your description
+        """
         pass
 
     def tearDown(self):
+        """
+        Tear down the next callable.
+
+        Args:
+            self: (todo): write your description
+        """
         pass
 
     def test_interpolate_linear(self):
+        """
+        Interpolate linear interpolation.
+
+        Args:
+            self: (todo): write your description
+        """
         self.assertAlmostEqual(
             interpolate_linear(numpy.log(0.2), numpy.log(0.3), numpy.float(0.25)),
             numpy.log(0.25 * 0.2 + 0.75 * 0.3))
@@ -35,6 +53,12 @@ class TestProbFunctions(unittest.TestCase):
             places=4)
 
     def test_interpolate_loglinear(self):
+        """
+        Interpolate the log - likelihood.
+
+        Args:
+            self: (todo): write your description
+        """
         self.assertEqual(
             interpolate_loglinear(numpy.float(-1001), numpy.float(-1002),
                                   numpy.float(0.25), numpy.float(0.75)),

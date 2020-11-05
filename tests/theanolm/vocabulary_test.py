@@ -12,6 +12,12 @@ from theanolm.vocabulary import Vocabulary, compute_word_counts
 
 class TestVocabulary(unittest.TestCase):
     def setUp(self):
+        """
+        Sets the sentences of the vocabulary.
+
+        Args:
+            self: (todo): write your description
+        """
         script_path = path.dirname(path.realpath(__file__))
         sentences1_path = path.join(script_path, 'sentences1.txt')
         sentences2_path = path.join(script_path, 'sentences2.txt')
@@ -26,6 +32,12 @@ class TestVocabulary(unittest.TestCase):
         self.classes_file = open(classes_path)
 
     def tearDown(self):
+        """
+        Tear down sentences.
+
+        Args:
+            self: (todo): write your description
+        """
         self.sentences1_file.close()
         self.sentences2_file.close()
         self.sentences3_file.close()
@@ -33,6 +45,12 @@ class TestVocabulary(unittest.TestCase):
         self.classes_file.close()
 
     def test_from_file(self):
+        """
+        Create a vocab from a file.
+
+        Args:
+            self: (todo): write your description
+        """
         self.vocabulary_file.seek(0)
         vocabulary = Vocabulary.from_file(self.vocabulary_file, 'words')
         self.assertEqual(vocabulary.num_words(), 10 + 3)
@@ -48,6 +66,12 @@ class TestVocabulary(unittest.TestCase):
         self.assertEqual(vocabulary.num_classes(), 10 + 3)
 
     def test_from_word_counts(self):
+        """
+        Reads the word vectors from a file.
+
+        Args:
+            self: (todo): write your description
+        """
         self.sentences1_file.seek(0)
         word_counts = compute_word_counts([self.sentences1_file])
         vocabulary = Vocabulary.from_word_counts(word_counts)
@@ -86,6 +110,12 @@ class TestVocabulary(unittest.TestCase):
         self.assertEqual(class_ids, set(range(3)))
 
     def test_from_state(self):
+        """
+        Computes the vocabulary.
+
+        Args:
+            self: (todo): write your description
+        """
         self.classes_file.seek(0)
         vocabulary1 = Vocabulary.from_file(self.classes_file, 'srilm-classes')
         word_counts = compute_word_counts([self.sentences1_file,
@@ -106,6 +136,12 @@ class TestVocabulary(unittest.TestCase):
                                           vocabulary2._unigram_probs))
 
     def test_class_ids(self):
+        """
+        Test if the class labels.
+
+        Args:
+            self: (todo): write your description
+        """
         self.classes_file.seek(0)
         vocabulary = Vocabulary.from_file(self.classes_file, 'srilm-classes')
         word_id = vocabulary.word_to_id['yksi']
@@ -124,6 +160,12 @@ class TestVocabulary(unittest.TestCase):
         self.assertEqual(kaksi_class_id, eos_class_id)
 
     def test_compute_probs(self):
+        """
+        Parameters ---------- word_file.
+
+        Args:
+            self: (todo): write your description
+        """
         self.classes_file.seek(0)
         vocabulary = Vocabulary.from_file(self.classes_file, 'srilm-classes')
         word_counts = compute_word_counts([self.sentences1_file,
@@ -186,6 +228,12 @@ class TestVocabulary(unittest.TestCase):
         self.assertAlmostEqual(vocabulary.get_word_prob(word_id), 1.0)
 
     def test_get_class_memberships(self):
+        """
+        Computes clasships.
+
+        Args:
+            self: (todo): write your description
+        """
         vocabulary = Vocabulary.from_file(self.classes_file, 'srilm-classes',
                                           oos_words=['yksitoista'])
         word_ids = numpy.array([vocabulary.word_to_id['yksi'],
@@ -235,6 +283,12 @@ class TestVocabulary(unittest.TestCase):
                                     1.0])
 
     def test_get_oos_probs(self):
+        """
+        Calculate predictions for each word probabilities.
+
+        Args:
+            self: (todo): write your description
+        """
         oos_words = ['yksitoista', 'kaksitoista']
         self.vocabulary_file.seek(0)
         vocabulary = Vocabulary.from_file(self.vocabulary_file, 'words',
@@ -250,6 +304,12 @@ class TestVocabulary(unittest.TestCase):
                                            0.3, 0.7])
 
     def test_get_class_probs(self):
+        """
+        Return the class probabilities.
+
+        Args:
+            self: (todo): write your description
+        """
         word_counts = {'yksi': 1, 'kaksi': 2, 'kolme': 3, 'neljä': 4,
                        'viisi': 5, 'kuusi': 6, 'seitsemän': 7, 'kahdeksan': 8,
                        'yhdeksän': 9, 'kymmenen': 10, '<s>': 11, '</s>': 12,

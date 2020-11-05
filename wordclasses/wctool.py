@@ -38,6 +38,11 @@ def save(optimizer, output_file, output_format):
             output_file.write('CLASS-{:05d} {} {}\n'.format(class_id, prob, word))
 
 def main():
+    """
+    Main function.
+
+    Args:
+    """
     parser = argparse.ArgumentParser(prog='wctool')
 
     argument_group = parser.add_argument_group("files")

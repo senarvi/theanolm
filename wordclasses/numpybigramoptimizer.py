@@ -173,6 +173,14 @@ class NumpyBigramOptimizer(BigramOptimizer):
         return result
 
     def _ll_change(self, old_count, new_count):
+        """
+        Return a copy of the old count.
+
+        Args:
+            self: (todo): write your description
+            old_count: (str): write your description
+            new_count: (str): write your description
+        """
         result = 0
         if old_count != 0:
             result -= old_count * numpy.log(old_count)
